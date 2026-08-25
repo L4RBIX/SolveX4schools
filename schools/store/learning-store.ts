@@ -75,7 +75,11 @@ export class LearningStore {
    * later without the account being retroactively handed someone else's
    * history — the migration's own comment calls this "merge, never reassign".
    */
-  async resolveSubject(anonId: string, cohort: Cohort = "public"): Promise<string> {
+  async resolveSubject(
+    anonId: string,
+    cohort: Cohort = "public",
+    scope?: { schoolId: string; classId: string },
+  ): Promise<string> {
     const existing = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
         where alias_kind = 'anon_id' and alias_value = $1`,
@@ -103,6 +107,18 @@ export class LearningStore {
          on conflict (alias_kind, alias_value) do nothing`,
         [anonId, subjectId],
       );
+      /* Scoped at creation. A subject with no class is invisible to every
+         teacher query — which is the safe default, and also means a learner
+         whose scoping was forgotten silently vanishes from their own class
+         list. Doing it here makes forgetting impossible. */
+      if (scope) {
+        await t.query(
+          `insert into school_subject_scope (subject_id, school_id, class_id, created_at)
+           values ($1, $2, $3, now())
+           on conflict (subject_id) do nothing`,
+          [subjectId, scope.schoolId, scope.classId],
+        );
+      }
     });
     return subjectId;
   }
@@ -535,6 +551,88 @@ export class LearningStore {
         row.trigger, row.mode, row.containsCode, row.contentLen,
       ],
     );
+  }
+
+  /* --- school scoping ----------------------------------------------------
+     Every teacher-facing read goes through here. There is deliberately no
+     method that returns subjects without a class, because the shipped
+     alternative — a flat `SOLVEX_ADMIN_USER_IDS` allowlist — grants one person
+     every child in the database, which is exactly the access model a school
+     cannot accept. */
+
+  async putSubjectScope(scope: {
+    subjectId: string;
+    schoolId: string;
+    classId: string;
+  }): Promise<void> {
+    await this.sql.query(
+      `insert into school_subject_scope (subject_id, school_id, class_id, created_at)
+       values ($1, $2, $3, now())
+       on conflict (subject_id) do update set
+         school_id = excluded.school_id, class_id = excluded.class_id`,
+      [scope.subjectId, scope.schoolId, scope.classId],
+    );
+  }
+
+  async getSubjectScope(
+    subjectId: string,
+  ): Promise<{ schoolId: string; classId: string } | null> {
+    const r = await this.sql.query<{ school_id: string; class_id: string }>(
+      `select school_id, class_id from school_subject_scope where subject_id = $1`,
+      [subjectId],
+    );
+    if (r.rows.length === 0) return null;
+    return { schoolId: r.rows[0].school_id, classId: r.rows[0].class_id };
+  }
+
+  async subjectsInClass(classId: string): Promise<string[]> {
+    const r = await this.sql.query<{ subject_id: string }>(
+      `select subject_id from school_subject_scope where class_id = $1 order by created_at asc`,
+      [classId],
+    );
+    return r.rows.map((row) => row.subject_id);
+  }
+
+  /**
+   * Is this subject inside this class?
+   *
+   * The single check every teacher route makes before returning anything. A
+   * route that forgets it is a route that hands a teacher another school's
+   * child, so it is one call rather than a pattern to remember.
+   */
+  async isInClass(subjectId: string, classId: string): Promise<boolean> {
+    const r = await this.sql.query<{ n: number }>(
+      `select count(*)::int as n from school_subject_scope
+        where subject_id = $1 and class_id = $2`,
+      [subjectId, classId],
+    );
+    return r.rows[0].n > 0;
+  }
+
+  /** Learner states for a whole class, in one round trip. */
+  async learnerStatesForClass(
+    classId: string,
+  ): Promise<{ subjectId: string; state: LearnerState; computedAt: string }[]> {
+    const subjects = await this.subjectsInClass(classId);
+    const out: { subjectId: string; state: LearnerState; computedAt: string }[] = [];
+    for (const subjectId of subjects) {
+      const s = await this.getLearnerState(subjectId);
+      if (s) out.push({ subjectId, state: s.state, computedAt: s.computedAt });
+    }
+    return out;
+  }
+
+  /** Last activity per subject, for the "no activity" signal. */
+  async lastActivityForClass(classId: string): Promise<Map<string, string>> {
+    const r = await this.sql.query<{ subject_id: string; at: string }>(
+      `select e.subject_id, max(e.received_at) as at
+         from learning_events e
+         join school_subject_scope s on s.subject_id = e.subject_id
+        where s.class_id = $1
+        group by 1`,
+      [classId],
+    );
+    return new Map(r.rows.map((row) => [row.subject_id, toIso(row.at)]));
   }
 
   /* --- ops -------------------------------------------------------------- */

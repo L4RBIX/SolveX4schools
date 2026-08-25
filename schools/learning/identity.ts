@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { config } from "@schools/config";
 import { getStore } from "@schools/store";
 
 /**
@@ -39,7 +40,7 @@ export async function resolveIdentity(): Promise<Identity> {
   const anonId = existing && isUuid(existing) ? existing : randomUUID();
 
   const store = await getStore();
-  const subjectId = await store.resolveSubject(anonId);
+  const subjectId = await store.resolveSubject(anonId, "public", config.pilot);
 
   return { subjectId, anonId, isNew: anonId !== existing };
 }

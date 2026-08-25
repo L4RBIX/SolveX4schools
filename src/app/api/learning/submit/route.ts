@@ -161,10 +161,22 @@ export async function POST(request: Request) {
       }),
     });
 
-    // Attribution ONLY where the curriculum author declared this exact answer
-    // diagnostically unambiguous. Everything else stays unattributed, and the
-    // Decision Engine answers DIAGNOSE — ask, do not assert.
-    if (outcome.result.failureClass) {
+    /* Attribution.
+     *
+     * A named failure class ONLY where the curriculum author declared this
+     * exact answer diagnostically unambiguous. But EVERY wrong answer gets an
+     * attribution event, because "we graded this and could not tell why it was
+     * wrong" is itself a fact — and it is the one the whole model is calibrated
+     * against.
+     *
+     * `buildLearnerState` counts `unattributedFailures` from attributions
+     * carrying `unattributed_failure`, not from the absence of an attribution.
+     * Emitting nothing therefore leaves the counter permanently at zero, and
+     * that counter is the honest denominator: at three quarters unexplained,
+     * every other number in the state is built on a quarter of what happened.
+     * Silently reporting zero would make thin evidence look complete. */
+    if (verdictName !== "accepted") {
+      const attributed = Boolean(outcome.result.failureClass);
       events.push({
         eventId: randomUUID(),
         subjectId,
@@ -178,9 +190,15 @@ export async function POST(request: Request) {
         cohort: "public",
         route: `/lesson/${target.lesson.id}`,
         payload: sanitizePayload({
-          failure_class: outcome.result.failureClass,
-          attribution_source: "curriculum_diagnostic_mapping",
-          confidence: 0.9,
+          failure_class: attributed
+            ? outcome.result.failureClass!
+            : "unattributed_failure",
+          attribution_source: attributed
+            ? "curriculum_diagnostic_mapping"
+            : "no_declared_mapping",
+          // Zero, not a small number. There is no partial belief here — the
+          // author declared nothing, so nothing is believed.
+          confidence: attributed ? 0.9 : 0,
           attribution_version: 1,
           ...(outcome.primarySkill ? { skill_id: outcome.primarySkill } : {}),
         }),

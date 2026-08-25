@@ -50,6 +50,19 @@ export const config = {
     model: env("DEEPSEEK_MODEL") ?? "deepseek-chat",
   },
 
+  /**
+   * The pilot's single school and class.
+   *
+   * A placeholder for enrolment, and deliberately a crude one: every subject is
+   * scoped to this class on creation so the teacher projection has real data to
+   * read. When enrolment exists, scope comes from the roster and these
+   * disappear — nothing downstream reads them directly.
+   */
+  pilot: {
+    schoolId: env("SCHOOL_ID") ?? "pilot-school",
+    classId: env("CLASS_ID") ?? "grade-9a",
+  },
+
   exec: {
     /** `local` runs a subprocess; `piston` calls a self-hosted judge. */
     provider: env("EXEC_PROVIDER") ?? "local",
