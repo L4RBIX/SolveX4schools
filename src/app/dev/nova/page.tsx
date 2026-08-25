@@ -57,7 +57,9 @@ export default function NovaLab() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           blockId: "m1.l1.b2",
-          episodeId: "00000000-0000-4000-8000-00000000dev1",
+          // A real UUID. The previous fixture ended `...dev1`, and `v` is not a hex
+          // digit, so every request died at the database with a 500 and no body.
+          episodeId: "00000000-0000-4000-8000-0000000dde01",
           message,
           requestedLevel: level,
           override,
@@ -66,6 +68,14 @@ export default function NovaLab() {
         signal: controller.signal,
       });
 
+      /* A failed request has a zero-length body, so the reader completes
+         immediately and the old code fell through to `done` — a 500 rendered
+         as success. Check the status first. */
+      if (!res.ok) {
+        setStatus("error");
+        setErrorKind(`http_${res.status}`);
+        return;
+      }
       if (!res.body) throw new Error("no body");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
