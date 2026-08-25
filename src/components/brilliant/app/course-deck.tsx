@@ -42,6 +42,10 @@ export interface DeckCourse {
 export interface CourseDeckProps {
   courses: DeckCourse[];
   className?: string;
+  /** Section heading. Defaults to the reference route's own literal. */
+  heading?: string;
+  /** Primary CTA label on the front card. */
+  startLabel?: string;
 }
 
 /**
@@ -68,13 +72,22 @@ const DEPTHS = [
   { x: 0.2752, y: 0.1259, s: 1200 / 1600 },
 ];
 
-export function CourseDeck({ courses, className }: CourseDeckProps) {
+export function CourseDeck({
+  courses,
+  className,
+  heading = "Jump back in",
+  startLabel = "Start",
+}: CourseDeckProps) {
   const [index, setIndex] = useState(0);
   const active = courses[index];
 
+  /* `min-w-0` is load-bearing: the thumbnail rail's tiles are `shrink-0`, and a
+     flex item defaults to `min-width: auto`, so without it the rail's
+     min-content width (nine tiles ≈ 884px) becomes the deck's floor and the
+     whole column pushes out of the page instead of scrolling inside it. */
   return (
-    <div className={cn("flex flex-1 flex-col items-start gap-5", className)}>
-      <h2 className="h-[30px] w-full text-[20px] leading-[25px] font-bold">Jump back in</h2>
+    <div className={cn("flex min-w-0 flex-1 flex-col items-start gap-5", className)}>
+      <h2 className="h-[30px] w-full text-[20px] leading-[25px] font-bold">{heading}</h2>
 
       <div className="h-[540px] max-h-[540px] min-h-[274px] w-full">
         <div className="relative h-full w-full">
@@ -99,7 +112,7 @@ export function CourseDeck({ courses, className }: CourseDeckProps) {
                     depth < 2 ? "border-b-edge" : "border-white/5",
                   )}
                 >
-                  {depth === 0 && <DeckCardBody course={c} />}
+                  {depth === 0 && <DeckCardBody course={c} startLabel={startLabel} />}
                 </div>
               </div>
             );
@@ -108,14 +121,22 @@ export function CourseDeck({ courses, className }: CourseDeckProps) {
       </div>
 
       {/* thumbnail switcher — 84x60 tiles, 16px gap, active tile #170B29/#7139CC */}
-      <div className="my-5 flex h-[60px] w-full justify-center gap-4 px-2">
+      {/* Nine month tiles need ~668px inside a 540px column. The original had no
+          wrap and no scroll, so the overflow simply left the layout. Scrolls
+          now, and stays centred while the set still fits. */}
+      {/* `justify-center` on an overflowing scroll container clips BOTH ends and
+          leaves the first tile unreachable, so the row starts flush left and
+          only centres itself when the set genuinely fits (`justify-center` via
+          `mx-auto` on the inner track instead of on the scroller). */}
+      <div className="my-5 h-[60px] w-full overflow-x-auto overscroll-x-contain px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto flex h-[60px] w-max gap-4">
         {courses.map((c, i) => (
           <button
             key={c.id}
             type="button"
             aria-label={`Go to page ${i + 1}`}
             onClick={() => setIndex(i)}
-            className="relative h-[60px] w-[84px] max-w-[84px] min-w-[60px] flex-1 overflow-clip rounded-lg"
+            className="relative h-[60px] w-[84px] max-w-[84px] min-w-[60px] shrink-0 overflow-clip rounded-lg"
           >
             <div
               className={cn(
@@ -129,6 +150,7 @@ export function CourseDeck({ courses, className }: CourseDeckProps) {
             </div>
           </button>
         ))}
+        </div>
       </div>
 
       <span className="sr-only">Showing {active.title}</span>
@@ -140,7 +162,13 @@ export function CourseDeck({ courses, className }: CourseDeckProps) {
  * Card interior. The body is `space-between` in a column, which is what pushes
  * the 150px course art into the middle of the card without an explicit spacer.
  */
-function DeckCardBody({ course }: { course: DeckCourse }) {
+function DeckCardBody({
+  course,
+  startLabel,
+}: {
+  course: DeckCourse;
+  startLabel: string;
+}) {
   return (
     <div className="flex h-full flex-col items-center justify-between gap-4 p-5">
       <div className="flex w-full flex-1 flex-col items-center justify-between gap-2">
@@ -148,7 +176,7 @@ function DeckCardBody({ course }: { course: DeckCourse }) {
           <div className="flex flex-col items-center gap-2">
             <div className="flex h-5 items-center justify-center" />
             <h3 className="text-center text-[24px] leading-[30px] font-bold">{course.title}</h3>
-            <h5 className="b-eyebrow min-h-[15px] leading-[18px] text-[#7139CC]">{course.level}</h5>
+            <h5 className="b-eyebrow min-h-[15px] text-center leading-[18px] text-[#7139CC]">{course.level}</h5>
           </div>
         </Link>
 
@@ -160,7 +188,12 @@ function DeckCardBody({ course }: { course: DeckCourse }) {
           className="max-h-[150px] w-[150px] flex-1 object-contain"
         />
 
-        <div className="w-full">
+        {/* The card height is fixed and the original clipped anything past ~3
+            rows. A curriculum month has eight lessons, so the list scrolls
+            inside its own box rather than silently hiding two thirds of
+            September. `overscroll-contain` keeps the scroll from escaping to
+            the page behind the card. */}
+        <div className="w-full max-h-[220px] overflow-y-auto overscroll-contain">
           {course.lessons.map((l) => (
             <Link
               key={l.title}
@@ -174,8 +207,28 @@ function DeckCardBody({ course }: { course: DeckCourse }) {
               <div className="flex h-10 flex-1 items-center p-2">
                 <p className={cn("flex-1", l.active && "font-bold")}>{l.title}</p>
                 {/* completion dot: a filled 24-circle drawn at 20px */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0 text-white/20">
+                {/* `done` was declared on DeckCourse and read nowhere — the dot
+                    was a hardcoded grey rect, so the deck structurally could
+                    not show progress. Wired. */}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className={cn("shrink-0", l.done ? "text-b-green" : "text-white/20")}
+                >
                   <rect width="24" height="24" rx="12" fill="currentColor" />
+                  {l.done ? (
+                    <path
+                      d="M7 12.5l3.2 3.2L17 9"
+                      stroke="#141414"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  ) : null}
                 </svg>
               </div>
             </Link>
@@ -183,7 +236,10 @@ function DeckCardBody({ course }: { course: DeckCourse }) {
         </div>
       </div>
 
-      <StartButton href={course.lessons.find((l) => l.active)?.href ?? course.href} />
+      <StartButton
+        href={course.lessons.find((l) => l.active)?.href ?? course.href}
+        label={startLabel}
+      />
     </div>
   );
 }
@@ -193,7 +249,7 @@ function DeckCardBody({ course }: { course: DeckCourse }) {
  * sweep: a 150x56 gradient blade that crosses the face over the first quarter
  * of a 6400ms cycle and then holds invisible.
  */
-function StartButton({ href }: { href: string }) {
+function StartButton({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
@@ -255,7 +311,7 @@ function StartButton({ href }: { href: string }) {
           </svg>
         </span>
         <span data-slot="button3d-content" className="relative z-[1]">
-          Start
+          {label}
         </span>
       </span>
     </Link>

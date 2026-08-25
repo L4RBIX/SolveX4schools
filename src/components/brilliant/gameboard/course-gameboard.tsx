@@ -9,6 +9,8 @@ import {
   COURSE,
   CURRENT_LEVEL,
   LEVELS,
+  type GameboardCourse,
+  type GameboardLevel,
   type GameboardNode,
 } from "./course-data";
 
@@ -39,7 +41,28 @@ import {
 const HEADER_SHADOW_ACTIVE = "#7139CC";
 const HEADER_SHADOW_IDLE = "#4C4C4C";
 
-export function CourseGameboard() {
+export interface CourseGameboardProps {
+  /**
+   * Course summary for the sticky left card. Defaults to the reference route's
+   * own const so /brilliant/app/course keeps rendering unchanged.
+   */
+  course?: GameboardCourse;
+  levels?: GameboardLevel[];
+  currentLevel?: number;
+  /** Visible copy. Defaults to the reference route's English literals. */
+  labels?: {
+    level: string;
+    start: string;
+    jumpHere: string;
+  };
+}
+
+export function CourseGameboard({
+  course = COURSE,
+  levels = LEVELS,
+  currentLevel = CURRENT_LEVEL,
+  labels = { level: "Level", start: "Start", jumpHere: "Jump here" },
+}: CourseGameboardProps = {}) {
   const [selected, setSelected] = useState<GameboardNode | null>(null);
   const [showTop, setShowTop] = useState(false);
   const [nodeOnScreen, setNodeOnScreen] = useState(true);
@@ -58,7 +81,7 @@ export function CourseGameboard() {
   }, [onScroll]);
 
   const activeNode =
-    LEVELS.flatMap((l) => l.nodes).find((n) => n.active) ?? null;
+    levels.flatMap((l) => l.nodes).find((n) => n.active) ?? null;
   const footerNode = selected ?? activeNode;
   const isJump = Boolean(selected);
 
@@ -91,7 +114,7 @@ export function CourseGameboard() {
       <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] lg:block">
         <div className="flex flex-col items-start gap-4 rounded-[20px] border-2 border-white/20 bg-b-bg p-8">
           <Image
-            src={COURSE.art}
+            src={course.art}
             alt=""
             width={197}
             height={154}
@@ -99,17 +122,17 @@ export function CourseGameboard() {
           />
           <div className="flex flex-col gap-6 text-left">
             <div className="flex flex-col gap-4">
-              <h1 className="text-[24px] leading-[30px] font-bold">{COURSE.title}</h1>
-              <p className="text-white/60">{COURSE.blurb}</p>
+              <h1 className="text-[24px] leading-[30px] font-bold">{course.title}</h1>
+              <p className="text-white/60">{course.blurb}</p>
             </div>
             <div className="flex items-center gap-4 text-[14px] leading-[21px]">
               <span className="flex items-center gap-2 text-white/60">
                 <LessonsIcon />
-                {COURSE.lessons}
+                {course.lessons}
               </span>
               <span className="flex items-center gap-2 text-white/60">
                 <ExercisesIcon />
-                {COURSE.exercises}
+                {course.exercises}
               </span>
             </div>
           </div>
@@ -119,12 +142,13 @@ export function CourseGameboard() {
       {/* ---- right: the board ---------------------------------------- */}
       <div className="relative z-[1] mt-5 w-full min-w-[364px] max-w-[488px] flex-[2_1_364px]">
         <div className="flex flex-col items-center gap-[30px]">
-          {LEVELS.map((level, li) => (
+          {levels.map((level, li) => (
             <section key={level.index} className="w-full">
               <LevelHeader
                 index={level.index}
                 title={level.title}
-                current={level.index === CURRENT_LEVEL}
+                current={level.index === currentLevel}
+                levelLabel={labels.level}
               />
 
               <div
@@ -133,7 +157,7 @@ export function CourseGameboard() {
                   li === 0 ? "-mt-30" : "-mt-50",
                 )}
               >
-                {level.nodes.map((node) => (
+                {level.nodes.map((node: GameboardNode) => (
                   <NodeRow
                     key={`${level.index}-${node.title}`}
                     node={node}
@@ -149,7 +173,13 @@ export function CourseGameboard() {
 
           {/* sticky CTA — 40px off the bottom, above everything */}
           {footerNode && (
-            <FooterCard node={footerNode} jump={isJump} hidden={nodeOnScreen} />
+            <FooterCard
+              node={footerNode}
+              jump={isJump}
+              hidden={nodeOnScreen}
+              startLabel={labels.start}
+              jumpLabel={labels.jumpHere}
+            />
           )}
         </div>
       </div>
@@ -184,25 +214,59 @@ function NodeRow({
     >
       <button
         type="button"
-        onClick={onSelect}
+        onClick={node.locked ? undefined : onSelect}
+        disabled={node.locked}
         aria-pressed={selected}
-        className="group flex w-[274px] cursor-pointer items-end gap-2 text-left"
+        aria-disabled={node.locked || undefined}
+        className={cn(
+          "group flex w-[274px] items-end gap-2 text-left",
+          node.locked ? "cursor-default" : "cursor-pointer",
+        )}
       >
         <GameboardPedestal
-          animated={Boolean(node.active) || selected}
+          animated={!node.locked && (Boolean(node.active) || selected)}
           selected={selected}
           active={node.active}
           review={node.review}
         />
-        <span className="flex w-[138px] items-center pb-[29.5px]">
+        {/* The label column was 138px, measured against short English titles.
+            Kazakh lesson names run materially longer, so it grows rather than
+            clipping — the zig-zag rhythm comes from the row's justify-content,
+            not from this width. */}
+        <span className="flex min-w-[138px] flex-1 items-center pb-[29.5px]">
           <span
             className={cn(
               "transition-colors",
-              node.active || selected ? "text-white" : "text-white/40",
+              node.locked
+                ? "text-white/25"
+                : node.done
+                  ? "text-white/70"
+                  : node.active || selected
+                    ? "text-white"
+                    : "text-white/40",
             )}
           >
             {node.title}
           </span>
+          {node.done ? (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              className="ml-2 shrink-0 text-b-green"
+            >
+              <rect width="24" height="24" rx="12" fill="currentColor" />
+              <path
+                d="M7 12.5l3.2 3.2L17 9"
+                stroke="#141414"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : null}
         </span>
       </button>
     </div>
@@ -218,10 +282,12 @@ function LevelHeader({
   index,
   title,
   current,
+  levelLabel = "Level",
 }: {
   index: number;
   title: string;
   current: boolean;
+  levelLabel?: string;
 }) {
   return (
     <div className="sticky top-[41px] z-[1] mb-50 h-16 bg-b-bg px-4">
@@ -236,7 +302,7 @@ function LevelHeader({
               className="b-eyebrow leading-[13.2px]"
               style={{ color: current ? HEADER_SHADOW_ACTIVE : "rgba(255,255,255,0.6)" }}
             >
-              Level {index}
+              {levelLabel} {index}
             </span>
             <span className="leading-[22.4px]">{title}</span>
           </h3>
@@ -260,7 +326,11 @@ function FooterCard({
   node,
   jump,
   hidden,
+  startLabel = "Start",
+  jumpLabel = "Jump here",
 }: {
+  startLabel?: string;
+  jumpLabel?: string;
   node: GameboardNode;
   jump: boolean;
   hidden: boolean;
@@ -297,7 +367,7 @@ function FooterCard({
                   "group-active:translate-y-0 group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",
                 )}
               >
-                {jump ? "Jump here" : "Start"}
+                {jump ? jumpLabel : startLabel}
               </span>
             </Link>
           </div>

@@ -26,7 +26,38 @@ export interface HomeRailProps {
   xp?: number;
   xpGoal?: number;
   className?: string;
+  /**
+   * Visible copy. Every label defaults to the reference route's English literal
+   * so /brilliant/app/home is untouched; the product supplies Kazakh/Russian.
+   */
+  labels?: Partial<RailLabels>;
+  /**
+   * The goal card, replacing "Unlock Leagues".
+   *
+   * The programme's own weekly commitment is ~40 minutes of platform practice
+   * (PDF p.2), which is a real target a learner can act on. An XP league is
+   * not part of this product and inventing one would be a fabricated metric.
+   */
+  goal?: { eyebrow: string; detail: string; badge?: string } | null;
 }
+
+export interface RailLabels {
+  welcome: string;
+  askPlaceholder: string;
+  ask: string;
+  streakPrompt: React.ReactNode;
+}
+
+const DEFAULT_LABELS: RailLabels = {
+  welcome: "Welcome",
+  askPlaceholder: "What do you want to learn?",
+  ask: "Ask",
+  streakPrompt: (
+    <>
+      Solve <strong className="font-bold">3 problems</strong> to start a streak
+    </>
+  ),
+};
 
 const DEFAULT_DAYS = [
   { label: "T", done: false },
@@ -43,7 +74,10 @@ export function HomeRail({
   xp = 0,
   xpGoal = 175,
   className,
+  labels,
+  goal = { eyebrow: "Unlock Leagues", detail: "", badge: undefined },
 }: HomeRailProps) {
+  const L = { ...DEFAULT_LABELS, ...labels };
   return (
     <aside
       className={cn(
@@ -51,24 +85,24 @@ export function HomeRail({
         className,
       )}
     >
-      <p className="w-full text-[20px] leading-[30px] font-bold">Welcome, {name}</p>
+      <p className="w-full text-[20px] leading-[30px] font-bold">
+        {L.welcome}, {name}
+      </p>
 
-      <AskBar />
+      <AskBar placeholder={L.askPlaceholder} action={L.ask} />
 
       {/* streak card — 2px #4C4C4C border, radius 16 */}
       <div className="w-full rounded-2xl border-2 border-b-edge bg-b-bg">
         <div className="flex flex-col gap-2 p-6">
           <div className="mx-1 flex h-[60px] items-center justify-between">
             <div className="flex w-[68px] items-center">
-              <span className="block w-9 text-[48px] leading-[60px] font-bold">{streak}</span>
+              <span className="block min-w-9 text-[48px] leading-[60px] font-bold tabular-nums">{streak}</span>
               <StreakBolt size={32} completed={streak > 0} className={streak > 0 ? "text-b-pear" : "text-white/40"} />
             </div>
             <StreakCharges charges={2} />
           </div>
 
-          <p className="mb-2">
-            Solve <strong className="font-bold">3 problems</strong> to start a streak
-          </p>
+          <p className="mb-2">{L.streakPrompt}</p>
 
           <div className="flex flex-1 justify-between">
             {days.map((d) => (
@@ -81,22 +115,24 @@ export function HomeRail({
         </div>
       </div>
 
-      {/* leagues card — radius 20, padding 20 */}
-      <div className="flex w-full items-center rounded-[20px] border-2 border-b-edge bg-b-bg p-5">
-        <Image
-          src={LEAGUES_BADGE}
-          alt="Locked Leagues Badge"
-          width={64}
-          height={64}
-          className="mr-4 h-16 w-16 shrink-0"
-        />
-        <div>
-          <p className="b-eyebrow leading-[18px]">Unlock Leagues</p>
-          <p className="leading-6 text-white/60">
-            {xp} of {xpGoal} XP
-          </p>
+      {/* goal card — radius 20, padding 20 */}
+      {goal ? (
+        <div className="flex w-full items-center rounded-[20px] border-2 border-b-edge bg-b-bg p-5">
+          <Image
+            src={goal.badge ?? LEAGUES_BADGE}
+            alt=""
+            width={64}
+            height={64}
+            className="mr-4 h-16 w-16 shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="b-eyebrow leading-[18px]">{goal.eyebrow}</p>
+            <p className="leading-6 text-white/60">
+              {goal.detail || `${xp} of ${xpGoal} XP`}
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
     </aside>
   );
 }
@@ -106,7 +142,7 @@ export function HomeRail({
  * search UI opens elsewhere — so the "placeholder" is a span and the whole
  * row is clickable.
  */
-function AskBar() {
+function AskBar({ placeholder, action }: { placeholder: string; action: string }) {
   return (
     <button
       type="button"
@@ -129,10 +165,10 @@ function AskBar() {
         <path d="m21 21-4.3-4.3" />
       </svg>
       <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-white/40">
-        What do you want to learn?
+        {placeholder}
       </span>
       <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-white/5 px-[14px] py-2 leading-5 font-medium text-white/20">
-        Ask
+        {action}
       </span>
     </button>
   );

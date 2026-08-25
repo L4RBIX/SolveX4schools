@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { MONTHS, MONTH_BY_INDEX } from "@schools/curriculum/months";
-import { MonthDetail } from "@/components/sx/month-detail";
+import { MonthBoard } from "@/components/brilliant/gameboard/month-board";
 
 export function generateStaticParams() {
   return MONTHS.map((m) => ({ index: String(m.index) }));
@@ -18,7 +17,7 @@ export async function generateMetadata({
   return { title: month ? month.title.kk : "Ай" };
 }
 
-export default async function MonthPage({
+export default async function CoursePage({
   params,
 }: {
   params: Promise<{ index: string }>;
@@ -27,9 +26,7 @@ export default async function MonthPage({
   const month = MONTH_BY_INDEX.get(Number(index));
   if (!month) notFound();
 
-  return <MonthDetail month={month} />;
+  return <MonthBoard month={month} />;
 }
 
 export const dynamicParams = false;
-
-void Link;

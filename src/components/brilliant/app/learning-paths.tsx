@@ -25,9 +25,35 @@ import { LEARNING_PATHS, type LearningPath, type PathTile } from "./paths-data";
 
 const SLIDE_PITCH = 198.703;
 
-export function LearningPathsPage() {
-  const starred = LEARNING_PATHS.filter((p) => p.starred);
-  const rest = LEARNING_PATHS.filter((p) => !p.starred);
+export interface LearningPathsPageProps {
+  /** Defaults to the reference route's own data so /brilliant/app/courses is untouched. */
+  paths?: LearningPath[];
+  labels?: {
+    title: string;
+    subtitle: string;
+    yours: string;
+    others: string;
+    askPlaceholder: string;
+    ask: string;
+  };
+}
+
+const DEFAULT_LABELS = {
+  title: "Learning Paths",
+  subtitle: "Step-by-step paths to mastery",
+  yours: "Your learning paths",
+  others: "Other learning paths",
+  askPlaceholder: "What do you want to learn?",
+  ask: "Ask",
+};
+
+export function LearningPathsPage({
+  paths = LEARNING_PATHS,
+  labels,
+}: LearningPathsPageProps = {}) {
+  const L = { ...DEFAULT_LABELS, ...labels };
+  const starred = paths.filter((p) => p.starred);
+  const rest = paths.filter((p) => !p.starred);
 
   return (
     <div className="mx-auto w-full max-w-[1216px] px-6 pb-24">
@@ -35,31 +61,36 @@ export function LearningPathsPage() {
 
       <div className="flex items-start justify-between gap-8 pt-8 pb-6">
         <div>
-          <h2 className="text-[32px] leading-[42px] font-bold">Learning Paths</h2>
-          <p className="mt-1 text-white/60">Step-by-step paths to mastery</p>
+          <h2 className="text-[32px] leading-[42px] font-bold">{L.title}</h2>
+          <p className="mt-1 text-white/60">{L.subtitle}</p>
         </div>
-        <AskBar />
+        <AskBar placeholder={L.askPlaceholder} action={L.ask} />
       </div>
 
       <section>
-        <h2 className="mb-2 text-[20px] leading-[25px] font-bold">Your learning paths</h2>
+        <h2 className="mb-2 text-[20px] leading-[25px] font-bold">{L.yours}</h2>
         {starred.map((p) => (
           <PathRow key={p.title} path={p} />
         ))}
       </section>
 
-      <section className="mt-10">
-        <h2 className="mb-2 text-[20px] leading-[25px] font-bold">Other learning paths</h2>
-        {rest.map((p) => (
-          <PathRow key={p.title} path={p} />
-        ))}
-      </section>
+      {/* Only rendered when there is something in it. The school programme is a
+          single path, and an empty "Other paths" heading would read as content
+          that failed to load. */}
+      {rest.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="mb-2 text-[20px] leading-[25px] font-bold">{L.others}</h2>
+          {rest.map((p) => (
+            <PathRow key={p.title} path={p} />
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }
 
 /** Same control as the home rail: a button, not an input. */
-function AskBar() {
+function AskBar({ placeholder, action }: { placeholder: string; action: string }) {
   return (
     <button
       type="button"
@@ -81,10 +112,10 @@ function AskBar() {
         <path d="m21 21-4.3-4.3" />
       </svg>
       <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-white/40">
-        What do you want to learn?
+        {placeholder}
       </span>
       <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-white/5 px-[14px] py-2 leading-5 font-medium text-white/20">
-        Ask
+        {action}
       </span>
     </button>
   );

@@ -17,6 +17,15 @@ export interface GameboardNode {
   /** Closing node of a level; the original draws it with a cog outline. */
   review?: boolean;
   href?: string;
+  /** The learner has finished it. Added for the curriculum board. */
+  done?: boolean;
+  /** Not authored yet, or not reached yet. Renders greyed and is not clickable. */
+  locked?: boolean;
+  /**
+   * What kind of curriculum event this node is. The reference data omits it and
+   * the board treats a missing value as a plain lesson.
+   */
+  kind?: "lesson" | "practice" | "checkpoint" | "assessment" | "contest";
 }
 
 export interface GameboardLevel {
@@ -25,7 +34,17 @@ export interface GameboardLevel {
   nodes: GameboardNode[];
 }
 
-export const COURSE = {
+export interface GameboardCourse {
+  title: string;
+  blurb: string;
+  lessons: string;
+  exercises: string;
+  art: string;
+  /** The lesson the sticky footer offers by default. */
+  activeHref: string;
+}
+
+export const COURSE: GameboardCourse = {
   title: "Thinking in Code",
   blurb: "Build solid foundations for computational problem solving.",
   lessons: "48 Lessons",
@@ -33,7 +52,7 @@ export const COURSE = {
   art: "/assets/original/brilliant/ds055uzetaobb.cloudfront.net/brioche/chapter/thinking-in-code-DolooX.png",
   /** The lesson the sticky footer offers by default. */
   activeHref: "/brilliant/lesson",
-} as const;
+};
 
 export const LEVELS: GameboardLevel[] = [
   {

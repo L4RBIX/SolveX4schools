@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 
+import { LocaleProvider } from "@/components/sx/i18n";
+
 import "./globals.css";
 import "./solvex.css";
 
@@ -98,7 +100,9 @@ export default function RootLayout({
       lang="kk"
       className={`${plexSans.variable} ${jetbrainsMono.variable} ${cofoBrilliant.variable} ${cofoRobert.variable} ${sourceCodePro.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <LocaleProvider>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

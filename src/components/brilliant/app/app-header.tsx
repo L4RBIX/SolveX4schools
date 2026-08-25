@@ -37,7 +37,19 @@ import {
 
 export type AppTab = "home" | "courses" | "you";
 
-const LINKS: { id: AppTab; label: string; href: string; aria: string }[] = [
+export interface AppNavLink {
+  id: AppTab;
+  label: string;
+  href: string;
+  aria: string;
+}
+
+/**
+ * Defaults preserve the reference route at /brilliant/app/* byte for byte, so
+ * extending this header cannot disturb the surface the reverse-engineering work
+ * is measured against. The product passes its own links and labels.
+ */
+const LINKS: AppNavLink[] = [
   { id: "home", label: "Home", href: "/brilliant/app/home", aria: "Go home" },
   { id: "courses", label: "Courses", href: "/brilliant/app/courses", aria: "View all courses" },
   { id: "you", label: "You", href: "/brilliant/app/you", aria: "You" },
@@ -53,9 +65,39 @@ export interface AppHeaderProps {
   active: AppTab;
   xp?: number;
   className?: string;
+  /** Nav links. Defaults to the reference route's own three. */
+  links?: AppNavLink[];
+  /** Where the wordmark points. */
+  homeHref?: string;
+  /** Replaces the wordmark. The product passes its own. */
+  wordmark?: React.ReactNode;
+  wordmarkLabel?: string;
+  /**
+   * The gradient-bordered pill. Rendering nothing removes it — the product has
+   * no premium tier to upsell, and "Gift Premium" in a school is nonsense.
+   */
+  accentPill?: { label: string; href: string } | null;
+  /**
+   * Extra controls in the right-hand group, before the XP pill.
+   *
+   * The product puts its language switch here. A bilingual interface whose
+   * switch lives only on the marketing page is not bilingual — a learner who
+   * hits a wall in Kazakh needs to reach Russian from wherever they are.
+   */
+  trailing?: React.ReactNode;
 }
 
-export function AppHeader({ active, xp = 0, className }: AppHeaderProps) {
+export function AppHeader({
+  active,
+  xp = 0,
+  className,
+  links = LINKS,
+  homeHref = "/brilliant/app/home",
+  wordmark,
+  wordmarkLabel = "Brilliant",
+  accentPill = { label: "Gift Premium", href: "/brilliant/app/home" },
+  trailing,
+}: AppHeaderProps) {
   return (
     <header
       className={cn(
@@ -65,12 +107,12 @@ export function AppHeader({ active, xp = 0, className }: AppHeaderProps) {
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-[1216px] items-center justify-between gap-6">
-        <Link href="/brilliant/app/home" aria-label="Brilliant" className="block h-6 w-[114px] shrink-0">
-          <BrilliantWordmark className="h-6 w-[114px]" />
+        <Link href={homeHref} aria-label={wordmarkLabel} className="block h-6 shrink-0">
+          {wordmark ?? <BrilliantWordmark className="h-6 w-[114px]" />}
         </Link>
 
         <nav className="flex flex-1 items-center gap-8">
-          {LINKS.map((l) => {
+          {links.map((l) => {
             const Icon = ICONS[l.id];
             const on = active === l.id;
             return (
@@ -94,7 +136,9 @@ export function AppHeader({ active, xp = 0, className }: AppHeaderProps) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link href="/brilliant/app/home" aria-label="Gift Premium" className="shrink-0">
+          {trailing}
+{accentPill ? (
+          <Link href={accentPill.href} aria-label={accentPill.label} className="shrink-0">
             <span
               className={cn(
                 "grid h-[41px] place-items-center rounded-full border-2 border-transparent px-4 py-2",
@@ -103,9 +147,10 @@ export function AppHeader({ active, xp = 0, className }: AppHeaderProps) {
                 "[background-image:linear-gradient(var(--color-b-dark),var(--color-b-dark)),linear-gradient(86deg,#7491FF_0%,#FF90E0_50%,#F9D25C_100%)]",
               )}
             >
-              Gift Premium
+              {accentPill.label}
             </span>
           </Link>
+          ) : null}
 
           <button
             type="button"

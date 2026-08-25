@@ -2,15 +2,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { MONTHS } from "@schools/curriculum/months";
 import type { Lesson, Month } from "@schools/curriculum/types";
-import { LessonPlayer } from "@/components/sx/lesson-player";
+import { LessonRoute } from "@/components/brilliant/lesson/lesson-route";
 
 /**
  * Lesson route.
  *
- * Only lessons that are actually authored are routable: `dynamicParams` is
- * false and drafts are excluded from the generated params, so a draft URL is a
- * 404 rather than an empty player. A blank lesson in front of a student is
- * worse than a missing page.
+ * Only authored lessons are routable: `dynamicParams` is false and drafts are
+ * excluded from the generated params, so a draft URL is a 404 rather than an
+ * empty player. A blank lesson in front of a student is worse than a missing
+ * page, and this guard is two lines away from being dropped by accident.
  */
 
 interface Found {
@@ -61,10 +61,10 @@ export default async function LessonPage({
   }
 
   return (
-    <LessonPlayer
+    <LessonRoute
       lesson={found.lesson}
+      monthIndex={found.month.index}
       monthTitle={found.month.title.kk}
-      backHref={`/month/${found.month.index}`}
     />
   );
 }

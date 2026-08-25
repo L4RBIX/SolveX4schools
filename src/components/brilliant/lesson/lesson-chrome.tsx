@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, CloseIcon, SparkleIcon, StreakBoltIcon } from "./icons";
 
@@ -29,6 +30,17 @@ export interface LessonTopBarProps {
   canPrev?: boolean;
   canNext?: boolean;
   onClose?: () => void;
+  /**
+   * Where the close button goes. Added for the school runtime, which needs to
+   * return to a month board rather than call a handler.
+   *
+   * Optional with no default on purpose: the reference route at
+   * /brilliant/lesson passes neither and keeps its plain button, so extending
+   * this component cannot break the surface it was measured against.
+   */
+  closeHref?: string;
+  /** Accessible label for the close control. Defaults to the original's. */
+  closeLabel?: string;
   onPrev?: () => void;
   onNext?: () => void;
   className?: string;
@@ -46,8 +58,12 @@ export function LessonTopBar({
   onClose,
   onPrev,
   onNext,
+  closeHref,
+  closeLabel = "Close",
   className,
 }: LessonTopBarProps) {
+  const closeClass =
+    "relative flex h-12 w-12 min-w-12 cursor-pointer items-center justify-center overflow-clip rounded-[6px] border-2 border-transparent text-white/50 transition-colors hover:text-white";
   return (
     <div
       data-navbar="true"
@@ -58,14 +74,20 @@ export function LessonTopBar({
     >
       {/* ---- left ------------------------------------------------------ */}
       <div className="flex h-12 items-center">
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="relative flex h-12 w-12 min-w-12 cursor-pointer items-center justify-center overflow-clip rounded-[6px] border-2 border-transparent text-white/50 transition-colors hover:text-white"
-        >
-          <CloseIcon />
-        </button>
+        {closeHref ? (
+          <Link href={closeHref} aria-label={closeLabel} className={closeClass}>
+            <CloseIcon />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            aria-label={closeLabel}
+            onClick={onClose}
+            className={closeClass}
+          >
+            <CloseIcon />
+          </button>
+        )}
         {/* balances the right-hand group; intentionally empty */}
         <div data-xp-placeholder="true" className="h-0 w-[66.22px]" />
       </div>

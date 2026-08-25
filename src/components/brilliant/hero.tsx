@@ -135,38 +135,83 @@ function AwardBadge({ glyph, label }: { glyph: React.ReactNode; label: string })
 
 /* -------------------------------------------------------------------- hero */
 
-export function Hero() {
+export interface HeroBadge {
+  glyph: "apple" | "play";
+  label: string;
+}
+
+export interface HeroProps {
+  /**
+   * All copy. Every field defaults to the reference route's own literal so
+   * /brilliant renders byte-identically and stays usable as the visual
+   * baseline; the product supplies its own.
+   */
+  heading?: string;
+  body?: string;
+  primary?: { label: string; href: string };
+  secondary?: { label: string; href: string };
+  /** Award laurels. `[]` removes them — SolveX4Schools has no app-store awards. */
+  badges?: HeroBadge[];
+  /**
+   * Serif display face for the headline. The reference uses CoFo Robert, which
+   * is commercially licensed and cannot ship; the product passes its own class.
+   */
+  headingFontClass?: string;
+}
+
+export function Hero({
+  heading = "Your personal tutor for math and coding",
+  body = "A world-class tutor for every home. Built by top learning experts from MIT and Harvard.",
+  primary = { label: "I'm a learner", href: "/brilliant/courses" },
+  secondary = { label: "I'm a parent or teacher", href: "/brilliant/courses" },
+  badges = [
+    { glyph: "apple", label: "Editors' Choice" },
+    { glyph: "play", label: "Featured App" },
+  ],
+  headingFontClass = "font-b-serif",
+}: HeroProps = {}) {
   return (
     <section className="b-shell flex flex-col justify-center gap-8 py-12 lg:h-[760px] lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:py-0">
       <div className="contents lg:block lg:w-full lg:max-w-[640px]">
-        <h1 className="order-1 text-center font-b-serif text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[76px] lg:leading-[79.8px] lg:tracking-[-1.4px]">
-          Your personal tutor for math and coding
+        <h1
+          className={cn(
+            "order-1 text-center text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[76px] lg:leading-[79.8px] lg:tracking-[-1.4px]",
+            headingFontClass,
+          )}
+        >
+          {heading}
         </h1>
 
         <p className="order-3 mt-0 max-w-[420px] text-center text-[20px] leading-[29px] text-b-muted lg:order-none lg:mt-7 lg:text-left">
-          A world-class tutor for every home. Built by top learning experts from
-          MIT and Harvard.
+          {body}
         </p>
 
         <div className="order-5 mt-0 flex w-full flex-col gap-3 lg:order-none lg:mt-11 lg:w-auto lg:flex-row lg:flex-wrap">
           <a
-            href="/brilliant/courses"
+            href={primary.href}
             className="b-press inline-flex w-full items-center justify-center rounded-full bg-b-green px-5 py-3 text-[20px] font-medium leading-[24px] text-b-white hover:-translate-y-px lg:w-auto"
           >
-            I&apos;m a learner
+            {primary.label}
           </a>
           <a
-            href="/brilliant/courses"
+            href={secondary.href}
             className="b-press inline-flex w-full items-center justify-center rounded-full border-2 border-b-line bg-b-white px-5 py-3 text-[20px] font-medium leading-[24px] text-b-muted hover:-translate-y-px hover:text-b-ink lg:w-auto"
           >
-            I&apos;m a parent or teacher
+            {secondary.label}
           </a>
         </div>
 
-        <div className="order-4 mt-0 flex flex-wrap items-center justify-center gap-6 lg:order-none lg:mt-6 lg:justify-start">
-          <AwardBadge glyph={<AppleGlyph />} label="Editors' Choice" />
-          <AwardBadge glyph={<PlayGlyph />} label="Featured App" />
-        </div>
+        {badges.length > 0 ? (
+          <div className="order-4 mt-0 flex flex-wrap items-center justify-center gap-6 lg:order-none lg:mt-6 lg:justify-start">
+            {badges.map((b) => (
+              <AwardBadge
+                key={b.label}
+                glyph={b.glyph === "apple" ? <AppleGlyph /> : <PlayGlyph />}
+                label={b.label}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="order-2 flex w-full shrink-0 justify-center lg:order-none lg:w-[560px]">

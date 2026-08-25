@@ -1,13 +1,12 @@
 import { MONTHS } from "@schools/curriculum/months";
-import { MonthMap } from "@/components/sx/month-map";
+import { SchoolHome } from "@/components/brilliant/app/school-home";
 
 /**
- * The year map — the product's home.
+ * The student home — the product's root.
  *
- * `currentMonth` is hard-coded to 1 until enrolment exists. When a class has a
- * start date this comes from it; deriving it from the wall clock would put a
- * student who joins in November into month 3 with nothing behind them.
+ * `learnerName` is a placeholder until enrolment exists. It is a display string
+ * only; nothing keys off it.
  */
 export default function Home() {
-  return <MonthMap months={MONTHS} currentMonth={1} />;
+  return <SchoolHome months={MONTHS} learnerName="Bekarys" />;
 }
