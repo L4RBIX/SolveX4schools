@@ -1,0 +1,80 @@
+<svg width="1259" height="529" viewBox="0 0 1259 529" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_8061_1104)">
+<circle cx="470.054" cy="307.26" r="6.59538" fill="white"/>
+<circle cx="490.28" cy="300.225" r="3.95723" fill="white"/>
+<circle cx="897.435" cy="368.817" r="6.59538" fill="white"/>
+<circle cx="629.663" cy="717.493" r="439.692" fill="#35355C" fill-opacity="0.25"/>
+<circle cx="629.663" cy="717.493" r="439.692" fill="url(#paint0_linear_8061_1104)" fill-opacity="0.25"/>
+<circle cx="805.1" cy="416.303" r="6.59538" fill="white"/>
+<circle cx="934.37" cy="440.925" r="6.59538" fill="white"/>
+<circle cx="933.49" cy="420.7" r="6.59538" fill="white"/>
+<circle cx="266.017" cy="526.226" r="6.59538" fill="white"/>
+<circle cx="783.115" cy="371.455" r="3.95723" fill="white"/>
+<circle cx="820.05" cy="409.268" r="3.95723" fill="white"/>
+<circle cx="835.879" cy="419.821" r="3.95723" fill="white"/>
+<circle cx="864.019" cy="413.665" r="3.95723" fill="white"/>
+<circle cx="525.455" cy="354.747" r="3.95723" fill="white"/>
+<circle cx="283.605" cy="522.709" r="3.95723" fill="white"/>
+<circle cx="914.144" cy="416.303" r="3.95723" fill="white"/>
+<circle cx="903.591" cy="397.837" r="3.95723" fill="white"/>
+<circle cx="958.992" cy="447.082" r="3.95723" fill="white"/>
+<circle cx="973.062" cy="460.273" r="3.07785" fill="white"/>
+<circle cx="887.762" cy="396.957" r="3.07785" fill="white"/>
+<circle cx="874.565" cy="415.424" r="3.07785" fill="white"/>
+<circle cx="912.378" cy="397.836" r="3.07785" fill="white"/>
+<circle cx="943.163" cy="453.238" r="3.07785" fill="white"/>
+<circle cx="891.28" cy="502.484" r="3.07785" fill="white"/>
+<circle cx="828.844" cy="404.871" r="3.07785" fill="white"/>
+<circle cx="909.747" cy="378.49" r="3.07785" fill="white"/>
+<circle cx="516.662" cy="360.902" r="3.07785" fill="white"/>
+<circle cx="282.725" cy="464.669" r="3.07785" fill="white"/>
+<circle cx="254.591" cy="500.725" r="3.07785" fill="white"/>
+<circle cx="280.094" cy="511.276" r="3.07785" fill="white"/>
+<circle cx="287.129" cy="501.604" r="3.07785" fill="white"/>
+<circle cx="455.957" cy="313.415" r="3.07785" fill="white"/>
+<circle cx="817.411" cy="319.571" r="3.07785" fill="white"/>
+<circle cx="823.567" cy="329.245" r="3.07785" fill="white"/>
+<circle cx="637.138" cy="450.599" r="3.07785" fill="white"/>
+<circle cx="954.595" cy="420.7" r="3.95723" fill="white"/>
+<circle cx="432.888" cy="428.565" r="3.95723" transform="rotate(48.2262 432.888 428.565)" fill="white"/>
+<circle cx="545.552" cy="326.477" r="3.95723" transform="rotate(48.2262 545.552 326.477)" fill="white"/>
+<circle cx="245.661" cy="504.113" r="3.95723" transform="rotate(48.2262 245.661 504.113)" fill="white"/>
+<circle cx="289.623" cy="455.747" r="3.95723" transform="rotate(48.2262 289.623 455.747)" fill="white"/>
+<circle cx="643.164" cy="461.903" r="3.95723" transform="rotate(48.2262 643.164 461.903)" fill="white"/>
+<circle cx="534.34" cy="363.907" r="3.95723" transform="rotate(48.2262 534.34 363.907)" fill="white"/>
+<g filter="url(#filter0_gf_8061_1104)">
+<ellipse cx="629.663" cy="574.286" rx="629.626" ry="282.565" fill="#F2F2F2"/>
+<ellipse cx="629.663" cy="574.286" rx="629.626" ry="282.565" fill="url(#paint1_linear_8061_1104)"/>
+<ellipse cx="629.663" cy="574.286" rx="629.626" ry="282.565" fill="url(#paint2_linear_8061_1104)"/>
+</g>
+</g>
+<defs>
+<filter id="filter0_gf_8061_1104" x="-199.626" y="92.0579" width="1658.58" height="964.456" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feTurbulence type="fractalNoise" baseFrequency="1.0016840696334839 1.0016840696334839" numOctaves="3" seed="2324" />
+<feDisplacementMap in="shape" scale="7.9865503311157227" xChannelSelector="R" yChannelSelector="G" result="displacedImage" width="100%" height="100%" />
+<feMerge result="effect1_texture_8061_1104">
+<feMergeNode in="displacedImage"/>
+</feMerge>
+<feGaussianBlur stdDeviation="99.8319" result="effect2_foregroundBlur_8061_1104"/>
+</filter>
+<linearGradient id="paint0_linear_8061_1104" x1="629.663" y1="277.8" x2="629.663" y2="1157.18" gradientUnits="userSpaceOnUse">
+<stop stop-color="#4E60B2"/>
+<stop offset="1" stop-color="#141414"/>
+</linearGradient>
+<linearGradient id="paint1_linear_8061_1104" x1="557.519" y1="450.392" x2="1014.49" y2="871.479" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="0.33" stop-color="#ECF0FF"/>
+<stop offset="0.66" stop-color="#FFE1F7"/>
+<stop offset="1" stop-color="#FFC3B8"/>
+</linearGradient>
+<linearGradient id="paint2_linear_8061_1104" x1="717.548" y1="458.501" x2="227.846" y2="793.184" gradientUnits="userSpaceOnUse">
+<stop stop-color="#EBE0FF" stop-opacity="0"/>
+<stop offset="1" stop-color="#FDF3D3"/>
+</linearGradient>
+<clipPath id="clip0_8061_1104">
+<rect width="1259" height="529" fill="white"/>
+</clipPath>
+</defs>
+</svg>

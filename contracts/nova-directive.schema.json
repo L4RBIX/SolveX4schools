@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solvex.dev/schemas/nova-directive.schema.json",
+  "title": "NovaDirective",
+  "description": "What Nova is permitted to say and do, decided by the Decision Engine rather than by a prompt. A prompt is a preference; this is a guarantee — `mayNameMisconception` is false unless a misconception cleared the actionable threshold, so 'you don't understand X' is unreachable without evidence rather than merely discouraged.",
+  "type": "object",
+  "required": ["mode", "mayNameMisconception", "namedMisconception", "maxHintLevel", "mayIncludeCode", "mustNotSay", "opening"],
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["ask", "explain", "withhold", "direct"],
+      "description": "ask = we do not know why they are failing, so questions only. explain = an actionable misconception exists, teach that one thing. withhold = they are close, a bigger hint takes it off them. direct = they have done this unaided, be brief."
+    },
+    "mayNameMisconception": {
+      "type": "boolean",
+      "description": "True only under REMEDIATE, which requires an actionable misconception to exist."
+    },
+    "namedMisconception": {
+      "type": ["string", "null"],
+      "description": "A failure class the verification engine emitted, never a label this system invented. Null whenever mayNameMisconception is false."
+    },
+    "maxHintLevel": {
+      "type": "integer", "minimum": 0, "maximum": 4,
+      "description": "Ceiling on the hint ladder. 0 = questions only. DIAGNOSE sets 0 because a hint given without a diagnosis is a guess in a confident voice."
+    },
+    "mayIncludeCode": { "type": "boolean" },
+    "mustNotSay": {
+      "type": "array", "items": { "type": "string" },
+      "description": "Always contains the shaming sentences and their variants. Carried into every grant, including a learner override — the override buys a bigger hint, not a diagnosis."
+    },
+    "opening": {
+      "type": "string",
+      "description": "Filled from counts. Never a claim the evidence cannot carry."
+    }
+  },
+  "$comment": "TRANSPORT SUBSET: only { max_hint_level, mode, may_include_code } crosses the network to the LLM server. The claim-bearing fields (namedMisconception, mayNameMisconception, opening) stay client-side and are RENDERED from server-computed state, never handed to a model as fact. See packages/nova-core/python/nova_directive.py."
+}

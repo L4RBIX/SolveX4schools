@@ -1,0 +1,258 @@
+{
+  "archive": "solvex-learning-intelligence-for-solvex4schools",
+  "purpose": "Portable Learning Intelligence + Nova AI core extracted from SolveX (competitive programming) for reuse in SolveX4Schools (school curriculum).",
+  "generated": "2026-08-25",
+  "readFirst": "README_SOLVEX4SCHOOLS_INTEGRATION.md, then VERIFIED_COUPLING.md",
+  "source": {
+    "frontend": {
+      "repo": "SolveX",
+      "branch": "main",
+      "commit": "a9427405be56b7b8d240a19f285dd02dc1402e75",
+      "workingTree": "dirty",
+      "warning": "The Learning Intelligence code is UNTRACKED at this commit. Checking out this SHA yields a repository with no learning intelligence in it. This archive is the only durable copy of the exported state; verify with CHECKSUMS.sha256, not with git."
+    },
+    "backend": {
+      "repo": "solvex-backend",
+      "branch": "feat/verified-problem-evidence",
+      "commit": "cd187f8bce14f4fef5111728c738a32eeaed0701",
+      "workingTree": "dirty"
+    }
+  },
+  "coreVersion": "1.0.0",
+  "versions": {
+    "REDUCER_VERSION": 5,
+    "LEARNER_STATE_VERSION": 1,
+    "DECISION_ENGINE_VERSION": 1,
+    "NOVA_RUNTIME_VERSION": 1,
+    "INTERVENTION_MEMORY_VERSION": 1,
+    "INTERVENTION_REDUCER_VERSION": 1,
+    "OUTCOME_REDUCER_VERSION": 1,
+    "LEARNING_EVENT_VERSION": 1,
+    "ATTESTATION_VERSION": 1,
+    "ATTRIBUTION_VERSION": 1,
+    "_note": "These are cache-invalidation keys. Bump the matching one whenever you change what a projection MEANS, or you will serve numbers that no longer mean what they say. L2-L6 are all rebuildable from learning_events; only the ledger is durable."
+  },
+  "packages": [
+    {
+      "name": "@solvex/learning-contracts",
+      "path": "packages/learning-contracts",
+      "loc": 657,
+      "runtimeDependencies": [
+        "node:crypto"
+      ],
+      "contains": [
+        "event taxonomy (13 names)",
+        "source trust levels",
+        "payload allowlist (50 keys)",
+        "sanitizePayload",
+        "failure classes (6)",
+        "HMAC attestation verification"
+      ],
+      "modify": "YES - add your event names and payload keys here"
+    },
+    {
+      "name": "@solvex/learning-intelligence-core",
+      "path": "packages/learning-intelligence-core",
+      "loc": 2678,
+      "runtimeDependencies": [
+        "node:crypto",
+        "@solvex/learning-contracts"
+      ],
+      "contains": [
+        "episode reducer (L2)",
+        "diff classifier (8 classes)",
+        "intervention rows + outcomes (L3)",
+        "learner state + misconception model (L4)",
+        "decision engine (L5)",
+        "action memory (L6)"
+      ],
+      "modify": "NO - except src/starterTemplates.ts"
+    },
+    {
+      "name": "@solvex/nova-core",
+      "path": "packages/nova-core",
+      "loc": 427,
+      "runtimeDependencies": [
+        "@solvex/learning-intelligence-core",
+        "pydantic>=2 (python half only)"
+      ],
+      "contains": [
+        "grantHintLevel (hint escalation policy)",
+        "hasAttemptSince",
+        "novaIndicator (5 UI tones)",
+        "NovaDirective pydantic model",
+        "server-side prohibition tables",
+        "effective_help_level"
+      ],
+      "modify": "ONE LINE - ATTEMPT_EVENTS in src/novaRuntime.ts:214"
+    }
+  ],
+  "entrypoints": {
+    "reduceEpisode(events) -> ReducedEpisode": "@solvex/learning-intelligence-core",
+    "buildLearnerState(subjectId, episodeInputs) -> LearnerState": "@solvex/learning-intelligence-core",
+    "decide(state) -> LearningDecision": "@solvex/learning-intelligence-core",
+    "mayAssertMisconception(action) -> boolean": "@solvex/learning-intelligence-core",
+    "grantHintLevel(input) -> GrantDecision": "@solvex/nova-core",
+    "hasAttemptSince(events, since) -> boolean": "@solvex/nova-core",
+    "novaIndicator(directive) -> NovaIndicator": "@solvex/nova-core",
+    "sanitizePayload(payload) -> LearningPayload": "@solvex/learning-contracts",
+    "verifyAttestation(token, secret) -> AttestedSubmission | null": "@solvex/learning-contracts",
+    "effective_help_level(requested, directive) -> int": "packages/nova-core/python/nova_directive.py",
+    "_format_directive(directive) -> str | None": "packages/nova-core/python/nova_directive.py"
+  },
+  "requiredEnv": [
+    {
+      "name": "SUPABASE_URL",
+      "required": true,
+      "sharedValue": false
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "required": true,
+      "sharedValue": false,
+      "note": "Service role, not anon. All learning tables are RLS-enabled with zero policies."
+    },
+    {
+      "name": "LEARNING_CRON_SECRET",
+      "required": true,
+      "sharedValue": true,
+      "note": "Scheduler and reduce route. Without a sweep, no projection is ever built."
+    },
+    {
+      "name": "SOLVEX_ADMIN_USER_IDS",
+      "required": true,
+      "sharedValue": false,
+      "note": "Flat allowlist. Scope this per class for schools."
+    },
+    {
+      "name": "LEARNING_ATTESTATION_SECRET",
+      "required": false,
+      "sharedValue": true,
+      "note": "Signer and verifier MUST hold the same value. A mismatch is silent: coverage goes to zero and every learner gets DIAGNOSE forever."
+    },
+    {
+      "name": "DEEPSEEK_API_KEY",
+      "required": false,
+      "sharedValue": false
+    },
+    {
+      "name": "DEEPSEEK_BASE_URL",
+      "required": false,
+      "sharedValue": false
+    },
+    {
+      "name": "DEEPSEEK_MODEL",
+      "required": false,
+      "sharedValue": false
+    }
+  ],
+  "databaseMigrations": {
+    "order": [
+      "0003_learning_events.sql",
+      "0004_failure_attribution.sql",
+      "0006_learner_state.sql"
+    ],
+    "note": "Numbering gaps are real. 0001/0002 are beta analytics, 0005 is a feedback product. Neither belongs to Learning Intelligence.",
+    "requiredTables": [
+      "learning_subjects",
+      "learning_subject_aliases",
+      "learning_events",
+      "attempt_episodes",
+      "learner_state",
+      "learner_skill_state"
+    ],
+    "requiredIfUsingHints": [
+      "interventions",
+      "intervention_outcomes",
+      "learning_actions",
+      "learning_action_outcomes"
+    ],
+    "optionalTables": [
+      "code_blobs"
+    ],
+    "doNotCopy": [
+      "beta_events",
+      "beta_feedback",
+      "everything in 0005_feedback_intelligence.sql"
+    ],
+    "blockingSchemaChanges": [
+      "attempt_episodes.task_kind CHECK rejects 'lesson' - ALTER required before first write",
+      "learning_subject_aliases.alias_kind CHECK has no school identity kind",
+      "solvex_forget_user() calls beta_analytics_forget_user() from migration 0001 and will fail to create - write your own wrapper; learning_forget_user() underneath is standalone"
+    ]
+  },
+  "tests": {
+    "typescript": {
+      "command": "npm test",
+      "files": 12,
+      "tests": 209,
+      "status": "passing"
+    },
+    "python": {
+      "command": "python -m pytest tests/python/ -q",
+      "tests": 13,
+      "status": "passing"
+    },
+    "goldenFixtures": {
+      "command": "npx vitest run tests/golden.test.ts",
+      "tests": 26,
+      "status": "passing",
+      "note": "THE REGRESSION GATE. If this goes red after your change, you changed the intelligence."
+    },
+    "parity": {
+      "sharedFiles": 11,
+      "exactMatches": 11,
+      "originalTotal": 214,
+      "portedTotal": 183,
+      "notPortable": [
+        "client.test.ts (12) - browser transport",
+        "trustBoundary.test.ts (19) - Next.js route modules"
+      ]
+    }
+  },
+  "knownLimitations": [
+    "SILENT DEGRADATION: `progressed` and `regressed` (2 of 7 intervention outcomes) are unreachable without per-test pass counts on successive attempts - interventionOutcome.ts:164-174. No error is raised. Emit tests_passed/tests_total, using 1/0 for pass-fail items.",
+    "SILENT DEGRADATION: the `thrash` vs `stuck` struggle split collapses without per-test counts (episode.ts:478-499), which disables the unproductive-struggle override that lifts the hint cap for a genuinely stuck learner.",
+    "toLearningVerdict (events.ts:423) returns null - meaning 'infrastructure failed, not a learning outcome' - for any status containing 'timeout'. If your grader says 'timeout' for a learner's slow code, that failure is silently discarded.",
+    "attestation.ts:114 hard-rejects any token without a string `problem_id`; AttestedSubmission is a judge-submission shape. Keep the HMAC construction, replace the interface.",
+    "decisionEngine.ts:206-222 humanize() emits CP prose to learners ('a compile error', 'the running time'). TaskRequest.requires uses pack-verification vocabulary ('degenerate_cases', 'complexity_gate'). Both reach a learner or your catalogue - rewrite early.",
+    "verifyAction (interventionMemory.ts:94) returns checkedAt = epoch by design (pure function). SolveX's persist path stamps the real time. If you consume the return value directly, stamp it yourself.",
+    "MATURITY: SolveX has no scheduler. The reducer sweep has only ever run from a manual admin button (EpisodeList.tsx:153), so buildLearnerState / decide() and the whole L4-L6 stack have never run continuously against a real backlog. LEARNING_CRON_SECRET exists for a scheduled call that nothing makes yet. If you schedule it, you are the first.",
+    "DEAD CODE: hintEffectiveness() in learnerState.ts is exported with 4 tests but has no caller outside its own test file.",
+    "BLOCKING/SILENT: ATTEMPT_EVENTS in novaRuntime.ts:214 lists only code-editor events. School interaction events emit none of them, so the escalation guard never lets a learner climb a rung. No error is raised. Fix before hints ship.",
+    "BLOCKING: attempt_episodes.task_kind CHECK constraint rejects 'lesson' with 23514 check_violation.",
+    "BLOCKING: solvex_forget_user() will not create without migration 0001.",
+    "Route-layer trust tests do not travel - 3 of 6 trust properties must be re-proven against your own API routes.",
+    "7 of 20 Python tests dropped: they pin coach_service.py, which is Codeforces-specific.",
+    "Rate limiting in the original keys on client IP. One school behind one NAT gateway is one bucket.",
+    "SOLVEX_ADMIN_USER_IDS grants evidence access to EVERY subject, not a class roster.",
+    "Attribution coverage in the fixture population is 31/124 = 25%. That is a property of the test data (tiny inputs), not of the model.",
+    "starterTemplates.ts ships C++/Python templates. Left unreplaced, boilerplate detection silently under-detects rather than crashing.",
+    "Fixtures are synthetic. No percentage computed over them describes a real population.",
+    "TaskRequest.difficulty is a direction (easier|same|harder), not a measured level. Per-task difficulty calibration does not exist.",
+    "No live LLM is exercised by any test. The directive tests prove what is SENT, never what a model does with it."
+  ],
+  "designInvariants": [
+    "Unknown is better than wrong. DIAGNOSE is the DEFAULT action and the most common answer.",
+    "An unattributed failure contributes to NOTHING - not a fractional level drop, not a low-confidence misconception.",
+    "A misconception needs >=2 distinct episodes before confidence exceeds 0; confidence is capped at 0.95.",
+    "mayNameMisconception is false unless a misconception cleared actionable confidence (0.6).",
+    "There are four coarse skill levels and NO mastery percentage anywhere.",
+    "The NovaDirective sent to a model has NO field for a claim. That absence is the trust boundary.",
+    "Directives can only REMOVE capability: effective_help_level is min(), never max().",
+    "source_trust is stamped server-side. A browser cannot label its own events trustworthy.",
+    "failure_attributed without a valid HMAC signature is DROPPED, not downgraded.",
+    "Source code never enters the event payload - hashed into code_blobs, only blob_hash stored.",
+    "The read path never writes. Reduction is a scheduled job behind a secret.",
+    "Fail open on restrictions, fail closed on claims: a stale projection renders its counts but imposes no cap."
+  ],
+  "firstSteps": [
+    "Read README_SOLVEX4SCHOOLS_INTEGRATION.md",
+    "npm install && npm test  (expect 209 green BEFORE changing anything)",
+    "Apply database/migrations/ 0003 -> 0004 -> 0006 plus the two ALTERs in database/README.md",
+    "Copy packages/ into your repo",
+    "Fix ATTEMPT_EVENTS (novaRuntime.ts:214) for your interaction events",
+    "Emit episode_opened/_closed + assistance_* only; run the reducer; expect DIAGNOSE for everyone",
+    "Only then add failure_attributed, and only from curriculum-declared mappings"
+  ]
+}

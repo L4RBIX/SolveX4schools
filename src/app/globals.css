@@ -1,130 +1,363 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* ============================================================================
+   SolveX4Schools tokens.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+   These live here rather than in `solvex.css` where the rest of the school
+   styles are, and that is not a preference. Turbopack compiles a CSS `@import`
+   into its own chunk instead of inlining it, so Tailwind never sees an
+   `@theme` block declared in an imported file — the file loads, and every
+   sx- utility resolves to nothing. Silently.
+
+   Design decisions below that are pedagogy rather than taste are marked. Do
+   not "tidy" those.
+   ========================================================================== */
+
+@theme {
+  /* ---- surfaces --------------------------------------------------------
+     Near-black with a blue cast rather than pure #000: sustained reading on
+     OLED at true black raises perceived contrast to the point of eye strain,
+     and the smear on scroll is worse. */
+  --color-sx-bg: #0b0e14;
+  --color-sx-surface: #131722;
+  --color-sx-raised: #1a1f2e;
+  --color-sx-overlay: #222839;
+
+  /* ---- lines ---------------------------------------------------------- */
+  --color-sx-line: rgba(255, 255, 255, 0.08);
+  --color-sx-line-strong: rgba(255, 255, 255, 0.16);
+
+  /* ---- text ------------------------------------------------------------
+     Measured against --color-sx-bg:
+       primary   #E8ECF4 on #0B0E14 -> 15.2:1  (AAA)
+       secondary #97A3B8 on #0B0E14 ->  7.1:1  (AAA)
+       muted     #64748B on #0B0E14 ->  3.6:1  (large text / non-essential only)
+     `muted` is never used for body copy or for anything a learner must read. */
+  --color-sx-text: #e8ecf4;
+  --color-sx-text-2: #97a3b8;
+  --color-sx-text-3: #64748b;
+
+  /* ---- brand ----------------------------------------------------------- */
+  --color-sx-primary: #3b82f6;
+  --color-sx-primary-deep: #1d4ed8;
+  --color-sx-primary-soft: rgba(59, 130, 246, 0.14);
+  --color-sx-accent: #38bdf8;
+
+  /* ---- verdict ---------------------------------------------------------
+     Never used alone. Every verdict also carries an icon and a word, because
+     8% of boys are red-green colourblind and this is a class of 18. */
+  --color-sx-correct: #22c55e;
+  --color-sx-correct-soft: rgba(34, 197, 94, 0.13);
+  --color-sx-wrong: #f43f5e;
+  --color-sx-wrong-soft: rgba(244, 63, 94, 0.13);
+  --color-sx-partial: #f59e0b;
+  --color-sx-partial-soft: rgba(245, 158, 11, 0.13);
+
+  /* ---- unknown ---------------------------------------------------------
+     Off the success axis on purpose. See note 1 above. */
+  --color-sx-unknown: #5b6478;
+  --color-sx-unknown-soft: rgba(91, 100, 120, 0.16);
+
+  /* ---- tracks ----------------------------------------------------------
+     Қолдау / Негізгі / Тереңдетілген. Distinct hues, never ordered as a
+     ladder in the UI: a track is a route through a month, not a rank. */
+  --color-sx-support: #a78bfa;
+  --color-sx-core: #38bdf8;
+  --color-sx-advanced: #fbbf24;
+
+  /* ---- type ------------------------------------------------------------ */
+  --font-sx-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sx-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
+
+  /* Scale: 12 13 15 17 20 24 30 38. Body is 17 — see note 3. */
+  --text-sx-micro: 0.75rem;    /* 12 — labels, counters */
+  --text-sx-small: 0.8125rem;  /* 13 — helper text */
+  --text-sx-meta: 0.9375rem;   /* 15 — secondary body */
+  --text-sx-body: 1.0625rem;   /* 17 — body */
+  --text-sx-lead: 1.25rem;     /* 20 — lesson prompt */
+  --text-sx-h3: 1.5rem;        /* 24 */
+  --text-sx-h2: 1.875rem;      /* 30 */
+  --text-sx-h1: 2.375rem;      /* 38 */
+
+  /* ---- radius ---------------------------------------------------------- */
+  --radius-sx-sm: 8px;
+  --radius-sx-md: 12px;
+  --radius-sx-lg: 18px;
+  --radius-sx-xl: 26px;
+
+  /* ---- motion ----------------------------------------------------------
+     One rhythm for the whole product. Exit is ~65% of enter so dismissal
+     feels responsive rather than reluctant. */
+  --ease-sx-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-sx-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-sx-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+/* ============================================================================
+   brilliant.org's design system, reconstructed.
+
+   Every value below was pulled from the live site with getComputedStyle().
+   Tokens keep the `b-` origin prefix they were given when this project also
+   held a second cloned system; the prefix is retained so existing routes and
+   specs stay valid.
+   ========================================================================== */
+
+@theme {
+  /* ---- brilliant.org ------------------------------------------------- */
+  /* light surface (homepage) */
+  --color-b-paper: #f5f3f1;
+  --color-b-white: #ffffff;
+  --color-b-ink: #000000;
+  --color-b-muted: rgba(0, 0, 0, 0.4);
+  --color-b-line: rgba(0, 0, 0, 0.1);
+
+  /* dark surface (/courses, course map, lesson player) */
+  --color-b-dark: #141414;
+  --color-b-panel: #1e1e1e;
+  --color-b-edge: #4c4c4c;
+  --color-b-dim: rgba(255, 255, 255, 0.4);
+  --color-b-dim-2: rgba(255, 255, 255, 0.2);
+
+  /* accents */
+  --color-b-green: #29cc57;
+  --color-b-green-2: #5ed981;
+  --color-b-blue: #4a5cd6;
+  --color-b-blue-2: #3860be;
+
+  /* ---- authenticated app shell ---------------------------------------
+     Panda's own tokens, read from an element inside `html[data-theme="dark"]`
+     (reading `:root` returns the LIGHT arm and is wrong here). */
+  --color-b-bg: #141414; /* bg.primary */
+  --color-b-elevated: #1e1e1e; /* bg.elevated / bg.secondary */
+  --color-b-border: rgba(255, 255, 255, 0.2); /* border.primary */
+  --color-b-text-2: rgba(255, 255, 255, 0.6); /* text.secondary */
+  --color-b-text-off: rgba(255, 255, 255, 0.2); /* text.disabled */
+  --color-b-pear: #d8e82e; /* pear.500 — filled streak bolt */
+  --color-b-purple: #9d62ff; /* purple.500 */
+  --color-b-purple-2: #874de5; /* purple.600 — 3D lip */
+
+  /* ---- /you/ dashboard ------------------------------------------------ */
+  --color-b-chart: #456dff; /* problems-solved bar */
+  --color-b-green-deep: #004e16; /* summary gradient top, resilience chip */
+  --color-b-lilac: #b689ff; /* initiative icon */
+  --color-b-lilac-deep: #5a2ea3; /* initiative chip */
+  --color-b-deck-on: #170b29; /* active course thumbnail fill */
+  --color-b-deck-on-edge: #7139cc; /* active course thumbnail border, LEVEL label */
+
+  /* ---- lesson player (authenticated) ---------------------------------
+     Measured from the live player and from the scheduler interactive's own
+     shadow-DOM stylesheet. The widget authors every colour as
+     light-dark(<light>, <dark>); the values kept here are the DARK arm,
+     because the player ships `color-scheme: dark`. */
+
+  /* scheduler — resting */
+  --color-b-sched-fill: #142563;
+  --color-b-sched-edge: #294bc6;
+  --color-b-sched-fill-hover: #213c9e;
+  --color-b-sched-edge-hover: #375ce3;
+  /* scheduler — selected, pre-check */
+  --color-b-sched-fill-on: #375ce3;
+  --color-b-sched-edge-on: #7491ff;
+
+  /* verdict: wrong */
+  --color-b-warn: #b78900; /* card border, speech bubble, cta lip */
+  --color-b-warn-fill: #d7a613; /* wrong block fill */
+  --color-b-warn-edge: #f9d25c; /* wrong block border */
+  --color-b-warn-cta: #f7c325;
+  --color-b-warn-cta-ink: #5c4400;
+  --color-b-warn-icon: #fce49d;
+
+  /* verdict: right */
+  --color-b-ok: #009b2b; /* card + panel border */
+  --color-b-ok-fill: #15b441; /* right block fill, cta lip */
+  --color-b-ok-edge: #5ed981; /* right block border, satisfied icon */
+  --color-b-ok-panel: #001f09; /* panel wash */
+  --color-b-ok-progress: #9fe8b3; /* progress-bar fill */
+
+  /* verdict: locked-out blocks + greyed panel */
+  --color-b-lock-fill: #383838;
+  --color-b-lock-edge: #4c4c4c;
+  --color-b-lock-panel: #4c4c4c;
+  --color-b-lock-panel-edge: #666666;
+
+  /* neutral cta */
+  --color-b-cta: #e5e5e5;
+  --color-b-cta-lip: #b3b3b3;
+
+  /* pastel media panels, 555x387 r20 on the homepage */
+  --color-b-sky: #f0f8fa;
+  --color-b-mint: #e7eee2;
+  --color-b-peach: #ffede0;
+
+  /* ---- fonts: the references' own self-hosted webfaces ---------------- */
+  --font-b-sans: var(--font-cofo-brilliant), ui-sans-serif, system-ui, sans-serif;
+  --font-b-serif: var(--font-cofo-robert), Georgia, serif;
+  --font-b-mono: var(--font-source-code-pro), ui-monospace, monospace;
+
+  /* ---- motion -------------------------------------------------------- */
+  --ease-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+
+  /* The lesson player's page-fade pair, read off the live `data-visible` rule:
+     entering decelerates over 200ms, leaving accelerates over 100ms. */
+  --ease-b-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-b-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/*
+  The player's sidebar/handle spring, copied verbatim from the live
+  `transition` declaration. It overshoots to 1.027 and settles — an ease-out
+  substitute reads visibly wrong, so keep the sampled curve.
+*/
+@theme {
+  --ease-b-spring: linear(
+    0 0%, 0.007 1.5%, 0.026 3%, 0.059 4.5%, 0.106 6.3%, 0.209 9.5%,
+    0.558 19.3%, 0.658 22.4857%, 0.742 25.6714%, 0.812 28.8571%,
+    0.87 32.0429%, 0.918 35.2286%, 0.957 38.4143%, 0.986 41.6%,
+    1.007 45.3%, 1.021 49.4%, 1.027 54%, 1.027 60.9%, 1.007 83.2%, 1 100%
+  );
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    /*
+      The reference declares its own surfaces and does not want Chrome's
+      auto-dark inversion applied on top. Opt out explicitly, then paint an
+      unambiguous default so no route inherits a UA canvas colour.
+    */
+    color-scheme: only light;
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: #ffffff;
+    color: #191f28;
+  }
+
+  :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* brilliant.org container: 1296px inner at 1440 viewport */
+  .b-shell {
+    @apply mx-auto w-full max-w-[1296px] px-5 sm:px-8;
+  }
+
+  /* brilliant.org /courses container: 1216px */
+  .b-shell-narrow {
+    @apply mx-auto w-full max-w-[1216px] px-5 sm:px-8;
+  }
+
+
+  /*
+    brilliant.org's signature raised object: a 2px border and a *hard* 4px
+    bottom edge in the same colour, no blur. Pressing sinks it into the edge.
+  */
+  .b-physical {
+    border: 2px solid var(--color-b-edge);
+    box-shadow: 0 4px 0 0 var(--color-b-edge);
+  }
+
+  .b-press {
+    transition:
+      transform 120ms var(--ease-cubic),
+      box-shadow 120ms var(--ease-cubic),
+      border-color 160ms var(--ease-cubic),
+      background-color 160ms var(--ease-cubic);
+  }
+  .b-press:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 0 currentColor;
+  }
+
+  /* brilliant.org eyebrow: 12px / 700 / 0.48px / uppercase */
+  .b-eyebrow {
+    @apply text-[12px] font-bold uppercase;
+    letter-spacing: 0.48px;
+  }
+
+  /*
+    The player's "glass-button" dock. Not a flat panel: a green radial bleed
+    from the left edge (Koji's own #29CC57, so he appears to tint the glass he
+    stands next to), a barely-there white sheen, and a real backdrop blur.
+    Values copied from the live computed style.
+  */
+  .b-glass {
+    background-image:
+      radial-gradient(
+        49.79% 249.89% at 0.21% 54.81%,
+        rgba(41, 204, 87, 0.2) 0%,
+        rgba(41, 204, 87, 0) 50%
+      ),
+      linear-gradient(
+        270deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.024) 100%
+      );
+    backdrop-filter: blur(18.36px) saturate(1.408);
+    -webkit-backdrop-filter: blur(18.36px) saturate(1.408);
+  }
+
+  /*
+    Failed-constraint nudge. The original is a 2-stop keyframe played four
+    times, alternating, 100ms each — a 400ms 0→4px oscillation, not a
+    symmetric left/right shake.
+  */
+  .b-shake {
+    animation: b-shake-x 100ms ease-in-out 4 alternate;
+  }
+}
+
+/*
+  The sheen that sweeps across a primary CTA. Copied verbatim: the sweep is
+  only the first quarter of the cycle, then it holds invisible for the rest —
+  which is why the highlight reads as an occasional glint rather than a loop.
+  Applied as: shimmer 6400ms cubic-bezier(.16, 1, 0.7, 1) infinite
+*/
+@keyframes b-shimmer {
+  0% {
+    opacity: 1;
+    left: -100%;
+  }
+  25% {
+    opacity: 1;
+    left: 100%;
+  }
+  26% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+    left: 100%;
+  }
+}
+
+@keyframes b-shake-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

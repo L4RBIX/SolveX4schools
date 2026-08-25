@@ -1,0 +1,354 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import { GameboardPedestal } from "./gameboard-pedestal";
+import {
+  COURSE,
+  CURRENT_LEVEL,
+  LEVELS,
+  type GameboardNode,
+} from "./course-data";
+
+/**
+ * `brilliant.org/courses/<slug>/` — the course gameboard.
+ *
+ * Structure, all measured at a 1470 viewport:
+ *
+ * - The page does **not** scroll the document. A `position: fixed` container
+ *   sits below the 65px header (`top: 65px`, `overflow: hidden auto`) and owns
+ *   the scrolling; `document.scrollHeight` stays at the viewport height while
+ *   the container's own `scrollHeight` was 11573.
+ * - Inside it, `justify-content: center; gap: 32px; padding: 20px 112px 0`.
+ * - Left: a 487px course card, `position: sticky; top: 41px`.
+ * - Right: a 488px column of nine `<section>`s, one per level.
+ * - Each level header is its own `position: sticky; top: 41px` element, so the
+ *   browser does the pin/unpin hand-off per section rather than one shared bar.
+ *
+ * INTERACTION MODEL: click to select. Verified against the live page — hovering
+ * a node changes nothing, scrolling changes nothing, and a real click swaps the
+ * node's static SVG for a Rive canvas, rings it purple and rewrites the sticky
+ * footer card to that lesson with a "Jump here" CTA. With nothing selected the
+ * card offers the learner's current lesson with "Start".
+ */
+
+/* The header's purple/grey slab is a sibling rectangle offset behind the
+   button, not a border: 460x72 at top:-2px, translated -230px on x. */
+const HEADER_SHADOW_ACTIVE = "#7139CC";
+const HEADER_SHADOW_IDLE = "#4C4C4C";
+
+export function CourseGameboard() {
+  const [selected, setSelected] = useState<GameboardNode | null>(null);
+  const [showTop, setShowTop] = useState(false);
+  const [nodeOnScreen, setNodeOnScreen] = useState(true);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  const onScroll = useCallback(() => {
+    const el = scroller.current;
+    if (el) setShowTop(el.scrollTop > 400);
+  }, []);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [onScroll]);
+
+  const activeNode =
+    LEVELS.flatMap((l) => l.nodes).find((n) => n.active) ?? null;
+  const footerNode = selected ?? activeNode;
+  const isJump = Boolean(selected);
+
+  /* The original hides the CTA while its own node is on screen and slides it
+     back up once you scroll away from it. */
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root || !footerNode) return;
+    /* The value sits inside quotes, so it must NOT be CSS.escape'd — escaping
+       a space there yields `"Writing\ Programs"`, which matches nothing. */
+    const el = root.querySelector<HTMLElement>(
+      `[data-node="${footerNode.title.replace(/"/g, '\\"')}"]`,
+    );
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setNodeOnScreen(entry.isIntersecting),
+      { root, threshold: 0.6 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [footerNode]);
+
+  return (
+    <div
+      ref={scroller}
+      className="fixed inset-x-0 bottom-0 top-[65px] flex justify-start gap-8 overflow-y-auto overflow-x-hidden px-6 pt-5 xl:justify-center xl:px-28"
+    >
+      {/* ---- left: course summary, sticky ---------------------------- */}
+      <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] lg:block">
+        <div className="flex flex-col items-start gap-4 rounded-[20px] border-2 border-white/20 bg-b-bg p-8">
+          <Image
+            src={COURSE.art}
+            alt=""
+            width={197}
+            height={154}
+            className="h-[154px] w-[197px] object-contain"
+          />
+          <div className="flex flex-col gap-6 text-left">
+            <div className="flex flex-col gap-4">
+              <h1 className="text-[24px] leading-[30px] font-bold">{COURSE.title}</h1>
+              <p className="text-white/60">{COURSE.blurb}</p>
+            </div>
+            <div className="flex items-center gap-4 text-[14px] leading-[21px]">
+              <span className="flex items-center gap-2 text-white/60">
+                <LessonsIcon />
+                {COURSE.lessons}
+              </span>
+              <span className="flex items-center gap-2 text-white/60">
+                <ExercisesIcon />
+                {COURSE.exercises}
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* ---- right: the board ---------------------------------------- */}
+      <div className="relative z-[1] mt-5 w-full min-w-[364px] max-w-[488px] flex-[2_1_364px]">
+        <div className="flex flex-col items-center gap-[30px]">
+          {LEVELS.map((level, li) => (
+            <section key={level.index} className="w-full">
+              <LevelHeader
+                index={level.index}
+                title={level.title}
+                current={level.index === CURRENT_LEVEL}
+              />
+
+              <div
+                className={cn(
+                  "flex flex-col items-center gap-[30px] mb-15",
+                  li === 0 ? "-mt-30" : "-mt-50",
+                )}
+              >
+                {level.nodes.map((node) => (
+                  <NodeRow
+                    key={`${level.index}-${node.title}`}
+                    node={node}
+                    selected={selected?.title === node.title}
+                    onSelect={() =>
+                      setSelected((cur) => (cur?.title === node.title ? null : node))
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {/* sticky CTA — 40px off the bottom, above everything */}
+          {footerNode && (
+            <FooterCard node={footerNode} jump={isJump} hidden={nodeOnScreen} />
+          )}
+        </div>
+      </div>
+
+      <ScrollTopButton
+        show={showTop}
+        onClick={() => scroller.current?.scrollTo({ top: 0, behavior: "smooth" })}
+      />
+    </div>
+  );
+}
+
+/**
+ * The zig-zag is not an offset table: the original gives every row a fixed
+ * 392px width and flips `justify-content` between center / flex-start /
+ * flex-end. Reproduced as-is so the path keeps its shape at any width.
+ */
+function NodeRow({
+  node,
+  selected,
+  onSelect,
+}: {
+  node: GameboardNode;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div
+      data-node={node.title}
+      className="relative flex w-full max-w-[392px]"
+      style={{ justifyContent: node.side }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="group flex w-[274px] cursor-pointer items-end gap-2 text-left"
+      >
+        <GameboardPedestal
+          animated={Boolean(node.active) || selected}
+          selected={selected}
+          active={node.active}
+          review={node.review}
+        />
+        <span className="flex w-[138px] items-center pb-[29.5px]">
+          <span
+            className={cn(
+              "transition-colors",
+              node.active || selected ? "text-white" : "text-white/40",
+            )}
+          >
+            {node.title}
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Level header. The coloured slab behind it is a separate 460x72 rectangle at
+ * `top:-2px` translated -230px on x — an offset block, not a border, which is
+ * why the outline reads thicker on the right than the left.
+ */
+function LevelHeader({
+  index,
+  title,
+  current,
+}: {
+  index: number;
+  title: string;
+  current: boolean;
+}) {
+  return (
+    <div className="sticky top-[41px] z-[1] mb-50 h-16 bg-b-bg px-4">
+      <div className="relative">
+        <button
+          type="button"
+          aria-label={`view details for level ${index}, ${title}`}
+          className="relative z-[1] flex h-16 w-full items-center justify-center rounded-[18px] bg-b-bg text-center"
+        >
+          <h3 className="flex flex-col gap-1">
+            <span
+              className="b-eyebrow leading-[13.2px]"
+              style={{ color: current ? HEADER_SHADOW_ACTIVE : "rgba(255,255,255,0.6)" }}
+            >
+              Level {index}
+            </span>
+            <span className="leading-[22.4px]">{title}</span>
+          </h3>
+        </button>
+        <div
+          aria-hidden="true"
+          className="absolute -top-0.5 -bottom-1.5 left-0 right-0 z-0 rounded-[20px] transition-colors"
+          style={{ backgroundColor: current ? HEADER_SHADOW_ACTIVE : HEADER_SHADOW_IDLE }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The bottom CTA. It is `position: sticky; bottom: 40px` inside the scroller —
+ * not fixed — and carries a large `#9D62FF` blob at 40% behind it for the
+ * purple ambience. Radius 40px, `#1E1E1E` on a 2px `#4C4C4C` border.
+ */
+function FooterCard({
+  node,
+  jump,
+  hidden,
+}: {
+  node: GameboardNode;
+  jump: boolean;
+  hidden: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "sticky bottom-10 z-10 mt-15 w-full max-w-[456px] transition-all duration-300 ease-out",
+        hidden ? "pointer-events-none translate-y-[100px] opacity-0" : "translate-y-0 opacity-100",
+      )}
+    >
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-12 left-1/2 h-[386px] w-[803px] -translate-x-1/2 rounded-full opacity-40 blur-3xl transition-opacity duration-300 ease-in-out"
+          style={{ backgroundColor: "var(--color-b-purple)" }}
+        />
+        <div className="relative z-[1] flex flex-col gap-4 rounded-[40px] border-2 border-b-edge bg-b-elevated px-4 pt-6 pb-4">
+          <div className="flex w-full flex-col items-center gap-4 text-center">
+            <h3 className="text-[24px] leading-[44px] font-bold">{node.title}</h3>
+            <Link
+              href={node.href ?? COURSE.activeHref}
+              role="link"
+              data-slot="button3d"
+              className="group relative flex w-full rounded-[56px]"
+            >
+              <span
+                data-slot="button3d-face"
+                className={cn(
+                  "flex h-12 w-full items-center justify-center rounded-[60px] px-6 py-[14px]",
+                  "leading-5 font-medium text-white",
+                  "bg-b-purple shadow-[0_4px_0_0_var(--color-b-purple-2)]",
+                  "-translate-y-1 transition-[transform,box-shadow] duration-100 ease-out",
+                  "group-active:translate-y-0 group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",
+                )}
+              >
+                {jump ? "Jump here" : "Start"}
+              </span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScrollTopButton({ show, onClick }: { show: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="Scroll to top"
+      onClick={onClick}
+      className={cn(
+        "fixed bottom-10 left-1/2 z-20 flex h-12 w-12 -translate-x-[420px] items-center justify-center",
+        "rounded-full border-2 border-b-edge bg-b-bg transition-opacity duration-300",
+        show ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M1.89614 8.94751L0.474304 7.52568L8 -1.55877e-05L15.5257 7.52568L14.1039 8.94751L9.00541 3.84905L9.00541 16L6.99464 16L6.99463 3.84902L1.89614 8.94751Z"
+          fill="currentColor"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function LessonsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <ellipse cx="12" cy="8" rx="9" ry="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 8v4c0 2.2 4 4 9 4s9-1.8 9-4V8" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function ExercisesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3l2.2 4.6L19 9l-3.5 3.3.9 4.9L12 15l-4.4 2.2.9-4.9L5 9l4.8-1.4z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

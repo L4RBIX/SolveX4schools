@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Discarded work kept for reference only. It is excluded from tsconfig
+    // too; linting it reports errors nothing will ever fix.
+    "_quarantine/**",
   ]),
 ]);
 

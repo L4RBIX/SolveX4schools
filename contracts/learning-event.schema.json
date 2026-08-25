@@ -1,0 +1,468 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solvex.dev/schemas/learning-event.schema.json",
+  "title": "LearningEvent",
+  "description": "One admitted observation about what a learner did. Admission rule, applied to every name below: an event is admissible only if you can name the decision it changes. 'It would be interesting to know' is not a decision.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_name",
+    "subject_id",
+    "received_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Client-generated. Idempotency key — ingest upserts on it."
+    },
+    "event_name": {
+      "type": "string",
+      "enum": [
+        "episode_opened",
+        "episode_resumed",
+        "episode_closed",
+        "statement_revisited",
+        "code_diff_classified",
+        "idle_gap",
+        "test_case_authored",
+        "run_executed",
+        "verdict_received",
+        "failure_attributed",
+        "solution_revealed",
+        "assistance_requested",
+        "assistance_delivered"
+      ],
+      "description": "Enforced in application code, NOT by the database. The `learning_events.event_name` column only checks length 1..48, so a school adapter adds names here without a migration."
+    },
+    "subject_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Opaque learner id. Minted server-side; never supplied by a client."
+    },
+    "episode_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid",
+      "description": "Anchors an event to one attempt. Without it, an event cannot be attributed to a task attempt."
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_trust": {
+      "type": "string",
+      "enum": [
+        "server",
+        "judge",
+        "verifier",
+        "browser"
+      ],
+      "description": "STAMPED BY THE SERVER, never accepted from a client. `judge` is granted only when a valid HMAC attestation accompanies the event; `verifier` events without one are dropped entirely rather than downgraded."
+    },
+    "route": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string",
+      "enum": [
+        "production",
+        "preview",
+        "development"
+      ]
+    },
+    "cohort": {
+      "type": "string",
+      "enum": [
+        "beta",
+        "internal",
+        "public"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Scalars only — an object or array could smuggle a payload past review. Every key not listed is DROPPED server-side. Strings are clamped to 96 chars and the object to 24 keys.",
+      "additionalProperties": false,
+      "properties": {
+        "task_ref": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "task_kind": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "entry_source": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "language": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "close_reason": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "gap_seconds": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "resume_count": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "diff_class": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "lines_added": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "lines_removed": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "edit_distance_bucket": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "since_verdict": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "blob_hash": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "prev_blob_hash": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "seconds_bucket": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "followed_by": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "derived_from": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "input_size_class": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "targets_edge": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "case_count": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "passed_count": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "failed_count": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "first_failing_case": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "is_custom_input": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "verdict": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "failing_test_index": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "tests_passed": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "tests_total": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "runtime_ms": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "memory_kb": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "progression_delta": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "is_revisit": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "revisit_after": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "intervention_id": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "level": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "requested_level": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "granted_level": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "trigger": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "mode": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "evidence_type": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "contains_code": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "content_len": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "reveal_scope": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "failure_class": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "attribution_source": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "attribution_version": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "attribution_reason": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "submission_id": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "$comment": "code-judge shaped — see SOLVEX4SCHOOLS_ADAPTER_SPEC.md"
+        },
+        "skill_id": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      }
+    }
+  },
+  "$comment": "Two transport-only keys are accepted on the wire and NEVER stored as sent: `__code` (source text — hashed into code_blobs, only blob_hash survives) and `__attestation` (the signed backend statement — verified, its facts taken FROM it rather than from the client payload, then dropped)."
+}

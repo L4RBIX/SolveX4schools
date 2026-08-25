@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,21 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@solvex/learning-contracts": [
+        "./packages/learning-contracts/src/index.ts"
+      ],
+      "@solvex/learning-intelligence-core": [
+        "./packages/learning-intelligence-core/src/index.ts"
+      ],
+      "@solvex/nova-core": [
+        "./packages/nova-core/src/index.ts"
+      ],
+      "@schools/*": [
+        "./schools/*"
+      ]
     }
   },
   "include": [
@@ -30,5 +48,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "_quarantine"
+  ]
 }

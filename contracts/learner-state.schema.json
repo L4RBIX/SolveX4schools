@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solvex.dev/schemas/learner-state.schema.json",
+  "title": "LearnerState",
+  "description": "Everything the Decision Engine is allowed to know about one learner. Every field is a COUNT of something observed, or is derived from counts. There is no mastery score, no skill radar and no inferred weakness, and adding one would break the property the whole system rests on: that any claim shown to a learner can be traced to events they could check against their own history.",
+  "type": "object",
+  "required": ["subject", "episodes", "skills", "assistance", "unattributedFailures", "version"],
+  "properties": {
+    "subject": { "type": "string", "format": "uuid", "description": "Opaque. The core never needs a name, email, username or external handle." },
+    "episodes": { "type": "integer", "minimum": 0 },
+    "skills": { "type": "array", "items": { "$ref": "#/$defs/SkillState" } },
+    "assistance": { "$ref": "#/$defs/AssistanceProfile" },
+    "unattributedFailures": {
+      "type": "integer", "minimum": 0,
+      "description": "Failures the engine could not explain. Surfaced at the TOP LEVEL, not buried per-skill, because it is the honest denominator for everything else here — at 75% this projection is built on a quarter of what happened, and a reader who cannot see that will over-trust it."
+    },
+    "version": { "type": "integer", "description": "LEARNER_STATE_VERSION at compute time. A mismatch means stale: render the counts, apply NO directive cap." }
+  },
+  "$defs": {
+    "SkillState": {
+      "type": "object",
+      "required": ["skill", "level", "attempts", "solved", "soloSolved", "assistedSolved", "failures", "attributedFailures", "distinctTasks", "misconceptions", "rationale"],
+      "properties": {
+        "skill": { "type": "string" },
+        "level": {
+          "type": "string", "enum": ["unknown", "developing", "competent", "strong"],
+          "description": "Four coarse buckets, not a percentage. `unknown` is a real answer and the correct one most of the time."
+        },
+        "attempts": { "type": "integer" },
+        "solved": { "type": "integer" },
+        "soloSolved": { "type": "integer", "description": "Solved with no assistance. The only kind of solve that supports a claim about the learner." },
+        "assistedSolved": { "type": "integer" },
+        "failures": { "type": "integer" },
+        "attributedFailures": { "type": "integer", "description": "Of `failures`, how many carry a cause. The rest contribute to `unattributedFailures` and to NOTHING else — not a fractional level drop, not a low-confidence guess." },
+        "distinctTasks": { "type": "integer", "description": "Repeating one task is not evidence of transfer." },
+        "misconceptions": { "type": "array", "items": { "$ref": "#/$defs/MisconceptionObservation" } },
+        "rationale": { "type": "string", "description": "Plain-language justification built from the same counts as `level`." }
+      }
+    },
+    "MisconceptionObservation": {
+      "type": "object",
+      "required": ["failureClass", "skill", "occurrences", "distinctEpisodes", "evidenceConfidence", "confidence", "actionable", "firstSeenAt", "lastSeenAt", "episodeIds"],
+      "properties": {
+        "failureClass": { "type": "string", "description": "A class the verification engine emitted. NEVER a label this system invented." },
+        "skill": { "type": "string" },
+        "occurrences": { "type": "integer" },
+        "distinctEpisodes": { "type": "integer", "description": "What confidence is actually built on. Ten failures in one sitting are one observation." },
+        "evidenceConfidence": { "type": "number", "description": "Mean confidence of the individual attributions underneath." },
+        "confidence": {
+          "type": "number", "minimum": 0, "maximum": 0.95,
+          "description": "Confidence that the learner has a RECURRING problem of this kind. Computed as 1 − P(fewer than two true positives) under Binomial(distinctEpisodes, evidenceConfidence), capped at 0.95. Returns exactly 0 when distinctEpisodes <= 1: one attributed failure is an incident, not a pattern. Counting attributions is not running an experiment, hence the cap."
+        },
+        "actionable": { "type": "boolean", "description": "confidence >= ACTIONABLE_CONFIDENCE (0.6). The ONLY gate that unlocks naming a misconception to a learner." },
+        "firstSeenAt": { "type": "string", "format": "date-time" },
+        "lastSeenAt": { "type": "string", "format": "date-time" },
+        "episodeIds": { "type": "array", "items": { "type": "string" }, "description": "The receipts. An admin can open every one." }
+      }
+    },
+    "AssistanceProfile": {
+      "type": "object",
+      "required": ["interventions", "hintDependency", "medianSecondsToFirstHint", "transferSolves", "outcomeCounts"],
+      "properties": {
+        "interventions": { "type": "integer" },
+        "hintDependency": { "type": "number", "minimum": 0, "maximum": 1, "description": "Share of SOLVED episodes that needed level-2+ help. A learner who never solves has no reading rather than a zero one." },
+        "medianSecondsToFirstHint": { "type": ["number", "null"], "description": "Seconds from first failing verdict to first hint. Reaching for help inside ~60s is a different behaviour from struggling first." },
+        "transferSolves": { "type": "integer", "description": "Solved a DIFFERENT task unaided after being helped on one. The strongest available signal that a hint taught something." },
+        "outcomeCounts": { "type": "object", "additionalProperties": { "type": "integer" } }
+      }
+    }
+  }
+}
