@@ -41,8 +41,19 @@ export async function GET() {
   const judged = trust.rows.find((r) => r.source_trust === "judge")?.n ?? 0;
 
   const problems: string[] = [];
-  if (sweepAgeMs !== null && sweepAgeMs > STALE_AFTER_MS) {
-    problems.push(`reducer has not swept for ${Math.round(sweepAgeMs / 1000)}s`);
+  /* An old sweep is only a problem when there is work waiting. `lastSweepAt` is
+     the newest `reduced_at`, so it stops moving the moment the queue empties —
+     a quiet classroom is not a dead reducer, and reporting it as one trains
+     everyone to ignore this endpoint. The backlog is the real signal. */
+  if (
+    stale.rows[0].n > 0 &&
+    sweepAgeMs !== null &&
+    sweepAgeMs > STALE_AFTER_MS
+  ) {
+    problems.push(
+      `${stale.rows[0].n} episode event(s) unreduced and the last sweep was ` +
+        `${Math.round(sweepAgeMs / 1000)}s ago`,
+    );
   }
   if (total > 0 && judged === 0) {
     problems.push("no verdict has judge trust — the attestation secret or the grading path is broken");
