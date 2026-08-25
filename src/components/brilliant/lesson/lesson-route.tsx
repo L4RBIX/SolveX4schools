@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import type { Lesson } from "@schools/curriculum/types";
 import type { SchoolInteraction } from "@schools/learning";
+import type { BlockAnswer } from "@schools/learning/checking";
 import { useLocale } from "@/components/sx/i18n";
 import { markLessonComplete, setCurrentLesson } from "@/lib/progress";
 import { SchoolLesson, type LessonSummary } from "./school-lesson";
@@ -32,17 +33,53 @@ export function LessonRoute({
   /**
    * The learning-event seam.
    *
-   * Not yet posting anywhere — the ingest route needs auth to key events to a
-   * subject. It is wired now rather than later because the alternative is the
-   * documented silent failure: `hasAttemptSince` never sees an attempt, every
-   * hint request stays capped, and the assistant appears to refuse help to a
-   * learner who is visibly trying, with no error anywhere to explain it.
+   * Only genuine attempts reach it — `SchoolLesson` filters on
+   * `ATTEMPT_BLOCK_TYPES` before calling. Filtering at the source rather than
+   * downstream matters: a ledger that records reading as trying makes every
+   * number built on it softer, and a guard that lives only at the far end of a
+   * pipe is a guard waiting to be bypassed.
    */
   const onInteraction = useCallback((interaction: SchoolInteraction) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[learning-event]", interaction);
-    }
+    void fetch("/api/learning/events", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      // The learner never waits for this and never sees it fail.
+      keepalive: true,
+      body: JSON.stringify({
+        events: [
+          {
+            eventName: "statement_revisited",
+            occurredAt: new Date(interaction.timestamp).toISOString(),
+            payload: { is_revisit: false },
+          },
+        ],
+      }),
+    }).catch(() => {});
   }, []);
+
+  /**
+   * The authoritative grading pass.
+   *
+   * The server re-grades against the curriculum, writes the events itself and
+   * signs the result. Its verdict is what reaches the ledger; the client's was
+   * only ever a frame of paint.
+   */
+  const onSubmit = useCallback(
+    async (input: { blockId: string; episodeId: string; answer: BlockAnswer }) => {
+      try {
+        const res = await fetch("/api/learning/submit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        if (!res.ok) return null;
+        return (await res.json()) as { verdict: "correct" | "wrong" | "partial" | "unknown" };
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
 
   const onComplete = useCallback(
     (summary: LessonSummary) => {
@@ -59,6 +96,7 @@ export function LessonRoute({
       locale={locale}
       backHref={`/course/${monthIndex}`}
       onInteraction={onInteraction}
+      onSubmit={onSubmit}
       onComplete={onComplete}
     />
   );

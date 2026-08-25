@@ -35,6 +35,9 @@
       "@solvex/nova-core": [
         "./packages/nova-core/src/index.ts"
       ],
+      "@solvex/learning-intelligence-core/internal/*": [
+        "./packages/learning-intelligence-core/src/*"
+      ],
       "@schools/*": [
         "./schools/*"
       ]

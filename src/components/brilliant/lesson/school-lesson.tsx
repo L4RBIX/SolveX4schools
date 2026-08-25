@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Lesson, LessonBlock, Locale } from "@schools/curriculum/types";
 import {
@@ -67,8 +67,23 @@ export interface SchoolLessonProps {
   monthTitle?: string;
   locale: Locale;
   backHref: string;
-  /** Every genuine attempt. Wire to the learning-event ingest route. */
+  /** Every genuine attempt. Wired to the learning-event ingest route. */
   onInteraction?: (interaction: SchoolInteraction) => void;
+  /**
+   * Records the attempt on the server, which re-grades it against the
+   * curriculum and returns the authoritative verdict.
+   *
+   * The local `checkBlock` still runs first so the card border changes on the
+   * same frame as the tap — that responsiveness is worth keeping. But the
+   * client's verdict is not evidence: a learner with DevTools can post any
+   * outcome they like. When the server disagrees, the server wins and the UI
+   * corrects itself.
+   */
+  onSubmit?: (input: {
+    blockId: string;
+    episodeId: string;
+    answer: BlockAnswer;
+  }) => Promise<{ verdict: "correct" | "wrong" | "partial" | "unknown" } | null>;
   /** Called once when the learner reaches the end. */
   onComplete?: (summary: LessonSummary) => void;
 }
@@ -97,12 +112,21 @@ export function SchoolLesson({
   locale,
   backHref,
   onInteraction,
+  onSubmit,
   onComplete,
 }: SchoolLessonProps) {
   const [page, setPage] = useState(0);
   const [states, setStates] = useState<Record<string, BlockState>>({});
   const [xp, setXp] = useState(0);
   const [done, setDone] = useState(false);
+
+  /* One episode per block attempt. Minted on the client so a retried submit
+     lands in the same episode rather than fragmenting one attempt into two. */
+  const episodeIds = useRef<Record<string, string>>({});
+  const episodeFor = useCallback((blockId: string) => {
+    episodeIds.current[blockId] ??= crypto.randomUUID();
+    return episodeIds.current[blockId];
+  }, []);
 
   const blocks = lesson.blocks;
   const block: LessonBlock | undefined = blocks[page];
@@ -135,16 +159,20 @@ export function SchoolLesson({
    */
   const check = useCallback(() => {
     if (!block) return;
-    const result = checkBlock(block, state.answer);
-    const verdict = toLessonVerdict(result.verdict);
+
+    // Optimistic frame: the same pure function the server will run, so the two
+    // agree in every ordinary case and the border does not flicker.
+    const local = checkBlock(block, state.answer);
+    const verdict = toLessonVerdict(local.verdict);
+    const answer = state.answer;
 
     setStates((prev) => ({
       ...prev,
       [block.id]: {
-        answer: state.answer,
+        answer,
         verdict,
         attempt: (prev[block.id]?.attempt ?? 0) + 1,
-        failureClass: result.failureClass,
+        failureClass: local.failureClass,
       },
     }));
 
@@ -156,8 +184,26 @@ export function SchoolLesson({
         timestamp: Date.now(),
         blockType: block.type,
       });
+
+      // The authoritative pass. Fire-and-reconcile: the learner is not made to
+      // wait for it, and a network failure leaves the optimistic verdict on
+      // screen rather than blanking the card.
+      void onSubmit?.({ blockId: block.id, episodeId: episodeFor(block.id), answer })
+        .then((server) => {
+          if (!server) return;
+          const authoritative = toLessonVerdict(server.verdict);
+          setStates((prev) => {
+            const cur = prev[block.id];
+            if (!cur || cur.verdict === authoritative) return prev;
+            return { ...prev, [block.id]: { ...cur, verdict: authoritative } };
+          });
+        })
+        .catch(() => {
+          /* Recording failed. The lesson continues; the sweep will simply have
+             nothing to fold in for this attempt. */
+        });
     }
-  }, [block, state.answer, onInteraction]);
+  }, [block, state.answer, onInteraction, onSubmit, episodeFor]);
 
   /** Retry clears the verdict but keeps the answer, so the learner edits rather than restarts. */
   const retry = useCallback(() => {
