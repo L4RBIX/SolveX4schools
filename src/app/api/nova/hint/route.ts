@@ -8,11 +8,11 @@ import { getNovaProvider, NovaProviderError } from "@schools/nova";
 import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
 import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
 import { guardedStream } from "@schools/nova/guard";
-import type { ValidationContext } from "@schools/nova/validate";
+import { inspectCode, type ValidationContext } from "@schools/nova/validate";
 import { checkAndConsumeBudget, recordSpend, type BudgetBlock } from "@schools/nova/budget";
-import { findBlock } from "@schools/learning/grade";
+import { findBlock, taskKindOf } from "@schools/learning/grade";
 import { takeToken } from "@schools/lib/rate-limit";
-import { explainPolicy } from "@schools/nova/explain";
+import { explainAssessmentCap, explainPolicy } from "@schools/nova/explain";
 import { capabilityFor } from "@schools/curriculum/capability";
 import { config } from "@schools/config";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
@@ -59,6 +59,21 @@ interface HintBody {
 }
 
 const MAX_MESSAGE = 2000;
+
+/**
+ * Room to answer at this rung, and no more.
+ *
+ * The configured maximum is the ceiling for the top of the ladder; the lower
+ * rungs get a fraction of it. This is not a cost optimisation — it is the same
+ * rule as the hint level itself, expressed in the one unit the model actually
+ * obeys. A question that gives nothing away is one or two sentences, and a
+ * model given room for twelve will write twelve.
+ */
+function tokenBudget(granted: number): number {
+  const max = config.nova.maxOutputTokens;
+  const share = granted <= 0 ? 0.25 : granted === 1 ? 0.35 : granted === 2 ? 0.5 : granted === 3 ? 0.75 : 1;
+  return Math.max(80, Math.round(max * share));
+}
 
 /**
  * Blocked families, mapped to their counters.
@@ -264,12 +279,19 @@ export async function POST(request: Request) {
   const episodeId = await ownedEpisodeId(subjectId, body.episodeId);
   const requested = Number.isFinite(body.requestedLevel) ? Number(body.requestedLevel) : 0;
 
-  const { grant, directive } = await enforceHintPolicy({
+  /* What kind of work this is, resolved from the curriculum and never from the
+     request body. `taskKindOf` is the same function the grader uses, so the
+     assessment cap and the assessment's own task_ref cannot disagree about what
+     an assessment is. */
+  const taskKind = taskKindOf(target);
+
+  const { grant, directive, assessmentCapped } = await enforceHintPolicy({
     store,
     subjectId,
     episodeId,
     requested,
     learnerOverride: body.override === true,
+    taskKind,
   });
 
   const block = target.block;
@@ -341,7 +363,22 @@ export async function POST(request: Request) {
   const interventionId = randomUUID();
   const sessionId = randomUUID();
   const route = `/lesson/${target.lesson.id}`;
-  const containsCode = grant.mayIncludeCode && grant.granted >= 4;
+  /*
+   * What the hint was ALLOWED to contain. Not what it did.
+   *
+   * This is written to `interventions` before the model has produced a token,
+   * which is correct for a permission and wrong for an observation — and
+   * `contains_code` in the assistance ledger is read as an observation:
+   * `interventionOutcome.ts` opens its copy-detection branch with
+   * `if (!intervention.contains_code) return "resolved_independently"`. A
+   * level-2 hint that did contain a corrected line therefore made every
+   * subsequent solve unconditionally independent, and the copying threshold
+   * could never see it.
+   *
+   * So the permission is recorded here and the OBSERVATION is measured from the
+   * delivered text further down, where it exists.
+   */
+  const codeAllowed = grant.mayIncludeCode && grant.granted >= 4;
 
   /* Guarded, and it continues on failure.
    *
@@ -360,7 +397,7 @@ export async function POST(request: Request) {
       level: grant.granted,
       trigger: "learner_requested",
       mode: directive?.mode ?? null,
-      containsCode,
+      containsCode: codeAllowed,
       contentLen: 0,
     });
   } catch (err) {
@@ -446,7 +483,13 @@ export async function POST(request: Request) {
       reason: grant.reason,
       /* Translated from the reason code, not from the core's English
          sentence. A learner never sees the engine's own wording. */
-      explanation: explainPolicy(grant.reason, locale),
+      /* The assessment sentence outranks the ladder's, because it is the one
+         that is true: under assessment the ceiling is the exam's, not the
+         rung's, and the ladder's wording would describe a situation the learner
+         is not in. */
+      explanation: assessmentCapped
+        ? explainAssessmentCap(locale)
+        : explainPolicy(grant.reason, locale),
       action: directive?.mode ?? null,
       /* The model's identity comes from configuration, never from the model.
          Asking an LLM what it is produces confident fiction. */
@@ -454,6 +497,11 @@ export async function POST(request: Request) {
       /* Whether there is actually a model behind this. The panel shows a
          banner rather than letting the learner infer it from the prose. */
       degraded: provider.degraded,
+      /* The ceiling came from assessment policy rather than from the ladder.
+         Worth distinguishing in the panel: "you have not tried anything yet" and
+         "this is the monthly check" are different sentences, and a learner told
+         the wrong one concludes the tutor is broken. */
+      assessmentCapped,
     });
 
     /*
@@ -484,7 +532,12 @@ export async function POST(request: Request) {
       const stream = guardedStream(
         provider.stream({
           messages,
-          maxTokens: config.nova.maxOutputTokens,
+          /* Scaled to the GRANTED level, never the requested one.
+             A level-0 "ask ONE question, give nothing away" hint handed the
+             same budget as a level-4 worked fix will fill it, and length is the
+             part of a small hint a learner actually notices — so the ceiling
+             would be stated in the prompt and contradicted by the request. */
+          maxTokens: tokenBudget(grant.granted),
           temperature: 0.4,
           signal,
           onUsage,
@@ -557,7 +610,7 @@ export async function POST(request: Request) {
           level: grant.granted,
           mode: directive?.mode ?? undefined,
           evidence_type: "hint",
-          contains_code: containsCode,
+          contains_code: inspectCode(outcome.released).lines > 0,
           content_len: outcome.released.length,
         }),
       ]);

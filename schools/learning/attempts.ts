@@ -121,3 +121,146 @@ export function isAttempt(interaction: SchoolInteraction): boolean {
     TRANSLATION[interaction.type] !== null
   );
 }
+
+/* ==========================================================================
+ * The live half.
+ *
+ * Everything above this line is pure, tested, and — until now — called by
+ * nothing. It was written for a client-side interaction stream that was never
+ * built, so the guard it exists to protect was quietly reimplemented in
+ * `schools/nova/enforce.ts` as a private set of four ledger event names. That
+ * fork is what this section removes, and it removes it in the direction the
+ * file's own header demanded: translate, then delegate.
+ *
+ * ## The bug the fork was hiding
+ *
+ * Three of those four names — `run_executed`, `code_diff_classified`,
+ * `test_case_authored` — are emitted nowhere in the product. So the effort test
+ * reduced, in practice, to "has a `verdict_received` been written for this
+ * episode".
+ *
+ * And `verdict_received` is written only `if (verdictName)`, which is null
+ * whenever a block settles `unknown` — an oral explanation, a block no machine
+ * scores, or ANY block at all while the judge is unreachable. On those blocks a
+ * learner can answer, press Check, be told their answer was received, and still
+ * have no attempt on record. `hasAttempted` stays false, `grantHintLevel`
+ * returns the opening rung and refuses to move, and Nova sits there declining
+ * to help a child who is visibly trying — for the rest of the episode, with no
+ * error anywhere.
+ *
+ * That is the same silent-degradation shape the archive's VERIFIED_COUPLING.md
+ * warned about, relocated one layer down.
+ *
+ * ## Why trust is part of the answer
+ *
+ * The fix cannot simply be "count `episode_opened` too". `episode_opened` is on
+ * the taxonomy the ingest route accepts from a browser, so counting it by name
+ * would hand every learner a one-line `fetch()` that unlocks the hint ladder
+ * without answering anything — trading a lock-out for a bypass.
+ *
+ * So the filter is on TRUST, not on name. Migration 0003 already wrote the rule
+ * down at `learning_events.source_trust`: *"a browser may add colour, never
+ * proof."* Nothing had ever enforced it. Here, an attempt counts when the
+ * SERVER witnessed it — which is exactly the set of rows the submit route wrote
+ * itself, graded or not.
+ * ========================================================================== */
+
+/**
+ * A ledger row, in the only shape this bridge needs.
+ *
+ * Structural, so this module stays pure and the caller supplies rows it already
+ * had to fetch. That is not a stylistic preference. The first version of this
+ * code opened its own connection through `getStoreHandle()` while
+ * `enforceHintPolicy` was handed a `LearningStore` as a parameter — and in the
+ * tests those are two different databases, because the suite constructs an
+ * in-memory PGlite and injects it. The bridge queried an empty one, found no
+ * attempts, and reported that a learner who had just submitted an answer had
+ * never tried anything.
+ *
+ * In production the two handles happen to coincide, which is the worst version
+ * of that bug: it would have passed every test that used the real path and
+ * failed only where a store was injected — i.e. exactly where the ladder is
+ * tested.
+ */
+export interface LedgerAttemptRow {
+  event_name: string;
+  received_at: string;
+  sourceTrust: string;
+}
+
+/**
+ * Ledger event names that mean the learner did something, mapped into the
+ * guard's vocabulary.
+ *
+ * `episode_opened` is here because the submit route writes exactly one per
+ * press of Check, and it writes it BEFORE grading — which is the only record
+ * that survives when grading produces no verdict. It is admitted only under
+ * server trust, which is what makes that safe.
+ *
+ * Asking for help is absent, and its absence is load-bearing: `assistance_*`
+ * events would let a learner climb the ladder by asking repeatedly, which is
+ * the single failure the ladder exists to prevent.
+ */
+const LEDGER_ATTEMPT: Record<string, "submit_clicked" | "code_changed_debounced" | "run_clicked"> = {
+  episode_opened: "submit_clicked",
+  verdict_received: "submit_clicked",
+  run_executed: "run_clicked",
+  code_diff_classified: "code_changed_debounced",
+  test_case_authored: "code_changed_debounced",
+};
+
+/** Only the server's own word counts. See the note on trust above. */
+const TRUSTED = new Set(["server", "judge", "verifier"]);
+
+/**
+ * The episode's attempts, in the guard's vocabulary.
+ *
+ * Reads `received_at` — the server's clock — rather than `occurred_at`, which
+ * is the client's and is forgeable. Migration 0003 says so at the column
+ * itself: "anything ordered for analysis uses received_at".
+ */
+function attemptEventsFrom(
+  rows: readonly LedgerAttemptRow[],
+): { type: string; timestamp: number }[] {
+  const out: { type: string; timestamp: number }[] = [];
+  for (const row of rows) {
+    if (!TRUSTED.has(row.sourceTrust)) continue;
+    const translated = LEDGER_ATTEMPT[row.event_name];
+    if (!translated) continue;
+    out.push({ type: translated, timestamp: new Date(row.received_at).getTime() });
+  }
+  return out;
+}
+
+/**
+ * Has the learner tried anything on this episode since `since`?
+ *
+ * Delegates to the core's `hasAttemptSince` rather than reimplementing it, so a
+ * future tightening of what counts as an attempt is inherited instead of
+ * drifting. `since` is an ISO string because that is what the ledger stores;
+ * null means "since the beginning", which the core answers with `true` — see
+ * `hasAttemptedAtAll` for the question that actually needs asking then.
+ */
+export function schoolHasAttemptSinceLedger(
+  rows: readonly LedgerAttemptRow[],
+  since: string | null,
+): boolean {
+  return hasAttemptSince(
+    attemptEventsFrom(rows),
+    since === null ? null : new Date(since).getTime(),
+  );
+}
+
+/**
+ * Has the learner tried anything on this episode AT ALL?
+ *
+ * A separate question from the one above, and the core cannot answer it:
+ * `hasAttemptSince(events, null)` returns `true` unconditionally, which is
+ * correct for "has anything happened since the dawn of time" and useless for
+ * "may help open yet". The programme is explicit that it must be earned —
+ * «көмек оқушы өзі бір әрекет жасап көргеннен кейін ғана ашылады» — so this is
+ * asked directly.
+ */
+export function schoolHasAttemptedAtAll(rows: readonly LedgerAttemptRow[]): boolean {
+  return attemptEventsFrom(rows).length > 0;
+}
