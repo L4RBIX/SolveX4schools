@@ -48,3 +48,7 @@ next-env.d.ts
 # Local temp files
 temp/
 .data/
+
+# Python bytecode from the ported Nova directive suite.
+__pycache__/
+*.pyc

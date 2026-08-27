@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { getStore } from "@schools/store";
 import type { ReviewRow } from "@schools/store/learning-store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { findBlock } from "@schools/learning/grade";
 import { publicBlock } from "@schools/curriculum/public";
@@ -21,6 +22,14 @@ import { publicBlock } from "@schools/curriculum/public";
  * `/api/learning/dictionary` already use. Every store call takes the subject
  * from the cookie AND the review id, so there is no query here that can be
  * pointed at another child's queue.
+ *
+ * ## And gated, because scoping alone answers the wrong question
+ *
+ * Scoping decides whose queue you see; `checkLearningAccess` decides whether
+ * you are entitled to a queue. Without it `resolveIdentity` minted a subject
+ * for an unauthenticated caller — who then got an empty queue, which is
+ * harmless, and a row in `learning_subjects`, which is not: the class list a
+ * teacher reads is supposed to be the class.
  *
  * ## Why the block is not in the listing
  *
@@ -73,6 +82,12 @@ interface ReviewSummary {
 }
 
 export async function GET() {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const { subjectId } = await resolveIdentity();
   const store = await getStore();
   const now = new Date().toISOString();
@@ -94,6 +109,12 @@ interface ReviewActionBody {
 }
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: ReviewActionBody;
   try {
     body = (await request.json()) as ReviewActionBody;

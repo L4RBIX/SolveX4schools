@@ -118,7 +118,6 @@ const BUDGET_COUNTER = {
 function sse(
   write: (controller: ReadableStreamDefaultController<Uint8Array>) => Promise<void> | void,
 ): Response {
-  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -576,11 +575,14 @@ export async function POST(request: Request) {
         },
       );
 
-      let released = "";
+      /* Iterated by hand rather than with `for await`, because the guard
+         reports WHY it stopped through the generator's RETURN value and
+         `for await` discards it. That value is the difference between "the
+         model finished" and "the validator cut it off", which is what decides
+         whether the stricter retry below runs. */
       let result = await stream.next();
       while (!result.done) {
         if (firstTokenAt === null) firstTokenAt = Date.now();
-        released += result.value;
         send("token", { text: result.value });
         result = await stream.next();
       }

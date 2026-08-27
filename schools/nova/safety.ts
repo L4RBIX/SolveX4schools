@@ -163,7 +163,13 @@ const SEXUAL: RegExp[] = [
 const VIOLENCE: RegExp[] = [
   /\b(make|build|create|assemble|how\s+to\s+make)\b[^.]{0,30}\b(bomb|explosive|molotov|grenade)\b/,
   /\b(3d[-\s]?print(ed)?|untraceable|homemade)\s+(gun|firearm|weapon)\b/,
-  /\bhow\s+to\s+(kill|stab|shoot|poison)\s+(someone|a\s+person|him|her|them|my)\b/,
+  /* The object has to be a PERSON, spelled out.
+   *
+   * This read `...|my)` and therefore matched "how to kill my program when it
+   * loops forever" — which in September is not a threat, it is the single most
+   * common thing that goes wrong, and a tutor that answers it with a refusal
+   * has taught a fourteen-year-old that asking for help is dangerous. */
+  /\bhow\s+to\s+(kill|stab|shoot|poison)\s+(someone|a\s+person|him|her|them|my\s+(friend|teacher|classmate|brother|sister|mother|father|neighbou?r))\b/,
   /\bwhere\s+(to|can\s+i)\s+buy\s+a\s+(gun|weapon|knife\s+to)\b/,
   /как\s+(сделать|собрать)\s+(бомбу|взрывчат|коктейль\s+молотова)/,
   /как\s+(убить|отравить|зарезать)\s+(человека|его|её|их)/,
@@ -219,6 +225,13 @@ const HATE: RegExp[] = [
   /напиши\s+\S*\s*(расистск|оскорбительн|унизительн)/,
   /(убить|убей)\s+всех\s+(евреев|мусульман|русских|казах|цыган|геев|мигрант)/,
   /(нацист|расист)ск(ую|ий)\s+шутк/,
+  /* Kazakh, and it is not optional.
+   *
+   * The pilot is a Kazakh-medium school. A version of this file that walls off
+   * incitement in Russian and English and lets it through in Kazakh has made
+   * the language a child speaks decide whether the tutor has any rules. */
+  /барлық\s+(орыстарды|қазақтарды|өзбектерді|еврейлерді|мұсылмандарды|шетелдіктерді|мигранттарды)\s+өлтір/,
+  /(нәсілшіл|қорлайтын)\s+(әзіл|өлең|мәтін)\s+(жаз|айт)/,
 ];
 
 /**
@@ -274,7 +287,35 @@ const WANTS_ANSWER: RegExp[] = [
  * no writes from chat. Blocking is cheap and saves a provider call; it is not
  * what makes the attack fail.
  */
+/**
+ * The same attacks, spelled with the separators removed.
+ *
+ * `normalize.ts` produces a `dense` view precisely so that
+ * `i g n o r e   a l l   r u l e s` can be recognised — but a pattern written
+ * as `ignore\s+all\s+rules` requires whitespace that the dense view has just
+ * deleted, so the view existed and nothing could read it. Every pattern below
+ * uses `\s*`, which matches in the dense view AND in the ordinary one.
+ *
+ * Kept as a separate, deliberately short list rather than by loosening every
+ * pattern above: `\s*` between words is a real widening, and it is worth having
+ * on the dozen phrases that carry an attack on their own, not on the ones whose
+ * meaning depends on the words being separate.
+ */
+const EXFILTRATION_DENSE: RegExp[] = [
+  /ignore\s*(all|any)?\s*(previous|prior|above|earlier|your|the)\s*(instruction|rule|prompt|restriction)/,
+  /disregard\s*(all)?\s*(previous|prior|your|the)\s*(instruction|rule)/,
+  /forget\s*(everything|all\s*your\s*(rule|instruction)|your\s*(rule|instruction))/,
+  /(system|initial|original|hidden|secret|internal)\s*(prompt|instruction|rule|polic)/,
+  /(reveal|show|print|output|dump|repeat|display)\s*(your|the)\s*(prompt|instruction|rule|polic)/,
+  /(developer|debug|god|dan|admin|unrestricted)\s*mode/,
+  /you\s*are\s*now\s*(unrestricted|free|jailbroken|without\s*rules)/,
+  /игнорируй\s*(все|всё)?\s*(предыдущие|свои)?\s*(инструкции|правила|ограничения)/,
+  /(покажи|выведи)\s*(свой)?\s*(системный)?\s*(промпт|инструкции|правила)/,
+  /(алдыңғы)?\s*нұсқаулар\S*\s*(елеме|ұмыт)/,
+];
+
 const EXFILTRATION_HARD: RegExp[] = [
+  ...EXFILTRATION_DENSE,
   // Asking for the instructions
   /\b(system|initial|original|hidden|secret|internal)\s+(prompt|instructions?|rules?|polic)/,
   /\b(reveal|show|print|output|dump|repeat|display|tell)\b[^.]{0,30}\b(your|the)\s+(prompt|instructions?|rules?|polic|system\s+message)/,
@@ -320,11 +361,17 @@ const EXFILTRATION_HARD: RegExp[] = [
   /(покажи|выведи|напечатай|повтори|расскажи)\s+(мне\s+)?(свой|своё|все\s+)?(системн\S*\s+)?(промпт|инструкци|правила|настройки)/,
   /(игнорир(уй|уя)|забудь|не\s+обращай\s+внимания\s+на)\s+(все\S*\s+|всё\S*\s+|свои\S*\s+)?(предыдущ\S*\s+|прежн\S*\s+|эти\s+|твои\s+)?(инструкц|правил|ограничен|указан)/,
   /режим\s+(разработчика|отладки|бога|без\s+ограничений)/,
-  /(притворись|представь,?\s+что\s+ты|веди\s+себя\s+как|отныне\s+ты)/,
   /я\s+(твой|ваш)?\s*(разработчик|админ|администратор|создатель|инженер)/,
   /я\s+(учитель|преподаватель|директор|админ)/,
   /запомни\s+(навсегда|это\s+навсегда|раз\s+и\s+навсегда)/,
-  /(api[\s_-]?ключ|переменн(ая|ые)\s+окружения|пароль\s+от\s+базы)/,
+  /* Narrowed to REQUESTS, in Russian too.
+   *
+   * A bare `api ключ` matched «что такое api ключ и зачем он нужен?» — an
+   * ordinary question from a curious learner, and one a programming tutor
+   * should answer. Refusing it teaches that the tool is broken rather than that
+   * the topic is sensitive. */
+  /(покажи|дай|выведи|назови|скажи|твой|ваш)\s+\S*\s*api[\s_-]?ключ/,
+  /(переменн(ая|ые)\s+окружения\s+(покажи|выведи)|пароль\s+от\s+базы)/,
   /(скрыт(ые|ых)\s+тест|эталонн(ое|ый)\s+решени)/,
   /твои\s+правила\s+(не\s+действуют|не\s+применяются)/,
   /повтори\s+(всё|все)\s+(что\s+)?выше/,
@@ -358,6 +405,7 @@ const EXFILTRATION_SOFT: RegExp[] = [
   /\brole\s?play\s+as\b/,
   /\bfrom\s+now\s+on,?\s+you\s+(are|will|must)\b/,
   /(притворись|представь,?\s+что\s+ты|веди\s+себя\s+как|отныне\s+ты)/,
+  /(елестет|ойлап\s+көр),?\s+сен\s+—?\s*\S+/,
   /(кейіп|рөлін)\s+сомда/,
 ];
 

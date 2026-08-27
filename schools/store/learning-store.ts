@@ -51,6 +51,27 @@ export interface LearningEventRow {
   payload: LearningPayload;
 }
 
+/**
+ * A stored event in the shape the reducer wants, plus the trust it was written
+ * with.
+ *
+ * `ReducibleEvent` is the core's shape and is deliberately left alone: the
+ * episode reducer folds a taxonomy and nothing else, so a replay produces the
+ * same episode whoever runs it. Trust is a fact about the ROW, not about the
+ * learning, so it rides alongside — every existing consumer of
+ * `ReducibleEvent` keeps working unchanged, and the consumers that need to ask
+ * "did this server write this, or did a browser?" can finally ask.
+ *
+ * The one that most needed to ask is the reveal policy. A learner is shown the
+ * answer from the third failed attempt on a block, and that count came out of
+ * the ledger with no way to separate a graded wrong answer from a
+ * `verdict_received` posted by hand — three fetch() calls and the answer key
+ * opened.
+ */
+export interface TrustedEvent extends ReducibleEvent {
+  sourceTrust: SourceTrust;
+}
+
 export interface EpisodeRow {
   episodeId: string;
   subjectId: string;
@@ -484,48 +505,68 @@ export class LearningStore {
     return r.rows.map((row) => ({ episodeId: row.episode_id, subjectId: row.subject_id }));
   }
 
-  /** One episode's events, in the order the reducer expects. */
-  async eventsForEpisode(episodeId: string): Promise<ReducibleEvent[]> {
+  /**
+   * One episode's events, in the order the reducer expects, each carrying the
+   * trust the row was written with.
+   *
+   * `source_trust` was stamped on every row from the first migration and read
+   * back by NOTHING. A stamp nobody reads is a comment, not a control: the
+   * ingest route could refuse a browser the right to claim `judge` and it
+   * changed no decision anywhere, because every consumer selected four columns
+   * and a payload and could not tell a verdict this server computed from one a
+   * fetch() typed in. Selecting it is what turns the refusal into a defence.
+   *
+   * The core still does not see it. `ReducibleEvent` has no such field and the
+   * episode reducer must stay replayable from the taxonomy alone — a reducer
+   * that weighted rows by trust would produce a different episode depending on
+   * which columns happened to survive a future migration. `TrustedEvent`
+   * therefore EXTENDS the core's shape rather than altering it, so
+   * `reduceEpisode` takes this array unchanged.
+   *
+   * Who reads it: the callers deciding something about a child. `priorFailures`
+   * on the submit route decides whether a fourteen-year-old is shown the
+   * answer, and it now counts only rows this server wrote. They read it as a
+   * filter — in or out — never as a weight, because "half-believe a browser"
+   * is how a forged row gets to matter a little.
+   */
+  async eventsForEpisode(episodeId: string): Promise<TrustedEvent[]> {
     const r = await this.sql.query<{
       event_name: string;
       occurred_at: string;
       received_at: string;
       seq: number;
+      source_trust: SourceTrust;
       payload: Record<string, string | number | boolean>;
     }>(
-      `select event_name, occurred_at, received_at, seq, payload
+      `select event_name, occurred_at, received_at, seq, source_trust, payload
          from learning_events
         where episode_id = $1
         order by received_at asc, seq asc`,
       [episodeId],
     );
-    return r.rows.map((row) => ({
-      event_name: row.event_name,
-      occurred_at: toIso(row.occurred_at),
-      received_at: toIso(row.received_at),
-      seq: Number(row.seq),
-      payload: row.payload ?? {},
-    }));
+    return r.rows.map(toTrustedEvent);
   }
 
-  /** Every event for one subject, ordered. Used by a full replay and the dev lab. */
-  async eventsForSubject(subjectId: string): Promise<ReducibleEvent[]> {
+  /**
+   * Every event for one subject, ordered. Used by a full replay and the dev lab.
+   *
+   * Carries `source_trust` for the same reason its per-episode sibling does: a
+   * full replay is the path that rebuilds a learner's entire state after a
+   * reducer bump, and it must not be the one read that cannot tell a forged
+   * row from a graded one.
+   */
+  async eventsForSubject(subjectId: string): Promise<TrustedEvent[]> {
     const r = await this.sql.query<{
       event_name: string; occurred_at: string; received_at: string;
-      seq: number; payload: Record<string, string | number | boolean>;
+      seq: number; source_trust: SourceTrust;
+      payload: Record<string, string | number | boolean>;
     }>(
-      `select event_name, occurred_at, received_at, seq, payload
+      `select event_name, occurred_at, received_at, seq, source_trust, payload
          from learning_events where subject_id = $1
         order by received_at asc, seq asc`,
       [subjectId],
     );
-    return r.rows.map((row) => ({
-      event_name: row.event_name,
-      occurred_at: toIso(row.occurred_at),
-      received_at: toIso(row.received_at),
-      seq: Number(row.seq),
-      payload: row.payload ?? {},
-    }));
+    return r.rows.map(toTrustedEvent);
   }
 
   async upsertEpisode(row: EpisodeRow): Promise<void> {
@@ -2027,6 +2068,36 @@ async function insertEvents(
     if (res.rowCount > 0) inserted += 1;
   }
   return inserted;
+}
+
+/**
+ * One row, mapped once.
+ *
+ * Shared by the per-episode and per-subject reads so the two cannot drift. A
+ * replay that carried trust and a sweep that did not would eventually disagree
+ * about the same child's history, and nothing would surface the disagreement —
+ * both would look like a working query returning rows.
+ *
+ * The cast on `source_trust` is reading a closed vocabulary the database
+ * already enforces (`check (source_trust in (...))`, migration 0003), not
+ * trusting a string that arrived from somewhere.
+ */
+function toTrustedEvent(row: {
+  event_name: string;
+  occurred_at: unknown;
+  received_at: unknown;
+  seq: number;
+  source_trust: SourceTrust;
+  payload: Record<string, string | number | boolean> | null;
+}): TrustedEvent {
+  return {
+    event_name: row.event_name,
+    occurred_at: toIso(row.occurred_at),
+    received_at: toIso(row.received_at),
+    seq: Number(row.seq),
+    sourceTrust: row.source_trust,
+    payload: row.payload ?? {},
+  };
 }
 
 function toIso(v: unknown): string {

@@ -620,7 +620,7 @@ function Observations({ data, loc }: { data: ActivityPayload | null; loc: Locale
   if (!data) return null;
 
   const solo = sum(data.buckets, (b) => b.solvedSolo);
-  const help = sum(data.buckets, (b) => b.helpRequests);
+  const afterHelp = sum(data.buckets, (b) => b.solvedAssisted);
   const days = data.buckets.filter((b) => b.attempted > 0).length;
 
   const cards: { key: string; title: string; body: string; chip: string; icon: React.ReactNode }[] =
@@ -644,14 +644,48 @@ function Observations({ data, loc }: { data: ActivityPayload | null; loc: Locale
     });
   }
 
-  if (help > 0) {
+  /*
+   * Asking for help, counted by what came of it.
+   *
+   * This card used to render unconditionally off `helpRequests` — the raw,
+   * monotonic count of Nova interventions — and call it "the right move". Three
+   * things were wrong with that, and they compound.
+   *
+   * It rewards the wrong number. `helpRequests` has no ceiling and no relation
+   * to whether anything was learned, so the card grew every time a learner
+   * clicked "hint", and grew fastest for the learner who was clicking instead
+   * of thinking. The spec forbids that implication in as many words: more Nova
+   * messages must never read as better learning.
+   *
+   * It said the opposite of the teacher's screen. The same underlying
+   * assistance shows up in `schools/presentation/classroom.ts` as a
+   * `high_assistance` concern — "% of solutions needed a strong hint". One
+   * fourteen-year-old being congratulated for exactly what their teacher is
+   * being warned about is not a difference in tone, it is the product
+   * contradicting itself in front of the two people who have to talk to each
+   * other about it.
+   *
+   * And the praise was unearned in the ordinary case. "You asked when you were
+   * stuck" is only true if being stuck is what happened.
+   *
+   * So it is gated on an outcome instead: `solvedAssisted` counts episodes that
+   * were ACCEPTED and had assistance in them — the learner asked, and then
+   * finished the task. That is the honest half of the spec's "a solve that
+   * followed the hint without further assistance"; the second half is not
+   * computable from this payload, because the bucket query aggregates whole
+   * episodes and does not carry what happened after the last hint. Reading it
+   * would need a new shape from `/api/learning/activity`, which is not this
+   * file's to change. The wording is kept factual for exactly that reason — it
+   * reports the sequence, and leaves the compliment out.
+   */
+  if (afterHelp > 0) {
     cards.push({
       key: "help",
       title: t(L.strengthAsksForHelp, loc),
       body:
         loc === "kk"
-          ? `Кептеліп қалғанда ${help} рет көмек сұрадың — бұл дұрыс әрекет.`
-          : `Ты ${help} ${plural(help, "раз", "раза", "раз")} попросил помощь, когда застрял — это правильный ход.`,
+          ? `Көмек сұрағаннан кейін ${afterHelp} есепті аяғына дейін шештің.`
+          : `После подсказки ты довёл до конца ${afterHelp} ${plural(afterHelp, "задачу", "задачи", "задач")}.`,
       chip: "bg-b-lilac-deep text-b-lilac",
       icon: <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
     });

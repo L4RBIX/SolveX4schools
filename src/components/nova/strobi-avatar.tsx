@@ -34,13 +34,14 @@ export interface StrobiAvatarProps {
   size?: number;
   className?: string;
   /**
-   * Honour the viewer's motion preference.
+   * Force the motion preference rather than reading it.
    *
-   * Reduced motion holds the animation's FIRST expression and stops the step
-   * cycle, the blink and the idle drift. It does not blank the avatar: Strobi
-   * is a presence, and a missing one reads as breakage. Nothing in the lesson
-   * depends on it either way — the avatar is decorative by design and carries
-   * `aria-hidden`.
+   * Left undefined — the normal case — the component reads the product's own
+   * setting; see `useMotionPreference`. Reduced motion holds the animation's
+   * FIRST expression and stops the step cycle, the blink and the idle drift. It
+   * does not blank the avatar: Strobi is a presence, and a missing one reads as
+   * breakage. Nothing in the lesson depends on it either way — the avatar is
+   * decorative by design and carries `aria-hidden`.
    */
   reducedMotion?: boolean;
   /**
@@ -59,8 +60,8 @@ export function StrobiAvatar({
   reducedMotion,
   bodyColor,
 }: StrobiAvatarProps) {
-  const system = useSystemReducedMotion();
-  const still = reducedMotion ?? system;
+  const preferred = useMotionPreference();
+  const still = reducedMotion ?? preferred;
 
   /*
    * Keyed on `animation` so a reaction remounts and starts at its own first
@@ -80,21 +81,66 @@ export function StrobiAvatar({
   );
 }
 
-/** `prefers-reduced-motion`, read as an external store rather than mirrored into state. */
-function useSystemReducedMotion(): boolean {
+const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
+
+/**
+ * The motion preference the product actually has.
+ *
+ * The setting lives in SolveX's own preferences, not in the operating system:
+ * `<html data-motion="reduce">` or `"full"` once the learner has chosen, and no
+ * attribute at all while they have not. Both stylesheets are built on exactly
+ * that rule. Reading only the OS query here was wrong in both directions:
+ *
+ *   `data-motion="reduce"` on a machine with no OS preference — the step cycle
+ *   and the blink kept firing while the CSS flattened every transition to
+ *   0.001ms, so a cross-fade the definition authored as 200ms of easing became
+ *   a hard snap every few seconds. Strictly worse than doing nothing.
+ *
+ *   `data-motion="full"` on a machine whose OS asks to reduce — the avatar
+ *   froze anyway, and the switch in the product's own settings did nothing.
+ *
+ * A learner who set this set it because animation makes them dizzy, or because
+ * they cannot read a lesson next to something that keeps moving. A preference
+ * in a school product that visibly does nothing also teaches them that the
+ * settings screen is decorative, which outlasts the lesson it spoiled.
+ *
+ * Read as an external store rather than mirrored into state: the attribute is
+ * stamped on `<html>` before first paint, changed later by the preferences
+ * panel, and the media query can move under both.
+ */
+function useMotionPreference(): boolean {
   const subscribe = useCallback((notify: () => void) => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mq = window.matchMedia(REDUCE_QUERY);
     mq.addEventListener("change", notify);
-    return () => mq.removeEventListener("change", notify);
+    /* The attribute is set imperatively on `document.documentElement`, so there
+       is no React update to subscribe to — an observer is the only way to hear
+       a learner flip the switch while a lesson is open. */
+    const observer = new MutationObserver(notify);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-motion"],
+    });
+    return () => {
+      mq.removeEventListener("change", notify);
+      observer.disconnect();
+    };
   }, []);
 
   return useSyncExternalStore(
     subscribe,
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    readMotionPreference,
     // Server render: assume motion is fine. Getting this wrong the other way
     // would ship a frozen avatar to everyone until hydration.
     () => false,
   );
+}
+
+/** The stamp wins in both directions; nothing stamped means "follow the OS". */
+function readMotionPreference(): boolean {
+  const stamped = document.documentElement.getAttribute("data-motion");
+  if (stamped === "reduce") return true;
+  if (stamped === "full") return false;
+  return window.matchMedia(REDUCE_QUERY).matches;
 }
 
 function StrobiCycle({

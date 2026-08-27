@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  LEARNER_STATE_VERSION,
+  REDUCER_VERSION,
+} from "@solvex/learning-intelligence-core";
 import type { SqlExecutor } from "@schools/store/sql";
 
 /**
@@ -72,6 +76,20 @@ export interface ReducerHealth {
   sweepAgeSeconds: number | null;
   /** Episode events the reducer has not folded in. */
   unreducedEvents: number;
+  /** Distinct episodes those events belong to — what a sweep's `limit` counts. */
+  staleEpisodes: number;
+  /**
+   * Learners whose `learner_state` is missing, older than
+   * `LEARNER_STATE_VERSION`, or older than their own newest reduced episode.
+   *
+   * Reported separately from the episodes because the two fail differently. A
+   * stale episode is a replay the sweep will do on its next tick. A stale
+   * projection is what a teacher actually reads — the class view, the "needs
+   * attention" list, the misconception counts — so a learner sitting here is a
+   * learner whose evidence on the teacher's screen is frozen at whatever it
+   * said last time, with nothing on the page admitting it.
+   */
+  staleLearnerStates: number;
   /**
    * True only when there is work waiting AND it has been waiting too long.
    *
@@ -80,6 +98,8 @@ export interface ReducerHealth {
    * one trains everybody to ignore this field.
    */
   behind: boolean;
+  /** The same "waiting too long" test, applied to `staleLearnerStates`. */
+  projectionBehind: boolean;
 }
 
 const STALE_AFTER_MS = 5 * 60 * 1000;
@@ -133,22 +153,77 @@ export async function assistanceHealth(sql: SqlExecutor): Promise<AssistanceHeal
   return { requested, delivered, undelivered: Math.max(0, requested - delivered) };
 }
 
+/**
+ * Is the reducer keeping up?
+ *
+ * ## The predicate has to be the sweep's predicate, exactly
+ *
+ * This used to count only events whose episode had NO projection row at all —
+ * `a.episode_id is null` and nothing else. That is strictly narrower than the
+ * query the sweep actually drains (`LearningStore.staleEpisodes`), which also
+ * replays an episode reduced by an older `REDUCER_VERSION` and one carrying
+ * events newer than its own reduction.
+ *
+ * The gap between the two is not academic; it is the exact set of episodes a
+ * version bump creates, plus every episode dropped by the sweep's per-episode
+ * catch. Each one was work the sweep knew about and health did not, so the
+ * dashboard read "ok" while the teacher's evidence sat frozen — and the whole
+ * reason this endpoint exists is that a stale projection is invisible from the
+ * outside: every route still answers 200 with last week's numbers.
+ *
+ * So the clauses below are copied from `staleEpisodes` deliberately. If that
+ * query changes, this one has to change with it, and the cost of them drifting
+ * is a monitor that reports a healthy reducer during an outage of the only kind
+ * this subsystem has.
+ */
 export async function reducerHealth(
   sql: SqlExecutor,
   lastSweepAt: string | null,
 ): Promise<ReducerHealth> {
-  const stale = await sql.query<{ n: number }>(
-    `select count(*)::int as n from learning_events e
-      left join attempt_episodes a on a.episode_id = e.episode_id
-     where e.episode_id is not null and a.episode_id is null`,
+  const stale = await sql.query<{ events: number; episodes: number }>(
+    `select count(*)::int                   as events,
+            count(distinct e.episode_id)::int as episodes
+       from learning_events e
+       left join attempt_episodes a on a.episode_id = e.episode_id
+      where e.episode_id is not null
+        and (a.episode_id is null
+             or a.reducer_version < $1
+             or e.received_at > a.reduced_at)`,
+    [REDUCER_VERSION],
   );
-  const unreducedEvents = Number(stale.rows[0]?.n ?? 0);
+  const unreducedEvents = Number(stale.rows[0]?.events ?? 0);
+  const staleEpisodes = Number(stale.rows[0]?.episodes ?? 0);
+
+  /* The projection layer, asked the same three ways: never built, built by an
+     older `LEARNER_STATE_VERSION`, or older than the episodes it claims to
+     summarise. Counted from `attempt_episodes` rather than from
+     `learning_subjects` on purpose — a learner who has never attempted anything
+     has nothing to project, and counting them here would light this number up
+     permanently on day one and teach everybody to ignore it.
+
+     `idx_learner_state_stale (state_version, computed_at)` exists in migration
+     0006 for exactly this query and, until now, no code issued it. */
+  const projection = await sql.query<{ n: number }>(
+    `select count(distinct ep.subject_id)::int as n
+       from attempt_episodes ep
+       left join learner_state ls on ls.subject_id = ep.subject_id
+      where ls.subject_id is null
+         or ls.state_version < $1
+         or ls.computed_at < ep.reduced_at`,
+    [LEARNER_STATE_VERSION],
+  );
+  const staleLearnerStates = Number(projection.rows[0]?.n ?? 0);
+
   const ageMs = lastSweepAt ? Date.now() - Date.parse(lastSweepAt) : null;
+  const overdue = ageMs !== null && ageMs > STALE_AFTER_MS;
 
   return {
     lastSweepAt,
     sweepAgeSeconds: ageMs === null ? null : Math.round(ageMs / 1000),
     unreducedEvents,
-    behind: unreducedEvents > 0 && ageMs !== null && ageMs > STALE_AFTER_MS,
+    staleEpisodes,
+    staleLearnerStates,
+    behind: unreducedEvents > 0 && overdue,
+    projectionBehind: staleLearnerStates > 0 && overdue,
   };
 }

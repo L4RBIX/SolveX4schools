@@ -54,6 +54,44 @@ export interface Check {
   problems: string[];
 }
 
+/**
+ * The month's model spend, against the ceilings someone chose.
+ *
+ * Reported because the failure it describes is silent by design: when a monthly
+ * ceiling is reached, `checkAndConsumeBudget` refuses BEFORE the provider is
+ * called and every learner gets the same polite line about trying later. From
+ * the outside that is indistinguishable from a working tutor having a quiet
+ * afternoon. The only place the difference is visible is here.
+ *
+ * `usedShare` is the number an operator actually acts on. "1.4 million input
+ * tokens" means nothing on its own; "68% of the month, on the 11th" means buy
+ * more or turn the ceiling up before a Tuesday lesson runs into it.
+ */
+export interface NovaSpend {
+  /** `YYYY-MM` in UTC, so the window a number belongs to is never ambiguous. */
+  month: string;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Derived from the tokens at the configured price. Never billed, never authoritative. */
+  costUsd: number;
+  limits: {
+    /** Per learner per day. Zero disables it. */
+    dailyRequests: number;
+    monthlyInputTokens: number;
+    monthlyOutputTokens: number;
+    monthlyCostUsd: number;
+    inputUsdPerMTok: number;
+    outputUsdPerMTok: number;
+  };
+  /** 0–1 against each ceiling, or null where the ceiling is disabled. */
+  usedShare: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    costUsd: number | null;
+  };
+}
+
 export interface AdminHealth {
   view: "admin";
   ok: boolean;
@@ -62,7 +100,8 @@ export interface AdminHealth {
   web: Check;
   database: Check;
   execution: Check;
-  nova: Check;
+  /** `spend` is null when the ledger could not be read — a zero would be a lie. */
+  nova: Check & { spend: NovaSpend | null };
   curriculum: Check & { fingerprint: CurriculumFingerprint };
   reducer: Check & { reducer: ReducerHealth };
   learning: Check & { activity: LearningActivity | null; assistance: AssistanceHealth | null };
@@ -100,15 +139,19 @@ async function guarded(name: string, fn: () => Promise<Check>): Promise<Check> {
   try {
     return await fn();
   } catch (err) {
-    return {
-      status: "down",
-      detail: { checked: false },
-      /* The message, not the stack, and not the exception object. A driver
-         error message can contain a connection string; `String(err)` on a
-         `pg` error frequently does. Trimmed hard for the same reason. */
-      problems: [`${name} check failed: ${errText(err)}`],
-    };
+    return failed(name, err);
   }
+}
+
+function failed(name: string, err: unknown): Check {
+  return {
+    status: "down",
+    detail: { checked: false },
+    /* The message, not the stack, and not the exception object. A driver
+       error message can contain a connection string; `String(err)` on a
+       `pg` error frequently does. Trimmed hard for the same reason. */
+    problems: [`${name} check failed: ${errText(err)}`],
+  };
 }
 
 /**
@@ -240,7 +283,57 @@ async function executionCheck(probe: boolean): Promise<Check> {
   return { status, detail, problems };
 }
 
-async function novaCheck(): Promise<Check> {
+/**
+ * How long a Nova probe may hold this endpoint open.
+ *
+ * Deliberately far below `NOVA_REQUEST_TIMEOUT_MS` (30 s). A learner waiting on
+ * a hint can afford thirty seconds; a health endpoint cannot — a monitor that
+ * blocks for half a minute has become an outage of its own, and the answer
+ * "the provider did not respond within five seconds" is the same operational
+ * answer as "it did not respond at all".
+ */
+const NOVA_PROBE_TIMEOUT_MS = 5_000;
+
+/** `YYYY-MM` in UTC. Passed to `monthlySpend` so the label and the row agree. */
+function utcMonthKey(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * The tutor.
+ *
+ * ## Why the probe had to exist
+ *
+ * Without it this check performed NO network call at all: it awaited the
+ * provider factory and read three static fields. A revoked key, a base URL with
+ * a typo in it, an expired billing account, a DNS failure and a retired model
+ * id all produced `nova: ok`, because every one of them is a property of a
+ * request nobody had made. The first thing that would have discovered any of
+ * them is a fourteen-year-old pressing the hint button in the middle of a
+ * lesson, and what they would see is the retry line — which looks identical to
+ * a slow network.
+ *
+ * ## And why it is opt-in
+ *
+ * Same bargain as `executionCheck`: it costs a real request. The probe is four
+ * output tokens and a fraction of a cent, but a monitor polling every thirty
+ * seconds is 86 400 requests a month against a budget sized for eighteen
+ * students, and the health check would become the thing that exhausts the
+ * ceiling it reports on. It runs when a human asks.
+ *
+ * It goes through `getNovaProvider()` rather than a hand-rolled `fetch`, and
+ * that is the whole point: the key resolution, the base URL, the model id and
+ * the thinking flag are then exactly the ones a hint would use. A probe that
+ * builds its own request can pass while the real path fails.
+ *
+ * ## What may be reported
+ *
+ * Configured, reachable, the model id, how long it took, and what it cost.
+ * Never the key, never a request header, never a byte of the response body — a
+ * provider's own error text can quote the prompt or the credential back, which
+ * is why `errText` is used on every failure path here as well.
+ */
+async function novaCheck(probe: boolean): Promise<Check & { spend: NovaSpend | null }> {
   const { getNovaProvider } = await import("@schools/nova");
   const provider = await getNovaProvider();
 
@@ -248,26 +341,155 @@ async function novaCheck(): Promise<Check> {
   if (config.nova.provider === "deepseek" && !config.nova.apiKey) {
     problems.push("NOVA_PROVIDER=deepseek but DEEPSEEK_API_KEY is not set; Nova fell back to echo.");
   }
+  if (!config.nova.enabled) {
+    problems.push("NOVA_ENABLED=false — the tutor is switched off for every learner.");
+  }
 
-  return {
-    /* `degraded`, not `down`. Nova being offline does not stop a lesson: the
-       ladder, the caps and the refusal to name a misconception all run above
-       the provider, and the panel says plainly that there is no model. */
-    status: provider.degraded ? "degraded" : "ok",
-    detail: {
-      provider: provider.id,
-      // From configuration, never from the model. Asking an LLM what it is
-      // produces confident fiction.
-      model: provider.model,
-      degraded: provider.degraded,
-      // The host the requests leave to, for the residency question. Never the
-      // key, and never a URL with userinfo in it.
-      endpoint: provider.id === "echo" ? null : redactUrl(config.nova.baseUrl),
-      // Whether a request leaves Kazakhstan at all. See docs/pilot/PRIVACY_DATA_FLOWS.md.
-      leavesProviderBoundary: provider.id !== "echo",
-    },
-    problems,
+  /* `degraded`, not `down`. Nova being offline does not stop a lesson: the
+     ladder, the caps and the refusal to name a misconception all run above
+     the provider, and the panel says plainly that there is no model. */
+  let status: CheckStatus = provider.degraded ? "degraded" : "ok";
+
+  const detail: Check["detail"] = {
+    provider: provider.id,
+    // From configuration, never from the model. Asking an LLM what it is
+    // produces confident fiction.
+    model: provider.model,
+    degraded: provider.degraded,
+    /* Whether a hint would actually be attempted. `enabled` is the school's
+       kill switch and is independent of the credential, so a term of
+       assessments does not require deleting a secret. */
+    enabled: config.nova.enabled,
+    // The host the requests leave to, for the residency question. Never the
+    // key, and never a URL with userinfo in it.
+    endpoint: provider.id === "echo" ? null : redactUrl(config.nova.baseUrl),
+    // Whether a request leaves Kazakhstan at all. See docs/pilot/PRIVACY_DATA_FLOWS.md.
+    leavesProviderBoundary: provider.id !== "echo",
+    configured: provider.id !== "echo",
+    probed: false,
   };
+
+  /* Probing `echo` would answer a question nobody asked: it is a local string
+     generator, it is always reachable, and reporting `reachable: true` for it
+     is the same false comfort this probe exists to remove. */
+  if (probe && !provider.degraded) {
+    detail.probed = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), NOVA_PROBE_TIMEOUT_MS);
+    const started = Date.now();
+    try {
+      let chars = 0;
+      let usedInput = 0;
+      let usedOutput = 0;
+      for await (const chunk of provider.stream({
+        /* The smallest exchange that still proves the credential, the host, the
+           model id and the response shape. The reply is counted, never read:
+           whatever a model says is not health information. */
+        messages: [
+          { role: "system", content: "Reply with the single word: ok" },
+          { role: "user", content: "ok" },
+        ],
+        maxTokens: 4,
+        temperature: 0,
+        signal: controller.signal,
+        onUsage: (u) => {
+          usedInput = u.inputTokens;
+          usedOutput = u.outputTokens;
+        },
+      })) {
+        chars += chunk.length;
+      }
+      detail.probeMs = Date.now() - started;
+      detail.reachable = chars > 0;
+      detail.probeInputTokens = usedInput;
+      detail.probeOutputTokens = usedOutput;
+      if (chars === 0) {
+        status = worst(status, "degraded");
+        problems.push(
+          "The model provider accepted the request and returned no text. A hint " +
+            "would reach the learner empty and fall back to a question.",
+        );
+      }
+    } catch (err) {
+      detail.probeMs = Date.now() - started;
+      detail.reachable = false;
+      /* `down`, not `degraded`, and the distinction is real: an unconfigured
+         Nova is a lesson without a tutor, which the product is designed for. A
+         CONFIGURED Nova that cannot be reached is a deployment that believes it
+         has a tutor and does not. */
+      status = "down";
+      problems.push(
+        controller.signal.aborted
+          ? `The model provider did not answer within ${NOVA_PROBE_TIMEOUT_MS} ms.`
+          : `The model provider could not be called: ${errText(err)}`,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /* Spend is read separately and is allowed to fail on its own. Folding it into
+     the check would mean an unreachable database reporting the TUTOR as down,
+     which sends whoever is reading this to the wrong page of the runbook. */
+  let spend: NovaSpend | null = null;
+  try {
+    const { monthlySpend } = await import("@schools/nova/budget");
+    const month = utcMonthKey();
+    const s = await monthlySpend(month);
+    const n = config.nova;
+    const share = (used: number, limit: number) => (limit > 0 ? used / limit : null);
+
+    spend = {
+      month,
+      requests: s.requests,
+      inputTokens: s.inputTokens,
+      outputTokens: s.outputTokens,
+      // Four decimals: the ceiling is $25 and a rounded-to-cents figure hides
+      // the first week of a month entirely.
+      costUsd: Math.round(s.costUsd * 10_000) / 10_000,
+      limits: {
+        dailyRequests: n.dailyRequestLimit,
+        monthlyInputTokens: n.monthlyInputTokenLimit,
+        monthlyOutputTokens: n.monthlyOutputTokenLimit,
+        monthlyCostUsd: n.monthlyCostLimitUsd,
+        inputUsdPerMTok: n.inputUsdPerMTok,
+        outputUsdPerMTok: n.outputUsdPerMTok,
+      },
+      usedShare: {
+        inputTokens: share(s.inputTokens, n.monthlyInputTokenLimit),
+        outputTokens: share(s.outputTokens, n.monthlyOutputTokenLimit),
+        costUsd: share(s.costUsd, n.monthlyCostLimitUsd),
+      },
+    };
+
+    const exhausted = Object.entries(spend.usedShare).filter(
+      ([, v]) => v !== null && v >= 1,
+    );
+    const nearly = Object.entries(spend.usedShare).filter(
+      ([, v]) => v !== null && v >= 0.8 && v < 1,
+    );
+    if (exhausted.length > 0) {
+      status = worst(status, "degraded");
+      problems.push(
+        `Nova's monthly ceiling is reached (${exhausted.map(([k]) => k).join(", ")}). ` +
+          "Every learner is now refused before the provider is called, and the " +
+          "refusal reads to them like an ordinary 'try again later'.",
+      );
+    } else if (nearly.length > 0) {
+      problems.push(
+        `Nova is past 80% of its monthly ceiling (${nearly.map(([k]) => k).join(", ")}) ` +
+          `with ${spend.requests} request(s) recorded in ${month}.`,
+      );
+    }
+  } catch (err) {
+    /* Reported as a problem, not as a status. The budget layer fails OPEN by
+       design — see `schools/nova/budget.ts` — so an unreadable spend row means
+       hints keep working and nobody can see what they cost, which is worth
+       saying out loud and is not an outage. */
+    problems.push(`Nova spend could not be read: ${errText(err)}`);
+  }
+
+  return { status, detail, problems, spend };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -275,6 +497,8 @@ async function novaCheck(): Promise<Check> {
 export interface HealthOptions {
   /** Run a real submission through the judge. Off by default; see `executionCheck`. */
   probeExecution?: boolean;
+  /** Put one four-token request through the model provider. Off by default; see `novaCheck`. */
+  probeNova?: boolean;
 }
 
 export async function buildAdminHealth(opts: HealthOptions = {}): Promise<AdminHealth> {
@@ -283,7 +507,16 @@ export async function buildAdminHealth(opts: HealthOptions = {}): Promise<AdminH
   const web = webCheck();
   const database = await guarded("database", databaseCheck);
   const execution = await guarded("execution", () => executionCheck(opts.probeExecution === true));
-  const nova = await guarded("nova", novaCheck);
+  /* Not `guarded`, because this check carries a payload of its own and a
+     `Check` without `spend` would not satisfy the report's shape. Same
+     contract: a check that throws reports itself down and the rest still
+     renders. */
+  let nova: AdminHealth["nova"];
+  try {
+    nova = await novaCheck(opts.probeNova === true);
+  } catch (err) {
+    nova = { ...failed("nova", err), spend: null };
+  }
 
   const fingerprint = curriculumFingerprint();
   const curriculum: AdminHealth["curriculum"] = {
@@ -317,7 +550,10 @@ export async function buildAdminHealth(opts: HealthOptions = {}): Promise<AdminH
     lastSweepAt: null,
     sweepAgeSeconds: null,
     unreducedEvents: 0,
+    staleEpisodes: 0,
+    staleLearnerStates: 0,
     behind: false,
+    projectionBehind: false,
   };
   const ledgerProblems: string[] = [];
 
@@ -329,8 +565,23 @@ export async function buildAdminHealth(opts: HealthOptions = {}): Promise<AdminH
 
     if (reducer.behind) {
       ledgerProblems.push(
-        `${reducer.unreducedEvents} episode event(s) unreduced and the last sweep was ` +
-          `${reducer.sweepAgeSeconds}s ago — the teacher projection is stale.`,
+        `${reducer.unreducedEvents} episode event(s) across ${reducer.staleEpisodes} ` +
+          `episode(s) unreduced and the last sweep was ${reducer.sweepAgeSeconds}s ago — ` +
+          "the teacher projection is stale.",
+      );
+    }
+    /* Separate from the line above, because the remedy is different. Unreduced
+       EPISODES clear themselves on the next tick. A stale learner_state that
+       the sweep never revisits — the shape a `LEARNER_STATE_VERSION` bump
+       creates — does not clear on its own, and an operator who reads the
+       episode line and waits will wait forever. See the note above the subject
+       loop in `schools/reducer/sweep.ts`. */
+    if (reducer.projectionBehind) {
+      ledgerProblems.push(
+        `${reducer.staleLearnerStates} learner projection(s) are missing, built by an ` +
+          "older state version, or older than the episodes they summarise. The teacher " +
+          "is reading frozen evidence for those learners while every route still " +
+          "answers normally.",
       );
     }
     if (activity.verdicts.total > 0 && activity.verdicts.judged === 0) {
@@ -363,12 +614,20 @@ export async function buildAdminHealth(opts: HealthOptions = {}): Promise<AdminH
   };
 
   const reducerCheck: AdminHealth["reducer"] = {
-    status: reducer.behind ? "degraded" : activity === null ? "down" : "ok",
+    status:
+      reducer.behind || reducer.projectionBehind
+        ? "degraded"
+        : activity === null
+          ? "down"
+          : "ok",
     detail: {
       lastSweepAt: reducer.lastSweepAt,
       sweepAgeSeconds: reducer.sweepAgeSeconds,
       unreducedEvents: reducer.unreducedEvents,
+      staleEpisodes: reducer.staleEpisodes,
+      staleLearnerStates: reducer.staleLearnerStates,
       behind: reducer.behind,
+      projectionBehind: reducer.projectionBehind,
     },
     problems: activity === null ? [] : ledgerProblems,
     reducer,

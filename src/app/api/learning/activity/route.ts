@@ -1,4 +1,5 @@
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { resolveIdentity } from "@schools/learning/identity";
 import { clampOffset, windowFor } from "@schools/lib/activity-window";
 import { isPeriod, type Period } from "@schools/lib/period";
@@ -10,6 +11,13 @@ import { isPeriod, type Period } from "@schools/lib/period";
  * this route can be pointed at another child. The only inputs are which window
  * to read and how far back, and both are bounded here rather than trusted.
  *
+ * Scoped is not the same as gated, which is what this route used to miss.
+ * `resolveIdentity` falls through to the anonymous cookie branch when there is
+ * no session and MINTS a `learning_subjects` row for whoever asked — so an
+ * unauthenticated caller got a subject of their own, an empty progress page,
+ * and a row in the table a teacher's class list is built from. Nothing leaked;
+ * a roster that quietly grows strangers is the problem.
+ *
  * The window arithmetic lives in `@schools/lib/activity-window` so it can be
  * tested without a server; see `tests/school/activity-window.test.ts`.
  */
@@ -17,6 +25,12 @@ import { isPeriod, type Period } from "@schools/lib/period";
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const url = new URL(req.url);
 
   const raw = url.searchParams.get("period");

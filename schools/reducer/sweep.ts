@@ -58,6 +58,17 @@ export interface SweepResult {
   subjectsRebuilt: number;
   decisions: Record<string, LearningDecision>;
   errors: { episodeId: string; message: string }[];
+  /**
+   * Subjects whose projection could not be rebuilt.
+   *
+   * A separate list rather than a wider `errors`, because the two failures land
+   * on different people. A failed episode is one attempt that stays unreduced
+   * and gets replayed in twenty seconds. A failed projection is one LEARNER
+   * whose class-view row, skill levels and misconception list stop moving while
+   * every route around them keeps answering 200 — which is the failure mode
+   * this whole subsystem exists to make visible.
+   */
+  stateErrors: { subjectId: string; message: string }[];
 }
 
 export async function runSweep(
@@ -74,6 +85,7 @@ export async function runSweep(
     subjectsRebuilt: 0,
     decisions: {},
     errors: [],
+    stateErrors: [],
   };
 
   // One sweeper at a time. Returning quietly rather than throwing: a sweep that
@@ -121,12 +133,55 @@ export async function runSweep(
       }
     }
 
+    /*
+     * Rebuild the projection for every subject an episode moved under.
+     *
+     * ## Guarded, for the same reason the episode loop is
+     *
+     * Unguarded, one learner whose `buildLearnerState` throws — a skill row
+     * with a shape the core does not expect, a transaction that deadlocks
+     * against a concurrent read — abandoned the whole loop. Every subject after
+     * them in iteration order kept the projection they had before the sweep
+     * started, silently and for as long as the bad row survived, while
+     * `episodesReduced` still reported a healthy number. The teacher's class
+     * view then shows real evidence for the first few learners and last week's
+     * for the rest, with nothing on the page distinguishing them.
+     *
+     * Recorded per subject rather than thrown, so a persistent failure is
+     * visible in `stateErrors` and a transient one is simply retried on the
+     * next tick — the same bargain the episode loop already makes.
+     *
+     * ## What this loop still does NOT cover
+     *
+     * Only subjects reached through `staleEpisodes`, which is keyed on
+     * `REDUCER_VERSION`. Bumping `LEARNER_STATE_VERSION` alone changes nothing
+     * here: every existing learner keeps the projection built by the old code
+     * forever, because no episode of theirs became stale. Migration 0006 even
+     * creates `idx_learner_state_stale (state_version, computed_at)` for the
+     * query that would find them, and nothing issues it.
+     *
+     * Closing that needs one read on `LearningStore` —
+     * `staleLearnerStates(limit, stateVersion)`, the projection half of
+     * `staleEpisodes` — which is outside this file. Until it lands, a state
+     * version bump must be followed by deleting `learner_state` and
+     * `learner_skill_state` and letting the sweep rebuild them, and
+     * `reducerHealth` in `schools/ops/observability.ts` now counts and reports
+     * exactly how many learners are in that position so the gap is at least
+     * visible rather than silent.
+     */
     for (const subjectId of touchedSubjects) {
-      const inputs = await store.episodeInputsFor(subjectId);
-      const state = buildLearnerState(subjectId, inputs);
-      await store.putLearnerState(subjectId, state);
-      result.decisions[subjectId] = decide(state);
-      result.subjectsRebuilt += 1;
+      try {
+        const inputs = await store.episodeInputsFor(subjectId);
+        const state = buildLearnerState(subjectId, inputs);
+        await store.putLearnerState(subjectId, state);
+        result.decisions[subjectId] = decide(state);
+        result.subjectsRebuilt += 1;
+      } catch (err) {
+        result.stateErrors.push({
+          subjectId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   } finally {
     await store.releaseReducerLease(owner);

@@ -102,7 +102,7 @@ export interface GradeOutcome {
  * they are struggling at work nobody marked.
  */
 export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutcome {
-  const { block, month } = target;
+  const { block } = target;
   const result = checkBlock(block, answer);
 
   const measured = result.verdict !== "unknown";
