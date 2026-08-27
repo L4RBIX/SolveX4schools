@@ -1,5 +1,7 @@
 import type { LearnerState } from "@solvex/learning-intelligence-core";
 import type { Localized } from "@schools/curriculum/types";
+import { SKILL_BY_ID } from "@schools/curriculum/skills";
+import { teacherFailureClassLabel } from "./labels";
 import { skillEvidence, type EvidenceState } from "./evidence";
 
 /**
@@ -34,16 +36,41 @@ export type SignalKind =
 
 export interface ClassroomSignal {
   kind: SignalKind;
-  /** The check, in the teacher's language. Always states the count. */
+  /**
+   * The check, in the teacher's language. Always states the count.
+   *
+   * **Prose only.** No identifier — not a failure class, not a skill id, not a
+   * provider status — may be interpolated into this string. It is read by
+   * someone who teaches in Kazakh or Russian between two lessons, and an English
+   * snake_case token in the middle of it is noise that teaches them to skim the
+   * whole panel. The machine-readable keys live in the fields below, where a
+   * disputed signal can still be traced back to the attributions under it.
+   */
   detail: Localized;
-  /** Skill it concerns, when it concerns one. */
+  /** Skill it concerns, when it concerns one. The id, for the caller to resolve. */
   skill: string | null;
+  /**
+   * The attribution key behind a `recurring_misconception`, kept for audit.
+   *
+   * Never rendered as-is. It is here so a teacher who says "I do not believe
+   * this child confuses `and` and `or`" can be answered with the episodes, and
+   * so a future export has the stable key rather than a translated sentence.
+   */
+  failureClass?: string;
 }
 
 export interface LearnerRow {
   subjectId: string;
-  /** Display name. Until enrolment exists this is a short id, not a fiction. */
+  /** A short subject id. The fallback, kept for rows with no enrolment behind them. */
   label: string;
+  /**
+   * The learner's name, from `school_accounts` via the class roster.
+   *
+   * Optional because this module is pure and does not know about enrolment —
+   * the API route joins it on. Before migration 0012 there was no name to show
+   * and `label` was deliberately an id rather than an invented one.
+   */
+  displayName?: string;
   episodes: number;
   soloSolved: number;
   assistedSolved: number;
@@ -57,6 +84,26 @@ export interface LearnerRow {
 const INACTIVE_DAYS = 7;
 /** Above this share of solves needing level-2+ help, assistance is worth a look. */
 const HIGH_ASSISTANCE = 0.5;
+
+/*
+ * Two thresholds calibrated against a simulated class rather than guessed.
+ *
+ * The absolute counts these replace were set when a learner had done a handful
+ * of tasks. Run an 18-learner class through a whole month and both signals fire
+ * for 16 of 18 — including, absurdly, firing BOTH on the same learner, so a
+ * support student at 9 solves out of 17 was simultaneously "ready for a harder
+ * block" and "has failures nobody can explain". A signal that fires for 89% of
+ * a class is not a signal; it is the background.
+ *
+ * So both are now proportional to what the learner has actually done, and they
+ * are mutually exclusive: unexplained failures suppress "ready to stretch",
+ * because a learner the system cannot account for is not one to accelerate.
+ */
+
+/** Solves-unaided as a share of everything attempted, to look ready for more. */
+const STRETCH_SOLO_SHARE = 0.8;
+/** Unexplained failures as a share of episodes, before a human should look. */
+const UNEXPLAINED_SHARE = 0.2;
 
 export function buildLearnerRow(
   subjectId: string,
@@ -91,12 +138,29 @@ export function buildLearnerRow(
   for (const skill of state.skills) {
     for (const m of skill.misconceptions) {
       if (!m.actionable) continue;
+      /* Both halves of this sentence used to be raw identifiers: the skill went
+         in as `arith.remainder` and the cause as `(remainder_vs_quotient_swap)`,
+         inside an otherwise Kazakh or Russian line. The names exist — the skill
+         taxonomy carries a title in both languages, and `teacherFailureClassLabel`
+         now carries one for every class September declares — so what was on the
+         screen was not a missing translation, it was a translation nobody had
+         plumbed through.
+
+         Both fall back to something honest rather than to the id. An unknown
+         skill id is at least a documented dashboard string («the dotted naming
+         is for people reading dashboards» — schools/curriculum/skills.ts) and
+         reads as a category; an unknown failure class degrades to "one mistake",
+         because `provider_exit_502` in a signal about a child is worse than
+         saying less. */
+      const skillName = SKILL_BY_ID.get(skill.skill)?.title;
+      const cause = teacherFailureClassLabel(m.failureClass);
       signals.push({
         kind: "recurring_misconception",
         skill: skill.skill,
+        failureClass: m.failureClass,
         detail: {
-          kk: `${skill.skill}: бір қате ${m.distinctEpisodes} бөлек әрекетте қайталанды (${m.failureClass})`,
-          ru: `${skill.skill}: одна ошибка повторилась в ${m.distinctEpisodes} ${plural(m.distinctEpisodes, "попытке", "попытках", "попытках")} (${m.failureClass})`,
+          kk: `${skillName?.kk ?? skill.skill}: ${cause.kk} — ${m.distinctEpisodes} бөлек әрекетте қайталанды`,
+          ru: `${skillName?.ru ?? skill.skill}: ${cause.ru} — повторилось в ${m.distinctEpisodes} ${plural(m.distinctEpisodes, "попытке", "попытках", "попытках")}`,
         },
       });
     }
@@ -120,7 +184,15 @@ export function buildLearnerRow(
   const strong = state.skills.filter(
     (s) => s.soloSolved >= 2 && (s.level === "competent" || s.level === "strong"),
   );
-  if (strong.length >= 2) {
+  /* Proportional, not absolute: over a full month almost everyone reaches two
+     competent skills, so the count alone stopped discriminating. */
+  const outcomes = soloSolved + assistedSolved + state.unattributedFailures;
+  const soloShare = outcomes > 0 ? soloSolved / outcomes : 0;
+  const unexplainedIsNotable =
+    state.unattributedFailures >= 3 &&
+    state.unattributedFailures >= state.episodes * UNEXPLAINED_SHARE;
+
+  if (strong.length >= 2 && soloShare >= STRETCH_SOLO_SHARE && !unexplainedIsNotable) {
     signals.push({
       kind: "ready_to_stretch",
       skill: null,
@@ -134,7 +206,7 @@ export function buildLearnerRow(
   /* 5. Failures with no cause. NOT a claim about the learner — a statement that
      the system could not explain what happened, which is precisely when a human
      should look rather than the machine guessing. */
-  if (state.unattributedFailures >= 3) {
+  if (unexplainedIsNotable) {
     signals.push({
       kind: "unexplained_failures",
       skill: null,

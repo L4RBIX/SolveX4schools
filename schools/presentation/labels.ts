@@ -1,6 +1,24 @@
 import type { Locale, Localized } from "@schools/curriculum/types";
 
 /**
+ * Russian needs three plural forms, and getting it wrong is the first thing a
+ * child notices.
+ *
+ * It lived privately in `evidence.ts`, correctly implemented and tested — and
+ * every other Russian count in the product ignored it, so the hidden-test
+ * counter said «Ещё 1 скрытых теста». Exported from here because this is where
+ * strings are built.
+ */
+export function pluralRu(n: number, one: string, few: string, many: string): string {
+  const m100 = n % 100;
+  if (m100 >= 11 && m100 <= 14) return many;
+  const m10 = n % 10;
+  if (m10 === 1) return one;
+  if (m10 >= 2 && m10 <= 4) return few;
+  return many;
+}
+
+/**
  * Interface strings.
  *
  * The cloned runtime is hardcoded English throughout — "Jump back in",
@@ -29,6 +47,191 @@ export const L = {
   grade9: { kk: "9-СЫНЫП", ru: "9 КЛАСС" },
   foundational: { kk: "НЕГІЗГІ КУРС", ru: "БАЗОВЫЙ КУРС" },
 
+  /* --- public navigation ------------------------------------------------ */
+  navAbout: { kk: "Біз туралы", ru: "О нас" },
+  navForSchools: { kk: "Мектептерге", ru: "Школам" },
+  navHelp: { kk: "Анықтама", ru: "Помощь" },
+  navPrivacy: { kk: "Құпиялылық", ru: "Конфиденциальность" },
+  navTerms: { kk: "Шарттар", ru: "Условия" },
+  startLearning: { kk: "Оқуды бастау", ru: "Начать обучение" },
+  menu: { kk: "Мәзір", ru: "Меню" },
+  footerProduct: { kk: "Өнім", ru: "Продукт" },
+  footerLegalCol: { kk: "Құқықтық", ru: "Правовое" },
+  footerAccount: { kk: "Аккаунт", ru: "Аккаунт" },
+  footerLegal: {
+    kk: "SolveX4Schools — 9-сыныпқа арналған спорттық бағдарламалау бағдарламасы.",
+    ru: "SolveX4Schools — программа спортивного программирования для 9 класса.",
+  },
+
+  /* --- about ------------------------------------------------------------ */
+  aboutEyebrow: { kk: "SOLVEX4SCHOOLS ТУРАЛЫ", ru: "О SOLVEX4SCHOOLS" },
+  aboutMission: {
+    kk: "Есеп шығара алатын ұрпақ өсіріп жатырмыз",
+    ru: "Растим поколение сильных решателей задач",
+  },
+  aboutMissionBody: {
+    kk: "SolveX4Schools — мектепке арналған тоғыз айлық бағдарлама. Оқушы бағдарламалауды тыңдап емес, нақты есептер шығара отырып үйренеді.",
+    ru: "SolveX4Schools — девятимесячная программа для школы. Ученик учится программировать не слушая, а решая настоящие задачи.",
+  },
+  aboutWhyHeading: { kk: "Неге бағдарламалау?", ru: "Почему программирование?" },
+  aboutWhyP1: {
+    kk: "Бағдарламалау — мамандық қана емес, ойлау құралы. Компьютер айтқаныңды дәл орындайды, сондықтан ойыңдағы олқылықты бірден көрсетеді.",
+    ru: "Программирование — не только профессия, но и инструмент мышления. Компьютер делает ровно то, что ты сказал, и поэтому сразу показывает пробел в рассуждении.",
+  },
+  aboutWhyP2: {
+    kk: "Сол себепті бағдарлама тек синтаксис үйретпейді. Ол мыналарды жаттықтырады:",
+    ru: "Поэтому программа учит не только синтаксису. Она тренирует:",
+  },
+  aboutBand1: { kk: "Есепті шығару —", ru: "Решить задачу —" },
+  aboutBand1Emph: {
+    kk: "жауапты еске түсіру емес",
+    ru: "не то же самое, что вспомнить ответ",
+  },
+  aboutApproachHeading: { kk: "Біздің тәсіл", ru: "Наш подход" },
+  aboutApproachP1: {
+    kk: "Әр сабақ қысқа түсіндірмеден басталады және бірден практикаға көшеді. Түсіндірме — есепке кіріспе, дәріс емес.",
+    ru: "Каждый урок начинается с короткого объяснения и сразу переходит к практике. Объяснение — это вход в задачу, а не лекция.",
+  },
+  aboutApproachP2: {
+    kk: "Оқушы болжайды, тексереді, қателеседі, түзетеді. Дәл осы реттілік түсінікті қалыптастырады.",
+    ru: "Ученик предполагает, проверяет, ошибается, исправляет. Именно эта последовательность и создаёт понимание.",
+  },
+  aboutFigPractice: { kk: "практика", ru: "практика" },
+  aboutFigExplain: { kk: "түсіндірме", ru: "объяснение" },
+  aboutEvidenceHeading: {
+    kk: "Прогресс — дәлел, пайыз емес",
+    ru: "Прогресс — это свидетельства, а не проценты",
+  },
+  aboutEvidenceP1: {
+    kk: "SolveX ойдан шығарылған пайызды меңгеру деп көрсетпейді. «Циклдер 82%» деген сан өлшем сияқты көрінеді, бірақ ол өлшем емес.",
+    ru: "SolveX не выдаёт придуманный процент за освоение темы. Число вроде «Циклы 82%» выглядит как измерение, но им не является.",
+  },
+  aboutEvidenceP2: {
+    kk: "Оның орнына оқушының нақты не істегені жиналады, ал жүйе себебін білмейтін қателер бөлек көрсетіледі — бұл қалғанының шынайы бөлімі.",
+    ru: "Вместо этого собирается то, что ученик действительно делал, а ошибки, причину которых система не знает, показываются отдельно — это честный знаменатель для всего остального.",
+  },
+  aboutNovaHeading: { kk: "Nova — оқу көмекшісі", ru: "Nova — учебный помощник" },
+  aboutNovaP1: {
+    kk: "Nova дайын жауаптан бастамайды. Алдымен не істеп көргеніңді сұрайды, содан кейін көмекті сатылап арттырады.",
+    ru: "Nova не начинает с готового ответа. Сначала спрашивает, что ты уже попробовал, а потом наращивает помощь ступенями.",
+  },
+  aboutNovaP2: {
+    kk: "Көмектің деңгейін модель емес, жүйе шешеді. Бұл маңызды: жауапты беруге бола ма деп сұралған тіл моделі ерте ме, кеш пе «болады» дейді.",
+    ru: "Уровень помощи решает система, а не модель. Это важно: языковая модель, которую спрашивают, можно ли выдать ответ, рано или поздно скажет «можно».",
+  },
+  aboutSchoolsHeading: { kk: "Мектептерге", ru: "Школам" },
+  aboutSchoolsBody: {
+    kk: "Бағдарлама сабақ кестесіне енгізуге дайын: мұғалімге арналған материал, сынып бойынша прогресс және айлық тексеру бар.",
+    ru: "Программа готова к встраиванию в расписание: есть материал для учителя, прогресс по классу и месячная проверка.",
+  },
+  aboutSchoolsCta: { kk: "Толығырақ", ru: "Подробнее" },
+  aboutWeeks: { kk: "апта", ru: "недель" },
+  aboutTasks: { kk: "тапсырма", ru: "заданий" },
+
+  /* --- settings: account ------------------------------------------------ */
+  accountPersonal: { kk: "Жеке ақпарат", ru: "Личная информация" },
+  accountPersonalHint: {
+    kk: "Аты мектеп тізімінен алынады және осында өзгертілмейді.",
+    ru: "Имя берётся из школьного списка и здесь не меняется.",
+  },
+  accountName: { kk: "Аты", ru: "Имя" },
+  accountSchool: { kk: "Мектеп", ru: "Школа" },
+  accountSchoolName: { kk: "Мектеп", ru: "Школа" },
+  accountClass: { kk: "Сынып", ru: "Класс" },
+  accountNoClass: { kk: "Сыныпқа қосылмаған", ru: "Не зачислен в класс" },
+  accountRole: { kk: "Рөл", ru: "Роль" },
+  roleStudent: { kk: "Оқушы", ru: "Ученик" },
+  roleTeacher: { kk: "Мұғалім", ru: "Учитель" },
+  roleAdmin: { kk: "Әкімші", ru: "Администратор" },
+  accountSecurity: { kk: "Қауіпсіздік", ru: "Безопасность" },
+  accountSecurityHint: {
+    kk: "Жаңа құпиясөз кемінде 10 таңба болуы керек.",
+    ru: "Новый пароль должен быть не короче 10 символов.",
+  },
+  passwordChanged: { kk: "Құпиясөз ауыстырылды", ru: "Пароль изменён" },
+  accountSession: { kk: "Сессия", ru: "Сессия" },
+  accountSessionHint: {
+    kk: "Ортақ компьютерде жұмыс істесең — аяқтағанда шық.",
+    ru: "Если работаешь за общим компьютером — выходи, когда закончишь.",
+  },
+  signOutAll: {
+    kk: "Барлық құрылғыдан шығу",
+    ru: "Выйти на всех устройствах",
+  },
+
+  /* --- settings: preferences -------------------------------------------- */
+  prefAppearance: { kk: "Безендіру", ru: "Оформление" },
+  prefAppearanceHint: {
+    kk: "«Авто» құрылғының өз баптауын ұстанады.",
+    ru: "«Авто» следует настройке самого устройства.",
+  },
+  prefTheme: { kk: "Тақырып", ru: "Тема" },
+  prefAuto: { kk: "Авто", ru: "Авто" },
+  prefLight: { kk: "Жарық", ru: "Светлая" },
+  prefDark: { kk: "Қараңғы", ru: "Тёмная" },
+  prefMotion: { kk: "Қозғалыс", ru: "Движение" },
+  prefMotionHint: {
+    kk: "Анимациядан бас айналса, азайтуға болады.",
+    ru: "Если от анимации кружится голова, её можно уменьшить.",
+  },
+  prefMotionReduce: { kk: "Азайту", ru: "Уменьшить" },
+  prefMotionFull: { kk: "Толық", ru: "Полное" },
+  prefLanguage: { kk: "Тіл", ru: "Язык" },
+  prefSound: { kk: "Дыбыс", ru: "Звук" },
+  prefNarration: { kk: "Nova дауыстап оқиды", ru: "Nova читает вслух" },
+  prefNarrationHint: {
+    kk: "Сыныпта құлаққапсыз қоспаған жөн.",
+    ru: "В классе лучше не включать без наушников.",
+  },
+  prefNoVoice: {
+    kk: "Бұл құрылғыда сенің тіліңдегі дауыс жоқ, сондықтан дауыстап оқу қолжетімсіз.",
+    ru: "На этом устройстве нет голоса для твоего языка, поэтому чтение вслух недоступно.",
+  },
+  prefSfx: { kk: "Дыбыстық сигналдар", ru: "Звуковые сигналы" },
+  prefSfxHint: {
+    kk: "Жауап тексерілгендегі қысқа дыбыс.",
+    ru: "Короткий звук при проверке ответа.",
+  },
+
+  /* --- status pages ----------------------------------------------------- */
+  notFoundTitle: { kk: "Бұл бет табылмады", ru: "Страница не найдена" },
+  notFoundBody: {
+    kk: "Сілтеме ескірген болуы мүмкін немесе мұндай бет ешқашан болмаған.",
+    ru: "Возможно, ссылка устарела или такой страницы никогда не было.",
+  },
+  errorTitle: { kk: "Бір нәрсе бұзылды", ru: "Что-то сломалось" },
+  errorBody: {
+    kk: "Бұл біздің жағымыздағы қате. Қайталап көр — көбіне көмектеседі.",
+    ru: "Это ошибка на нашей стороне. Попробуй ещё раз — чаще всего помогает.",
+  },
+  goHome: { kk: "Басты бетке", ru: "На главную" },
+
+  /* --- legal ------------------------------------------------------------ */
+  legalContents: { kk: "Мазмұны", ru: "Содержание" },
+  legalUpdated: { kk: "Жаңартылды", ru: "Обновлено" },
+
+  /* --- help center ------------------------------------------------------ */
+  helpTitle: { kk: "Анықтама орталығы", ru: "Справочный центр" },
+  helpSubtitle: {
+    kk: "Бағдарлама, Nova, аккаунт және деректер туралы сұрақтар",
+    ru: "Вопросы о программе, Nova, аккаунте и данных",
+  },
+  helpSearchLabel: { kk: "Анықтамадан іздеу", ru: "Поиск по справке" },
+  helpSearchPlaceholder: { kk: "Нені білгің келеді?", ru: "Что хочешь узнать?" },
+  helpNoResults: { kk: "Ештеңе табылмады", ru: "Ничего не нашлось" },
+  helpNoResultsHint: {
+    kk: "Сұрауыңыз бойынша мақала жоқ:",
+    ru: "Нет статей по запросу:",
+  },
+  helpAllTopics: { kk: "Барлық тақырыптар", ru: "Все темы" },
+  helpFound: { kk: "Табылды", ru: "Найдено" },
+  helpMoreIn: { kk: "Осы бөлімде тағы", ru: "Ещё в этом разделе" },
+
+  /* --- account + settings ----------------------------------------------- */
+  settings: { kk: "Баптаулар", ru: "Настройки" },
+  settingsAccount: { kk: "Аккаунт", ru: "Аккаунт" },
+  settingsPreferences: { kk: "Параметрлер", ru: "Параметры" },
+
   /* --- navigation ------------------------------------------------------- */
   navHome: { kk: "Басты бет", ru: "Главная" },
   navCourses: { kk: "Бағдарлама", ru: "Программа" },
@@ -36,6 +239,12 @@ export const L = {
 
   /* --- home ------------------------------------------------------------- */
   welcome: { kk: "Сәлем", ru: "Привет" },
+  /**
+   * The greeting when no name is known — which is every learner today, because
+   * there is no enrolment and therefore no name to use. A placeholder name in
+   * a school product is a child being called something that is not theirs.
+   */
+  welcomeAnonymous: { kk: "Сәлем!", ru: "Привет!" },
   askPlaceholder: { kk: "Нені түсінгің келеді?", ru: "Что хочешь разобрать?" },
   ask: { kk: "Сұрау", ru: "Спросить" },
   jumpBackIn: { kk: "Жалғастыр", ru: "Продолжить" },
@@ -45,7 +254,15 @@ export const L = {
     ru: "Реши 3 задачи, чтобы начать серию",
   },
   practiceGoal: { kk: "АПТАЛЫҚ МАҚСАТ", ru: "ЦЕЛЬ НА НЕДЕЛЮ" },
-  practiceOf: { kk: "минуттың", ru: "минут из" },
+  thisWeek: { kk: "Осы апта", ru: "Эта неделя" },
+  weekActive: {
+    kk: "Осы аптада жұмыс істеген күндерің",
+    ru: "Дней с занятиями на этой неделе",
+  },
+  weekNothingYet: {
+    kk: "Бұл аптада әлі бастаған жоқсың",
+    ru: "На этой неделе ты ещё не начинал",
+  },
 
   /* --- courses / roadmap ------------------------------------------------ */
   yearRoadmap: { kk: "Оқу жылы", ru: "Учебный год" },
@@ -54,6 +271,8 @@ export const L = {
     ru: "Девять месяцев с сентября по май",
   },
   yourPath: { kk: "Сенің бағдарламаң", ru: "Твоя программа" },
+  carouselPrev: { kk: "Артқа", ru: "Назад" },
+  carouselNext: { kk: "Алға", ru: "Вперёд" },
   complete: { kk: "аяқталды", ru: "пройдено" },
 
   /* --- gameboard -------------------------------------------------------- */
@@ -62,10 +281,42 @@ export const L = {
   notOpenYet: { kk: "Әлі ашылмаған", ru: "Ещё не открыт" },
   inPreparation: { kk: "Дайындалуда", ru: "В работе" },
 
+  /* --- differentiation track -------------------------------------------- */
+  /**
+   * The three names the curriculum uses — Қолдау / Негізгі / Тереңдетілген —
+   * live in `TRACK_LABEL` and are rendered from there, because they are
+   * curriculum vocabulary and must read identically on a teacher's plan and on
+   * a learner's screen. What they do NOT do is mean anything to a fourteen-
+   * year-old, so each one ships with a line saying what it changes.
+   *
+   * The framing is "this month", never "you". The programme is explicit that a
+   * level describes a route through a topic and not a label on a child — a
+   * learner can be advanced in loops and support in binary search — and a
+   * control that reads as a permanent verdict is the one way to turn that into
+   * streaming.
+   */
+  trackTitle: { kk: "Осы айдағы бағытың", ru: "Твой маршрут в этом месяце" },
+  trackHint: {
+    kk: "Кез келген уақытта ауыстыруға болады. Бұл сен туралы емес, осы ай туралы.",
+    ru: "Менять можно когда угодно. Это про месяц, а не про тебя.",
+  },
+  trackSupportMeans: {
+    kk: "Ең қажетті тапсырмалар. Ең қиындары әзірге берілмейді.",
+    ru: "Только самое нужное. Самые трудные задания пока не выдаются.",
+  },
+  trackCoreMeans: {
+    kk: "Айдың толық тапсырмалар жиыны.",
+    ru: "Полный набор заданий месяца.",
+  },
+  trackAdvancedMeans: {
+    kk: "Толық жиын және қосымша қиын есептер.",
+    ru: "Полный набор плюс дополнительные трудные задачи.",
+  },
+
   /* --- lesson chrome ---------------------------------------------------- */
   check: { kk: "Тексеру", ru: "Проверить" },
   continue: { kk: "Жалғастыру", ru: "Продолжить" },
-  tryAgain: { kk: "Қайта көру", ru: "Ещё раз" },
+  tryAgain: { kk: "Қайта көр", ru: "Ещё раз" },
   getHelp: { kk: "Көмек", ru: "Помощь" },
   why: { kk: "Неге?", ru: "Почему?" },
   startOver: { kk: "Басынан", ru: "Сначала" },
@@ -74,7 +325,8 @@ export const L = {
   reportProblem: { kk: "Қате туралы хабарлау", ru: "Сообщить об ошибке" },
   readAloud: { kk: "Дауыстап оқу", ru: "Прочитать вслух" },
   close: { kk: "Жабу", ru: "Закрыть" },
-  chatWithTutor: { kk: "Көмекшімен сөйлесу", ru: "Поговорить с помощником" },
+  chatWithTutor: { kk: "Nova-мен сөйлесу", ru: "Поговорить с Nova" },
+  askNova: { kk: "Nova-дан сұра", ru: "Спросить Nova" },
   answerWithVoice: { kk: "Дауыспен жауап беру", ru: "Ответить голосом" },
 
   /* --- verdict ---------------------------------------------------------- */
@@ -114,25 +366,111 @@ export const L = {
   examples: { kk: "Мысалдар", ru: "Примеры" },
   hiddenTests: (n: number): Localized => ({
     kk: `Тағы ${n} жасырын тексеру бар — үлгіні көшіру жеткіліксіз`,
-    ru: `Ещё ${n} скрытых теста — скопировать пример недостаточно`,
+    ru: `Ещё ${n} ${pluralRu(n, "скрытый тест", "скрытых теста", "скрытых тестов")} — скопировать пример недостаточно`,
   }),
   fixedVersion: { kk: "Түзетілген нұсқа", ru: "Исправленный вариант" },
+  /** What a worked example prints. Concrete, never "the answer". */
+  result: { kk: "Нәтиже", ru: "Результат" },
+  /** Shown when a reveal is withheld because the learner has not tried yet. */
+  tryOnceMore: {
+    kk: "Тағы бір рет ойланып көр — жауап бірден берілмейді",
+    ru: "Подумай ещё раз — ответ сразу не выдаётся",
+  },
   whichLine: { kk: "Қате жолды таңда", ru: "Выбери строку с ошибкой" },
-  teacherLooksFor: { kk: "Мұғалім нені іздейді", ru: "Что смотрит учитель" },
+  teacherLooksFor: { kk: "Мұғалім нені іздейді", ru: "На что смотрит учитель" },
   explainInOwnWords: { kk: "Өз сөзіңмен жаз", ru: "Напиши своими словами" },
   oralTask: {
-    kk: "Бұл тапсырманы мұғалімге ауызша орындайсың",
-    ru: "Это задание ты выполняешь устно учителю",
+    /* «выполнять задание учителю» is not a construction Russian has. The verb
+       the sentence actually wants is "explain". */
+    kk: "Бұл тапсырманы мұғалімге ауызша түсіндіресің",
+    ru: "Это задание ты объясняешь учителю устно",
   },
   visualiserPending: {
     kk: "Бұл көрнекілік әлі дайын емес",
     ru: "Эта визуализация ещё не готова",
   },
+
+  /* --- step-execution visualiser ---------------------------------------- */
+  /**
+   * The programme calls stepping through code «түсінудің басты құралы» — the
+   * main instrument of understanding — for September, so these read more often
+   * than any other label in the player and are written as lesson prose, not as
+   * chrome. The notes take their numbers as arguments because a visualiser that
+   * says "3" while the code says 4 is worse than no visualiser.
+   *
+   * Both languages avoid numeral suffixes (`3-тен`, `3 раза`), which depend on
+   * the digit and cannot be got right by interpolation.
+   */
+  stepCounter: (i: number, n: number): Localized => ({
+    kk: `Қадам ${i} / ${n}`,
+    ru: `Шаг ${i} из ${n}`,
+  }),
+  stepPrev: { kk: "Алдыңғы қадам", ru: "Предыдущий шаг" },
+  stepNext: { kk: "Келесі қадам", ru: "Следующий шаг" },
+  stepReset: { kk: "Басынан бастау", ru: "Начать сначала" },
+  /** Past tense on purpose: the highlighted line has already run. */
+  stepLineRan: { kk: "Орындалған жол", ru: "Выполненная строка" },
+  stepVariables: { kk: "Айнымалылар", ru: "Переменные" },
+  stepNoVariables: {
+    kk: "Әзірге бірде-бір айнымалы жоқ",
+    ru: "Пока нет ни одной переменной",
+  },
+  stepOutput: { kk: "Экранға шыққаны", ru: "Вывод на экран" },
+  stepNoOutput: { kk: "Әзірге ештеңе шыққан жоқ", ru: "Пока ничего не выведено" },
+  stepFinished: { kk: "Бағдарлама аяқталды", ru: "Программа завершена" },
+  stepAssign: (name: string, value: string): Localized => ({
+    kk: `${name} айнымалысына ${value} мәні жазылды`,
+    ru: `В переменную ${name} записано значение ${value}`,
+  }),
+  stepQuotient: (a: number, b: number, q: number): Localized => ({
+    kk: `${a} // ${b} = ${q} — бүтін бөлігі, әрқайсысына тиетін сан`,
+    ru: `${a} // ${b} = ${q} — целая часть: столько достанется каждому`,
+  }),
+  stepRemainder: (a: number, b: number, r: number): Localized => ({
+    kk: `${a} % ${b} = ${r} — қалдық, артып қалатын сан`,
+    ru: `${a} % ${b} = ${r} — остаток: столько останется лишним`,
+  }),
   sandboxPending: {
     kk: "Кодты орындау қызметі әлі қосылмаған. Шешіміңді сақтап, мұғаліммен тексер.",
     ru: "Сервис запуска кода ещё не подключён. Сохрани решение и проверь с учителем.",
   },
-  run: { kk: "Жүгірту", ru: "Запустить" },
+  /**
+   * The judge is DOWN, as opposed to not built.
+   *
+   * A separate string from `sandboxPending` because the two are different facts
+   * and a class notices the difference. «Әлі қосылмаған» — not connected YET —
+   * is true of a product still being assembled; said in the middle of a pilot
+   * lesson it tells eighteen students the platform is unfinished, when what has
+   * actually happened is that a service is down for twenty minutes.
+   *
+   * The second sentence is the one that matters and it is a promise the code
+   * actually keeps: the submit route leaves the verdict `unknown` when the judge
+   * does not answer, and `unknown` is never scored as a failure anywhere. Nobody
+   * is marked wrong for an outage.
+   */
+  executionUnavailable: {
+    kk:
+      "Кодты тексеру уақытша қолжетімсіз. Жауабың сақталды — саған қате қойылған жоқ, " +
+      "кейінірек қайта тексере аласың.",
+    ru:
+      "Проверка кода временно недоступна. Ответ сохранён — ошибка тебе не поставлена, " +
+      "можно проверить позже.",
+  },
+  /**
+   * The answer did not reach the server at all.
+   *
+   * Distinct from both strings above, and the distinction is the point: those
+   * two say "we did not measure this", which is a settled outcome. This one says
+   * "we did not RECEIVE this" — nothing was graded, nothing was recorded, and
+   * pressing Check again is the correct next action. Rendering a lost round trip
+   * with the same neutral card as an ungraded explanation is how a product ends
+   * up implying work was saved when it was not.
+   */
+  notSaved: {
+    kk: "Жауап сақталмады — байланыс үзілді. «Тексеру» түймесін қайта бас.",
+    ru: "Ответ не сохранён — связь прервалась. Нажми «Проверить» ещё раз.",
+  },
+  run: { kk: "Іске қосу", ru: "Запустить" },
   submit: { kk: "Тапсыру", ru: "Отправить" },
   understood: { kk: "Түсіндім", ru: "Понятно" },
 
@@ -143,14 +481,552 @@ export const L = {
   verifyOral: { kk: "Ауызша түсіндіру", ru: "Устное объяснение" },
   verifyDelayed: { kk: "Қайта шешу", ru: "Повторное решение" },
 
+  /* --- you / progress --------------------------------------------------- */
+  yourProgress: { kk: "Сенің прогресің", ru: "Твой прогресс" },
+  progressSub: {
+    kk: "Мұнда пайыз жоқ. Тек нақты не істегенің.",
+    ru: "Здесь нет процентов. Только то, что ты действительно сделал.",
+  },
+  periodWeek: { kk: "Апта", ru: "Неделя" },
+  periodMonth: { kk: "Ай", ru: "Месяц" },
+  periodYear: { kk: "Жыл", ru: "Год" },
+  periodPrev: { kk: "Алдыңғы кезең", ru: "Предыдущий период" },
+  periodNext: { kk: "Келесі кезең", ru: "Следующий период" },
+  reportPeriod: { kk: "Есеп кезеңі", ru: "Период отчёта" },
+  summaryTitle: { kk: "Осы кезеңнің қорытындысы", ru: "Итог периода" },
+  summaryEmpty: {
+    kk: "Бұл кезеңде әлі ештеңе жоқ. Бір сабақ ашсаң, осында пайда болады.",
+    ru: "За этот период пока ничего нет. Открой урок — и здесь появится.",
+  },
+  activitySnapshot: { kk: "Не істедің", ru: "Что ты сделал" },
+  solvedSolo: { kk: "Өз бетінше шешті", ru: "Решено самостоятельно" },
+  solvedAssisted: { kk: "Көмекпен шешті", ru: "Решено с помощью" },
+  attempted: { kk: "Әрекет", ru: "Попыток" },
+  minutesPractised: { kk: "Практика минуты", ru: "Минут практики" },
+  unexplained: { kk: "Себебі белгісіз қате", ru: "Ошибок без причины" },
+  unexplainedHint: {
+    kk: "Жүйе бұлардың себебін білмейді және білетінін көрсетпейді.",
+    ru: "Система не знает их причину и не делает вид, что знает.",
+  },
+  solvedChart: { kk: "Шешілген есептер", ru: "Решённые задачи" },
+  chartTableCaption: {
+    kk: "Кезең бойынша шешілген есептер",
+    ru: "Решённые задачи по периоду",
+  },
+  chartColDate: { kk: "Күні", ru: "Дата" },
+  chartColSolo: { kk: "Өз бетінше", ru: "Самостоятельно" },
+  chartColAssisted: { kk: "Көмекпен", ru: "С помощью" },
+  skillsTitle: { kk: "Дағдылар", ru: "Навыки" },
+  skillsEmpty: {
+    kk: "Дағдылар бойынша әлі дәлел жоқ.",
+    ru: "По навыкам пока нет свидетельств.",
+  },
+  strengthsTitle: { kk: "Не байқалды", ru: "Что видно" },
+  strengthPersistence: { kk: "Тастап кетпейсің", ru: "Не бросаешь" },
+  strengthAsksForHelp: { kk: "Көмек сұрайсың", ru: "Просишь помощь" },
+  strengthIndependence: { kk: "Өз бетіңше істейсің", ru: "Справляешься сам" },
+  /* --- error dictionary («Жеке қателер журналы», PDF) --------------------- */
+  /**
+   * The programme's own verb: «Оқушы өзінің қателер сөздігін жинай бастайды» —
+   * the learner BEGINS TO COLLECT their own dictionary. Every string below is
+   * written to that framing, and every noun in them is a task or a mistake.
+   *
+   * None of them says what the learner is like. That is not a style preference:
+   * an entry may say what happened, never what it means about a fourteen-year-
+   * old, and a label reading "you keep confusing types" would smuggle exactly
+   * the claim the schema was built to make unwriteable.
+   */
+  errorBookTitle: { kk: "Қателер сөздігі", ru: "Словарь ошибок" },
+  errorBookSub: {
+    kk: "Өзің жіберген қателер. Қайсысын сақтайтыныңды өзің шешесің.",
+    ru: "Ошибки, которые ты сделал. Какие сохранить — решаешь сам.",
+  },
+  errorBookEmpty: {
+    kk: "Сөздігің әзірге бос.",
+    ru: "Твой словарь пока пуст.",
+  },
+  errorBookOffer: { kk: "Сақтауға болады", ru: "Можно сохранить" },
+  /** Shown when nothing qualifies — the common case, and not a failure. */
+  errorBookNoOffer: {
+    kk: "Түсіндірмесі бар қате әзірге жоқ.",
+    ru: "Пока нет ошибок с объяснением.",
+  },
+  errorBookSave: { kk: "Сөздікке қосу", ru: "Добавить в словарь" },
+  errorBookSaving: { kk: "Сақталуда…", ru: "Сохраняем…" },
+  errorBookSaveFailed: {
+    kk: "Сақталмады. Тағы бір көр.",
+    ru: "Не сохранилось. Попробуй ещё раз.",
+  },
+  errorBookNote: { kk: "Өз сөзіңмен (міндетті емес)", ru: "Своими словами (необязательно)" },
+  errorBookNotePlaceholder: {
+    kk: "Келесі жолы неге көңіл бөлесің?",
+    ru: "На что обратишь внимание в следующий раз?",
+  },
+  /** A count of a thing that happened, never a rate and never a verdict. */
+  errorBookSeen: (n: number): Localized => ({
+    kk: `${n} рет кездесті`,
+    ru: `Встретилось ${n} ${plural(n, "раз", "раза", "раз")}`,
+  }),
+  errorBookLoadFailed: {
+    kk: "Сөздікті жүктеу мүмкін болмады.",
+    ru: "Не удалось загрузить словарь.",
+  },
+
+  lastComputed: { kk: "Соңғы есептеу", ru: "Последний расчёт" },
+  loadFailed: {
+    kk: "Прогресті жүктеу мүмкін болмады.",
+    ru: "Не удалось загрузить прогресс.",
+  },
+  retry: { kk: "Қайталау", ru: "Повторить" },
+
+  /* --- first run (pilot onboarding) -------------------------------------- */
+  welcomeTitle: { kk: "SolveX4Schools-ке қош келдің", ru: "Добро пожаловать в SolveX4Schools" },
+  welcomeWhat: {
+    kk: "Мұнда сен бағдарламалауды жазып үйренесің: әр сабақта қысқа түсіндіру, содан кейін тапсырмалар.",
+    ru: "Здесь ты учишься программировать, программируя: в каждом уроке короткое объяснение, потом задачи.",
+  },
+  welcomeLessons: {
+    kk: "Сабақ карточкалардан тұрады. Жауабыңды тексер, қателессең — қайта көр.",
+    ru: "Урок состоит из карточек. Проверяй ответ, ошибся — попробуй ещё раз.",
+  },
+  welcomeNova: {
+    kk: "Nova — көмекші бағдарлама, адам емес. Ол сұрақ қоя отырып ойлануға көмектеседі.",
+    ru: "Nova — программа-помощник, не человек. Она помогает думать, задавая вопросы.",
+  },
+  welcomeNovaLimit: {
+    kk: "Nova сенің орныңа шешпейді. Алдымен өзің бір әрекет жаса — сонда ғана көмек ашылады.",
+    ru: "Nova не решает за тебя. Сначала попробуй сам — только тогда откроется помощь.",
+  },
+  welcomeLocale: {
+    kk: "Тілді жоғарғы оң жақтан ауыстыруға болады: қазақша немесе орысша.",
+    ru: "Язык можно переключить справа вверху: казахский или русский.",
+  },
+  welcomeStart: { kk: "Бастау", ru: "Начать" },
+
+  /* --- teacher console --------------------------------------------------- */
+  teacherNoClasses: {
+    kk: "Сізге әзірге сынып бекітілмеген. Мектеп әкімшісіне хабарласыңыз.",
+    ru: "За вами пока не закреплён класс. Обратитесь к администратору школы.",
+  },
+
+  /* --- publication gate (migration 0013) --------------------------------- */
+  monthNotOpenTitle: { kk: "Бұл ай әлі ашылмаған", ru: "Этот месяц ещё не открыт" },
+  monthNotOpenBody: {
+    kk: "Материалды мұғалім тексеріп, ашқаннан кейін сабақтар қолжетімді болады.",
+    ru: "Уроки станут доступны после того, как учитель проверит и откроет материал.",
+  },
+
+  /* --- sign in (migration 0012 identity) --------------------------------- */
+  signInTitle: { kk: "Кіру", ru: "Вход" },
+  signInSub: {
+    kk: "Мұғалім берген аты мен құпиясөзді енгіз",
+    ru: "Введи логин и пароль, которые выдал учитель",
+  },
+  username: { kk: "Аты", ru: "Логин" },
+  password: { kk: "Құпиясөз", ru: "Пароль" },
+  signIn: { kk: "Кіру", ru: "Войти" },
+  signOut: { kk: "Шығу", ru: "Выйти" },
+  signInFailed: {
+    kk: "Аты немесе құпиясөз дұрыс емес",
+    ru: "Неверный логин или пароль",
+  },
+  signInRateLimited: {
+    kk: "Тым көп әрекет. Біраз күте тұр.",
+    ru: "Слишком много попыток. Немного подожди.",
+  },
+  changePasswordTitle: { kk: "Құпиясөзді өзгерт", ru: "Смени пароль" },
+  changePasswordWhy: {
+    kk: "Бірінші құпиясөзді мұғалім білгендіктен, оны өзгерту керек",
+    ru: "Первый пароль знает учитель, поэтому его нужно сменить",
+  },
+  currentPassword: { kk: "Қазіргі құпиясөз", ru: "Текущий пароль" },
+  newPassword: { kk: "Жаңа құпиясөз", ru: "Новый пароль" },
+  passwordTooShort: {
+    kk: "Кемінде 10 таңба керек",
+    ru: "Нужно минимум 10 символов",
+  },
+  passwordContainsUsername: {
+    kk: "Құпиясөзде атың болмауы керек",
+    ru: "Пароль не должен содержать твой логин",
+  },
+  save: { kk: "Сақтау", ru: "Сохранить" },
+
+  /* --- completion policy -------------------------------------------------
+     Added with `schools/policies/completion.ts`. One string, and it exists
+     because the finishing button now has a third thing it can mean: the
+     learner is on the last page and the rule is not yet satisfied. It names
+     the work, never the learner. */
+  finishOutstanding: {
+    kk: "Қалған тапсырмаға өту",
+    ru: "К оставшемуся заданию",
+  },
+
+  /* --- delayed re-solve («Қайталау» / «Повторение») ----------------------
+     Added with the review scheduler. The programme's fifth independence check
+     (PDF p.6): «Көмекпен шешілген есеп бірнеше аптадан соң қайта беріледі және
+     бұл жолы көмексіз орындалады».
+
+     Every string below states what the learner is being offered and what the
+     rules of it are. None of them says why the system thinks they need it —
+     "you needed help with this" is a claim about a fourteen-year-old, and the
+     reason a task is in the queue is a fact about the task's own record, which
+     is how the two reason labels are worded. */
+  reviewTitle: { kk: "Қайталау", ru: "Повторение" },
+  reviewSub: {
+    kk: "Бұрын шешкен есептерің. Бұл жолы көмексіз.",
+    ru: "Задачи, которые ты уже решал. В этот раз — без помощи.",
+  },
+  /** A count of what is waiting. Never a score and never a deadline. */
+  reviewDueCount: (n: number): Localized => ({
+    kk: `${n} тапсырма`,
+    ru: `${n} ${plural(n, "задание", "задания", "заданий")}`,
+  }),
+  reviewEmpty: {
+    kk: "Әзірге қайталайтын ештеңе жоқ.",
+    ru: "Пока нечего повторять.",
+  },
+  /** Queued, but the delay has not elapsed. Shown so the queue is not a mystery. */
+  reviewLater: {
+    kk: "Кейінірек қайта беріледі",
+    ru: "Вернётся позже",
+  },
+  reviewOpen: { kk: "Қайта шешу", ru: "Решить заново" },
+  reviewReasonAssisted: { kk: "Көмекпен шешілген еді", ru: "Было решено с помощью" },
+  reviewReasonMilestone: { kk: "Өз бетіңше шешілген еді", ru: "Было решено самостоятельно" },
+  /**
+   * The promise the whole feature rests on, said out loud to the learner.
+   *
+   * The re-solve runs in a fresh episode: no hint level carries over, no
+   * previous solution is shown, and nothing from the first attempt is on the
+   * screen. Saying so is not decoration — a learner who assumes the tutor
+   * remembers where they got to will ask it for the next step instead of
+   * starting.
+   */
+  reviewFresh: {
+    kk: "Бұрынғы нұсқаулар сақталмайды — нөлден бастайсың.",
+    ru: "Прежние подсказки не сохраняются — начинаешь с нуля.",
+  },
+  reviewDone: { kk: "Қайталау аяқталды", ru: "Повторение завершено" },
+  reviewLoadFailed: {
+    kk: "Қайталау тізімін жүктеу мүмкін болмады.",
+    ru: "Не удалось загрузить список повторения.",
+  },
+  reviewStartFailed: {
+    kk: "Қайталауды ашу мүмкін болмады. Тағы бір көр.",
+    ru: "Не удалось открыть повторение. Попробуй ещё раз.",
+  },
+
   /* --- units ------------------------------------------------------------ */
   minutes: { kk: "мин", ru: "мин" },
   hours: { kk: "сағат", ru: "часов" },
   line: { kk: "Жол", ru: "Строка" },
+
+  /* ======================================================================== */
+  /* NEW · post-help explanation (programme independence check)               */
+  /*                                                                          */
+  /* «Кез келген көмектен соң оқушы шешімді өз сөзімен түсіндіруге міндетті».  */
+  /* Added as a self-contained block; no key above this line was touched.      */
+  /*                                                                          */
+  /* Two rules govern the wording here, and both are load-bearing:             */
+  /*                                                                          */
+  /* 1. Nothing in this section may read as a grade. The system does not know  */
+  /*    whether the explanation was good, and the strings must not imply that  */
+  /*    it does. «Жазылды» — recorded — not «Дұрыс».                            */
+  /* 2. The register is an invitation, not a punishment. A learner who asked   */
+  /*    for help and got it is doing the right thing; being made to feel       */
+  /*    caught for it is how they stop asking.                                 */
+  /* ======================================================================== */
+
+  postHelpTitle: { kk: "Өз сөзіңмен түсіндір", ru: "Объясни своими словами" },
+  /** Why they are being asked. States the reason, not a judgement. */
+  postHelpWhy: {
+    kk: "Көмек алдың — енді шешімді өз сөзіңмен айтып бер. Бір-екі сөйлем жеткілікті.",
+    ru: "Ты получил помощь — теперь расскажи решение своими словами. Хватит одного-двух предложений.",
+  },
+
+  /* The three questions, routed by `explanationPromptKeyFor`. The key names
+     must match `ExplanationPromptKey` in `schools/learning/post-help.ts`. */
+  postHelpAskWhyCondition: {
+    kk: "Неге бұл шарт жұмыс істейді?",
+    ru: "Почему это условие работает?",
+  },
+  postHelpAskWhereWrong: {
+    kk: "Қай жерде қателестің?",
+    ru: "Где именно была ошибка?",
+  },
+  postHelpAskWhatAndWhy: {
+    kk: "Не істедің және неге дәл солай істедің?",
+    ru: "Что ты сделал и почему именно так?",
+  },
+
+  postHelpPlaceholder: {
+    kk: "Өз сөзіңмен жаз…",
+    ru: "Напиши своими словами…",
+  },
+  postHelpSubmit: { kk: "Жіберу", ru: "Отправить" },
+  /** Shown while the control is disabled. A length note, never a verdict. */
+  postHelpTooShort: {
+    kk: "Тағы біраз жаз — бір-екі сөйлем.",
+    ru: "Напиши чуть больше — одно-два предложения.",
+  },
+  /**
+   * After a successful submit.
+   *
+   * Says what happened and stops. It does NOT say «жақсы» or «правильно»,
+   * because nothing checked it — see `explanationVerdict`, which returns
+   * `unknown` and has no other branch.
+   */
+  postHelpRecorded: {
+    kk: "Жазылды. Бұл тексерілмейді — мұғалім оқи алады.",
+    ru: "Записано. Это не проверяется автоматически — учитель сможет прочитать.",
+  },
+  /** Stated up front, so the learner knows what they are writing into. */
+  postHelpNotGraded: {
+    kk: "Бұл жауап бағаланбайды.",
+    ru: "Этот ответ не оценивается.",
+  },
+  /** The task is not finished until the explanation exists. */
+  postHelpOutstanding: {
+    kk: "Тапсырма түсіндірмеден кейін жабылады.",
+    ru: "Задание закроется после объяснения.",
+  },
+  /** Recorded when they complete without explaining. A fact, not a scolding. */
+  postHelpSkipped: {
+    kk: "Түсіндірме жазылмады. Бұл шешім дербес деп саналмайды.",
+    ru: "Объяснение не записано. Это решение не считается самостоятельным.",
+  },
+  postHelpSaveFailed: {
+    kk: "Сақталмады. Тағы бір көр.",
+    ru: "Не сохранилось. Попробуй ещё раз.",
+  },
+
+  /* ======================================================================
+   * NEW · teacher-facing outcome vocabulary
+   * ======================================================================
+   *
+   * Everything below this line was ADDED. No key above it was touched — the
+   * strings above are read by the lesson runtime and a "harmless" rewording
+   * changes what a child is told mid-month.
+   *
+   * ## What this section is for
+   *
+   * A teacher must be able to read a code result. `Passed`, `Wrong answer`,
+   * `Runtime error`, `Time limit`, `Not checked — a system fault`: five things
+   * a person who teaches Grade 9 can act on. What they must never see is the
+   * vocabulary of the machine that produced it — `provider_error`,
+   * `PISTON_STAGE_MISSING`, `container_internal_error`, an HTTP status, a
+   * container id, a stack. Not because it is secret, but because it is not
+   * information: a teacher reading `provider_exit_502` in the middle of a
+   * lesson learns nothing they can do anything about, and learns to distrust
+   * the whole screen.
+   *
+   * The mapping from the execution port's statuses onto these keys is
+   * `schools/presentation/teacher-outcome.ts` — one function, total over the
+   * status union, so a new status added to the port cannot reach a teacher
+   * unlabelled. `tests/school/teacher-language.test.ts` asserts both halves.
+   *
+   * ## Two of these are not verdicts and must not read like ones
+   *
+   * `teacherOutcomeNotChecked` is an outage: nothing was measured, and NOBODY
+   * WAS MARKED WRONG. That second clause is in the string because it is the
+   * fact a teacher needs and it is one the code actually keeps — the submit
+   * route leaves the verdict `unknown`, and `unknown` is never scored as a
+   * failure anywhere.
+   *
+   * `teacherOutcomeNotMachineChecked` is permanent and correct: an oral or
+   * written answer that no machine grades. Collapsing the two would tell a
+   * teacher a service was broken when a child simply wrote an essay.
+   */
+
+  /** Every declared test case passed. The only outcome that claims success. */
+  teacherOutcomePassed: { kk: "Өтті", ru: "Пройдено" },
+  /** It ran, it printed something, the something was wrong. */
+  teacherOutcomeWrongAnswer: { kk: "Жауап дұрыс емес", ru: "Неверный ответ" },
+  /** It never started. Punctuation and indentation, not logic. */
+  teacherOutcomeCompileError: {
+    kk: "Бағдарлама басталмады — жазылу қатесі",
+    ru: "Программа не запустилась — ошибка записи",
+  },
+  /** It started and raised. Logic, not punctuation. */
+  teacherOutcomeRuntimeError: {
+    kk: "Орындалу кезінде қате",
+    ru: "Ошибка во время выполнения",
+  },
+  /** THE LEARNER'S program was too slow. Evidence about an algorithm. */
+  teacherOutcomeTimeLimit: {
+    kk: "Уақыт шегінен асты — бағдарлама тым баяу",
+    ru: "Превышено время — программа слишком медленная",
+  },
+  /** THE LEARNER'S program used too much memory. Also evidence. */
+  teacherOutcomeMemoryLimit: {
+    kk: "Жады шегінен асты",
+    ru: "Превышен предел памяти",
+  },
+  /**
+   * The judge did not answer. NOT evidence, and the sentence says so.
+   *
+   * This is the string that exists to stop `provider_timeout` reaching a
+   * classroom. It names the consequence (nothing was measured) and the
+   * reassurance (nobody was marked wrong) and nothing about the cause, because
+   * the cause is not a teacher's to act on.
+   */
+  teacherOutcomeNotChecked: {
+    kk: "Тексерілмеді — жүйедегі ақау. Ешкімге қате қойылған жоқ.",
+    ru: "Не проверено — сбой в системе. Ошибка никому не поставлена.",
+  },
+  /** Permanent and correct: nothing here is machine-gradable. */
+  teacherOutcomeNotMachineChecked: {
+    kk: "Автоматты тексерілмейді — жауапты өзіңіз оқисыз",
+    ru: "Не проверяется автоматически — ответ читаете вы",
+  },
+
+  /* --- NEW · teacher class list, when it will not load -------------------- */
+  /*
+   * The classroom panel used to render `error.message` straight into the page.
+   * That is `not_authenticated` on an expired session, `not_found` on a class
+   * this teacher does not teach, and — on a 500 that returns an HTML error page
+   * — a raw `SyntaxError: Unexpected token '<' ...`, which is a JavaScript
+   * parser's opinion printed at a teacher between two lessons.
+   *
+   * Four sentences, one of which is "sign in again", because that is the only
+   * one of the four a teacher can actually fix themselves.
+   */
+  teacherClassSignedOut: {
+    kk: "Сеанс аяқталды. Қайта кіріңіз.",
+    ru: "Сессия завершилась. Войдите снова.",
+  },
+  teacherClassNotYours: {
+    kk: "Бұл сынып сізге бекітілмеген.",
+    ru: "Этот класс за вами не закреплён.",
+  },
+  teacherClassUnavailable: {
+    kk: "Сынып тізімін жүктеу мүмкін болмады. Бір минуттан кейін қайталап көріңіз.",
+    ru: "Не удалось загрузить список класса. Попробуйте через минуту.",
+  },
+
+  /* --- NEW · what a repeated mistake is called, for a teacher ------------- */
+  /*
+   * A generic sentence for a failure class the label map below does not know.
+   * Reached when the curriculum declares a new diagnostic class before anyone
+   * writes it a name — which will happen, because content moves faster than
+   * presentation. The honest fallback is to state the fact that IS known (one
+   * mistake, repeated, this many times) and drop the identifier, rather than
+   * print `and_or_swap` at a Kazakh teacher and call it information.
+   */
+  teacherMistakeUnnamed: { kk: "бір қате", ru: "одна ошибка" },
 } as const;
 
 export function t(value: Localized, locale: Locale): string {
   return value[locale];
+}
+
+/* ==========================================================================
+ * NEW · failure classes, said to a teacher
+ * ==========================================================================
+ *
+ * A misconception the evidence supports is the single most useful thing this
+ * product can put in front of a teacher, and it was being put there as
+ * `and_or_swap` — an English snake_case identifier, inside a Russian sentence,
+ * on a screen read by someone who teaches in Kazakh.
+ *
+ * The identifier is not wrong to HAVE. It is the auditable key, it is what the
+ * ledger stores, and `ClassroomSignal.failureClass` still carries it so a
+ * teacher who disputes a signal can be shown exactly which attributions produced
+ * it. What it is wrong to do is render it as prose.
+ *
+ * ## Two vocabularies land here, and both must be covered
+ *
+ * The curriculum declares its own diagnostic classes (`diagnosticMapping` in
+ * `schools/curriculum/months/*`), and the imported Learning Intelligence core
+ * has its own closed set in `FAILURE_CLASSES`. Both reach `MisconceptionObservation.failureClass`,
+ * so both are named below.
+ *
+ * ## Deliberately NOT exhaustive-checked against the curriculum
+ *
+ * A test asserting "every declared failure class has a label here" would couple
+ * presentation to content and break the month someone adds a diagnostic. The
+ * fallback (`L.teacherMistakeUnnamed`) is the guard instead: an unknown class
+ * degrades to "one mistake, repeated N times", which is true, useful, and
+ * carries no identifier. Adding a diagnostic class should still come with a row
+ * here — it just is not enforced at the cost of blocking curriculum work.
+ */
+export const TEACHER_FAILURE_CLASS: Record<string, Localized> = {
+  /* --- the imported core's closed set --------------------------------- */
+  compile_error: {
+    kk: "бағдарлама басталмай тұрып тоқтайды",
+    ru: "программа останавливается ещё до запуска",
+  },
+  runtime_error: {
+    kk: "орындалу кезінде қате шығады",
+    ru: "ошибка возникает во время выполнения",
+  },
+  memory_limit: { kk: "жады шегінен асады", ru: "выходит за предел памяти" },
+  complexity_asymptotic: {
+    kk: "бағдарлама тым баяу жұмыс істейді",
+    ru: "программа работает слишком медленно",
+  },
+  edge_case_handling: {
+    kk: "шарттың шекарасында қателеседі",
+    ru: "ошибается на границе условия",
+  },
+  /* Named, and it names the absence. A teacher must be able to tell "the system
+     thinks this child confuses // and %" from "the system has no idea". */
+  unattributed_failure: {
+    kk: "себебі анықталмаған қате",
+    ru: "ошибка без установленной причины",
+  },
+
+  /* --- September's own diagnostics ------------------------------------- */
+  string_vs_number_confusion: {
+    kk: "мәтін мен санды шатастырады (int() ұмытылған)",
+    ru: "путает текст и число (забыт int())",
+  },
+  remainder_vs_quotient_swap: {
+    kk: "// мен % орындарын ауыстырады",
+    ru: "меняет местами // и %",
+  },
+  elif_chain_short_circuit_missed: {
+    kk: "elif тізбегінің бірінші сәйкестікте тоқтайтынын ескермейді",
+    ru: "не учитывает, что цепочка elif останавливается на первом совпадении",
+  },
+  blamed_the_branch_that_fired: {
+    kk: "қатені жауап шығарған тармақтан іздейді",
+    ru: "ищет ошибку в той ветке, которая напечатала ответ",
+  },
+  and_or_swap: { kk: "and мен or-ды шатастырады", ru: "путает and и or" },
+  strict_vs_inclusive_boundary: {
+    kk: "< пен <= арасында қателеседі",
+    ru: "ошибается между < и <=",
+  },
+  swapped_interval_bounds: {
+    kk: "аралықтың шекараларын ауыстырып алады",
+    ru: "меняет местами границы интервала",
+  },
+  true_division_returns_float: {
+    kk: "/ амалының бөлшек сан беретінін ескермейді",
+    ru: "не учитывает, что / даёт дробное число",
+  },
+  fractional_where_integer_required: {
+    kk: "бүтін сан керек жерде бөлшек қалдырады",
+    ru: "оставляет дробь там, где нужно целое",
+  },
+  unnecessary_int_conversion: {
+    kk: "қажет емес жерде int() қолданады",
+    ru: "применяет int() там, где он не нужен",
+  },
+};
+
+/**
+ * One repeated mistake, described to a teacher — never as an identifier.
+ *
+ * The unknown-class path returns `L.teacherMistakeUnnamed` rather than the
+ * input, which is the entire point of the function: there is no argument value
+ * that can make it echo a raw string back onto a teacher's screen. Asserted with
+ * deliberately hostile inputs (`provider_exit_502`, `PISTON_STAGE_MISSING`) in
+ * `tests/school/teacher-language.test.ts`.
+ */
+export function teacherFailureClassLabel(failureClass: string): Localized {
+  return TEACHER_FAILURE_CLASS[failureClass] ?? L.teacherMistakeUnnamed;
 }
 
 /** `n сабақ` / `n уроков`, for the gameboard course card. */

@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import type { LessonBlock, Locale } from "@schools/curriculum/types";
+import type { Locale } from "@schools/curriculum/types";
+import type { PublicBlock } from "@schools/curriculum/public";
 import type { BlockAnswer } from "@schools/learning/checking";
 import { L, t } from "@schools/presentation/labels";
 import type { LessonVerdict } from "../lesson-verdict";
@@ -17,6 +18,7 @@ import {
   OptionList,
   RevealNote,
 } from "./primitives";
+import { StepExecution, buildStepProgram } from "./step-execution";
 
 /**
  * Block views.
@@ -32,7 +34,48 @@ import {
  * blank card in front of a class instead of failing the build.
  */
 
-export interface BlockViewProps<T extends LessonBlock = LessonBlock> {
+/**
+ * What the server has decided the learner may now see.
+ *
+ * Answer keys no longer ship to the browser (`schools/curriculum/public.ts`),
+ * so a view cannot paint the correct option green on its own initiative — which
+ * is the point. Every reveal below arrives in the submit response and only once
+ * `schools/learning/reveal.ts` judges it earned. Absent is the normal case.
+ */
+export interface BlockReveal {
+  /** Correct option id, for prediction and multiple choice. */
+  correctId?: string;
+  /** Correct answer as text, for the reveal note. */
+  text?: string;
+  /** The repaired program. */
+  code?: string;
+  /** 1-indexed defective line, for find_bug. */
+  line?: number;
+  /** Trace cells, keyed `row:name`. */
+  cells?: Record<string, string>;
+  /** Marking points, for explain and the written half of a check. */
+  points?: { kk: string; ru: string }[];
+}
+
+/**
+ * The block's own condition, beyond its verdict.
+ *
+ * The verdict channel answers "what was measured". This answers "why was
+ * nothing measured, or why was nothing kept" — three facts that used to share
+ * one sentence:
+ *
+ * - `not_machine_graded` — permanent and correct. An explanation in the
+ *   learner's own words, a self-authored test the author never enumerated. A
+ *   teacher reads it. Nothing is wrong.
+ * - `judge_unavailable` — temporary. The code checker did not answer. The
+ *   learner is NOT marked wrong, and the card says so in those words rather
+ *   than implying the product is unfinished.
+ * - `not_saved` — the round trip failed. Nothing was graded and nothing was
+ *   recorded, so the block does not settle at all: Check comes back.
+ */
+export type BlockNote = "not_machine_graded" | "judge_unavailable" | "not_saved";
+
+export interface BlockViewProps<T extends PublicBlock = PublicBlock> {
   block: T;
   locale: Locale;
   verdict: LessonVerdict;
@@ -40,9 +83,41 @@ export interface BlockViewProps<T extends LessonBlock = LessonBlock> {
   onAnswer: (a: BlockAnswer) => void;
   /** Scene image for the block, when the lesson supplies one. */
   art?: string;
+  /** Server-granted reveal. Never derived on the client. */
+  reveal?: BlockReveal;
+  /** Why nothing was measured or nothing was kept. Never derived on the client. */
+  note?: BlockNote;
 }
 
 const locked = (v: LessonVerdict) => v !== "unchecked";
+
+/**
+ * "The code checker did not answer."
+ *
+ * Rendered only by the two views that submit code, because it is the only place
+ * it can be true. Everywhere else `unmeasured` means what it has always meant —
+ * a human will read this.
+ */
+function NoteLine({ note, locale }: { note?: BlockNote; locale: Locale }) {
+  if (note !== "judge_unavailable") return null;
+  return <RevealNote label={t(L.executionUnavailable, locale)} />;
+}
+
+/**
+ * "This did not reach the server."
+ *
+ * Rendered by the dispatcher for EVERY block type rather than per view, because
+ * a lost round trip has nothing to do with what kind of block it was — a
+ * multiple choice loses its answer exactly as a coding task does. Putting it in
+ * one place is also what stops eleven views from each having their own opinion
+ * about how to say it, or from silently not saying it at all: the previous
+ * behaviour was that a failed submit painted the same neutral card as an
+ * ungraded explanation, on every block type, with no note whatsoever.
+ */
+function SaveFailureNote({ note, locale }: { note?: BlockNote; locale: Locale }) {
+  if (note !== "not_saved") return null;
+  return <RevealNote label={t(L.notSaved, locale)} tone="warn" />;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Concept                                                                    */
@@ -81,7 +156,7 @@ function ConceptView({ block, locale, art }: BlockViewProps) {
 /* Prediction / multiple choice                                               */
 /* -------------------------------------------------------------------------- */
 
-function PredictionView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function PredictionView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "prediction") return null;
   const hasOptions = Boolean(block.options?.length);
 
@@ -94,7 +169,7 @@ function PredictionView({ block, locale, verdict, answer, onAnswer }: BlockViewP
         <OptionList
           options={block.options!.map((o) => ({ id: o, label: o, mono: true }))}
           selected={answer.kind === "option" ? answer.id : null}
-          correctId={block.answer.trim()}
+          correctId={reveal?.correctId}
           verdict={verdict}
           onSelect={(id) => onAnswer({ kind: "option", id })}
         />
@@ -108,18 +183,14 @@ function PredictionView({ block, locale, verdict, answer, onAnswer }: BlockViewP
         />
       )}
 
-      {!hasOptions && (verdict === "wrong" || verdict === "partial") ? (
-        <RevealNote
-          label={t(L.correctAnswerIs, locale)}
-          value={block.answer}
-          tone="warn"
-        />
+      {!hasOptions && reveal?.text ? (
+        <RevealNote label={t(L.correctAnswerIs, locale)} value={reveal.text} tone="warn" />
       ) : null}
     </>
   );
 }
 
-function MultipleChoiceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function MultipleChoiceView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "multiple_choice") return null;
   return (
     <>
@@ -128,7 +199,7 @@ function MultipleChoiceView({ block, locale, verdict, answer, onAnswer }: BlockV
       <OptionList
         options={block.options.map((o) => ({ id: o.id, label: t(o.label, locale) }))}
         selected={answer.kind === "option" ? answer.id : null}
-        correctId={block.correctOptionId}
+        correctId={reveal?.correctId}
         verdict={verdict}
         onSelect={(id) => onAnswer({ kind: "option", id })}
       />
@@ -146,12 +217,15 @@ function MultipleChoiceView({ block, locale, verdict, answer, onAnswer }: BlockV
  * Modelled on the scheduler, where the puzzle and the answer surface are the
  * same object rather than a diagram beside a list of choices.
  */
-function FindBugView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function FindBugView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "find_bug") return null;
   const lines = block.code.replace(/\n$/, "").split("\n");
   const picked = answer.kind === "line" ? answer.line : 0;
   const isLocked = locked(verdict);
-  const revealing = verdict === "correct" || verdict === "wrong" || verdict === "partial";
+  /* The defective line is no longer in the payload. It is highlighted only when
+     the server sends it back, which it does not do on a first wrong answer. */
+  const bugLine = reveal?.line;
+  const revealing = bugLine !== undefined;
 
   return (
     <>
@@ -160,19 +234,20 @@ function FindBugView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
       <div
         className={cn(
           "w-full overflow-hidden rounded-[12px] border-2 transition-colors duration-200",
-          !isLocked && "border-b-sched-edge bg-b-sched-fill",
-          verdict === "correct" && "border-b-ok bg-b-ok-panel",
+          // Container, not target. The lines below carry the affordance.
+          !isLocked && "border-b-fg/10 bg-b-fg/[0.03]",
+          verdict === "correct" && "border-b-ok/60 bg-b-ok-panel",
           (verdict === "wrong" || verdict === "partial") &&
             "border-b-lock-panel-edge bg-b-lock-panel",
           verdict === "unmeasured" && "border-b-lock-edge bg-b-lock-fill",
         )}
       >
-        <div className="m-2 overflow-x-auto rounded-[8px] bg-black py-2">
+        <div className="m-2 overflow-x-auto rounded-[8px] bg-[#12141a] text-[#e8ecf4] py-2">
           <div className="w-max min-w-full font-b-mono text-[15px] leading-[26px]">
             {lines.map((line, i) => {
               const n = i + 1;
-              const isBug = revealing && n === block.buggyLine;
-              const wrongPick = revealing && picked === n && n !== block.buggyLine;
+              const isBug = revealing && n === bugLine;
+              const wrongPick = revealing && picked === n && n !== bugLine;
               return (
                 <button
                   key={n}
@@ -187,18 +262,18 @@ function FindBugView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
                     !isLocked && "cursor-pointer",
                     isLocked && "cursor-default",
                     !isLocked && picked === n && "bg-b-sched-fill-on",
-                    !isLocked && picked !== n && "hover:bg-white/5",
+                    !isLocked && picked !== n && "hover:bg-b-fg/5",
                     isBug && "bg-b-ok-fill",
                     wrongPick && "bg-b-warn-fill",
                   )}
                 >
                   <span
                     aria-hidden="true"
-                    className="mr-4 w-6 shrink-0 text-right tabular-nums text-white/30 select-none"
+                    className="mr-4 w-6 shrink-0 text-right tabular-nums opacity-40 select-none"
                   >
                     {n}
                   </span>
-                  <span className="whitespace-pre text-white">{line || " "}</span>
+                  <span className="whitespace-pre text-b-fg">{line || " "}</span>
                 </button>
               );
             })}
@@ -207,15 +282,15 @@ function FindBugView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
       </div>
 
       {!isLocked ? (
-        <p className="w-full text-[14px] leading-5 text-white/40">
+        <p className="w-full text-[14px] leading-5 text-b-fg/40">
           {t(L.whichLine, locale)}
         </p>
       ) : null}
 
-      {revealing ? (
+      {reveal?.code ? (
         <div className="flex w-full flex-col gap-2">
-          <p className="text-[14px] leading-5 text-white/60">{t(L.fixedVersion, locale)}</p>
-          <CodePanel code={block.fixedCode} verdict="correct" />
+          <p className="text-[14px] leading-5 text-b-fg/60">{t(L.fixedVersion, locale)}</p>
+          <CodePanel code={reveal.code} verdict="correct" />
         </div>
       ) : null}
     </>
@@ -226,7 +301,7 @@ function FindBugView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
 /* Fill in the blank                                                          */
 /* -------------------------------------------------------------------------- */
 
-function FillBlankView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function FillBlankView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "fill_blank") return null;
   const values = answer.kind === "blanks" ? answer.values : block.blanks.map(() => "");
   const segments = block.template.split("___");
@@ -239,11 +314,11 @@ function FillBlankView({ block, locale, verdict, answer, onAnswer }: BlockViewPr
       <div
         className={cn(
           "w-full overflow-hidden rounded-[12px] border-2 transition-colors duration-200",
-          !isLocked ? "border-b-sched-edge bg-b-sched-fill" : "border-b-lock-edge bg-b-lock-fill",
+          !isLocked ? "border-b-fg/10 bg-b-fg/[0.03]" : "border-b-lock-edge bg-b-lock-fill",
         )}
       >
-        <div className="m-2 overflow-x-auto rounded-[8px] bg-black p-3">
-          <div className="flex w-max min-w-full flex-wrap items-center gap-y-2 font-b-mono text-[15px] leading-[30px] whitespace-pre text-white">
+        <div className="m-2 overflow-x-auto rounded-[8px] bg-[#12141a] text-[#e8ecf4] p-3">
+          <div className="flex w-max min-w-full flex-wrap items-center gap-y-2 font-b-mono text-[15px] leading-[30px] whitespace-pre text-b-fg">
             {segments.map((segment, i) => (
               <span key={i} className="contents">
                 <span>{segment}</span>
@@ -261,16 +336,15 @@ function FillBlankView({ block, locale, verdict, answer, onAnswer }: BlockViewPr
                        learner types; a fixed input would reflow the whole block. */
                     style={{ width: `${Math.max(4, (values[i] ?? "").length + 1)}ch` }}
                     className={cn(
-                      "mx-1 rounded-[4px] border-b-2 bg-white/10 px-1 text-center font-b-mono",
+                      "mx-1 rounded-[4px] border-b-2 bg-b-fg/10 px-1 text-center font-b-mono",
                       "text-b-green-2 focus:outline-none",
                       "transition-colors duration-100",
                       !isLocked && "border-b-sched-edge-on",
-                      isLocked &&
-                        (values[i] ?? "").trim() === block.blanks[i].answer
-                        ? "border-b-ok-edge"
-                        : isLocked
-                          ? "border-b-warn-edge"
-                          : "",
+                      /* Per-blank correctness needs the key, which the browser
+                         no longer has. The card border already carries the
+                         verdict; colouring each blank added nothing a learner
+                         could act on. */
+                      isLocked && "border-b-lock-edge",
                     )}
                   />
                 ) : null}
@@ -280,12 +354,8 @@ function FillBlankView({ block, locale, verdict, answer, onAnswer }: BlockViewPr
         </div>
       </div>
 
-      {verdict === "wrong" || verdict === "partial" ? (
-        <RevealNote
-          label={t(L.correctAnswerIs, locale)}
-          value={block.blanks.map((b) => b.answer).join(", ")}
-          tone="warn"
-        />
+      {reveal?.text ? (
+        <RevealNote label={t(L.correctAnswerIs, locale)} value={reveal.text} tone="warn" />
       ) : null}
     </>
   );
@@ -313,12 +383,14 @@ function ReorderView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
   );
 
   if (block.type !== "reorder_code") return null;
-  // Presented shuffled, but deterministically — a fresh shuffle per render
-  // would move the lines out from under the learner mid-thought.
+  /* `block.lines` already arrives shuffled — deterministically, seeded from the
+     block id, in `schools/curriculum/public.ts`. It used to be reversed here
+     instead, which meant "move the bottom line to the top, repeat" solved the
+     month's only assembly task without reading the code. */
   const order =
     answer.kind === "order" && answer.ids.length
       ? answer.ids
-      : [...block.lines.map((l) => l.id)].reverse();
+      : block.lines.map((l) => l.id);
 
   const isLocked = locked(verdict);
   const move = (i: number, d: number) => {
@@ -335,7 +407,9 @@ function ReorderView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
       <ol className="flex w-full flex-col gap-2">
         {order.map((id, i) => {
           const line = byId.get(id);
-          const rightPlace = isLocked && block.correctOrder[i] === id;
+          /* Per-row correctness needs the answer, which the browser no longer
+             holds. The card border carries the verdict for the whole block. */
+          void i;
           return (
             <li
               key={id}
@@ -343,11 +417,10 @@ function ReorderView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
                 "flex items-center gap-2 rounded-[12px] border-2 px-3 py-2",
                 "transition-colors duration-100",
                 !isLocked && "border-b-sched-edge bg-b-sched-fill",
-                isLocked && rightPlace && "border-b-ok-edge bg-b-ok-fill",
-                isLocked && !rightPlace && "border-b-warn-edge bg-b-warn-fill",
+                isLocked && "border-b-lock-edge bg-b-lock-fill",
               )}
             >
-              <span className="min-w-0 flex-1 overflow-x-auto font-b-mono text-[15px] leading-[26px] whitespace-pre text-white">
+              <span className="min-w-0 flex-1 overflow-x-auto font-b-mono text-[15px] leading-[26px] whitespace-pre text-b-fg">
                 {line?.code}
               </span>
               {!isLocked ? (
@@ -384,9 +457,9 @@ function ArrowButton({
       disabled={disabled}
       aria-label={dir === "up" ? "move up" : "move down"}
       className={cn(
-        "grid size-11 place-items-center rounded-[8px] text-white/60",
+        "grid size-11 place-items-center rounded-[8px] text-b-fg/60",
         "transition-colors duration-100",
-        disabled ? "cursor-default opacity-20" : "cursor-pointer hover:bg-white/10 hover:text-white",
+        disabled ? "cursor-default opacity-20" : "cursor-pointer hover:bg-b-fg/10 hover:text-b-fg",
       )}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -400,10 +473,12 @@ function ArrowButton({
 /* Trace                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function TraceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function TraceView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "trace_code") return null;
   const cells = answer.kind === "grid" ? answer.cells : {};
-  const names = Array.from(new Set(block.steps.flatMap((s) => Object.keys(s.vars))));
+  /* The public payload carries variable NAMES only. The values are the answer
+     and arrive, if at all, from the server. */
+  const names = Array.from(new Set(block.steps.flatMap((s) => s.vars)));
   const isLocked = locked(verdict);
   const key = (row: number, name: string) => `${row}:${name}`;
 
@@ -415,13 +490,13 @@ function TraceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps)
       <div
         className={cn(
           "w-full overflow-x-auto rounded-[12px] border-2 transition-colors duration-200",
-          !isLocked ? "border-b-sched-edge bg-b-sched-fill" : "border-b-lock-edge bg-b-lock-fill",
+          !isLocked ? "border-b-fg/10 bg-b-fg/[0.03]" : "border-b-lock-edge bg-b-lock-fill",
         )}
       >
         <table className="w-full min-w-max border-collapse text-[15px]">
           <thead>
             <tr className="border-b-2 border-black/40">
-              <th className="px-3 py-2 text-left font-medium text-white/60">
+              <th className="px-3 py-2 text-left font-medium text-b-fg/60">
                 {t(L.line, locale)}
               </th>
               {names.map((name) => (
@@ -434,14 +509,14 @@ function TraceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps)
           <tbody>
             {block.steps.map((step, row) => (
               <tr key={row} className="border-b border-black/25 last:border-0">
-                <td className="px-3 py-1.5 tabular-nums text-white/50">{step.line}</td>
+                <td className="px-3 py-1.5 tabular-nums text-b-fg/50">{step.line}</td>
                 {names.map((name) => {
-                  const expected = step.vars[name];
-                  if (expected === undefined) {
-                    return <td key={name} className="px-3 py-1.5 text-white/25">—</td>;
+                  if (!step.vars.includes(name)) {
+                    return <td key={name} className="px-3 py-1.5 text-b-fg/25">—</td>;
                   }
+                  const expected = reveal?.cells?.[key(row, name)];
                   const value = cells[key(row, name)] ?? "";
-                  const right = isLocked && value.trim() === expected;
+                  const right = expected !== undefined && value.trim() === expected;
                   return (
                     <td key={name} className="px-2 py-1.5">
                       <input
@@ -455,14 +530,15 @@ function TraceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps)
                           })
                         }
                         className={cn(
-                          "h-10 w-[72px] rounded-[8px] border-2 bg-black px-2 text-center font-b-mono text-white",
+                          "h-10 w-[72px] rounded-[8px] border-2 bg-[#12141a] text-[#e8ecf4] px-2 text-center font-b-mono",
                           "focus:outline-none transition-colors duration-100",
-                          !isLocked && "border-b-sched-edge focus:border-b-sched-edge-on",
+                          !isLocked && "border-b-fg/15 focus:border-b-sched-edge-on",
                           right && "border-b-ok-edge",
-                          isLocked && !right && "border-b-warn-edge",
+                          isLocked && expected !== undefined && !right && "border-b-warn-edge",
+                          isLocked && expected === undefined && "border-b-lock-edge",
                         )}
                       />
-                      {isLocked && !right ? (
+                      {expected !== undefined && !right ? (
                         <span className="ml-2 font-b-mono text-b-ok-edge">{expected}</span>
                       ) : null}
                     </td>
@@ -481,7 +557,7 @@ function TraceView({ block, locale, verdict, answer, onAnswer }: BlockViewProps)
 /* Test case / explain / reflection / verify                                  */
 /* -------------------------------------------------------------------------- */
 
-function TestCaseView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function TestCaseView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "test_case") return null;
   return (
     <>
@@ -494,19 +570,24 @@ function TestCaseView({ block, locale, verdict, answer, onAnswer }: BlockViewPro
         verdict={verdict}
       />
       {/* Settling as `unmeasured` is the point: the learner may have found a
-          real breaking case the author never listed. */}
-      {verdict === "unmeasured" ? (
-        <RevealNote
-          label={t(L.savedForTeacher, locale)}
-          value={block.breakingInputs[0]}
-        />
+          real breaking case the author never listed. What it must NOT do is
+          print the author's own breaking input under a label that says the
+          learner's answer was saved — which is what it used to do, for anyone
+          who typed a single character. */}
+      {verdict === "unmeasured" ? <RevealNote label={t(L.savedForTeacher, locale)} /> : null}
+      {reveal?.text ? (
+        <RevealNote label={t(L.correctAnswerIs, locale)} value={reveal.text} tone="warn" />
       ) : null}
     </>
   );
 }
 
-function ExplainView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function ExplainView({ block, locale, verdict, answer, onAnswer, reveal }: BlockViewProps) {
   if (block.type !== "explain") return null;
+  /* The marking rubric used to appear the instant the learner pressed Check —
+     it was in the payload, so it could. It now arrives only with a server
+     reveal, after the answer has actually been committed. */
+  const points = reveal?.points;
   return (
     <>
       <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
@@ -517,20 +598,22 @@ function ExplainView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
         verdict={verdict}
         rows={6}
       />
-      {locked(verdict) ? (
+      {locked(verdict) ? <RevealNote label={t(L.savedForTeacher, locale)} /> : null}
+
+      {points ? (
         <div className="w-full rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3">
-          <p className="mb-2 text-[14px] leading-5 text-white/60">
+          <p className="mb-2 text-[14px] leading-5 text-b-fg/60">
             {t(L.teacherLooksFor, locale)}
           </p>
           <ul className="flex flex-col gap-1.5">
-            {block.expectedPoints.map((point, i) => (
-              <li key={i} className="flex gap-2 text-[15px] leading-6 text-white/80">
-                <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-white/40" />
+            {points.map((point, i) => (
+              <li key={i} className="flex gap-2 text-[15px] leading-6 text-b-fg/80">
+                <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-b-fg/40" />
                 {t(point, locale)}
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[14px] leading-5 text-white/40">
+          <p className="mt-3 text-[14px] leading-5 text-b-fg/40">
             {t(L.notAutoGraded, locale)}
           </p>
         </div>
@@ -562,33 +645,141 @@ const VERIFY_LABEL = {
   delayed_resolve: L.verifyDelayed,
 } as const;
 
-function VerifyView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+/**
+ * A monthly-check block.
+ *
+ * Two defects are closed here. `m1.as.b3` asked the learner to repair a program
+ * that was never drawn — `VerifyBlock` had no `code` field at all, so the card
+ * was a prompt about "this program" above an empty box. And the
+ * `oral_explanation` branch rendered a static note with no input, so the answer
+ * stayed `{kind:"none"}`, `canCheck` returned false forever, and the Check
+ * button on the LAST block of the assessment was permanently disabled: the
+ * check could not be finished.
+ *
+ * The oral mode now takes a short written note. That is not a downgrade of the
+ * spoken task — the card still says the explanation is given to the teacher —
+ * it is what lets the learner record that they are ready and move on, and it
+ * gives the teacher something to read beside the tick.
+ */
+function VerifyView({ block, locale, verdict, answer, onAnswer, reveal, note }: BlockViewProps) {
   if (block.type !== "verify") return null;
   const oral = block.mode === "oral_explanation";
+  const source = answer.kind === "text" ? answer.value : (block.starter ?? "");
 
   return (
     <>
-      <span className="w-fit self-start rounded-full border-2 border-b-sched-edge bg-b-sched-fill px-3 py-1 text-[13px] leading-5 font-medium tracking-wide text-white/80 uppercase">
+      <span className="w-fit self-start rounded-full border border-b-fg/15 bg-b-fg/[0.04] px-3 py-1 text-[13px] leading-5 font-medium tracking-wide text-b-fg/80 uppercase">
         {t(VERIFY_LABEL[block.mode], locale)}
       </span>
       <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
 
+      {/* The program under repair or inspection. Absent for a plain unseen
+          problem, which is why it is conditional rather than required. */}
+      {block.code ? <CodePanel code={block.code} verdict={verdict} /> : null}
+
       {oral ? (
-        <div className="w-full rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3 text-[16px] leading-6 text-white/80">
-          {t(L.oralTask, locale)}
-        </div>
+        <>
+          <div className="w-full rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3 text-[16px] leading-6 text-b-fg/80">
+            {t(L.oralTask, locale)}
+          </div>
+          <AnswerArea
+            value={answer.kind === "text" ? answer.value : ""}
+            onChange={(v) => onAnswer({ kind: "text", value: v })}
+            placeholder={t(L.explainInOwnWords, locale)}
+            verdict={verdict}
+            rows={4}
+          />
+        </>
       ) : (
         <AnswerArea
-          value={answer.kind === "text" ? answer.value : ""}
+          value={source}
           onChange={(v) => onAnswer({ kind: "text", value: v })}
           verdict={verdict}
-          rows={8}
+          rows={Math.max(6, source.split("\n").length + 2)}
           mono
         />
       )}
 
-      {locked(verdict) ? <RevealNote label={t(L.savedForTeacher, locale)} /> : null}
+      <CaseTable
+        visible={block.visibleCases}
+        hidden={block.hiddenCaseCount}
+        locale={locale}
+      />
+
+      {/* The monthly check runs real cases through the same judge a practice
+          task does, so it degrades the same way — and this is the block where a
+          silent "saved for the teacher" would be worst, because the learner
+          believes their assessment was recorded. */}
+      <NoteLine note={note} locale={locale} />
+      {note === undefined && locked(verdict) ? (
+        <RevealNote label={t(L.savedForTeacher, locale)} />
+      ) : null}
+      {reveal?.points ? <MarkingPoints points={reveal.points} locale={locale} /> : null}
     </>
+  );
+}
+
+/** Sample cases plus an honest count of the ones withheld. */
+function CaseTable({
+  visible,
+  hidden,
+  locale,
+}: {
+  visible: { input: string; expectedOutput: string }[];
+  hidden: number;
+  locale: Locale;
+}) {
+  if (!visible.length && hidden === 0) return null;
+  return (
+    <div className="w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] p-4">
+      {visible.length ? (
+        <>
+          <p className="mb-3 text-[14px] leading-5 text-b-fg/60">{t(L.examples, locale)}</p>
+          <div className="flex flex-col gap-2">
+            {visible.map((c, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 font-b-mono text-[15px]"
+              >
+                <span className="overflow-x-auto whitespace-pre text-b-fg/70">{c.input}</span>
+                <span aria-hidden="true" className="text-b-fg/30">→</span>
+                <span className="overflow-x-auto whitespace-pre text-b-green-2">
+                  {c.expectedOutput}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {hidden > 0 ? (
+        <p className={cn("text-[14px] leading-5 text-b-fg/40", visible.length && "mt-3")}>
+          {t(L.hiddenTests(hidden), locale)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function MarkingPoints({
+  points,
+  locale,
+}: {
+  points: { kk: string; ru: string }[];
+  locale: Locale;
+}) {
+  return (
+    <div className="w-full rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3">
+      <p className="mb-2 text-[14px] leading-5 text-b-fg/60">{t(L.teacherLooksFor, locale)}</p>
+      <ul className="flex flex-col gap-1.5">
+        {points.map((point, i) => (
+          <li key={i} className="flex gap-2 text-[15px] leading-6 text-b-fg/80">
+            <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-b-fg/40" />
+            {t(point, locale)}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[14px] leading-5 text-b-fg/40">{t(L.notAutoGraded, locale)}</p>
+    </div>
   );
 }
 
@@ -596,7 +787,7 @@ function VerifyView({ block, locale, verdict, answer, onAnswer }: BlockViewProps
 /* Code tasks                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function CodeTaskView({ block, locale, verdict, answer, onAnswer }: BlockViewProps) {
+function CodeTaskView({ block, locale, verdict, answer, onAnswer, note }: BlockViewProps) {
   if (
     block.type !== "write_code" &&
     block.type !== "modify_code" &&
@@ -605,15 +796,8 @@ function CodeTaskView({ block, locale, verdict, answer, onAnswer }: BlockViewPro
     return null;
   }
 
-  const starter =
-    "starter" in block && block.starter
-      ? block.starter
-      : "code" in block
-        ? block.code
-        : "";
+  const starter = block.starter ?? block.code ?? "";
   const source = answer.kind === "text" ? answer.value : starter;
-  const visible = block.cases.filter((c) => !c.hidden);
-  const hidden = block.cases.length - visible.length;
 
   return (
     <>
@@ -627,35 +811,19 @@ function CodeTaskView({ block, locale, verdict, answer, onAnswer }: BlockViewPro
         mono
       />
 
-      {visible.length ? (
-        <div className="w-full rounded-[12px] border-2 border-b-sched-edge bg-b-sched-fill p-4">
-          <p className="mb-3 text-[14px] leading-5 text-white/60">
-            {t(L.examples, locale)}
-          </p>
-          <div className="flex flex-col gap-2">
-            {visible.map((c, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 font-b-mono text-[15px]"
-              >
-                <span className="overflow-x-auto whitespace-pre text-white/70">{c.input}</span>
-                <span aria-hidden="true" className="text-white/30">→</span>
-                <span className="overflow-x-auto whitespace-pre text-b-green-2">
-                  {c.expectedOutput}
-                </span>
-              </div>
-            ))}
-          </div>
-          {hidden > 0 ? (
-            <p className="mt-3 text-[14px] leading-5 text-white/40">
-              {t(L.hiddenTests(hidden), locale)}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      <CaseTable
+        visible={block.visibleCases}
+        hidden={block.hiddenCaseCount}
+        locale={locale}
+      />
 
-      {/* Honest about the missing sandbox rather than faking a pass. */}
-      {verdict === "unmeasured" ? (
+      {/* Honest about the sandbox rather than faking a pass — and specific about
+          WHICH kind of honest. `judge_unavailable` says the checker is down and
+          nobody is being marked wrong; the fallback says it is not connected,
+          which is the true sentence for a deployment that has no judge at all.
+          `not_saved` overrides both: nothing was graded and nothing was kept. */}
+      <NoteLine note={note} locale={locale} />
+      {note === undefined && verdict === "unmeasured" ? (
         <RevealNote label={t(L.sandboxPending, locale)} />
       ) : null}
     </>
@@ -666,16 +834,78 @@ function CodeTaskView({ block, locale, verdict, answer, onAnswer }: BlockViewPro
 /* Simulation                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Step execution is the one visualiser the programme names as September's
+ * «түсінудің басты құралы», and the one that is built. The other eight keep the
+ * dashed placeholder: an animation that only looks like a loop trace would cost
+ * more trust than the admission does.
+ *
+ * The trace is built here rather than inside the visualiser so an unreadable
+ * config falls back to the same honest card instead of a broken interactive.
+ */
 function SimulationView({ block, locale }: BlockViewProps) {
   if (block.type !== "visual_simulation") return null;
+  const program =
+    block.simulation === "step_execution" ? buildStepProgram(block.config) : null;
+
   return (
     <>
       <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
-      <div className="grid w-full place-items-center rounded-[12px] border-2 border-dashed border-b-lock-edge bg-b-lock-fill px-6 py-12 text-center">
-        <p className="text-[16px] leading-6 text-white/60">
-          {t(L.visualiserPending, locale)}
+      {program ? (
+        <StepExecution program={program} locale={locale} />
+      ) : (
+        <div className="grid w-full place-items-center rounded-[12px] border-2 border-dashed border-b-lock-edge bg-b-lock-fill px-6 py-12 text-center">
+          <p className="text-[16px] leading-6 text-b-fg/60">
+            {t(L.visualiserPending, locale)}
+          </p>
+          <p className="mt-1 font-b-mono text-[14px] text-b-fg/30">{block.simulation}</p>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Worked example                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A problem reasoned through, not just a snippet with a caption.
+ *
+ * The programme asks for «толық талданған мысалдар» and September had none: a
+ * concept block shows an answer without showing the thinking that reaches it.
+ * The order below is the brief's own — problem, reasoning, code, result — and
+ * the steps are numbered so the learner can follow one move at a time.
+ */
+function WorkedExampleView({ block, locale }: BlockViewProps) {
+  if (block.type !== "worked_example") return null;
+  return (
+    <>
+      <LessonProse title={t(block.title, locale)}>
+        <LessonParagraph text={t(block.problem, locale)} />
+      </LessonProse>
+
+      <ol className="flex w-full flex-col gap-2">
+        {block.steps.map((step, i) => (
+          <li
+            key={i}
+            className="flex gap-3 rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] px-4 py-3"
+          >
+            <span className="mt-[2px] flex size-6 shrink-0 items-center justify-center rounded-full bg-b-fg/10 text-[13px] font-medium tabular-nums text-b-fg/70">
+              {i + 1}
+            </span>
+            <span className="text-[16px] leading-6 text-b-fg/85">{t(step, locale)}</span>
+          </li>
+        ))}
+      </ol>
+
+      <CodePanel code={block.code} />
+
+      <div className="w-full rounded-[12px] border-2 border-b-ok-edge bg-b-ok-fill px-4 py-3">
+        <p className="mb-1 text-[14px] leading-5 text-b-fg/60">{t(L.result, locale)}</p>
+        <p className="font-b-mono text-[15px] leading-6 whitespace-pre text-b-fg">
+          {t(block.result, locale)}
         </p>
-        <p className="mt-1 font-b-mono text-[14px] text-white/30">{block.simulation}</p>
       </div>
     </>
   );
@@ -686,11 +916,24 @@ function SimulationView({ block, locale }: BlockViewProps) {
 /* -------------------------------------------------------------------------- */
 
 export function BlockView(props: BlockViewProps) {
+  return (
+    <>
+      {renderBlock(props)}
+      {/* Last, and outside the switch: it belongs to the round trip, not to the
+          block, and it must appear whatever the block turned out to be. */}
+      <SaveFailureNote note={props.note} locale={props.locale} />
+    </>
+  );
+}
+
+function renderBlock(props: BlockViewProps) {
   const { block } = props;
 
   switch (block.type) {
     case "concept":
       return <ConceptView {...props} />;
+    case "worked_example":
+      return <WorkedExampleView {...props} />;
     case "prediction":
       return <PredictionView {...props} />;
     case "multiple_choice":

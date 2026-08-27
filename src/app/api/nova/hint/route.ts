@@ -1,26 +1,50 @@
 import { randomUUID } from "node:crypto";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { resolveIdentity } from "@schools/learning/identity";
 import { enforceHintPolicy } from "@schools/nova/enforce";
-import { buildSystemPrompt } from "@schools/nova/prompt";
+import { buildNovaMessages } from "@schools/nova/prompt";
 import { getNovaProvider, NovaProviderError } from "@schools/nova";
+import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
+import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
+import { guardedStream } from "@schools/nova/guard";
+import type { ValidationContext } from "@schools/nova/validate";
+import { checkAndConsumeBudget, recordSpend, type BudgetBlock } from "@schools/nova/budget";
 import { findBlock } from "@schools/learning/grade";
 import { takeToken } from "@schools/lib/rate-limit";
+import { explainPolicy } from "@schools/nova/explain";
+import { capabilityFor } from "@schools/curriculum/capability";
+import { config } from "@schools/config";
+import { ownedEpisodeId } from "@schools/learning/episode-scope";
+import { bump, opsLog, type OpsCounter } from "@schools/ops/counters";
+import { sanitizePayload } from "@solvex/learning-contracts";
+import type { LearningEventRow } from "@schools/store/learning-store";
 import type { Locale } from "@schools/curriculum/types";
 
 /**
  * Nova.
  *
- * The order of operations here IS the pedagogy, and it only works one way
- * round:
+ * The order of operations here IS the pedagogy and the safety model, and it
+ * only works one way round:
  *
- *   1. Derive the learner's state from the ledger.
- *   2. Run the Decision Engine. It chooses the action.
- *   3. Run `grantHintLevel`. It sets the ceiling.
- *   4. Only then build a prompt, and only then call a model.
+ *   1. Is this message something a tutor should answer at all?   (safety gate)
+ *   2. Can the deployment afford to answer it?                   (budget)
+ *   3. Derive the learner's state from the ledger.
+ *   4. Run the Decision Engine. It chooses the action.
+ *   5. Run `grantHintLevel`. It sets the ceiling.
+ *   6. Only then build a prompt, and only then call a model.
+ *   7. Validate every token before the learner sees it.          (guard)
  *
  * A language model asked to decide whether it may give away the answer will
  * eventually decide yes. It is never asked.
+ *
+ * ## Why steps 1 and 2 come before everything
+ *
+ * They are the two steps that must not write to the learning ledger. A message
+ * about being hurt at home is not evidence about `if`/`else`, and a request
+ * refused for cost is not a hint the learner took. Both return before
+ * `recordIntervention` exists, which makes the guarantee structural rather than
+ * a rule someone has to remember while editing this file.
  */
 
 export const runtime = "nodejs";
@@ -36,7 +60,89 @@ interface HintBody {
 
 const MAX_MESSAGE = 2000;
 
+/**
+ * Blocked families, mapped to their counters.
+ *
+ * A lookup rather than string interpolation, because `OpsCounter` is a closed
+ * union on purpose and `nova.safety.${reason}` would quietly widen it back to
+ * `string` — which is how a counter nobody can name gets into a fixed-cost map.
+ * `educational` and `social` are absent because they never reach this branch.
+ */
+const SAFETY_COUNTER = {
+  self_harm: "nova.safety.self_harm",
+  abuse_disclosure: "nova.safety.abuse_disclosure",
+  sexual: "nova.safety.sexual",
+  violence: "nova.safety.violence",
+  drugs: "nova.safety.drugs",
+  illegal_access: "nova.safety.illegal_access",
+  hate: "nova.safety.hate",
+  personal_data: "nova.safety.personal_data",
+  academic_integrity: "nova.safety.academic_integrity",
+  prompt_exfiltration: "nova.safety.prompt_exfiltration",
+  extended_offtopic: "nova.safety.extended_offtopic",
+} as const satisfies Partial<Record<SafetyReason, OpsCounter>>;
+
+const BUDGET_COUNTER = {
+  daily_requests: "nova.budget.daily_requests",
+  monthly_input_tokens: "nova.budget.monthly_input_tokens",
+  monthly_output_tokens: "nova.budget.monthly_output_tokens",
+  monthly_cost: "nova.budget.monthly_cost",
+} as const satisfies Record<BudgetBlock, OpsCounter>;
+
+/** SSE framing, in one place so every early return produces the same shape. */
+function sse(
+  write: (controller: ReadableStreamDefaultController<Uint8Array>) => Promise<void> | void,
+): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        await write(controller);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    },
+  });
+}
+
+const frame = (event: string, data: unknown) =>
+  new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+/**
+ * A complete response with no model behind it.
+ *
+ * Used by the safety gate, the budget ceiling and the validator's last resort.
+ * It is chunked rather than sent whole so the panel's streaming states behave
+ * identically whether or not a provider was involved — a deterministic answer
+ * that arrives as one block reads as an error message, and it is not one.
+ */
+async function deterministic(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  text: string,
+  policy: Record<string, unknown>,
+): Promise<void> {
+  controller.enqueue(frame("policy", policy));
+  for (let i = 0; i < text.length; i += 24) {
+    controller.enqueue(frame("token", { text: text.slice(i, i + 24) }));
+    await new Promise((r) => setTimeout(r, 12));
+  }
+  controller.enqueue(frame("done", { interventionId: null }));
+}
+
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: HintBody;
   try {
     body = (await request.json()) as HintBody;
@@ -49,6 +155,8 @@ export async function POST(request: Request) {
 
   const { subjectId } = await resolveIdentity();
   const store = await getStore();
+  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
+  const message = typeof body.message === "string" ? body.message.slice(0, MAX_MESSAGE) : "";
 
   /* Keyed on the learner, never on the client IP. One school behind one NAT
      gateway is one address, so an IP bucket would let the most active student
@@ -62,7 +170,98 @@ export async function POST(request: Request) {
     );
   }
 
-  const episodeId = typeof body.episodeId === "string" ? body.episodeId : randomUUID();
+  /*
+   * The safety gate, before anything durable happens.
+   *
+   * `mayCallModel` is false for distress, harm, integrity and exfiltration. All
+   * four return here with a deterministic answer and NO ledger write of any
+   * kind — no intervention row, no `assistance_requested`, no episode. What a
+   * child says about their life must not become a fact about their
+   * understanding of loops. `tests/nova/safety.test.ts` asserts the silence.
+   *
+   * The counter records the family and nothing else: no message, no subject, no
+   * excerpt. It exists so a school can be told "the crisis path fired twice
+   * this term" without anyone being able to read what was typed.
+   */
+  const safety = classifyMessage(message);
+  if (!safety.mayCallModel) {
+    const counter = SAFETY_COUNTER[safety.reason as keyof typeof SAFETY_COUNTER];
+    if (counter) bump(counter);
+    return sse((c) =>
+      deterministic(c, safetyResponse(safety.reason, locale), {
+        granted: 0,
+        requested: 0,
+        capped: false,
+        reason: "granted_as_requested",
+        explanation: null,
+        action: null,
+        provider: "policy",
+        degraded: false,
+        /* The panel hides the hint-level chrome. It is NOT told which family
+           fired — that is the product's business, not the browser's. */
+        safety: true,
+      }),
+    );
+  }
+
+  /*
+   * The ceilings.
+   *
+   * Also before the ledger: a request that was never made is not assistance
+   * that was requested, and charging the learner's independence for the
+   * school's budget running out would be a lie about them.
+   */
+  if (!config.nova.enabled) {
+    return sse((c) =>
+      deterministic(c, validatorFallback(locale), {
+        granted: 0, requested: 0, capped: false, reason: "granted_as_requested",
+        explanation: null, action: null, provider: "disabled", degraded: true,
+      }),
+    );
+  }
+
+  let budgetOk = true;
+  try {
+    const verdict = await checkAndConsumeBudget(subjectId);
+    budgetOk = verdict.ok;
+    if (!verdict.ok) {
+      if (verdict.blockedBy) bump(BUDGET_COUNTER[verdict.blockedBy]);
+      opsLog("nova.budget_blocked", { limit: String(verdict.blockedBy) });
+    }
+  } catch (err) {
+    /* Fail open, and say so. A database hiccup must not switch the tutor off
+       for a whole class mid-lesson; the cost of being wrong here is cents. */
+    bump("nova.budget_check_failures");
+    opsLog("nova.budget_check_failed", {
+      message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    });
+  }
+
+  if (!budgetOk) {
+    const text =
+      locale === "kk"
+        ? "Бүгінге сұрақтарым таусылды. Ертең қайта көмектесемін — әзірге не істеп көргеніңді өзің жазып көрші."
+        : "На сегодня мои подсказки закончились. Завтра снова помогу — а пока попробуй записать, что ты уже пробовал.";
+    return sse((c) =>
+      deterministic(c, text, {
+        granted: 0, requested: 0, capped: true, reason: "granted_as_requested",
+        explanation: null, action: null, provider: "policy", degraded: true, limited: true,
+      }),
+    );
+  }
+
+  /*
+   * The episode, scoped to the caller.
+   *
+   * This is the one input on this route that the browser chooses and the server
+   * used to accept. It matters more here than anywhere else: `enforceHintPolicy`
+   * derives the ENTIRE hint ceiling from the episode — `lastGrantedLevel`,
+   * `lastHintAt` and every effort event — and the resulting grant is echoed
+   * straight back to the caller in the `policy` frame below. A foreign episode
+   * id would therefore compute one learner's help budget from another's work
+   * and report the answer. See `schools/learning/episode-scope.ts`.
+   */
+  const episodeId = await ownedEpisodeId(subjectId, body.episodeId);
   const requested = Number.isFinite(body.requestedLevel) ? Number(body.requestedLevel) : 0;
 
   const { grant, directive } = await enforceHintPolicy({
@@ -73,20 +272,66 @@ export async function POST(request: Request) {
     learnerOverride: body.override === true,
   });
 
-  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
   const block = target.block;
 
-  const system = buildSystemPrompt({
-    locale,
-    monthTitle: target.month.title[locale],
-    lessonTitle: target.lesson.title[locale],
-    blockPrompt: "prompt" in block ? block.prompt[locale] : target.lesson.title[locale],
-    blockCode: "code" in block && typeof block.code === "string" ? block.code : undefined,
-    learnerAnswer: typeof body.message === "string" ? body.message.slice(0, MAX_MESSAGE) : undefined,
-    skills: block.skillRefs,
-    directive,
-    grant,
-  });
+  const messages = buildNovaMessages(
+    {
+      locale,
+      monthTitle: target.month.title[locale],
+      lessonTitle: target.lesson.title[locale],
+      blockPrompt: "prompt" in block ? block.prompt[locale] : target.lesson.title[locale],
+      blockCode: "code" in block && typeof block.code === "string" ? block.code : undefined,
+      skills: block.skillRefs,
+      /* Which Python this learner has actually been shown, computed by walking
+         the curriculum in teaching order up to this block. Null only if the id
+         resolves to a block outside that walk, in which case the prompt is built
+         exactly as it was before — degraded, never blocked. */
+      capability: capabilityFor(block.id),
+      directive,
+      grant,
+      briefOffTopic: safety.verdict === "ALLOW_BRIEF_OFFTOPIC",
+    },
+    message,
+  );
+
+  /*
+   * What the model must not be able to repeat.
+   *
+   * Hidden cases are never put into the prompt, so a leak should be impossible.
+   * That is exactly why they are handed to the validator: the guarantee is
+   * worth more when something checks it than when it rests on nobody having
+   * added them to the context object yet.
+   */
+  const cases = "cases" in block && Array.isArray(block.cases) ? block.cases : [];
+  const forbiddenLiterals = [
+    ...cases
+      .filter((c) => c.hidden)
+      .flatMap((c) => [c.input, c.expectedOutput]),
+
+    /* The reference solution, and the repaired program a find_bug carries.
+     *
+     * Neither is in the prompt either — but the same argument applies as for
+     * hidden cases, and more forcefully: a reference solution is the one thing
+     * the programme rules out handing over at any hint level.
+     *
+     * Added WHOLE rather than line by line, and that granularity is the point.
+     * `n = int(input())` is both the first line of half the reference solutions
+     * in September and the idiom the month exists to teach — forbidding it
+     * line-wise would gag Nova on the curriculum itself. Matching the complete
+     * program catches verbatim reproduction and nothing else; the shape check
+     * in `validate.ts` (`code.wholeProgram`) is what catches a solution
+     * rewritten rather than copied. */
+    "referenceSolution" in block && typeof block.referenceSolution === "string"
+      ? block.referenceSolution
+      : null,
+    "fixedCode" in block && typeof block.fixedCode === "string" ? block.fixedCode : null,
+
+    /* A fill_blank's answers. Short by nature, so most are filtered out below —
+       `map` and `split` never survive the length floor, and should not: they
+       are words the lesson teaches. Declared anyway so a longer blank added
+       later is covered without anyone remembering this file. */
+    ...(block.type === "fill_blank" ? block.blanks.map((b) => b.answer) : []),
+  ].filter((s): s is string => typeof s === "string" && s.trim().length >= 6);
 
   const provider = await getNovaProvider();
 
@@ -94,70 +339,249 @@ export async function POST(request: Request) {
   // intervention, whether or not the provider then fell over — and the
   // independence cost is owed either way.
   const interventionId = randomUUID();
-  await store.recordIntervention({
-    interventionId,
+  const sessionId = randomUUID();
+  const route = `/lesson/${target.lesson.id}`;
+  const containsCode = grant.mayIncludeCode && grant.granted >= 4;
+
+  /* Guarded, and it continues on failure.
+   *
+   * A ledger that will not accept the write is a real problem — the ladder
+   * reads `interventions` back as `lastGrantedLevel`, so while this is failing
+   * the rungs are not being counted and the cap is softer than it looks. It is
+   * still not a reason to refuse a fourteen-year-old help. The failure is
+   * counted and logged so it is visible on the health view rather than showing
+   * up a week later as an independence figure nobody can explain. */
+  try {
+    await store.recordIntervention({
+      interventionId,
+      subjectId,
+      episodeId,
+      kind: "hint",
+      level: grant.granted,
+      trigger: "learner_requested",
+      mode: directive?.mode ?? null,
+      containsCode,
+      contentLen: 0,
+    });
+  } catch (err) {
+    bump("save.event_write_failures");
+    opsLog("save.intervention_write_failed", {
+      level: grant.granted,
+      message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    });
+  }
+
+  /*
+   * The assistance ledger.
+   *
+   * `recordIntervention` above writes the `interventions` table, which is what
+   * the hint ladder reads back as `lastGrantedLevel`. That table is NOT the
+   * event stream, and the event stream is what the episode reducer folds into
+   * `independence_weight`, `soloSolved` / `assistedSolved` and the teacher's
+   * assistance signal.
+   *
+   * The request is recorded here. The DELIVERY is recorded only once tokens
+   * have actually reached the learner — asking for help that never arrived is
+   * not assistance, and charging independence for a provider outage would be a
+   * lie in the other direction.
+   */
+  const assistanceEvent = (
+    name: "assistance_requested" | "assistance_delivered",
+    seq: number,
+    payload: Record<string, unknown>,
+  ): LearningEventRow => ({
+    eventId: randomUUID(),
     subjectId,
     episodeId,
-    kind: "hint",
-    level: grant.granted,
-    trigger: body.override === true ? "learner_requested" : "learner_requested",
-    mode: directive?.mode ?? null,
-    containsCode: grant.mayIncludeCode && grant.granted >= 4,
-    contentLen: 0,
+    sessionId,
+    seq,
+    eventName: name,
+    occurredAt: new Date().toISOString(),
+    // Derived on this server from the ledger, never claimed by the browser.
+    sourceTrust: "server",
+    environment: config.environment,
+    cohort: "public",
+    route,
+    payload: sanitizePayload({ intervention_id: interventionId, ...payload }),
   });
 
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      const send = (event: string, data: unknown) =>
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+  /**
+   * Append, or count the failure and carry on.
+   *
+   * The cost of continuing is honest under-counting of assistance during an
+   * outage, which biases independence UPWARD. That is the wrong direction and
+   * it is why this is counted rather than swallowed.
+   */
+  const appendOrCount = async (rows: LearningEventRow[]): Promise<void> => {
+    try {
+      await store.appendEvents(rows);
+    } catch (err) {
+      bump("save.event_write_failures");
+      opsLog("save.assistance_write_failed", {
+        event: rows[0]?.eventName ?? "unknown",
+        message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+      });
+    }
+  };
 
-      // The learner sees the policy decision immediately, before any token.
-      send("policy", {
-        granted: grant.granted,
-        requested: grant.requested,
-        capped: grant.capped,
-        reason: grant.reason,
-        explanation: grant.explanation,
-        action: directive?.mode ?? null,
-        /* The model's identity comes from configuration, never from the model.
-           Asking an LLM what it is produces confident fiction. */
+  await appendOrCount([
+    assistanceEvent("assistance_requested", 0, {
+      requested_level: grant.requested,
+      granted_level: grant.granted,
+      trigger: "learner_requested",
+      mode: directive?.mode ?? undefined,
+    }),
+  ]);
+
+  const validation: ValidationContext = { grant, directive, forbiddenLiterals };
+
+  return sse(async (controller) => {
+    const send = (event: string, data: unknown) => controller.enqueue(frame(event, data));
+
+    // The learner sees the policy decision immediately, before any token.
+    send("policy", {
+      granted: grant.granted,
+      requested: grant.requested,
+      capped: grant.capped,
+      reason: grant.reason,
+      /* Translated from the reason code, not from the core's English
+         sentence. A learner never sees the engine's own wording. */
+      explanation: explainPolicy(grant.reason, locale),
+      action: directive?.mode ?? null,
+      /* The model's identity comes from configuration, never from the model.
+         Asking an LLM what it is produces confident fiction. */
+      provider: provider.id,
+      /* Whether there is actually a model behind this. The panel shows a
+         banner rather than letting the learner infer it from the prose. */
+      degraded: provider.degraded,
+    });
+
+    /*
+     * Cancellation, wired to two clocks.
+     *
+     * `request.signal` fires when the learner closes the panel or hits Stop;
+     * the timeout fires when the provider stops talking. Without either, a
+     * closed browser tab left the server streaming from DeepSeek to nobody and
+     * paying for every token of it — the Stop button aborted the fetch on the
+     * client and nothing at all on the server.
+     */
+    const timeout = AbortSignal.timeout(config.nova.requestTimeoutMs);
+    const abort = new AbortController();
+    const signal = AbortSignal.any([request.signal, timeout, abort.signal]);
+
+    let usageIn = 0;
+    let usageOut = 0;
+    const onUsage = (u: { inputTokens: number; outputTokens: number }) => {
+      usageIn += u.inputTokens;
+      usageOut += u.outputTokens;
+    };
+
+    const startedAt = Date.now();
+    let firstTokenAt: number | null = null;
+
+    /** One guarded attempt. Returns what the learner saw and why it stopped. */
+    const attempt = async (ctx: ValidationContext) => {
+      const stream = guardedStream(
+        provider.stream({
+          messages,
+          maxTokens: config.nova.maxOutputTokens,
+          temperature: 0.4,
+          signal,
+          onUsage,
+        }),
+        ctx,
+        () => {
+          /* Stop paying for a response the learner will never see. The
+             provider's fetch is aborted the moment the first violation is
+             certain, not when the response finally ends. */
+          abort.abort();
+        },
+      );
+
+      let released = "";
+      let result = await stream.next();
+      while (!result.done) {
+        if (firstTokenAt === null) firstTokenAt = Date.now();
+        released += result.value;
+        send("token", { text: result.value });
+        result = await stream.next();
+      }
+      return result.value;
+    };
+
+    try {
+      let outcome = await attempt(validation);
+
+      /*
+       * One retry, stricter, and only when nothing was shown.
+       *
+       * If the learner has already seen part of the answer there is nothing to
+       * retry INTO — a second response would arrive glued to the tail of the
+       * first. So the retry is available exactly once, in the case where the
+       * violation happened before a single token was released, and it happens
+       * under a grant that forbids code entirely. A model that produced too
+       * much code with a budget of two will not produce less when asked again
+       * politely; it will when the instruction changes.
+       */
+      if (outcome.violations.length > 0 && outcome.released.length === 0) {
+        bump("nova.output_rejected");
+        opsLog("nova.output_rejected", {
+          codes: outcome.violations.map((v) => v.code).join(","),
+          attempt: "1",
+        });
+        outcome = await attempt({
+          ...validation,
+          grant: { ...grant, granted: Math.min(grant.granted, 1), mayIncludeCode: false },
+        });
+      }
+
+      if (outcome.violations.length > 0) {
+        bump("nova.output_rejected_final");
+        opsLog("nova.output_rejected", {
+          codes: outcome.violations.map((v) => v.code).join(","),
+          attempt: "final",
+          released: String(outcome.released.length),
+        });
+        /* Nothing usable came back twice. The learner is not told why — they
+           did nothing wrong and the reason is ours. */
+        const fallback = validatorFallback(locale);
+        send("token", { text: (outcome.released ? "\n\n" : "") + fallback });
+        outcome = { ...outcome, released: outcome.released + fallback };
+      }
+
+      /* Delivered, because it arrived. `content_len` is the real length of
+         what the learner was SHOWN — not what the model produced — so a
+         truncated response is recorded as the shorter thing it was. */
+      await appendOrCount([
+        assistanceEvent("assistance_delivered", 1, {
+          level: grant.granted,
+          mode: directive?.mode ?? undefined,
+          evidence_type: "hint",
+          contains_code: containsCode,
+          content_len: outcome.released.length,
+        }),
+      ]);
+      send("done", { interventionId });
+    } catch (err) {
+      const kind = err instanceof NovaProviderError ? err.kind : "unknown";
+      // Never leave the UI spinning. An error is a state, not a silence.
+      send("error", { kind, retryable: err instanceof NovaProviderError && err.retryable });
+    } finally {
+      if (usageIn > 0 || usageOut > 0) {
+        try {
+          await recordSpend(usageIn, usageOut);
+        } catch {
+          bump("nova.spend_write_failures");
+        }
+      }
+      /* Latency, in aggregate, with nothing about who or what. TTFT is the
+         number that decides whether the panel feels alive; total duration is
+         the one that decides whether the timeout is set anywhere near right. */
+      opsLog("nova.timing", {
+        ttft_ms: String(firstTokenAt === null ? -1 : firstTokenAt - startedAt),
+        total_ms: String(Date.now() - startedAt),
         provider: provider.id,
       });
-
-      try {
-        for await (const chunk of provider.stream({
-          messages: [
-            { role: "system", content: system },
-            {
-              role: "user",
-              content:
-                typeof body.message === "string" && body.message.trim()
-                  ? body.message.slice(0, MAX_MESSAGE)
-                  : "Маған осы тапсырмада көмектесе аласың ба?",
-            },
-          ],
-          maxTokens: 500,
-          temperature: 0.4,
-        })) {
-          send("token", { text: chunk });
-        }
-        send("done", { interventionId });
-      } catch (err) {
-        const kind = err instanceof NovaProviderError ? err.kind : "unknown";
-        // Never leave the UI spinning. An error is a state, not a silence.
-        send("error", { kind, retryable: err instanceof NovaProviderError && err.retryable });
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
+    }
   });
 }

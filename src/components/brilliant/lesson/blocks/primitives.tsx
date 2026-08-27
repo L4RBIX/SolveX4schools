@@ -19,8 +19,17 @@ import type { LessonVerdict } from "../lesson-verdict";
  *   wrong, chosen  border-b-warn-edge       bg-b-warn-fill
  *   right, chosen  border-b-ok-edge         bg-b-ok-fill
  *
- * That palette reuse is the whole point: an option card that looks like it came
- * from a different product is exactly the failure this migration is correcting.
+ * ## Blue means "you can act on this"
+ *
+ * In the original, that palette is on the MEETING BLOCKS — the things you tap.
+ * It is an affordance, not a container style. An earlier pass here put it on
+ * everything, read-only code panels included, and the result read as a debug
+ * build: every box outlined, nothing signalling what to do next.
+ *
+ * So the rule is narrow. Blue on something the learner can act on right now.
+ * Read-only material — code they are studying, worked examples, a table's own
+ * frame — takes the card's quiet chrome instead, and the accent returns on
+ * focus. Feedback colour (amber, green) always wins over both.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -46,7 +55,13 @@ export function LessonProse({
       className={cn("w-full leading-[25.6px]", className)}
     >
       {title ? (
-        <h1 className="mb-[22.4px] text-[32px] leading-[42.88px] font-bold">
+        /* `hyphens-auto` and the smaller step below 640 are both for Russian
+           and Kazakh: "последовательность" is 18 characters and wider than a
+           375px card at 32px, and the card clips rather than scrolls, so the
+           word simply disappeared off the right edge. */
+        <h1
+          className="mb-[22.4px] text-[26px] leading-[34px] font-bold hyphens-auto sm:text-[32px] sm:leading-[42.88px]"
+        >
           {title}
         </h1>
       ) : null}
@@ -63,7 +78,7 @@ export function LessonParagraph({ text }: { text: string }) {
         part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
           <code
             key={i}
-            className="rounded-[4px] bg-white/10 px-1.5 py-0.5 font-b-mono text-[15px] text-b-green-2"
+            className="rounded-[4px] bg-b-fg/10 px-1.5 py-0.5 font-b-mono text-[15px] text-b-green-2"
           >
             {part.slice(1, -1)}
           </code>
@@ -112,15 +127,21 @@ export function CodePanel({
     <div
       className={cn(
         "w-full overflow-hidden rounded-[12px] border-2 transition-colors duration-200",
+        // Read-only. Quiet at rest; feedback colour only once there is feedback.
         verdict === "unchecked" || verdict === "unmeasured"
-          ? "border-b-sched-edge bg-b-sched-fill"
+          ? "border-b-fg/10 bg-b-fg/[0.03]"
           : verdict === "correct"
-            ? "border-b-ok bg-b-ok-panel"
-            : "border-b-lock-panel-edge bg-b-lock-panel",
+            ? "border-b-ok/60 bg-b-ok-panel"
+            : "border-b-warn/40 bg-b-lock-panel",
         className,
       )}
     >
-      <div className="m-2 overflow-x-auto rounded-[8px] bg-black py-3">
+      {/* A code surface is deliberately NOT themed. It stays dark in both
+          arms, because a dark block is what makes code read as code rather
+          than as a quoted paragraph — so the pair is written as literals to
+          say so, rather than as tokens that look like they should move.
+          Inheriting `text-b-fg` here put dark ink on a near-black panel. */}
+      <div className="m-2 overflow-x-auto rounded-[8px] bg-[#12141a] text-[#e8ecf4] py-3">
         <pre className="w-max min-w-full font-b-mono text-[15px] leading-[26px]">
           <code>
             {lines.map((line, i) => {
@@ -130,16 +151,16 @@ export function CodePanel({
                   key={n}
                   className={cn(
                     "flex px-3",
-                    highlightLine === n && "bg-white/10",
+                    highlightLine === n && "bg-b-fg/10",
                   )}
                 >
                   <span
                     aria-hidden="true"
-                    className="mr-4 w-6 shrink-0 text-right tabular-nums text-white/30 select-none"
+                    className="mr-4 w-6 shrink-0 text-right tabular-nums opacity-40 select-none"
                   >
                     {n}
                   </span>
-                  <span className="whitespace-pre text-white">{line || " "}</span>
+                  <span className="whitespace-pre">{line || " "}</span>
                 </span>
               );
             })}
@@ -211,10 +232,16 @@ export function OptionList({
               "transition-colors duration-100 [-webkit-tap-highlight-color:transparent]",
               !locked && "cursor-pointer",
               locked && "cursor-default",
-              // resting / hover / selected — the scheduler's own three states
+              /* Resting is quiet; blue arrives on selection.
+                 The scheduler interactive fills every tile blue at rest because
+                 its tiles are draggable objects the learner has to spot in a
+                 grid. An answer list is not that: four saturated blue bars
+                 stacked down the middle read as a debug build, and they spend
+                 the one colour that should mean "this is the choice you made".
+                 Hover still lifts, so the row is visibly clickable. */
               !locked &&
                 !isSelected &&
-                "border-b-sched-edge bg-b-sched-fill hover:border-b-sched-edge-hover hover:bg-b-sched-fill-hover",
+                "border-b-fg/15 bg-b-fg/[0.03] hover:border-b-fg/30 hover:bg-b-fg/[0.06]",
               !locked && isSelected && "border-b-sched-edge-on bg-b-sched-fill-on",
               // checked
               locked && !reveal && "border-b-lock-edge bg-b-lock-fill",
@@ -227,17 +254,29 @@ export function OptionList({
                 "border-b-sched-edge-on bg-b-sched-fill-on",
             )}
           >
+            {/* The revealed answer gets a TICK, not a filled radio.
+                A filled radio means "you chose this". Painting one on the
+                option the learner did not choose tells them they picked
+                correctly a moment after being told they did not. */}
             <span
               aria-hidden="true"
               className={cn(
                 "grid size-5 shrink-0 place-items-center rounded-full border-2",
-                isSelected || (reveal && isCorrect)
-                  ? "border-white"
-                  : "border-white/40",
+                isSelected || (reveal && isCorrect) ? "border-b-fg" : "border-b-fg/40",
               )}
             >
-              {isSelected || (reveal && isCorrect) ? (
-                <span className="size-2 rounded-full bg-white" />
+              {reveal && isCorrect && !isSelected ? (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="m2.5 6.2 2.3 2.3L9.5 3.8"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : isSelected ? (
+                <span className="size-2 rounded-full bg-b-fg" />
               ) : null}
             </span>
             <span className={cn("min-w-0 flex-1 break-words", option.mono && "font-b-mono")}>
@@ -272,15 +311,15 @@ export function AnswerField({
   const locked = verdict !== "unchecked";
   return (
     <label className="flex w-full flex-col gap-2">
-      <span className="text-[14px] leading-5 text-white/60">{label}</span>
+      <span className="text-[14px] leading-5 text-b-fg/60">{label}</span>
       <input
         value={value}
         disabled={locked}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "h-14 w-full rounded-[12px] border-2 bg-black px-4 text-[16px] text-white",
-          "placeholder:text-white/30 focus:outline-none disabled:opacity-70",
+          "h-14 w-full rounded-[12px] border-2 bg-[#12141a] text-[#e8ecf4] px-4 text-[16px]",
+          "placeholder:text-white/35 focus:outline-none disabled:opacity-70",
           mono && "font-b-mono",
           "transition-colors duration-100",
           !locked && "border-b-sched-edge focus:border-b-sched-edge-on",
@@ -318,11 +357,11 @@ export function AnswerArea({
       spellCheck={!mono}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "w-full resize-y rounded-[12px] border-2 bg-black p-4 text-[16px] leading-[26px] text-white",
-        "placeholder:text-white/30 focus:outline-none disabled:opacity-70",
+        "w-full resize-y rounded-[12px] border-2 bg-[#12141a] text-[#e8ecf4] p-4 text-[16px] leading-[26px]",
+        "placeholder:text-white/35 focus:outline-none disabled:opacity-70",
         mono && "font-b-mono",
         "transition-colors duration-100",
-        !locked && "border-b-sched-edge focus:border-b-sched-edge-on",
+        !locked && "border-b-fg/15 focus:border-b-sched-edge-on",
         locked && "border-b-lock-edge",
       )}
     />
@@ -356,8 +395,8 @@ export function RevealNote({
         tone === "neutral" && "border-b-lock-edge bg-b-lock-fill",
       )}
     >
-      <span className="text-white/60">{label}</span>
-      {value ? <span className="font-b-mono text-white">{value}</span> : null}
+      <span className="text-b-fg/60">{label}</span>
+      {value ? <span className="font-b-mono text-b-fg">{value}</span> : null}
     </div>
   );
 }

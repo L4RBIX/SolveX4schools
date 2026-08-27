@@ -7,6 +7,7 @@ import {
 } from "@solvex/learning-contracts";
 import { config } from "@schools/config";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { maybeSweep } from "@schools/reducer/trigger";
 
@@ -25,6 +26,11 @@ import { maybeSweep } from "@schools/reducer/trigger";
  * - **Trust.** `source_trust` is stamped server-side. A client claiming `judge`
  *   is recorded as `browser` — trust is earned by a valid attestation, which is
  *   checked on the submit route, not asserted in a request body.
+ * - **The OUTCOME events, entirely.** See below. Stamping a forged verdict as
+ *   `browser` is only a defence if something downstream reads the stamp, and
+ *   nothing did.
+ * - **The episode.** `ownedEpisodeId` refuses one that belongs to another
+ *   learner, exactly as the submit and hint routes already do.
  * - **Environment and cohort.** Stamped from server config, so a preview deploy
  *   cannot claim to be production.
  * - **The subject.** Read from an httpOnly cookie, never from the body.
@@ -50,6 +56,12 @@ interface IncomingEvent {
 const MAX_BATCH = 100;
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: { events?: IncomingEvent[] };
   try {
     body = (await request.json()) as { events?: IncomingEvent[] };

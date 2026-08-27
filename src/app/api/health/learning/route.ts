@@ -1,10 +1,13 @@
-import { getStore, getStoreHandle } from "@schools/store";
-import { config } from "@schools/config";
+import { currentUser } from "@schools/auth/session";
+import { buildAdminHealth, teacherHealth } from "@schools/ops/health";
+import { resolveHealthView } from "@schools/ops/admin-gate";
 
 /**
- * Health.
+ * Health, learning subsystem.
  *
- * Watches the two failures that are invisible from the outside:
+ * ## What it watches
+ *
+ * The two failures that are invisible from the outside:
  *
  * 1. **A dead sweep.** Every route keeps returning 200 with a stale projection,
  *    so a teacher reads last week's evidence mid-lesson and nothing complains.
@@ -12,67 +15,100 @@ import { config } from "@schools/config";
  *    browser trust, no misconception ever becomes actionable, and the product
  *    goes on looking like it works while it has stopped learning anything.
  *
- * Both report as numbers here rather than as an exception somewhere.
+ * Both report as numbers rather than as an exception somewhere.
+ *
+ * ## What changed, and why
+ *
+ * This used to answer everybody with the full detail — provider names, the
+ * environment, and the configuration-problem strings, which name the exact
+ * variables a deployment is missing. That is an admin's report published at an
+ * unauthenticated URL. It is now gated exactly like `/api/health`: an admin
+ * (bearer token or role) gets the detail, everyone else gets the teacher view.
+ *
+ * The admin shape keeps its original field names — `lastSweepAt`,
+ * `sweepAgeSeconds`, `unreducedEpisodeEvents`, `verdicts`, `providers`,
+ * `environment` — so a runbook or a monitor that already reads them keeps
+ * working once it presents its token. What it does not keep is answering them
+ * to anyone who asks.
+ *
+ * `/api/health` is the whole picture. This route is the learning subsystem on
+ * its own, kept because that is what an alert on "the intelligence stopped"
+ * should point at.
  */
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STALE_AFTER_MS = 5 * 60 * 1000;
+/** The role seam. See `src/app/api/health/route.ts` for the full note. */
+async function adminRoleCheck(): Promise<boolean> {
+  const user = await currentUser();
+  return user?.role === "admin";
+}
 
-export async function GET() {
-  const store = await getStore();
-  const { sql } = await getStoreHandle();
+export async function GET(request: Request) {
+  const view = await resolveHealthView(request, adminRoleCheck);
+  const admin = await buildAdminHealth();
 
-  const lastSweep = await store.lastSweepAt();
-  const sweepAgeMs = lastSweep ? Date.now() - Date.parse(lastSweep) : null;
-
-  const stale = await sql.query<{ n: number }>(
-    `select count(*)::int as n from learning_events e
-      left join attempt_episodes a on a.episode_id = e.episode_id
-     where e.episode_id is not null and a.episode_id is null`,
-  );
-
-  const trust = await sql.query<{ source_trust: string; n: number }>(
-    `select source_trust, count(*)::int as n from learning_events
-      where event_name = 'verdict_received' group by 1`,
-  );
-  const total = trust.rows.reduce((n, r) => n + r.n, 0);
-  const judged = trust.rows.find((r) => r.source_trust === "judge")?.n ?? 0;
-
-  const problems: string[] = [];
-  /* An old sweep is only a problem when there is work waiting. `lastSweepAt` is
-     the newest `reduced_at`, so it stops moving the moment the queue empties —
-     a quiet classroom is not a dead reducer, and reporting it as one trains
-     everyone to ignore this endpoint. The backlog is the real signal. */
-  if (
-    stale.rows[0].n > 0 &&
-    sweepAgeMs !== null &&
-    sweepAgeMs > STALE_AFTER_MS
-  ) {
-    problems.push(
-      `${stale.rows[0].n} episode event(s) unreduced and the last sweep was ` +
-        `${Math.round(sweepAgeMs / 1000)}s ago`,
-    );
+  if (view !== "admin") {
+    /* The teacher projection of the whole report, not of this subsystem alone.
+       A teacher asking "is it working" while the judge is down must be told
+       about the judge, and which endpoint they happened to hit is not a
+       distinction they should have to know about. */
+    const teacher = teacherHealth(admin);
+    return Response.json(teacher, {
+      status: teacher.status === "ok" ? 200 : 503,
+      headers: { "cache-control": "no-store" },
+    });
   }
-  if (total > 0 && judged === 0) {
-    problems.push("no verdict has judge trust — the attestation secret or the grading path is broken");
-  }
-  if (!config.attestationSecret && config.environment === "production") {
-    problems.push("LEARNING_ATTESTATION_SECRET is unset in production");
-  }
+
+  /* Every problem the report found, flattened. The subsystem-specific ones
+     first because this endpoint is what an intelligence alert points at, then
+     the configuration ones, because a dead reducer and a misconfigured judge
+     produce the same symptom — 200s all the way down and nothing graded — and
+     an operator reading this needs both in one place. */
+  const problems = [
+    ...admin.reducer.problems,
+    ...admin.learning.problems,
+    ...admin.web.problems,
+    ...admin.database.problems,
+    ...admin.execution.problems,
+    ...admin.nova.problems,
+    ...admin.curriculum.problems,
+  ];
 
   return Response.json(
     {
+      view: "admin" as const,
       ok: problems.length === 0,
       problems,
-      lastSweepAt: lastSweep,
-      sweepAgeSeconds: sweepAgeMs === null ? null : Math.round(sweepAgeMs / 1000),
-      unreducedEpisodeEvents: stale.rows[0].n,
-      verdicts: { total, judged, judgedShare: total === 0 ? null : judged / total },
-      providers: { nova: config.nova.provider, execution: config.exec.provider },
-      environment: config.environment,
+
+      // Original field names, unchanged, so an existing runbook still reads.
+      lastSweepAt: admin.reducer.reducer.lastSweepAt,
+      sweepAgeSeconds: admin.reducer.reducer.sweepAgeSeconds,
+      unreducedEpisodeEvents: admin.reducer.reducer.unreducedEvents,
+      verdicts: admin.learning.activity?.verdicts ?? {
+        total: 0,
+        judged: 0,
+        judgedShare: null,
+      },
+      providers: {
+        nova: admin.nova.detail.provider,
+        execution: admin.execution.detail.provider,
+      },
+      environment: admin.web.detail.environment,
+
+      // Added: the questions the pilot actually has to answer on the day.
+      activity: admin.learning.activity,
+      assistance: admin.learning.assistance,
+      curriculum: {
+        version: admin.curriculum.fingerprint.version,
+        contentHash: admin.curriculum.fingerprint.contentHash,
+      },
+      counters: admin.counters,
     },
-    { status: problems.length === 0 ? 200 : 503 },
+    {
+      status: problems.length === 0 ? 200 : 503,
+      headers: { "cache-control": "no-store" },
+    },
   );
 }

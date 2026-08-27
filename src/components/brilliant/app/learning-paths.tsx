@@ -35,7 +35,21 @@ export interface LearningPathsPageProps {
     others: string;
     askPlaceholder: string;
     ask: string;
+    /** Carousel controls. Default to the reference route's English. */
+    prev?: string;
+    next?: string;
+    /** Omitted labels hide the favourite star — see `showStar`. */
+    star?: string;
+    unstar?: string;
   };
+  /**
+   * The favourite star.
+   *
+   * Off for the school programme: there is exactly one path, and a control that
+   * marks it a favourite among itself does nothing on click and says nothing
+   * when set.
+   */
+  showStar?: boolean;
 }
 
 const DEFAULT_LABELS = {
@@ -45,24 +59,29 @@ const DEFAULT_LABELS = {
   others: "Other learning paths",
   askPlaceholder: "What do you want to learn?",
   ask: "Ask",
+  prev: "Previous",
+  next: "Next",
+  star: "Star learning path",
+  unstar: "Unstar learning path",
 };
 
 export function LearningPathsPage({
   paths = LEARNING_PATHS,
   labels,
+  showStar = true,
 }: LearningPathsPageProps = {}) {
   const L = { ...DEFAULT_LABELS, ...labels };
   const starred = paths.filter((p) => p.starred);
   const rest = paths.filter((p) => !p.starred);
 
   return (
-    <div className="mx-auto w-full max-w-[1216px] px-6 pb-24">
-      <h1 className="sr-only">Courses</h1>
+    <div className="mx-auto w-full max-w-[1216px] px-4 pb-24 sm:px-6">
+      <h1 className="sr-only">{L.title}</h1>
 
-      <div className="flex items-start justify-between gap-8 pt-8 pb-6">
+      <div className="flex flex-col items-start justify-between gap-6 pt-8 pb-6 lg:flex-row lg:gap-8">
         <div>
           <h2 className="text-[32px] leading-[42px] font-bold">{L.title}</h2>
-          <p className="mt-1 text-white/60">{L.subtitle}</p>
+          <p className="mt-1 text-b-fg/60">{L.subtitle}</p>
         </div>
         <AskBar placeholder={L.askPlaceholder} action={L.ask} />
       </div>
@@ -70,7 +89,7 @@ export function LearningPathsPage({
       <section>
         <h2 className="mb-2 text-[20px] leading-[25px] font-bold">{L.yours}</h2>
         {starred.map((p) => (
-          <PathRow key={p.title} path={p} />
+          <PathRow key={p.title} path={p} labels={L} showStar={showStar} />
         ))}
       </section>
 
@@ -81,7 +100,7 @@ export function LearningPathsPage({
         <section className="mt-10">
           <h2 className="mb-2 text-[20px] leading-[25px] font-bold">{L.others}</h2>
           {rest.map((p) => (
-            <PathRow key={p.title} path={p} />
+            <PathRow key={p.title} path={p} labels={L} showStar={showStar} />
           ))}
         </section>
       ) : null}
@@ -94,7 +113,7 @@ function AskBar({ placeholder, action }: { placeholder: string; action: string }
   return (
     <button
       type="button"
-      className="flex h-[52px] w-[456px] shrink-0 items-center gap-2 rounded-full border-2 border-white/20 bg-b-bg py-1 pr-1 pl-4 text-left"
+      className="flex h-[52px] w-full max-w-[456px] shrink-0 items-center gap-2 rounded-full border-2 border-b-fg/20 bg-b-bg py-1 pr-1 pl-4 text-left"
     >
       <svg
         width="16"
@@ -106,22 +125,30 @@ function AskBar({ placeholder, action }: { placeholder: string; action: string }
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden="true"
-        className="shrink-0 text-white/60"
+        className="shrink-0 text-b-fg/60"
       >
         <circle cx="11" cy="11" r="8" />
         <path d="m21 21-4.3-4.3" />
       </svg>
-      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-white/40">
+      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-b-fg/40">
         {placeholder}
       </span>
-      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-white/5 px-[14px] py-2 leading-5 font-medium text-white/20">
+      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-b-fg/5 px-[14px] py-2 leading-5 font-medium text-b-fg/20">
         {action}
       </span>
     </button>
   );
 }
 
-function PathRow({ path }: { path: LearningPath }) {
+function PathRow({
+  path,
+  labels,
+  showStar,
+}: {
+  path: LearningPath;
+  labels: typeof DEFAULT_LABELS;
+  showStar: boolean;
+}) {
   const [offset, setOffset] = useState(0);
   const [viewportW, setViewportW] = useState(1216);
   const viewport = useRef<HTMLDivElement>(null);
@@ -149,8 +176,8 @@ function PathRow({ path }: { path: LearningPath }) {
   return (
     <div className="flex flex-col items-center transition-opacity duration-150 ease-in">
       {/* header */}
-      <div className="flex w-full flex-col gap-3 py-6 pl-6">
-        <div className="flex items-center gap-10">
+      <div className="flex w-full flex-col gap-3 py-6 pl-2 sm:pl-6">
+        <div className="flex items-center gap-4 sm:gap-10">
           <Image
             src={path.catImg}
             alt=""
@@ -158,28 +185,30 @@ function PathRow({ path }: { path: LearningPath }) {
             height={80}
             className="h-20 w-20 min-h-20 min-w-20 shrink-0"
           />
-          <div className="flex flex-1 items-center justify-between">
+          <div className="flex flex-1 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-[580px]">
               <div className="flex flex-col items-start gap-2">
-                <span className="b-eyebrow leading-[18px] text-white/60">{path.eyebrow}</span>
+                <span className="b-eyebrow leading-[18px] text-b-fg/60">{path.eyebrow}</span>
                 <h3 className="text-[20px] leading-[25px] font-bold">{path.title}</h3>
-                <p className="text-white/60">{path.sub}</p>
+                <p className="text-b-fg/60">{path.sub}</p>
               </div>
             </div>
             <div className="ml-4 flex shrink-0 items-center gap-3">
               {path.percent && (
-                <span className="flex h-10 items-center gap-2 rounded-full bg-b-elevated px-4 text-[14px] text-white/60">
+                <span className="flex h-10 items-center gap-2 rounded-full bg-b-elevated px-4 text-[14px] text-b-fg/60">
                   <RingIcon />
                   {path.percent}
                 </span>
               )}
-              <button
-                type="button"
-                aria-label={path.starred ? "Unstar learning path" : "Star learning path"}
-                className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-clip rounded-full border-2 border-transparent bg-b-elevated p-2.5"
-              >
-                <StarIcon filled={path.starred} />
-              </button>
+              {showStar ? (
+                <button
+                  type="button"
+                  aria-label={path.starred ? labels.unstar : labels.star}
+                  className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-clip rounded-full border-2 border-transparent bg-b-elevated p-2.5"
+                >
+                  <StarIcon filled={path.starred} />
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -201,8 +230,8 @@ function PathRow({ path }: { path: LearningPath }) {
         </div>
 
         {/* end masks + controls */}
-        <CarouselEdge side="left" show={canPrev} onClick={() => step(-1)} />
-        <CarouselEdge side="right" show={canNext} onClick={() => step(1)} />
+        <CarouselEdge side="left" show={canPrev} label={labels.prev} onClick={() => step(-1)} />
+        <CarouselEdge side="right" show={canNext} label={labels.next} onClick={() => step(1)} />
       </div>
     </div>
   );
@@ -211,16 +240,22 @@ function PathRow({ path }: { path: LearningPath }) {
 function CarouselEdge({
   side,
   show,
+  label,
   onClick,
 }: {
   side: "left" | "right";
   show: boolean;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute top-3 bottom-0 w-16 rounded-xl",
+        /* z-2, above the track's own z-1. Without it the end mask and both
+           arrows render UNDER the slides: the control exists, reports visible,
+           and cannot be seen or clicked — which is how nine months of
+           curriculum ended up looking like six. */
+        "pointer-events-none absolute top-3 bottom-0 z-[2] w-16 rounded-xl",
         side === "left" ? "left-0" : "right-0",
       )}
       style={{
@@ -231,9 +266,9 @@ function CarouselEdge({
       {show && (
         <button
           type="button"
-          aria-label={side === "left" ? "Previous" : "Next"}
+          aria-label={label}
           onClick={onClick}
-          className="pointer-events-auto absolute top-1/2 flex h-12 w-12 min-w-10 -translate-y-1/2 items-center justify-center overflow-clip rounded-full border-2 border-transparent bg-white/10 p-4"
+          className="pointer-events-auto absolute top-1/2 flex h-12 w-12 min-w-10 -translate-y-1/2 items-center justify-center overflow-clip rounded-full border-2 border-transparent bg-b-fg/10 p-4"
           style={{ [side]: 24 } as React.CSSProperties}
         >
           <svg
@@ -270,11 +305,11 @@ function CourseTile({ tile, badge }: { tile: PathTile; badge?: string }) {
                 "flex h-44 max-h-44 min-h-44 w-44 max-w-44 min-w-44 items-center justify-center rounded-[20px] border-2 border-b-edge bg-b-bg",
                 "-translate-y-1 shadow-[0_4px_0_0_#4C4C4C]",
                 "transition-[transform,box-shadow,border-color,background-color] duration-100 ease-out",
-                "hover:border-white/40 active:translate-y-0 active:shadow-[0_0_0_0_#4C4C4C]",
+                "hover:border-b-fg/40 active:translate-y-0 active:shadow-[0_0_0_0_#4C4C4C]",
               )}
             >
               {badge && (
-                <span className="b-eyebrow absolute top-3 left-3 z-[1] flex items-center gap-1 rounded-xl leading-[13.2px] text-white/40">
+                <span className="b-eyebrow absolute top-3 left-3 z-[1] flex items-center gap-1 rounded-xl leading-[13.2px] text-b-fg/40">
                   {badge}
                 </span>
               )}
@@ -286,7 +321,7 @@ function CourseTile({ tile, badge }: { tile: PathTile; badge?: string }) {
                 className="h-[92px] w-[92px] object-contain"
               />
               {tile.progress !== undefined && (
-                <div className="absolute bottom-4 left-1/2 h-1 w-[140px] -translate-x-1/2 overflow-hidden rounded-full bg-white/20">
+                <div className="absolute bottom-4 left-1/2 h-1 w-[140px] -translate-x-1/2 overflow-hidden rounded-full bg-b-fg/20">
                   <div
                     className="h-full rounded-full bg-b-green"
                     style={{ width: `${Math.round(tile.progress * 100)}%` }}

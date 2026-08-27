@@ -51,7 +51,7 @@ export default function ExecutionLab() {
             key={p.label}
             type="button"
             onClick={() => { setSource(p.source); setStdin(p.stdin); setResult(null); }}
-            className="rounded-full border-2 border-b-edge px-3 py-1 text-[13px] hover:border-white/40"
+            className="rounded-full border-2 border-b-edge px-3 py-1 text-[13px] hover:border-b-fg/40"
           >
             {p.label}
           </button>
@@ -87,7 +87,7 @@ export default function ExecutionLab() {
         </pre>
       ) : null}
 
-      <p className="text-[13px] leading-5 text-white/40">
+      <p className="text-[13px] leading-5 text-b-fg/40">
         The provider is selected by <code>EXEC_PROVIDER</code>. The local one is a
         subprocess and <strong>not a sandbox</strong> — it refuses to run in
         production. Watch <code>infrastructureError</code>: it is the field that

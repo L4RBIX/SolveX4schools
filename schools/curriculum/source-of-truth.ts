@@ -85,7 +85,16 @@ export const TIME_BUDGET = {
 export const TASK_TARGETS = {
   totalTasks: { value: 250, approximate: true, isMinimum: true },
   fullyIndependentSolutions: { value: 100, approximate: true, isMinimum: true },
-  /** Sum of the nine per-month figures in §4. */
+  /**
+   * Sum of the per-month figures §4 actually states — EIGHT of them.
+   *
+   * May is described by its format ("төрт 45 минуттық жаттығу жарысы… бес
+   * бейтаныс есептен тұратын қорытынды турнир") and carries no task count, so
+   * 254 is 36+38+34+32+30+30+26+28. `month-09-may.ts` derives its own 25 from
+   * that description and says so. Calling this "the nine figures" was wrong and
+   * would have had a later reader hunting for a ninth number the PDF never
+   * printed.
+   */
   sumOfMonthlyCounts: 254,
 } as const;
 
@@ -108,7 +117,7 @@ export const YEAR_END_OUTCOMES_KK: readonly string[] = [
  */
 export const AI_RULES_KK: readonly string[] = [
   "Көмек оқушы өзі бір әрекет жасап көргеннен кейін ғана ашылады.",
-  "Көмек ішарадан түсіндіруге қарай кезеңмен беріледі және ешқашан дайын кодтан басталмайды.",
+  "Көмек ишарадан түсіндіруге қарай кезеңмен беріледі және ешқашан дайын кодтан басталмайды.",
   "Кез келген көмектен соң оқушы шешімді өз сөзімен түсіндіруге, ал бірнеше күннен кейін сол есепті көмексіз қайта шешуге міндетті.",
   "Оқушы әрдайым онымен адам емес, бағдарлама сөйлесіп тұрғанын біліп отырады.",
   "Оқушы көмекке тым жиі сүйенсе, мұғалімге белгі барады.",

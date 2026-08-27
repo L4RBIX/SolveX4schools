@@ -1,13 +1,16 @@
 "use client";
 
-import type { Locale, Month } from "@schools/curriculum/types";
+import type { Locale, TrackLevel } from "@schools/curriculum/types";
+import type { MonthOutline } from "@schools/curriculum/public";
 import { monthToGameboard } from "@schools/presentation/adapters";
 import { L, lessonsLabel, t, tasksLabel } from "@schools/presentation/labels";
 import { useLocale } from "@/components/sx/i18n";
 import { useProgress } from "@/lib/progress";
 import { AppHeader } from "../app/app-header";
+import { accountMenu } from "../app/account-menu";
 import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "../app/school-chrome";
 import { CourseGameboard } from "./course-gameboard";
+import { TrackSwitch } from "./track-switch";
 
 /**
  * A month, rendered on the cloned course gameboard.
@@ -18,8 +21,16 @@ import { CourseGameboard } from "./course-gameboard";
  * screen, and the scroll-to-top. Units became levels and lessons became nodes;
  * the monthly assessment became the `review` node that closes the last level,
  * which is exactly what a `review` node already meant.
+ *
+ * The one addition is the track switch above the first level. It sits here
+ * rather than in the lesson player because a route is a property of the MONTH
+ * — the programme is explicit that a learner can be advanced in loops and
+ * support in binary search — and because the choice has to be visible before
+ * the first lesson opens, not buried inside one. `track` arrives as a prop:
+ * the cookie is read by `resolveTrack` on the server, so this component never
+ * has to guess what the payload it is about to receive was filtered by.
  */
-export function MonthBoard({ month }: { month: Month }) {
+export function MonthBoard({ month, track }: { month: MonthOutline; track: TrackLevel }) {
   const { locale, setLocale } = useLocale();
   const progress = useProgress();
 
@@ -30,7 +41,7 @@ export function MonthBoard({ month }: { month: Month }) {
   });
 
   return (
-    <div className="min-h-dvh bg-b-bg font-b-sans text-white">
+    <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="courses"
         links={SCHOOL_NAV(loc)}
@@ -38,6 +49,14 @@ export function MonthBoard({ month }: { month: Month }) {
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
         accentPill={null}
+        /* No XP in this product. The one real weekly number lives on the home
+           rail, where it has room to say what it counts. */
+        xp={null}
+        a11y={{
+          menu: loc === "kk" ? "Мәзір" : "Меню",
+          streak: loc === "kk" ? "Осы аптадағы белсенділік" : "Активность на этой неделе",
+        }}
+        accountMenu={accountMenu(loc)}
         trailing={<LocaleSwitch locale={loc} onChange={setLocale} />}
       />
 
@@ -49,7 +68,13 @@ export function MonthBoard({ month }: { month: Month }) {
           level: loc === "kk" ? "Бөлім" : "Раздел",
           start: t(L.start, loc),
           jumpHere: t(L.jumpHere, loc),
+          scrollTop: loc === "kk" ? "Жоғарыға" : "Наверх",
         }}
+        evenRhythm
+        ownMascot
+        beforeBoard={
+          <TrackSwitch monthIndex={month.index} track={track} locale={loc} />
+        }
       />
     </div>
   );

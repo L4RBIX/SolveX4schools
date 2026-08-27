@@ -27,14 +27,17 @@ export type Button3DVariant = "neutral" | "warn" | "ok" | "secondary" | "purple"
 
 const VARIANTS: Record<Button3DVariant, string> = {
   /** Default CTA — "Check", "Continue" on a scene-setter page. */
-  neutral: "bg-b-cta text-black [--button3d-shadow-color:var(--color-b-cta-lip)]",
+  /* `b-cta` is near-white in dark and near-black in light, so the ink has to
+     move with it. `b-bg` is the opposite of `b-fg` in both arms, which is
+     exactly the relationship a filled button needs. */
+  neutral: "bg-b-cta text-b-bg [--button3d-shadow-color:var(--color-b-cta-lip)]",
   /** Wrong answer — "Try again". */
   warn: "bg-b-warn-cta text-b-warn-cta-ink [--button3d-shadow-color:var(--color-b-warn)]",
   /** Right answer — "Continue". */
   ok: "bg-b-ok-fill text-white [--button3d-shadow-color:var(--color-b-ok-fill)]",
   /** Paired secondary — "Get help", "Why?". */
   secondary:
-    "bg-white/20 text-white [--button3d-shadow-color:rgba(255,255,255,0.05)]",
+    "bg-b-fg/15 text-b-fg [--button3d-shadow-color:color-mix(in_oklab,var(--color-b-fg)_8%,transparent)]",
   /** Course/home primary. */
   purple: "bg-b-blue text-white [--button3d-shadow-color:var(--color-b-blue-2)]",
 };
@@ -63,7 +66,7 @@ export function Button3D({
       className={cn(
         "group relative inline-flex w-full cursor-pointer rounded-[56px] outline-none",
         "hover:opacity-[0.85]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-b-fg",
         disabled && "cursor-default opacity-100",
         className,
       )}

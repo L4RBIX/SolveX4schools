@@ -1,29 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import type { Lesson, LessonBlock, Locale } from "@schools/curriculum/types";
+import type { Locale } from "@schools/curriculum/types";
+import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
 import {
-  canCheck as canCheckAnswer,
-  checkBlock,
-  isAttemptBlock,
+  publicCanCheck as canCheckAnswer,
+  isPublicAttemptBlock as isAttemptBlock,
   NO_ANSWER,
   type BlockAnswer,
 } from "@schools/learning/checking";
+import type { BlockNote, BlockReveal } from "./blocks";
 import type { SchoolInteraction } from "@schools/learning";
+import {
+  evaluateCompletion,
+  levelFromVerdict,
+  LESSON_COMPLETION_POLICY,
+  policyBlocksFromPublic,
+  type CompletionPolicy,
+} from "@schools/policies/completion";
 import { L, t } from "@schools/presentation/labels";
 import { lessonArt } from "@schools/presentation/illustrations";
 
 import { Button3D } from "./button-3d";
-import { ChatIcon, FlagIcon, MicIcon, SpeakerIcon } from "./icons";
-import { Koji, KojiBubble } from "./koji";
+import { ChatIcon, SpeakerIcon } from "./icons";
+import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
+import { NovaChat } from "@/components/nova/nova-chat";
 import { LessonTopBar } from "./lesson-chrome";
 import { BlockView } from "./blocks";
 import {
   cardBorderClass,
   footerMode,
-  kojiReaction,
   toLessonVerdict,
   type LessonVerdict,
 } from "./lesson-verdict";
@@ -44,8 +52,11 @@ import {
  *   finds their answer where they left it.
  * - **The 80px footer strip** whose CTA pair always totals 367px, so the button
  *   does not jump between "Check" and "Try again".
- * - **Koji.** A real Rive artboard reacting to the verdict, with a speech
- *   bubble in the same hue as the card border.
+ * - **The tutor dock.** Bottom left, above the card, with a speech bubble in
+ *   the same hue as the card border. Koji is gone — he is Brilliant's character
+ *   and his Rive file is Brilliant's asset — and Nova stands in his place,
+ *   rendered from our own definition. The placement, the z-order and the bubble
+ *   geometry are the original's.
  *
  * ## The one thing added rather than preserved
  *
@@ -56,7 +67,7 @@ import {
  */
 
 export interface SchoolLessonProps {
-  lesson: Lesson;
+  lesson: PublicLesson;
   monthIndex: number;
   /**
    * The month this lesson belongs to. Not rendered by the player — the top bar
@@ -70,22 +81,78 @@ export interface SchoolLessonProps {
   /** Every genuine attempt. Wired to the learning-event ingest route. */
   onInteraction?: (interaction: SchoolInteraction) => void;
   /**
-   * Records the attempt on the server, which re-grades it against the
-   * curriculum and returns the authoritative verdict.
+   * Grades the attempt on the server and returns the verdict.
    *
-   * The local `checkBlock` still runs first so the card border changes on the
-   * same frame as the tap — that responsiveness is worth keeping. But the
-   * client's verdict is not evidence: a learner with DevTools can post any
-   * outcome they like. When the server disagrees, the server wins and the UI
-   * corrects itself.
+   * This is now the ONLY source of a verdict. The player used to grade
+   * optimistically with a local `checkBlock` and reconcile afterwards, which
+   * required the answer keys to be in the browser — and they were, all the way
+   * into the page HTML. They are not any more, so the round trip is the check.
+   *
+   * `reveal` is whatever the server has decided the learner has earned the
+   * right to see. It is never computed here.
    */
   onSubmit?: (input: {
     blockId: string;
     episodeId: string;
     answer: BlockAnswer;
-  }) => Promise<{ verdict: "correct" | "wrong" | "partial" | "unknown" } | null>;
-  /** Called once when the learner reaches the end. */
+  }) => Promise<{
+    verdict: "correct" | "wrong" | "partial" | "unknown";
+    reveal?: BlockReveal;
+    /**
+     * The author's explanation of THIS wrong answer, when they established one.
+     *
+     * Eight of these were written for September — "3 is the result of 7 // 2;
+     * choosing it means you swapped `%` and `//`" — the validator enforced that
+     * they be substantial, and not one was ever rendered to anybody. A wrong
+     * answer produced a colour and a generic "not quite". This is the WHY, and
+     * it appears only where the author declared the wrong answer diagnostically
+     * unambiguous; everywhere else the learner gets no explanation rather than
+     * an invented one.
+     */
+    why?: string | null;
+    /**
+     * Whether this attempt reached the ledger.
+     *
+     * `false` means the answer WAS graded on the server and was NOT recorded.
+     * The verdict is still real and is still shown; what must not happen is the
+     * block settling as though the work were kept. Absent is treated as true,
+     * so an older caller behaves exactly as before.
+     */
+    saved?: boolean;
+    /**
+     * Why nothing was measured, when nothing was.
+     *
+     * `unknown` covered two unrelated facts and the learner got one sentence for
+     * both: a task no machine grades, and a judge that did not answer. They need
+     * different words — see `L.sandboxPending` and `L.executionUnavailable`.
+     */
+    unmeasuredReason?: "judge_unavailable" | "not_machine_graded" | null;
+  } | null>;
+  /** Called once when the learner reaches the end AND the policy is satisfied. */
   onComplete?: (summary: LessonSummary) => void;
+  /**
+   * Which rule decides that this is finished.
+   *
+   * Defaults to the lesson rule. The monthly check passes the stricter one —
+   * see `schools/policies/completion.ts`. Passed as a prop rather than derived
+   * from the lesson id because the player is a pure function of its props and
+   * "is this an assessment" is the caller's fact, not a string pattern.
+   *
+   * The server evaluates the SAME function over the SAME policy id when the
+   * completion is posted, so this is the disabled-button half of the check and
+   * never the whole of it.
+   */
+  policy?: CompletionPolicy;
+  /**
+   * An episode id minted on the server, used for every block in this session.
+   *
+   * Present only for a delayed re-solve, where the episode is what carries the
+   * assistance reset: a fresh id means no inherited hint level, no accumulated
+   * failed-attempt count and therefore no reveal, and independence measured
+   * over the re-solve alone. The browser must not be able to choose it, which
+   * is why it arrives as a prop from a route that got it from the database.
+   */
+  fixedEpisodeId?: string;
 }
 
 export interface LessonSummary {
@@ -99,9 +166,24 @@ export interface LessonSummary {
 interface BlockState {
   answer: BlockAnswer;
   verdict: LessonVerdict;
-  /** Bumped on every check so a repeat verdict replays Koji's reaction. */
+  /** Bumped on every check so a repeat verdict replays Nova's reaction. */
   attempt: number;
-  failureClass?: string;
+  /** True between pressing Check and the server answering. */
+  pending?: boolean;
+  /** What the server decided the learner may see. Never derived here. */
+  reveal?: BlockReveal;
+  /** The author's explanation of this specific wrong answer, if there is one. */
+  why?: string;
+  /**
+   * What the card must say about this block's own condition, beyond its verdict.
+   *
+   * Three states, and they were previously one. `judge_unavailable` and
+   * `not_machine_graded` both settle as `unmeasured` and are both honest; they
+   * are not the same sentence. `not_saved` is different in kind — the round trip
+   * failed, so nothing was graded AND nothing was recorded, and the block must
+   * not present itself as settled at all.
+   */
+  note?: BlockNote;
 }
 
 const FRESH: BlockState = { answer: NO_ANSWER, verdict: "unchecked", attempt: 0 };
@@ -114,27 +196,68 @@ export function SchoolLesson({
   onInteraction,
   onSubmit,
   onComplete,
+  policy = LESSON_COMPLETION_POLICY,
+  fixedEpisodeId,
 }: SchoolLessonProps) {
   const [page, setPage] = useState(0);
   const [states, setStates] = useState<Record<string, BlockState>>({});
-  const [xp, setXp] = useState(0);
   const [done, setDone] = useState(false);
 
   /* One episode per block attempt. Minted on the client so a retried submit
      lands in the same episode rather than fragmenting one attempt into two. */
+  const [chatOpen, setChatOpen] = useState(false);
+  const { state: novaState, request: requestNova } = useNovaState("idle");
+  const novaSize = useNovaDockSize();
+
   const episodeIds = useRef<Record<string, string>>({});
-  const episodeFor = useCallback((blockId: string) => {
-    episodeIds.current[blockId] ??= crypto.randomUUID();
-    return episodeIds.current[blockId];
-  }, []);
+  const episodeFor = useCallback(
+    (blockId: string) => {
+      /* A re-solve runs entirely inside one server-minted episode: the whole
+         point is that its evidence is separable from the original attempt, and
+         a client that minted its own would break the join between the review
+         row and the ledger. */
+      if (fixedEpisodeId) return fixedEpisodeId;
+      episodeIds.current[blockId] ??= crypto.randomUUID();
+      return episodeIds.current[blockId];
+    },
+    [fixedEpisodeId],
+  );
 
   const blocks = lesson.blocks;
-  const block: LessonBlock | undefined = blocks[page];
+  const block: PublicBlock | undefined = blocks[page];
   const state = block ? (states[block.id] ?? FRESH) : FRESH;
 
   const attemptCount = useMemo(
-    () => blocks.filter(isAttemptBlock).length,
+    () => blocks.filter((b) => isAttemptBlock(b)).length,
     [blocks],
+  );
+
+  /* Counted from the block states, not accumulated in a counter. A block the
+     learner returns to and gets right on the second pass must not count twice,
+     and a derived number cannot drift from what the cards show. */
+  const solvedCount = useMemo(
+    () => blocks.filter((b) => isAttemptBlock(b) && states[b.id]?.verdict === "correct").length,
+    [blocks, states],
+  );
+
+  /* The completion rule, evaluated over what is on screen.
+   *
+   * Reaching the last block used to BE the rule. It is now one navigation fact
+   * among several, and the rule itself is `schools/policies/completion.ts` —
+   * the same module, the same function and the same policy id the server runs
+   * when the completion is posted. This half decides what the footer offers;
+   * the server's half decides what is written down, and a client that
+   * disagreed with it would simply be refused. */
+  const policyBlocks = useMemo(() => policyBlocksFromPublic(blocks), [blocks]);
+
+  const decision = useMemo(
+    () =>
+      evaluateCompletion({
+        policy,
+        blocks: policyBlocks,
+        reached: (blockId) => levelFromVerdict(states[blockId]?.verdict ?? "unchecked"),
+      }),
+    [policy, policyBlocks, states],
   );
 
   const setAnswer = useCallback(
@@ -159,58 +282,120 @@ export function SchoolLesson({
    */
   const check = useCallback(() => {
     if (!block) return;
-
-    // Optimistic frame: the same pure function the server will run, so the two
-    // agree in every ordinary case and the border does not flicker.
-    const local = checkBlock(block, state.answer);
-    const verdict = toLessonVerdict(local.verdict);
     const answer = state.answer;
+
+    /* A concept or worked example has nothing to grade — it settles locally and
+       nothing is sent. Everything else is decided by the server. */
+    if (!isAttemptBlock(block)) {
+      setStates((prev) => ({
+        ...prev,
+        [block.id]: { ...(prev[block.id] ?? FRESH), answer, verdict: "unmeasured" },
+      }));
+      return;
+    }
 
     setStates((prev) => ({
       ...prev,
       [block.id]: {
+        ...(prev[block.id] ?? FRESH),
         answer,
-        verdict,
+        verdict: "unchecked",
+        pending: true,
         attempt: (prev[block.id]?.attempt ?? 0) + 1,
-        failureClass: local.failureClass,
       },
     }));
 
-    if (verdict === "correct") setXp((x) => x + 15);
+    onInteraction?.({
+      type: "answer_submitted",
+      timestamp: Date.now(),
+      blockType: block.type,
+    });
 
-    if (isAttemptBlock(block)) {
-      onInteraction?.({
-        type: "answer_submitted",
-        timestamp: Date.now(),
-        blockType: block.type,
+    void onSubmit?.({ blockId: block.id, episodeId: episodeFor(block.id), answer })
+      .then((server) => {
+        /*
+         * A missing answer is NOT an outcome.
+         *
+         * This used to fold "the server never answered" into `unmeasured` — the
+         * same settled, neutral card an ungraded explanation gets — and then
+         * offer Continue. The learner was shown a finished block for an answer
+         * nothing had graded and nothing had stored. That is the product
+         * pretending progress was saved, and it is the one thing this branch
+         * must never do.
+         *
+         * So a lost round trip returns the block to `unchecked`: the answer
+         * stays in the editor, Check comes back, and the card says why. A server
+         * that answered but could not persist (`saved: false`) is the same
+         * story with a real verdict attached — the verdict is shown, and the
+         * block still refuses to settle.
+         */
+        if (!server) {
+          setStates((prev) => ({
+            ...prev,
+            [block.id]: {
+              ...(prev[block.id] ?? FRESH),
+              verdict: "unchecked",
+              pending: false,
+              note: "not_saved",
+            },
+          }));
+          return;
+        }
+
+        const verdict = toLessonVerdict(server.verdict);
+        const persisted = server.saved !== false;
+        setStates((prev) => ({
+          ...prev,
+          [block.id]: {
+            ...(prev[block.id] ?? FRESH),
+            verdict: persisted ? verdict : "unchecked",
+            pending: false,
+            reveal: persisted ? server.reveal : undefined,
+            why: persisted ? (server.why ?? undefined) : undefined,
+            note: !persisted
+              ? "not_saved"
+              : server.unmeasuredReason === "judge_unavailable"
+                ? "judge_unavailable"
+                : verdict === "unmeasured"
+                  ? "not_machine_graded"
+                  : undefined,
+          },
+        }));
+
+        /* Nova reacts to what was measured, and only to that. `unmeasured` gets
+           no reaction: the system judged nothing, so the avatar asserts
+           nothing. A verdict that was not stored gets none either — reacting to
+           a result the learner is about to be asked to re-submit is the avatar
+           celebrating something that did not happen. */
+        if (!persisted) return;
+        if (verdict === "correct") requestNova("correct", 3200);
+        else if (verdict === "wrong" || verdict === "partial") requestNova("incorrect", 3200);
+      })
+      .catch(() => {
+        setStates((prev) => ({
+          ...prev,
+          [block.id]: {
+            ...(prev[block.id] ?? FRESH),
+            verdict: "unchecked",
+            pending: false,
+            note: "not_saved",
+          },
+        }));
       });
-
-      // The authoritative pass. Fire-and-reconcile: the learner is not made to
-      // wait for it, and a network failure leaves the optimistic verdict on
-      // screen rather than blanking the card.
-      void onSubmit?.({ blockId: block.id, episodeId: episodeFor(block.id), answer })
-        .then((server) => {
-          if (!server) return;
-          const authoritative = toLessonVerdict(server.verdict);
-          setStates((prev) => {
-            const cur = prev[block.id];
-            if (!cur || cur.verdict === authoritative) return prev;
-            return { ...prev, [block.id]: { ...cur, verdict: authoritative } };
-          });
-        })
-        .catch(() => {
-          /* Recording failed. The lesson continues; the sweep will simply have
-             nothing to fold in for this attempt. */
-        });
-    }
-  }, [block, state.answer, onInteraction, onSubmit, episodeFor]);
+  }, [block, state.answer, onInteraction, onSubmit, episodeFor, requestNova]);
 
   /** Retry clears the verdict but keeps the answer, so the learner edits rather than restarts. */
   const retry = useCallback(() => {
     if (!block) return;
     setStates((prev) => ({
       ...prev,
-      [block.id]: { ...(prev[block.id] ?? FRESH), verdict: "unchecked" },
+      [block.id]: {
+        ...(prev[block.id] ?? FRESH),
+        verdict: "unchecked",
+        reveal: undefined,
+        why: undefined,
+        note: undefined,
+      },
     }));
   }, [block]);
 
@@ -219,6 +404,21 @@ export function SchoolLesson({
       setPage((p) => p + 1);
       return;
     }
+
+    /* The last block is not the finish line — the policy is.
+     *
+     * When something the rule requires is still outstanding, the learner is
+     * taken to it rather than being handed a dead button. That is the whole
+     * behavioural difference: a lesson used to complete because the track ran
+     * out of pages, and it now completes because the rule says it did. Posting
+     * anyway would be refused by the server in any case, so this is the polite
+     * half of one check rather than a second, weaker one. */
+    if (!decision.satisfied) {
+      const next = blocks.findIndex((b) => b.id === decision.outstanding[0]?.blockId);
+      if (next >= 0) setPage(next);
+      return;
+    }
+
     const values = Object.values(states);
     setDone(true);
     onComplete?.({
@@ -228,7 +428,7 @@ export function SchoolLesson({
       unmeasured: values.filter((s) => s.verdict === "unmeasured").length,
       attempts: attemptCount,
     });
-  }, [page, blocks.length, states, lesson.id, attemptCount, onComplete]);
+  }, [page, blocks, states, lesson.id, attemptCount, onComplete, decision]);
 
   if (done) {
     return (
@@ -247,7 +447,41 @@ export function SchoolLesson({
   const verdict = state.verdict;
   const isAttempt = isAttemptBlock(block);
   const mode = footerMode(verdict, isAttempt);
-  const reaction = kojiReaction(verdict);
+
+  /* The finishing CTA, in one place because the footer renders it from two
+     arms and they must never say different things.
+     
+     On the last page with work outstanding it says so and takes the learner
+     back to that work. It is deliberately NOT a disabled button: a control that
+     stops responding on the final screen of a lesson reads as the product being
+     broken, and it tells the learner nothing about what is left. */
+  const onLastPage = page === blocks.length - 1;
+  const finishLabel = !onLastPage
+    ? t(L.continue, locale)
+    : decision.satisfied
+      ? t(L.lessonDone, locale)
+      : t(L.finishOutstanding, locale);
+  /* The tutor says the specific thing when the author wrote one, and the
+     generic thing otherwise. Putting it in the bubble rather than a new panel
+     is deliberate: an explanation of a mistake belongs in the voice that is
+     already speaking to the learner, not in a box beside it. */
+  const bubble =
+    verdict === "wrong"
+      ? (state.why ?? t(L.kojiWrong, locale))
+      : verdict === "partial"
+        ? t(L.kojiPartial, locale)
+        : null;
+
+  /* What read-aloud says: the block's own words, never the code inside it.
+     Reading `print("2 + 2")` character by character helps nobody, and reading a
+     heading plus its body is what a learner asked for. */
+  const spokenText = [
+    block.type === "concept" ? block.title[locale] : null,
+    block.type === "concept" ? block.body[locale] : null,
+    "prompt" in block ? block.prompt[locale] : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   /* Progress across the whole lesson rather than the original's per-section
      fraction — a curriculum lesson is one section, and the three trailing pills
@@ -255,11 +489,26 @@ export function SchoolLesson({
   const progress = blocks.length > 1 ? (page + (verdict !== "unchecked" ? 1 : 0)) / blocks.length : 0;
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-b-dark font-b-sans text-white">
-      <div className="flex flex-1 flex-col px-8 pb-8">
+    /* `lang` is what makes `hyphens: auto` work on the long compound words the
+       Russian and Kazakh lesson text is full of, and it is what a screen reader
+       reads the page with. */
+    <div lang={locale} className="flex h-[100dvh] flex-col bg-sx-page font-b-sans text-b-fg">
+      <div className="flex flex-1 flex-col px-3 pb-3 sm:px-8 sm:pb-8">
         <LessonTopBar
           progress={progress}
-          xp={xp}
+          /* The reference's XP is gone: 15 points per correct answer, toward
+             nothing. What replaces it is a fact — how many of this lesson's
+             checkable tasks the player has actually marked correct. */
+          readout={
+            attemptCount > 0 ? (
+              <span className="flex items-center gap-1.5 text-[16px] leading-[22.4px] font-medium tabular-nums">
+                <CheckReadoutIcon done={solvedCount > 0} />
+                <span className={solvedCount > 0 ? "text-b-green-2" : "text-b-fg/30"}>
+                  {solvedCount}/{attemptCount}
+                </span>
+              </span>
+            ) : null
+          }
           canPrev={page > 0}
           canNext={false}
           onPrev={() => setPage((p) => Math.max(p - 1, 0))}
@@ -276,7 +525,7 @@ export function SchoolLesson({
           <div
             data-panel="true"
             className={cn(
-              "fixed top-16 right-8 bottom-8 left-8 z-[93] flex flex-col overflow-hidden",
+              "fixed top-16 right-3 bottom-3 left-3 z-[93] flex flex-col overflow-hidden sm:top-16 sm:right-8 sm:bottom-8 sm:left-8",
               "rounded-[24px] border-2 bg-b-dark transition-colors duration-300",
               cardBorderClass(verdict),
             )}
@@ -294,6 +543,8 @@ export function SchoolLesson({
                       locale={locale}
                       verdict={(states[b.id] ?? FRESH).verdict}
                       answer={(states[b.id] ?? FRESH).answer}
+                      reveal={(states[b.id] ?? FRESH).reveal}
+                      note={(states[b.id] ?? FRESH).note}
                       onAnswer={i === page ? setAnswer : () => {}}
                       art={
                         b.type === "concept" && i === 0
@@ -306,9 +557,14 @@ export function SchoolLesson({
               </div>
             </div>
 
-            {/* ---- footer: 80px strip, pair always totals 367px ---------- */}
+            {/* ---- footer: 80px strip, pair always totals 367px ----------
+                Below 640 the strip is pushed right by the width of the Nova
+                dock. The dock is `absolute bottom-0 left-0` and the footer is
+                centred, so on a 375px screen the avatar sat on top of the
+                Continue button — the two controls a learner uses most, one
+                covering the other. */}
             <div data-shake-stable="true" className="h-20 shrink-0">
-              <div className="mx-auto flex h-full w-full max-w-[367px] items-center justify-center gap-2 bg-b-dark px-0 py-4">
+              <div className="mx-auto flex h-full w-full max-w-[367px] items-center justify-center gap-2 bg-b-dark py-4 pl-[68px] sm:pl-0">
                 {mode === "check" && (
                   <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
                     {t(L.check, locale)}
@@ -316,16 +572,16 @@ export function SchoolLesson({
                 )}
 
                 {mode === "advance" && (
-                  <Button3D onClick={advance}>
-                    {page === blocks.length - 1
-                      ? t(L.lessonDone, locale)
-                      : t(L.continue, locale)}
-                  </Button3D>
+                  <Button3D onClick={advance}>{finishLabel}</Button3D>
                 )}
 
                 {mode === "retry" && (
                   <>
-                    <Button3D variant="secondary" className="w-[112px] shrink-0">
+                    <Button3D
+                      variant="secondary"
+                      className="w-[112px] shrink-0"
+                      onClick={() => setChatOpen(true)}
+                    >
                       {t(L.getHelp, locale)}
                     </Button3D>
                     <Button3D variant="warn" onClick={retry}>
@@ -336,13 +592,15 @@ export function SchoolLesson({
 
                 {mode === "celebrate" && (
                   <>
-                    <Button3D variant="secondary" className="w-[100px] shrink-0">
+                    <Button3D
+                      variant="secondary"
+                      className="w-[100px] shrink-0"
+                      onClick={() => setChatOpen(true)}
+                    >
                       {t(L.why, locale)}
                     </Button3D>
                     <Button3D variant="ok" onClick={advance}>
-                      {page === blocks.length - 1
-                        ? t(L.lessonDone, locale)
-                        : t(L.continue, locale)}
+                      {finishLabel}
                     </Button3D>
                   </>
                 )}
@@ -350,76 +608,113 @@ export function SchoolLesson({
             </div>
           </div>
 
-          {/* ---- tutor toolbar, above the card ------------------------- */}
-          <div
-            data-tutor-toolbar="true"
-            className="absolute top-0 left-0 z-[95] flex w-16 flex-col items-start gap-2 px-2 pt-5 pb-8"
-          >
-            <button
-              type="button"
-              aria-label={t(L.reportProblem, locale)}
-              className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-[54px] text-white/20 transition-colors hover:text-white/50"
-            >
-              <FlagIcon />
-            </button>
-            <button
-              type="button"
-              aria-label={t(L.readAloud, locale)}
-              className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-[54px] text-white/20 transition-colors hover:text-white/50"
-            >
-              <SpeakerIcon />
-            </button>
-          </div>
+          {/* ---- tutor toolbar, above the card -------------------------
+              The reference has two controls here. The flag ("report a problem")
+              is gone: nothing in this product receives a report, and a button
+              that swallows a child's "this question is wrong" is worse than no
+              button. Read-aloud stays because it can actually be done, and it
+              only renders when the browser has a voice for the lesson's
+              language. */}
+          <ReadAloud
+            /* Keyed on the block: moving to the next page remounts this, whose
+               effect cleanup cancels whatever was still being spoken. Resetting
+               the same instance from an effect does the same job one render
+               later and trips the cascading-render rule. */
+            key={block.id}
+            locale={locale}
+            text={spokenText}
+            label={t(L.readAloud, locale)}
+            stopLabel={t(L.close, locale)}
+          />
 
-          {/* ---- Koji dock -------------------------------------------- */}
+          {/* ---- Nova dock --------------------------------------------
+              The placement is the cloned player's, measured and kept: bottom
+              left, z-856 so it sits ABOVE the z-93 card, and a speech bubble
+              level with the avatar's head. Only the occupant changed. */}
           <div className="pointer-events-none absolute bottom-0 left-0 z-[856] flex flex-col items-start">
-            {verdict === "wrong" || verdict === "partial" ? (
-              <div className="pointer-events-auto mb-8 ml-[84px]">
-                <KojiBubble>
-                  {t(verdict === "partial" ? L.kojiPartial : L.kojiWrong, locale)}
-                </KojiBubble>
+            {bubble ? (
+              <div className="pointer-events-auto mb-6 ml-[76px] max-w-[262px]">
+                <div
+                  className={cn(
+                    "rounded-[16px_16px_16px_4px] border-[0.5px] px-5 py-3",
+                    "text-[16px] leading-6 font-medium text-b-fg",
+                    verdict === "correct"
+                      ? "border-b-ok-fill bg-b-ok-fill"
+                      : "border-b-warn bg-b-warn",
+                  )}
+                >
+                  {bubble}
+                </div>
               </div>
             ) : null}
 
-            <div className="flex items-end gap-4">
-              <Koji
-                verdict={reaction === null ? "unchecked" : reaction}
-                attempt={state.attempt}
-                className="-ml-8"
+            {/* `pointer-events-auto` is load-bearing: the dock container is
+                `pointer-events-none` so it never blocks the lesson beneath it,
+                and anything clickable inside has to opt back in. Without it the
+                avatar renders, reacts and cannot be clicked. */}
+            <div className="pointer-events-auto flex items-end gap-3 pb-3 pl-3">
+              <NovaAvatar
+                state={novaState}
+                /* 92px is the measured size and it is what the dock wants at
+                   desktop. A phone footer is 80px tall, so at that width the
+                   avatar is the height of the whole strip. */
+                size={novaSize}
+                onClick={() => setChatOpen(true)}
+                label={t(L.chatWithTutor, locale)}
               />
 
-              <div className="b-glass pointer-events-auto mb-3 flex h-[52px] w-[120px] items-center rounded-full">
-                <button
-                  type="button"
-                  aria-label={t(L.chatWithTutor, locale)}
-                  className="flex h-[52px] w-[60px] cursor-pointer items-center justify-center rounded-l-full border-[0.5px] border-transparent text-white/20 transition-colors hover:text-white/60"
-                >
-                  <ChatIcon size={48} className="-mx-[14px] -mt-4 -mb-[14px]" />
-                </button>
-                <span className="h-11 w-px bg-white/10" />
-                <button
-                  type="button"
-                  aria-label={t(L.answerWithVoice, locale)}
-                  className="flex h-[52px] w-[60px] cursor-pointer items-center justify-center rounded-r-full border-[0.5px] border-transparent text-white/20 transition-colors hover:text-white/60"
-                >
-                  <MicIcon size={48} className="-mx-[17px] -mt-4 -mb-[14px]" />
-                </button>
-              </div>
+              {/* One control, not two. The mic was never wired and a button
+                  that does nothing costs more trust than an absent one. */}
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                className="b-glass pointer-events-auto mb-2 hidden h-[44px] cursor-pointer items-center gap-2 rounded-full px-4 text-[14px] font-medium text-b-fg/70 transition-colors hover:text-b-fg sm:flex"
+              >
+                <ChatIcon size={36} className="-mx-2 -my-2" />
+                {t(L.askNova, locale)}
+              </button>
             </div>
           </div>
+
+          <NovaChat
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            locale={locale}
+            blockId={block.id}
+            episodeId={episodeFor(block.id)}
+            onStateChange={(s) => requestNova(s, s === "error" ? 4000 : 0)}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-/** One slot on the track. Always full width so the pitch stays exact. */
+/**
+ * One slot on the track. Always full width so the pitch stays exact.
+ *
+ * ## Optical centring, not geometric
+ *
+ * The original centres its page in the card, and with a scene-setter image plus
+ * a heading and two paragraphs that fills the frame. A prediction block is a
+ * prompt, one line of code and three options — dead-centred in an 800px card it
+ * reads as lost rather than calm.
+ *
+ * So the content is pulled above geometric centre. That is the ordinary optical
+ * correction: a block centred by measurement sits low to the eye, because the
+ * reader weights the top of a frame more heavily. `pb-[6vh]` does it, and it
+ * scales with the viewport instead of fighting it.
+ *
+ * `justify-center` rather than `self-center` so a page taller than the card
+ * scrolls from its top instead of having its head cut off — which is what
+ * `self-center` does to overflowing content, silently.
+ */
 function LessonPage({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full w-full shrink-0 justify-center overflow-y-auto px-4 py-8">
+    <div className="flex h-full w-full shrink-0 flex-col items-center justify-center overflow-y-auto px-4 py-8">
       <div
         data-lesson-page-components="true"
-        className="flex w-full max-w-[540px] flex-col items-center gap-4 self-center"
+        className="flex w-full max-w-[540px] shrink-0 flex-col items-center gap-4 pb-[6vh]"
       >
         {children}
       </div>
@@ -436,7 +731,7 @@ function LessonComplete({
   locale,
   backHref,
 }: {
-  lesson: Lesson;
+  lesson: PublicLesson;
   states: Record<string, BlockState>;
   attemptCount: number;
   locale: Locale;
@@ -447,25 +742,25 @@ function LessonComplete({
   const unmeasured = values.filter((s) => s.verdict === "unmeasured").length;
 
   return (
-    <div className="flex h-[100dvh] flex-col items-center justify-center bg-b-dark px-8 font-b-sans text-white">
+    <div className="flex h-[100dvh] flex-col items-center justify-center bg-b-dark px-8 font-b-sans text-b-fg">
       <div className="flex w-full max-w-[420px] flex-col items-center text-center">
-        <Koji verdict="right" attempt={1} />
+        <NovaAvatar state="celebrating" size={120} />
 
         <h1 className="mt-6 text-[32px] leading-[42.88px] font-bold">
           {t(L.lessonDone, locale)}
         </h1>
-        <p className="mt-2 text-[16px] leading-6 text-white/60">
+        <p className="mt-2 text-[16px] leading-6 text-b-fg/60">
           {t(lesson.title, locale)}
         </p>
 
         <dl className="mt-8 flex w-full gap-3">
           <div className="flex-1 rounded-[12px] border-2 border-b-ok bg-b-ok-panel px-4 py-3">
-            <dt className="text-[13px] tracking-wide text-white/60 uppercase">
+            <dt className="text-[13px] tracking-wide text-b-fg/60 uppercase">
               {t(L.correct, locale)}
             </dt>
             <dd className="mt-1 text-[24px] leading-[30px] font-bold tabular-nums text-b-ok-edge">
               {correct}
-              <span className="text-[16px] text-white/40">/{attemptCount}</span>
+              <span className="text-[16px] text-b-fg/40">/{attemptCount}</span>
             </dd>
           </div>
 
@@ -473,10 +768,10 @@ function LessonComplete({
               hiding them would let the screen imply everything was measured. */}
           {unmeasured > 0 ? (
             <div className="flex-1 rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3">
-              <dt className="text-[13px] tracking-wide text-white/60 uppercase">
+              <dt className="text-[13px] tracking-wide text-b-fg/60 uppercase">
                 {t(L.unmeasured, locale)}
               </dt>
-              <dd className="mt-1 text-[24px] leading-[30px] font-bold tabular-nums text-white/70">
+              <dd className="mt-1 text-[24px] leading-[30px] font-bold tabular-nums text-b-fg/70">
                 {unmeasured}
               </dd>
             </div>
@@ -488,5 +783,133 @@ function LessonComplete({
         </Link>
       </div>
     </div>
+  );
+}
+
+/** The readout's tick. Filled once something has actually been checked correct. */
+function CheckReadoutIcon({ done }: { done: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className={done ? "text-b-green-2" : "text-b-fg/25"}
+    >
+      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="m5 8.2 2.1 2.1L11 6.4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Read the block aloud.
+ *
+ * `speechSynthesis` is the browser's, so this costs nothing and sends nothing
+ * anywhere. It renders ONLY when a voice for the lesson's language is actually
+ * installed: Russian is near-universal, Kazakh is not, and a speaker icon that
+ * produces silence — or worse, reads Kazakh in a Russian accent — is the kind of
+ * detail a classroom notices immediately.
+ *
+ * Voices arrive asynchronously in every browser, which is why this listens for
+ * `voiceschanged` rather than reading the list once at mount.
+ *
+ * Mounted with `key={block.id}`, so a page turn remounts it and the effect
+ * cleanup below stops the previous block mid-sentence.
+ */
+function ReadAloud({
+  locale,
+  text,
+  label,
+  stopLabel,
+}: {
+  locale: Locale;
+  text: string;
+  label: string;
+  stopLabel: string;
+}) {
+  const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [speaking, setSpeaking] = useState(false);
+
+  const tag = locale === "kk" ? "kk" : "ru";
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    const pick = () =>
+      setVoice(synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(tag)) ?? null);
+    pick();
+    synth.addEventListener("voiceschanged", pick);
+    return () => {
+      synth.removeEventListener("voiceschanged", pick);
+      synth.cancel();
+    };
+  }, [tag]);
+
+  if (!voice || !text) return null;
+
+  const toggle = () => {
+    const synth = window.speechSynthesis;
+    if (speaking) {
+      synth.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+    utterance.rate = 0.95;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    synth.cancel();
+    synth.speak(utterance);
+    setSpeaking(true);
+  };
+
+  return (
+    <div
+      data-tutor-toolbar="true"
+      className="absolute top-0 left-0 z-[95] flex w-16 flex-col items-start gap-2 px-2 pt-5 pb-8"
+    >
+      <button
+        type="button"
+        aria-label={speaking ? stopLabel : label}
+        aria-pressed={speaking}
+        onClick={toggle}
+        className={cn(
+          "flex h-12 w-12 cursor-pointer items-center justify-center rounded-[54px] transition-colors",
+          speaking ? "text-b-green-2" : "text-b-fg/20 hover:text-b-fg/50",
+        )}
+      >
+        <SpeakerIcon />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The dock avatar's size.
+ *
+ * A media query rather than a CSS class because `NovaAvatar` sizes itself in
+ * pixels — the whole avatar is drawn from a 240px reference and scaled, so it
+ * needs a number, not a breakpoint. Falls back to the desktop size on the
+ * server and before hydration, which is the size the layout was measured at.
+ */
+function useNovaDockSize(): number {
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia("(min-width: 640px)");
+      mq.addEventListener("change", notify);
+      return () => mq.removeEventListener("change", notify);
+    },
+    () => (window.matchMedia("(min-width: 640px)").matches ? 92 : 56),
+    () => 92,
   );
 }

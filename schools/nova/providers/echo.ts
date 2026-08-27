@@ -17,26 +17,39 @@ import type { NovaCompletionRequest, NovaModelProvider } from "../provider";
 export class EchoProvider implements NovaModelProvider {
   readonly id = "echo";
   readonly model = "echo-local";
+  readonly degraded = true;
 
   async *stream(request: NovaCompletionRequest): AsyncIterable<string> {
     const last = [...request.messages].reverse().find((m) => m.role === "user");
     const system = request.messages.find((m) => m.role === "system")?.content ?? "";
 
-    const openingMatch = system.match(/OPENING LINE:\s*(.+)/);
-    const opening = openingMatch?.[1]?.trim();
+    /* The directive's opening line is English — it comes from the core, which
+       is not ours to fork. A real model is instructed to answer in the
+       learner's language and does; the echo provider has no model, so rather
+       than leak that English into a Kazakh classroom it says, in the right
+       language, that it is not a model.
 
-    const parts = [
-      opening ?? "Let's look at this together.",
-      "",
-      last?.content
-        ? `You asked: ${last.content.slice(0, 200)}`
-        : "Tell me what you tried.",
-      "",
-      "(Nova is running without a language model configured, so this reply is " +
-        "assembled from the teaching instruction rather than generated. The " +
-        "instruction itself — what level of help is allowed here and why — is " +
-        "real.)",
-    ];
+       Language is read from the prompt the route already built, so this stays
+       a single source of truth. */
+    const kk = /Write ONLY in Kazakh/.test(system);
+
+    /* One sentence, and it is a question the learner can act on.
+       This text is read by a fourteen-year-old, not by whoever forgot the
+       credential: the earlier version echoed their own question back and then
+       explained which subsystem was missing, which reads as a broken product.
+       The panel says the assistant is offline in its own banner; here Nova just
+       does the one thing it can still do without a model — ask. */
+    const parts = kk
+      ? [
+          last?.content
+            ? "Осы тапсырманы бірге қарайық. Не жасап көрдің және не күткен едің?"
+            : "Не жасап көрдің және не күткен едің?",
+        ]
+      : [
+          last?.content
+            ? "Давай разберём вместе. Что ты уже попробовал и какого результата ждал?"
+            : "Что ты уже попробовал и какого результата ждал?",
+        ];
 
     // Chunked by slicing rather than by regex: the dotAll flag needs a newer
     // target than tsconfig sets, and the point here is only to stream.

@@ -18,6 +18,7 @@ import {
 export class DeepSeekProvider implements NovaModelProvider {
   readonly id = "deepseek";
   readonly model: string;
+  readonly degraded = false;
 
   constructor(private apiKey: string, model = config.nova.model) {
     this.model = model;
@@ -38,6 +39,16 @@ export class DeepSeekProvider implements NovaModelProvider {
           max_tokens: request.maxTokens,
           temperature: request.temperature,
           stream: true,
+          /* Ask for the usage frame. Without this DeepSeek streams text and
+             says nothing about cost, and the monthly ceiling in
+             `schools/nova/budget.ts` has nothing to count. */
+          stream_options: { include_usage: true },
+          /* Thinking is ON by default on V4 at `high` effort, and reasoning
+             tokens bill as output. For a reply capped at six sentences whose
+             shape the hint ladder already decided, that is most of the cost
+             and most of the latency spent on a chain of thought nobody reads.
+             Overridable, because the pro tier may be worth it later. */
+          ...(config.nova.thinking ? {} : { thinking: { type: "disabled" } }),
         }),
         signal: request.signal,
       });
@@ -83,7 +94,16 @@ export class DeepSeekProvider implements NovaModelProvider {
         try {
           const parsed = JSON.parse(data) as {
             choices?: { delta?: { content?: string } }[];
+            usage?: { prompt_tokens?: number; completion_tokens?: number };
           };
+          /* The usage frame arrives last and carries an empty `choices`, so it
+             is read before the text branch rather than instead of it. */
+          if (parsed.usage) {
+            request.onUsage?.({
+              inputTokens: parsed.usage.prompt_tokens ?? 0,
+              outputTokens: parsed.usage.completion_tokens ?? 0,
+            });
+          }
           const text = parsed.choices?.[0]?.delta?.content;
           if (text) yield text;
         } catch {

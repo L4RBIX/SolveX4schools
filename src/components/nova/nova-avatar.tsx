@@ -97,6 +97,21 @@ const PRIORITY: Record<NovaState, number> = {
   waking: 20, idle: 10, drowsy: 6, sleeping: 4,
 };
 
+/**
+ * Nova's colour.
+ *
+ * The definition ships `#77bb41` — a green sphere, which is precisely the
+ * reading we are trying to get away from: green is Koji's, and green is also
+ * the lesson player's "correct" colour, so a green tutor congratulates the
+ * learner on every screen whether or not they got anything right.
+ *
+ * Violet is `--color-sx-support`. It collides with none of the four states the
+ * player already spends colour on (blue = you can act on this, green = correct,
+ * red = wrong, amber = partial), and it is the hue the gameboard's pedestal
+ * glow already uses, so Nova belongs to the world the rest of the app is in.
+ */
+const NOVA_BODY = "#a78bfa";
+
 export interface NovaAvatarProps {
   state: NovaState;
   size?: number;
@@ -117,7 +132,7 @@ export function NovaAvatar({ state, size = 96, className, onClick, label }: Nova
        reflows when it arrives. */
     <ErrorBoundary onError={() => setFailed(true)}>
       <Suspense fallback={<NovaFallback size={size} muted />}>
-        <StrobiAvatar animation={NOVA_ANIMATION[state]} size={size} />
+        <StrobiAvatar animation={NOVA_ANIMATION[state]} size={size} bodyColor={NOVA_BODY} />
       </Suspense>
     </ErrorBoundary>
   );
@@ -159,11 +174,11 @@ function NovaFallback({ size, muted }: { size: number; muted?: boolean }) {
         width: size,
         height: size,
         background:
-          "radial-gradient(circle at 32% 28%, #9fd672 0%, #77bb41 46%, #4d7d24 100%)",
+          "radial-gradient(circle at 32% 28%, #c9b6fc 0%, #a78bfa 46%, #6d4bd0 100%)",
       }}
     >
       <span
-        className="flex h-full w-full items-center justify-center font-b-sans font-bold text-white"
+        className="flex h-full w-full items-center justify-center font-b-sans font-bold text-b-fg"
         style={{ fontSize: size * 0.34 }}
       >
         N
