@@ -34,7 +34,7 @@ export function MonthBoard({ month }: { month: Month }) {
       <AppHeader
         active="courses"
         links={SCHOOL_NAV(loc)}
-        homeHref="/"
+        homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
         accentPill={null}

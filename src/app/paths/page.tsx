@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import { MONTHS } from "@schools/curriculum/months";
-import { YearRoadmap } from "@/components/brilliant/app/year-roadmap";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Бағдарлама" };
-
-export default function PathsPage() {
-  return <YearRoadmap months={MONTHS} />;
+/** `/paths` became `/program`. Old links keep working. */
+export default function PathsRedirect(): never {
+  permanentRedirect("/program");
 }

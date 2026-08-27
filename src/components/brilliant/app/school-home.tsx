@@ -43,7 +43,7 @@ export function SchoolHome({
       <AppHeader
         active="home"
         links={SCHOOL_NAV(loc)}
-        homeHref="/"
+        homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
         accentPill={null}

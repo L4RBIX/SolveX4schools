@@ -25,7 +25,29 @@ const SCROLL_TRIGGER = 600;
 const PILL_BASE =
   "b-press inline-flex items-center justify-center rounded-full px-5 py-3 text-[16px] font-medium leading-[1.25] hover:-translate-y-px";
 
-export function Nav() {
+export interface NavProps {
+  /**
+   * Every visible string and destination. Each defaults to the reference
+   * route's own literal, so /brilliant renders byte-identically and stays
+   * usable as the visual baseline while the product supplies its own.
+   */
+  wordmark?: React.ReactNode;
+  wordmarkHref?: string;
+  wordmarkLabel?: string;
+  signIn?: { label: string; href: string } | null;
+  getStarted?: { label: string; href: string };
+  /** Extra controls before the CTAs. The product puts its language switch here. */
+  trailing?: React.ReactNode;
+}
+
+export function Nav({
+  wordmark,
+  wordmarkHref = "/brilliant",
+  wordmarkLabel = "Brilliant",
+  signIn = { label: "Sign in", href: "/brilliant/courses" },
+  getStarted = { label: "Get started", href: "/brilliant/courses" },
+  trailing,
+}: NavProps = {}) {
   const reduce = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
 
@@ -43,29 +65,34 @@ export function Nav() {
         className="mx-auto flex h-[58px] w-full max-w-[1296px] items-center justify-between gap-4 rounded-full border border-[#E4E4E4] bg-b-white pr-2 pl-5 sm:pl-7"
       >
         <a
-          href="/brilliant"
+          href={wordmarkHref}
+          aria-label={wordmarkLabel}
           className="font-b-sans text-[26px] font-bold leading-none tracking-[-0.02em] text-b-ink"
         >
-          Brilliant
+          {wordmark ?? "Brilliant"}
         </a>
 
         <div className="flex items-center gap-2">
-          <a
-            href="/brilliant/courses"
-            className={cn(
-              PILL_BASE,
-              "hidden border-2 border-b-line bg-transparent text-b-muted hover:text-b-ink sm:inline-flex",
-            )}
-          >
-            Sign in
-          </a>
+          {trailing}
+
+          {signIn ? (
+            <a
+              href={signIn.href}
+              className={cn(
+                PILL_BASE,
+                "hidden border-2 border-b-line bg-transparent text-b-muted hover:text-b-ink sm:inline-flex",
+              )}
+            >
+              {signIn.label}
+            </a>
+          ) : null}
 
           {/* Below sm the bar is wordmark + one dark pill, always visible. */}
           <a
-            href="/brilliant/courses"
+            href={getStarted.href}
             className={cn(PILL_BASE, "bg-b-ink text-b-white sm:hidden")}
           >
-            Get started
+            {getStarted.label}
           </a>
 
           <div className="hidden sm:block">
@@ -73,14 +100,14 @@ export function Nav() {
               {scrolled ? (
                 <motion.a
                   key="get-started"
-                  href="/brilliant/courses"
+                  href={getStarted.href}
                   initial={reduce ? false : { opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={reduce ? { opacity: 0 } : { opacity: 0, x: 16 }}
                   transition={{ duration: 0.2, ease: [0.33, 1, 0.68, 1] }}
                   className={cn(PILL_BASE, "bg-b-ink text-b-white")}
                 >
-                  Get started
+                  {getStarted.label}
                 </motion.a>
               ) : null}
             </AnimatePresence>

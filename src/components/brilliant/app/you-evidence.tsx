@@ -68,7 +68,7 @@ export function YouEvidence() {
       <AppHeader
         active="you"
         links={SCHOOL_NAV(loc)}
-        homeHref="/"
+        homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
         accentPill={null}

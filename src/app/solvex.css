@@ -129,3 +129,48 @@
 .sx-nudge {
   animation: sx-nudge 240ms var(--ease-sx-out);
 }
+
+/* ---------------------------------------------------------------------------
+   Strobi
+
+   The definition's `motion` fields — microSaccades, shake, slowDrift — are
+   ambient, not scripted: they run underneath whatever expression is current.
+   Kept small on purpose. A mascot that never stops moving stops being calm,
+   and this one sits beside a fourteen-year-old trying to concentrate.
+   ------------------------------------------------------------------------ */
+
+@keyframes strobi-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33%      { transform: translate3d(1.5%, -1.5%, 0) rotate(0.8deg); }
+  66%      { transform: translate3d(-1%, 1%, 0) rotate(-0.6deg); }
+}
+.strobi-drift { animation: strobi-drift 7s ease-in-out infinite; }
+
+@keyframes strobi-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20%      { transform: translate3d(-2.5%, 0, 0); }
+  40%      { transform: translate3d(2.5%, 0, 0); }
+  60%      { transform: translate3d(-1.5%, 0, 0); }
+  80%      { transform: translate3d(1.5%, 0, 0); }
+}
+.strobi-shake { animation: strobi-shake 620ms ease-in-out infinite; }
+
+@keyframes strobi-saccade {
+  0%, 88%, 100% { transform: translate3d(0, 0, 0); }
+  90%           { transform: translate3d(1.5px, -1px, 0); }
+  94%           { transform: translate3d(-1px, 0.5px, 0); }
+}
+.strobi-saccade { animation: strobi-saccade 3.4s steps(1, end) infinite; }
+
+@keyframes strobi-eyeshake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25%      { transform: translate3d(-1.5px, 0, 0); }
+  75%      { transform: translate3d(1.5px, 0, 0); }
+}
+.strobi-eyeshake { animation: strobi-eyeshake 320ms ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .strobi-drift, .strobi-shake, .strobi-saccade, .strobi-eyeshake {
+    animation: none !important;
+  }
+}

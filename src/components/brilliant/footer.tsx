@@ -5,7 +5,7 @@
 
 interface FooterColumn {
   title: string;
-  links: readonly string[];
+  links: readonly (string | { label: string; href: string })[];
 }
 
 const COLUMNS: readonly FooterColumn[] = [
@@ -73,38 +73,57 @@ const SOCIALS = [
   { label: "LinkedIn", glyph: <GlyphNetwork /> },
 ] as const;
 
-export function Footer() {
+export interface FooterProps {
+  /** Column groups. Defaults to the reference route's own. */
+  columns?: readonly FooterColumn[];
+  wordmark?: React.ReactNode;
+  /** Small print under the columns. */
+  legal?: React.ReactNode;
+  /** `false` drops the social row — we have no accounts to link to. */
+  social?: boolean;
+}
+
+export function Footer({
+  columns = COLUMNS,
+  wordmark,
+  legal,
+  social = true,
+}: FooterProps = {}) {
   return (
     <footer className="border-t border-b-line bg-b-white">
       <div className="b-shell py-14 lg:py-16">
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between lg:gap-16">
           <a
-            href="/brilliant"
+            href="/"
             className="font-b-sans text-[26px] font-bold leading-none tracking-[-0.02em] text-b-ink"
           >
-            Brilliant
+            {wordmark ?? "Brilliant"}
           </a>
 
           <nav
             aria-label="Footer"
             className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4 lg:gap-x-16"
           >
-            {COLUMNS.map((column) => (
+            {columns.map((column) => (
               <div key={column.title}>
                 <h2 className="text-[15px] font-semibold leading-[22px] text-b-ink">
                   {column.title}
                 </h2>
                 <ul className="mt-4 flex flex-col gap-3">
-                  {column.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        href="/brilliant"
-                        className="text-[15px] leading-[22px] text-b-muted transition-colors hover:text-b-ink"
-                      >
-                        {link}
-                      </a>
-                    </li>
-                  ))}
+                  {column.links.map((link) => {
+                    const label = typeof link === "string" ? link : link.label;
+                    const href = typeof link === "string" ? "/" : link.href;
+                    return (
+                      <li key={label}>
+                        <a
+                          href={href}
+                          className="text-[15px] leading-[22px] text-b-muted transition-colors hover:text-b-ink"
+                        >
+                          {label}
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
@@ -112,11 +131,15 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col-reverse items-start gap-6 border-t border-b-line pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[13px] leading-[20px] text-b-muted">
-            &copy; 2026 Brilliant Worldwide, Inc., Brilliant and the Brilliant Logo
-            are trademarks of Brilliant Worldwide, Inc.
+          <p className="max-w-[62ch] text-[13px] leading-[20px] text-b-muted">
+            {legal ?? (
+              <>
+                &copy; 2026 Brilliant Worldwide, Inc., Brilliant and the Brilliant
+                Logo are trademarks of Brilliant Worldwide, Inc.
+              </>
+            )}
           </p>
-          <ul className="flex items-center gap-5">
+          <ul className={social ? "flex items-center gap-5" : "hidden"}>
             {SOCIALS.map((social) => (
               <li key={social.label}>
                 <a

@@ -1,12 +1,14 @@
-import { MONTHS } from "@schools/curriculum/months";
-import { SchoolHome } from "@/components/brilliant/app/school-home";
+import type { Metadata } from "next";
+import { PublicLanding } from "@/components/brilliant/public-landing";
 
-/**
- * The student home — the product's root.
- *
- * `learnerName` is a placeholder until enrolment exists. It is a display string
- * only; nothing keys off it.
- */
-export default function Home() {
-  return <SchoolHome months={MONTHS} learnerName="Bekarys" />;
+export const metadata: Metadata = {
+  // `absolute` so the layout template does not append the brand twice.
+  title: { absolute: "SolveX4Schools" },
+  description:
+    "Девятимесячная программа спортивного программирования для 9 класса. " +
+    "Короткое объяснение — и сразу практика.",
+};
+
+export default function PublicHome() {
+  return <PublicLanding />;
 }

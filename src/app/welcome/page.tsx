@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
-import { SchoolLanding } from "@/components/brilliant/school-landing";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  // `absolute` so the layout template does not render "SolveX4Schools · SolveX4Schools".
-  title: { absolute: "SolveX4Schools" },
-  description:
-    "9-сыныпқа арналған спорттық бағдарламалау үйірмесі — тоғыз айлық оқу бағдарламасы.",
-};
-
-export default function WelcomePage() {
-  return <SchoolLanding />;
+/**
+ * `/welcome` was a second landing implementation. It is gone.
+ *
+ * Kept only as a redirect: the URL was shared during development, and a 404 on
+ * a link someone already has is a worse answer than a redirect to the page that
+ * replaced it. There is exactly one public landing now, at `/`.
+ */
+export default function WelcomeRedirect(): never {
+  permanentRedirect("/");
 }

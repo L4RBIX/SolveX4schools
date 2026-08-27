@@ -84,11 +84,11 @@ export function LocaleSwitch({
 
 export function SCHOOL_NAV(locale: Locale): AppNavLink[] {
   return [
-    { id: "home", label: t(L.navHome, locale), href: "/", aria: t(L.navHome, locale) },
+    { id: "home", label: t(L.navHome, locale), href: "/home", aria: t(L.navHome, locale) },
     {
       id: "courses",
       label: t(L.navCourses, locale),
-      href: "/paths",
+      href: "/program",
       aria: t(L.navCourses, locale),
     },
     { id: "you", label: t(L.navYou, locale), href: "/you", aria: t(L.navYou, locale) },
