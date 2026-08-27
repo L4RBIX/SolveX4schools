@@ -10,6 +10,7 @@ import {
 import type { NovaMessage } from "./provider";
 import type { NovaContext } from "./context";
 import { draftBlock, groundingReminder, trustedContextLines } from "./render-context";
+import { failureWord } from "@schools/learning/phrasing";
 
 /**
  * The prompt.
@@ -270,8 +271,19 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
   if (directive) {
     lines.push(
       `- Mode: ${directive.mode}`,
+      /* The difficulty in WORDS, not as its internal class.
+       *
+       * This interpolated `namedMisconception` raw, so a prompt could contain
+       * `strict_vs_inclusive_boundary` — snake_case engine vocabulary, sitting
+       * in the one paragraph that invites the model to say the thing out loud.
+       * `validate.ts` would have caught it on the way OUT, but a rule enforced
+       * only by the output validator is a rule the model has to be talked out
+       * of on every single request. `failureWord` is the same localizer the
+       * teacher's surface uses, so a learner and a teacher read the same
+       * phrase for the same evidence. */
       directive.mayNameMisconception && directive.namedMisconception
-        ? `- The evidence supports naming ONE specific difficulty: ${directive.namedMisconception}. ` +
+        ? `- The evidence supports naming ONE specific difficulty: ` +
+          `${failureWord(directive.namedMisconception, locale)}. ` +
           "You may refer to what it looks like in practice, in plain words, without jargon."
         : "- The evidence does NOT support naming any specific misunderstanding. " +
           "Do not tell the learner why they are struggling — you do not know. " +

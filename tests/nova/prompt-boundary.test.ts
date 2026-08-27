@@ -9,6 +9,7 @@ import {
   type PromptContext,
 } from "@schools/nova/prompt";
 import { viewsOf } from "@schools/nova/normalize";
+import { failureWord } from "@schools/learning/phrasing";
 
 /**
  * The trust boundary, as a property of the message array rather than of wording.
@@ -388,12 +389,23 @@ describe("the system message, at every grant level", () => {
        false unless the evidence cleared a threshold, and the prompt must carry
        that decision through rather than leaving the model to guess. */
     const named = buildSystemPrompt(ctx({ directive: DIRECTIVE }));
-    expect(named).toContain("integer_division_confusion");
+    expect(named).toContain("supports naming ONE specific difficulty");
+    /* In WORDS, never as the class.
+     *
+     * This used to assert the opposite — that the prompt contained
+     * `integer_division_confusion` — and it passed, which is how the leak
+     * survived: snake_case engine vocabulary sitting in the one paragraph that
+     * invites the model to say the thing out loud. `validate.ts` would have
+     * caught it on the way out, but a rule enforced only by the output
+     * validator is a rule the model must be talked out of on every request. */
+    expect(named).not.toContain("integer_division_confusion");
+    expect(named).toContain(failureWord("integer_division_confusion", "kk"));
 
     const unnamed = buildSystemPrompt(
       ctx({ directive: { ...DIRECTIVE, mayNameMisconception: false } }),
     );
     expect(unnamed).not.toContain("integer_division_confusion");
+    expect(unnamed).not.toContain(failureWord("integer_division_confusion", "kk"));
     expect(unnamed).toContain("does NOT support naming any specific misunderstanding");
 
     // No directive at all is the same instruction, arrived at differently.

@@ -281,9 +281,20 @@ export async function selectRelevantEvidence(
     return [];
   }
 
+  /* Finished episodes only.
+   *
+   * An episode that is still open is not history — it is the thing the learner
+   * is doing right now, and it is already described in `interaction.settled`
+   * with far more detail. Including it counted the present attempt twice, and
+   * did something worse to a learner on their very first task: it filled the
+   * "what they have done recently" section with their own in-progress work, so
+   * a prompt that should have said "nothing on record, make no claim about
+   * them" instead handed the model a history to reason about. */
+  const finished = episodes.filter((e) => e.episode.closed_at);
+
   const relevant = skillIds.length
-    ? episodes.filter((e) => e.skill && skillIds.includes(e.skill))
-    : episodes;
+    ? finished.filter((e) => e.skill && skillIds.includes(e.skill))
+    : finished;
 
   /* Most recent first. `closed_at` is the server's clock; an episode still open
      has none and sorts last, which is right — it has not produced evidence. */
