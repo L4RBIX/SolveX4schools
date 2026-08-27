@@ -26,7 +26,7 @@ import { lessonArt } from "@schools/presentation/illustrations";
 import { Button3D } from "./button-3d";
 import { ChatIcon, SpeakerIcon } from "./icons";
 import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
-import { NovaChat } from "@/components/nova/nova-chat";
+import { NovaChat, type NovaDraft } from "@/components/nova/nova-chat";
 import { LessonTopBar } from "./lesson-chrome";
 import { BlockView } from "./blocks";
 import {
@@ -187,6 +187,46 @@ interface BlockState {
 }
 
 const FRESH: BlockState = { answer: NO_ANSWER, verdict: "unchecked", attempt: 0 };
+
+/**
+ * The learner's current answer, in the shape Nova's route accepts.
+ *
+ * One translation, in one place, from the union the lesson already keeps to the
+ * flat draft the API takes. It is deliberately total over `BlockAnswer.kind` —
+ * a new answer kind stops this compiling rather than silently reaching Nova as
+ * nothing, which is how the tutor quietly goes blind on the one block type
+ * somebody added last.
+ *
+ * Note what is NOT here: the verdict, the attempt count, whether it was right.
+ * Those are on the server, in the ledger, and Nova reads them from there. A
+ * browser that could name its own verdict could name `correct`.
+ */
+function draftFor(answer: BlockAnswer | undefined): NovaDraft | undefined {
+  if (!answer) return undefined;
+  switch (answer.kind) {
+    case "option":
+      return { selectedOptionId: answer.id };
+    case "text":
+      /* Both a prediction and an editor's contents arrive as text. The route
+         does not need to know which — it has the block type from the
+         curriculum, which is the trustworthy half of that question. */
+      return { text: answer.value, code: answer.value };
+    case "blanks":
+      return { blanks: [...answer.values] };
+    case "order":
+      return { order: [...answer.ids] };
+    case "line":
+      return { line: answer.line };
+    case "grid":
+      return { cells: { ...answer.cells } };
+    case "none":
+    case "acknowledged":
+      /* Nothing on screen yet. Sending an empty object would tell Nova the
+         learner had answered and left it blank, which is a different and
+         wronger thing than not having started. */
+      return undefined;
+  }
+}
 
 export function SchoolLesson({
   lesson,
@@ -683,6 +723,11 @@ export function SchoolLesson({
             blockId={block.id}
             episodeId={episodeFor(block.id)}
             onStateChange={(s) => requestNova(s, s === "error" ? 4000 : 0)}
+            /* Read at send time, not at mount. The learner types, then asks;
+               a value captured when the panel opened would describe a screen
+               from several minutes ago. `states` is the same map the card
+               renders from, so Nova sees exactly what the learner sees. */
+            currentDraft={() => draftFor(states[block.id]?.answer)}
           />
         </div>
       </div>

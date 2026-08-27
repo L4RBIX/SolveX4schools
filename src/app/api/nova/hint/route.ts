@@ -11,6 +11,7 @@ import { guardedStream } from "@schools/nova/guard";
 import { inspectCode, type ValidationContext } from "@schools/nova/validate";
 import { checkAndConsumeBudget, recordSpend, type BudgetBlock } from "@schools/nova/budget";
 import { findBlock, taskKindOf } from "@schools/learning/grade";
+import { buildNovaContext, type DraftInput } from "@schools/nova/build-context";
 import { takeToken } from "@schools/lib/rate-limit";
 import { explainAssessmentCap, explainPolicy } from "@schools/nova/explain";
 import { capabilityFor } from "@schools/curriculum/capability";
@@ -66,6 +67,19 @@ interface HintBody {
    * bounded by the prompt builder rather than by anything the caller sends.
    */
   history?: { role?: unknown; text?: unknown }[];
+  /**
+   * What is on the learner's screen right now, unchecked.
+   *
+   * The option they have clicked, the code in the editor, the ordering they are
+   * halfway through. UNTRUSTED by construction — it is the browser describing
+   * itself — so it is shape-checked and clamped in `build-context.ts`, fenced
+   * when it reaches the model, and never written to the ledger.
+   *
+   * It exists because «Где ошибка?» is almost always asked about something not
+   * yet submitted, and a tutor that can only see what was already checked is
+   * always one step behind the learner.
+   */
+  draft?: DraftInput;
 }
 
 const MAX_MESSAGE = 2000;
@@ -319,8 +333,43 @@ export async function POST(request: Request) {
 
   const block = target.block;
 
+  /*
+   * What Nova actually knows.
+   *
+   * Built AFTER the grant, and that ordering is load-bearing: the context
+   * carries the directive and the ceiling, so building it first would mean
+   * assembling a description of what Nova may do before anything had decided.
+   *
+   * Guarded because it reads the ledger. A store that will not answer is a
+   * reason for Nova to know less, never a reason to refuse a fourteen-year-old
+   * help — the prompt then degrades to exactly what it was before this phase,
+   * which is a worse tutor and a working one.
+   */
+  let novaContext = null;
+  try {
+    novaContext = await buildNovaContext({
+      store,
+      subjectId,
+      episodeId,
+      locale,
+      target,
+      grant,
+      directive,
+      directiveNote: null,
+      action: directive?.mode ?? null,
+      assessmentCapped,
+      draft: body.draft,
+    });
+  } catch (err) {
+    bump("nova.context_failures");
+    opsLog("nova.context_failed", {
+      message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    });
+  }
+
   const messages = buildNovaMessages(
     {
+      context: novaContext,
       locale,
       monthTitle: target.month.title[locale],
       lessonTitle: target.lesson.title[locale],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNovaMessages, PROMPT_MARKERS } from "@schools/nova/prompt";
+import { ALWAYS_PRESENT_MARKERS, buildNovaMessages, PROMPT_MARKERS } from "@schools/nova/prompt";
 import { classifyMessage } from "@schools/nova/safety";
 import { validateOutput } from "@schools/nova/validate";
 import { JAILBREAKS, JAILBREAK_COUNT, type JailbreakFamily } from "./fixtures/jailbreaks";
@@ -193,7 +193,7 @@ describe("no fixture changes the server's decision", () => {
     for (const j of JAILBREAKS) {
       const [system] = buildNovaMessages(ctx("kk", grantAt(2)), j.text);
       if (!system.content.includes("Maximum help level: 2 of 4")) broken.push(`${j.id}: ceiling`);
-      for (const marker of PROMPT_MARKERS) {
+      for (const marker of ALWAYS_PRESENT_MARKERS) {
         if (!system.content.includes(marker)) broken.push(`${j.id}: ${marker}`);
       }
     }

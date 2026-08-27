@@ -47,6 +47,25 @@ import { NovaAvatar, type NovaState } from "./nova-avatar";
  * is then spoken once by the status line inside it.
  */
 
+/**
+ * What is on screen and unchecked, in the shape the route accepts.
+ *
+ * Mirrors `DraftInput` on the server rather than importing it: that module
+ * carries `server-only`, and pulling it into a client component would fail the
+ * build. The server re-validates every field anyway — it has to, because this
+ * arrives from a browser — so the two shapes agreeing is a convenience for
+ * whoever fills this in, not a guarantee anything depends on.
+ */
+export interface NovaDraft {
+  selectedOptionId?: string;
+  text?: string;
+  blanks?: string[];
+  order?: string[];
+  line?: number;
+  cells?: Record<string, string>;
+  code?: string;
+}
+
 export interface NovaChatProps {
   open: boolean;
   onClose: () => void;
@@ -54,6 +73,21 @@ export interface NovaChatProps {
   /** Curriculum block the learner is on. Nova is useless without it. */
   blockId: string;
   episodeId: string;
+  /**
+   * What the learner currently has on screen and has NOT checked.
+   *
+   * The option clicked, the code being typed, the ordering half-finished. The
+   * server cannot see any of it — it lives in this browser until Check is
+   * pressed — and it is what «Где ошибка?» is nearly always about.
+   *
+   * Read at SEND time rather than captured at mount, via a getter: a learner
+   * types, then asks, and a value snapshotted when the panel opened would
+   * describe the screen as it was several minutes ago.
+   *
+   * The server treats every field as untrusted, clamps it, and fences it. It
+   * never becomes learning evidence.
+   */
+  currentDraft?: () => NovaDraft | undefined;
   /** Drives the header avatar. */
   onStateChange?: (state: NovaState) => void;
   /**
@@ -188,9 +222,23 @@ export function NovaChat({
   episodeId,
   onStateChange,
   degraded: degradedProp,
+  currentDraft,
 }: NovaChatProps) {
   const c = COPY[locale];
   const [messages, setMessages] = useState<Message[]>([]);
+  /* The transcript, readable from inside `ask` without making it a dependency.
+     Listing `messages` on the callback would rebuild it on every streamed token
+     — several hundred times per answer — and each rebuild would re-run the
+     effects that depend on it. */
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
+  /* Same reason, and one more: the caller passes an inline arrow, so its
+     identity changes on every render of the lesson. Listing it as a dependency
+     would rebuild `ask` constantly; capturing it once would freeze the panel to
+     the screen as it was at mount. A ref read at send time is the only shape
+     that gives Nova the learner's ACTUAL current answer. */
+  const draftRef = useRef(currentDraft);
+  draftRef.current = currentDraft;
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   /** What the health probe found. Seeded from the page's answer, if it has one. */
@@ -333,6 +381,15 @@ export function NovaChat({
             requestedLevel: override ? 4 : 1,
             override,
             locale,
+            draft: draftRef.current?.(),
+            /* The conversation, from this tab and nowhere else. The server
+               bounds it to three exchanges; sending more just wastes the
+               request. Sliced here too so a long session does not put a
+               megabyte on a school connection. */
+            history: messagesRef.current
+              .filter((m) => m.text.trim())
+              .slice(-6)
+              .map((m) => ({ role: m.role === "learner" ? "user" : "assistant", text: m.text })),
           }),
           signal: controller.signal,
         });

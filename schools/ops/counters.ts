@@ -110,6 +110,15 @@ export const OPS_COUNTERS = [
   "nova.budget_check_failures",
   /** Token accounting could not be written. The month row is under-counting. */
   "nova.spend_write_failures",
+  /**
+   * The learner's situation could not be assembled, so Nova answered blind.
+   *
+   * Not fatal and not silent: the prompt degrades to curriculum-only, which is
+   * the tutor this product had before the context phase — worse, but working.
+   * A number here that leaves zero means learners are getting generic answers
+   * and nothing else would say so.
+   */
+  "nova.context_failures",
 
   /**
    * A submission id that had already been claimed. The stored verdict was

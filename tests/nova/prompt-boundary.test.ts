@@ -4,7 +4,7 @@ import type { GrantDecision } from "@solvex/nova-core";
 import {
   buildNovaMessages,
   buildSystemPrompt,
-  PROMPT_MARKERS,
+  ALWAYS_PRESENT_MARKERS,
   type HistoryTurn,
   type PromptContext,
 } from "@schools/nova/prompt";
@@ -357,7 +357,7 @@ describe("the system message, at every grant level", () => {
          would be a level at which injection is simply unopposed. The markers
          come from the exported constant so that renaming one is a single edit
          rather than a silent drift between prompt and validator. */
-      for (const marker of PROMPT_MARKERS) {
+      for (const marker of ALWAYS_PRESENT_MARKERS) {
         expect(system, `missing ${marker} at level ${granted}`).toContain(marker);
       }
     }

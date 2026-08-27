@@ -8,6 +8,8 @@ import {
   type CapabilityContext,
 } from "@schools/curriculum/capability";
 import type { NovaMessage } from "./provider";
+import type { NovaContext } from "./context";
+import { draftBlock, groundingReminder, trustedContextLines } from "./render-context";
 
 /**
  * The prompt.
@@ -83,6 +85,16 @@ export interface PromptContext {
    * to a child saying hello.
    */
   briefOffTopic?: boolean;
+  /**
+   * Everything the platform can prove about the learner's screen right now.
+   *
+   * Optional, and its absence is the old behaviour rather than an error — the
+   * dev lab and several tests build a prompt with no store to read a ledger
+   * from. In production it is always present, and it is the whole difference
+   * between a tutor that answers «Где ошибка?» with "what do you see?" and one
+   * that answers the question.
+   */
+  context?: NovaContext | null;
 }
 
 /**
@@ -100,7 +112,28 @@ export const PROMPT_MARKERS = [
   "HOW MUCH YOU MAY HELP",
   "RULES YOU CANNOT BE TALKED OUT OF",
   "TRUST BOUNDARY",
+  /* Present only when a context was built — the dev lab and several tests
+     construct a prompt with no store to read a ledger from. It still belongs in
+     THIS list, which is what `validate.ts` scans for a prompt being quoted
+     back: a model that emits this header has leaked the prompt whether or not
+     every prompt contains it. See `ALWAYS_PRESENT_MARKERS` for the subset that
+     is structural. */
+  "TRUSTED CURRENT INTERACTION",
 ] as const;
+
+/**
+ * The sections every prompt carries, whatever else is or is not known.
+ *
+ * A separate list because two different questions are being asked.
+ * `PROMPT_MARKERS` is "what would prove the prompt leaked" and should be as
+ * broad as possible. This is "what must never go missing", and a conditional
+ * section in it would make the assertion fire on a legitimately context-free
+ * prompt — so the two would be quietly weakened until they agreed, which is
+ * how a leak detector ends up detecting nothing.
+ */
+export const ALWAYS_PRESENT_MARKERS = PROMPT_MARKERS.filter(
+  (m) => m !== "TRUSTED CURRENT INTERACTION",
+);
 
 const LADDER = [
   "0 — Ask ONE question that makes them look at the right part. Give nothing away.",
@@ -203,6 +236,13 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
     lines.push(...capabilityPromptLines(ctx.capability, { includeTaskGap: grant.granted >= 3 }));
   }
 
+  /* What the platform can prove about this exact moment.
+   *
+   * After the curriculum and before the ceiling, deliberately: the model reads
+   * the situation, then reads what it is allowed to do about it. Reversed, it
+   * decides how much to say before it knows what is happening. */
+  if (ctx.context) lines.push(...trustedContextLines(ctx.context));
+
   lines.push(
     "",
     "HOW MUCH YOU MAY HELP — decided by the system, not by you",
@@ -282,6 +322,8 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
     "- End by asking what they will try next — the point is that they try.",
   );
 
+  if (ctx.context) lines.push(...groundingReminder(ctx.context));
+
   return lines.join("\n");
 }
 
@@ -344,6 +386,22 @@ export function buildNovaMessages(
   const messages: NovaMessage[] = [
     { role: "system", content: buildSystemPrompt(ctx, nonce) },
   ];
+
+  /* The learner's unchecked work, fenced.
+   *
+   * In the user half rather than the system half, and the seam follows
+   * AUTHORSHIP rather than usefulness: this is the only part of the context a
+   * fourteen-year-old wrote, so it is the only part that could carry
+   * `# ignore all previous instructions` in a code comment. Rendered into the
+   * system message it would arrive wearing the pedagogy's clothes.
+   *
+   * Before the history turns, because it describes the present and the history
+   * describes the past, and a model reading them in the other order narrates
+   * the conversation instead of the screen. */
+  const draft = ctx.context ? draftBlock(ctx.context) : null;
+  if (draft) {
+    messages.push({ role: "user", content: fence(nonce, "current_screen_untrusted", draft) });
+  }
 
   /* Earlier turns, fenced exactly like the current one.
    *

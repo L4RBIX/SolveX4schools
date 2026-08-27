@@ -203,6 +203,16 @@ export interface LedgerAttemptRow {
  */
 const LEDGER_ATTEMPT: Record<string, "submit_clicked" | "code_changed_debounced" | "run_clicked"> = {
   episode_opened: "submit_clicked",
+  /* A second press of Check on an episode that is already open.
+   *
+   * The submit route writes `episode_opened` on every submission today, so this
+   * is currently unreachable through it — but the taxonomy has both names, the
+   * ledger harness distinguishes them, and a future route that opens once and
+   * resumes after would silently stop counting second attempts as effort. That
+   * is exactly the shape of the lock-out this bridge exists to have fixed: no
+   * error, no failing test, a learner who tried twice recorded as having tried
+   * once, and the ladder refusing to move. */
+  episode_resumed: "submit_clicked",
   verdict_received: "submit_clicked",
   run_executed: "run_clicked",
   code_diff_classified: "code_changed_debounced",
