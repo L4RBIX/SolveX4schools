@@ -131,6 +131,19 @@ export const OPS_COUNTERS = [
    */
   "submit.duplicate_timeouts",
 
+  /**
+   * An event the ingest route refused: an outcome name arriving unattested, a
+   * foreign episode, or a malformed id.
+   *
+   * Expected to be ZERO. Every honest client writes observations only, and the
+   * five outcome events are written server-side on the paths that produce them.
+   * A number here that leaves zero means somebody found the browser console —
+   * which is a conversation for a teacher rather than an error for a browser,
+   * and is precisely the kind of thing a log line cannot surface because nobody
+   * reads logs on a Tuesday.
+   */
+  "ingest.refused",
+
   /** A graded attempt whose events could not be written. Progress was NOT saved. */
   "save.event_write_failures",
   /** A finished lesson that could not be recorded in the school's copy. */

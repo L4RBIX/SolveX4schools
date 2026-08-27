@@ -16,7 +16,7 @@ import type { LearningEventRow, SourceTrust } from "@schools/store/learning-stor
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
-import { opsLog } from "@schools/ops/counters";
+import { bump, opsLog } from "@schools/ops/counters";
 import { maybeSweep } from "@schools/reducer/trigger";
 
 /**
@@ -289,6 +289,12 @@ export async function POST(request: Request) {
        with no retention function, so anything identifying that lands here
        outlives the consent that put it there. */
     opsLog("ingest.refused", { ...refusals, batch: incoming.length });
+    /* And a counter beside the log, because they answer different questions.
+       The log says what was refused in one request; the counter is what appears
+       on the health view, and it is the only form in which "somebody in this
+       class is posting forged verdicts" reaches anyone who is not reading logs
+       on a Tuesday morning. */
+    bump("ingest.refused", rejected);
   }
 
   const inserted = await store.appendEvents(rows);
