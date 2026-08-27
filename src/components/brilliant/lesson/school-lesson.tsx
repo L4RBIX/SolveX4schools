@@ -532,8 +532,32 @@ export function SchoolLesson({
     /* `lang` is what makes `hyphens: auto` work on the long compound words the
        Russian and Kazakh lesson text is full of, and it is what a screen reader
        reads the page with. */
-    <div lang={locale} className="flex h-[100dvh] flex-col bg-sx-page font-b-sans text-b-fg">
-      <div className="flex flex-1 flex-col px-3 pb-3 sm:px-8 sm:pb-8">
+    /* `lang` is what makes `hyphens: auto` work and what a screen reader reads
+       the page with.
+
+       `--sx-nova-w` is the width of the Nova pane, and it is the ONE number the
+       split workspace is built from. Zero when the panel is closed; a clamped
+       column when it is open. The lesson card's left inset and the top bar's
+       left padding both read it, so the lesson genuinely contracts and its
+       content re-centres inside what remains — rather than being covered by a
+       panel, or shoved sideways by a margin while its own centre stays where it
+       was. Below `lg` it stays 0 and Nova is a sheet; see `nova-chat.tsx`. */
+    <div
+      lang={locale}
+      style={{ "--sx-nova-w": chatOpen ? "clamp(340px, 26vw, 400px)" : "0px" } as React.CSSProperties}
+      className="flex h-[100dvh] flex-col bg-sx-page font-b-sans text-b-fg"
+    >
+      <div
+        className={cn(
+          "flex flex-1 flex-col px-3 pb-3 sm:px-8 sm:pb-8",
+          /* The progress bar and the close control belong to the lesson, so
+             they move with it. Left visually stranded over the Nova pane they
+             would read as chrome belonging to the chat. */
+          "lg:transition-[padding] lg:duration-500 lg:ease-b-spring",
+          "lg:pl-[calc(var(--sx-nova-w)+var(--sx-nova-gap,0px))]",
+        )}
+        style={{ "--sx-nova-gap": chatOpen ? "1rem" : "0px" } as React.CSSProperties}
+      >
         <LessonTopBar
           progress={progress}
           /* The reference's XP is gone: 15 points per correct answer, toward
@@ -566,6 +590,13 @@ export function SchoolLesson({
             data-panel="true"
             className={cn(
               "fixed top-16 right-3 bottom-3 left-3 z-[93] flex flex-col overflow-hidden sm:top-16 sm:right-8 sm:bottom-8 sm:left-8",
+              /* The lesson pane. Its LEFT edge is where the split happens.
+                 Everything inside is already centred with `mx-auto` and a flex
+                 column, so narrowing the pane re-centres the question, the code,
+                 the options and the Check button inside the remaining space
+                 without any of them being told the panel exists. */
+              "lg:left-[calc(2rem+var(--sx-nova-w)+var(--sx-nova-gap,0px))]",
+              "lg:transition-[left,border-color] lg:duration-500 lg:ease-b-spring",
               "rounded-[24px] border-2 bg-b-dark transition-colors duration-300",
               cardBorderClass(verdict),
             )}
@@ -670,8 +701,22 @@ export function SchoolLesson({
           {/* ---- Nova dock --------------------------------------------
               The placement is the cloned player's, measured and kept: bottom
               left, z-856 so it sits ABOVE the z-93 card, and a speech bubble
-              level with the avatar's head. Only the occupant changed. */}
-          <div className="pointer-events-none absolute bottom-0 left-0 z-[856] flex flex-col items-start">
+              level with the avatar's head. Only the occupant changed.
+
+              Hidden while the chat is open, and only on the split layout. Nova
+              is already in the panel header three centimetres away; leaving the
+              large floating one there too puts two of the same mascot on screen
+              at once and makes the learner work out which is which. On the
+              sheet layout the dock is behind the sheet anyway, so it stays —
+              closing the sheet must not reveal an empty corner. */}
+          <div
+            aria-hidden={chatOpen || undefined}
+            className={cn(
+              "pointer-events-none absolute bottom-0 left-0 z-[856] flex flex-col items-start",
+              "transition-opacity duration-200",
+              chatOpen && "lg:pointer-events-none lg:opacity-0",
+            )}
+          >
             {bubble ? (
               <div className="pointer-events-auto mb-6 ml-[76px] max-w-[262px]">
                 <div

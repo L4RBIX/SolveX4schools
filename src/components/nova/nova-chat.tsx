@@ -518,13 +518,28 @@ export function NovaChat({
       aria-label={c.title}
       className={cn(
         "pointer-events-auto flex flex-col overflow-hidden bg-b-panel font-b-sans text-b-fg",
-        /* Desktop: a contextual panel on the right. Mobile: a bottom sheet.
-           Sides are written out rather than using `inset-x`/`inset-y`: Tailwind
-           orders the shorthand AFTER the single-side utilities in the generated
-           sheet, so `sm:right-4` silently loses to a base `inset-x-0` and the
-           panel renders glued to the viewport edge. */
+        /* Every side is written out rather than using `inset-x` / `inset-y`.
+           Tailwind orders the shorthand AFTER the single-side utilities in the
+           generated sheet, so a breakpoint-prefixed side silently loses to a
+           base `inset-x-0` and the panel renders glued to the viewport edge.
+           That bit us once; keep the long form. */
+        /* Two layouts, and the breakpoint between them is a product decision.
+         *
+         * Below `lg` Nova is a bottom sheet over the lesson, because a 340px
+         * panel beside a 768px lesson leaves the task in a strip too narrow to
+         * read a code block in — and the lesson is what the learner came for.
+         *
+         * At `lg` and above it is the LEFT half of a real split: the lesson
+         * pane's own left inset moves by the same variable, so the lesson
+         * genuinely contracts and its content re-centres in what is left. Nova
+         * is beside the work, never on top of it, and nothing is covered.
+         *
+         * Left rather than right, deliberately. The trigger lives bottom-left,
+         * so the panel arrives from where the learner tapped — a chat that
+         * opens on the opposite side of the screen from its own button reads as
+         * two unrelated things. */
         "fixed top-auto right-0 bottom-0 left-0 z-[900] h-[86dvh] rounded-t-[20px] border-t-2 border-b-edge",
-        "sm:top-4 sm:right-4 sm:bottom-4 sm:left-auto sm:h-auto sm:w-[400px] sm:rounded-[20px] sm:border-2",
+        "lg:top-16 lg:right-auto lg:bottom-8 lg:left-8 lg:h-auto lg:w-[var(--sx-nova-w)] lg:rounded-[24px] lg:border-2",
         "shadow-[0_16px_48px_rgba(0,0,0,0.45)]",
       )}
     >
