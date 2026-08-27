@@ -3,7 +3,7 @@ import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { resolveIdentity } from "@schools/learning/identity";
 import { enforceHintPolicy } from "@schools/nova/enforce";
-import { buildNovaMessages } from "@schools/nova/prompt";
+import { buildNovaMessages, type HistoryTurn } from "@schools/nova/prompt";
 import { getNovaProvider, NovaProviderError } from "@schools/nova";
 import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
 import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
@@ -56,6 +56,16 @@ interface HintBody {
   requestedLevel?: number;
   override?: boolean;
   locale?: Locale;
+  /**
+   * The conversation so far, as the browser remembers it.
+   *
+   * Held by the client and never stored here — see `HistoryTurn` in
+   * `schools/nova/prompt.ts` for why that separation is the point rather than a
+   * shortcut. Every entry is forgeable, including the ones labelled
+   * `assistant`, so all of them are fenced as untrusted and all of them are
+   * bounded by the prompt builder rather than by anything the caller sends.
+   */
+  history?: { role?: unknown; text?: unknown }[];
 }
 
 const MAX_MESSAGE = 2000;
@@ -172,6 +182,20 @@ export async function POST(request: Request) {
   const store = await getStore();
   const locale: Locale = body.locale === "ru" ? "ru" : "kk";
   const message = typeof body.message === "string" ? body.message.slice(0, MAX_MESSAGE) : "";
+
+  /* Shape-checked here, length-bounded in the prompt builder. Anything that is
+     not one of the two known roles is dropped rather than coerced: a turn
+     labelled `system` would be a client choosing its own authority level. */
+  const history: HistoryTurn[] = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (t): t is { role: "user" | "assistant"; text: string } =>
+            !!t &&
+            (t.role === "user" || t.role === "assistant") &&
+            typeof t.text === "string",
+        )
+        .map((t) => ({ role: t.role, text: t.text.slice(0, MAX_MESSAGE) }))
+    : [];
 
   /* Keyed on the learner, never on the client IP. One school behind one NAT
      gateway is one address, so an IP bucket would let the most active student
@@ -314,6 +338,7 @@ export async function POST(request: Request) {
       briefOffTopic: safety.verdict === "ALLOW_BRIEF_OFFTOPIC",
     },
     message,
+    history,
   );
 
   /*

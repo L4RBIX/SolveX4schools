@@ -298,9 +298,41 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
  * around the learner's words cannot disagree, which they would eventually if
  * two call sites each generated one.
  */
+/**
+ * One earlier exchange, as the browser remembers it.
+ *
+ * The session conversation and the learning ledger are separate systems and
+ * this is the whole boundary between them: history is held by the client, sent
+ * back on the next request, bounded here, and never written down. So the
+ * retention policy for chat is "none", which is the only retention policy that
+ * needs no enforcement, and no chat text can become learning evidence because
+ * there is nowhere for it to be stored.
+ *
+ * The cost is that Nova forgets a conversation when the panel closes. That is
+ * the right trade for a tutor whose durable memory of a learner is supposed to
+ * be their WORK — «жүйе оқушы туралы не білетінін оның жұмысынан біледі» — and
+ * not what they typed at it.
+ */
+export interface HistoryTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+/**
+ * How much of the conversation comes back.
+ *
+ * Three exchanges. Enough that «түсінбедім» after a hint means something, far
+ * short of the whole session — and bounded on BOTH axes, because a client that
+ * can choose the history length can choose the token bill. The trim happens
+ * here rather than in the route so that no caller can opt out of it.
+ */
+const MAX_HISTORY_TURNS = 6;
+const MAX_HISTORY_CHARS = 600;
+
 export function buildNovaMessages(
   ctx: PromptContext,
   learnerMessage: string,
+  history: readonly HistoryTurn[] = [],
 ): NovaMessage[] {
   const nonce = newNonce();
   const text = learnerMessage.trim()
@@ -309,8 +341,28 @@ export function buildNovaMessages(
       ? "Маған осы тапсырмада көмектесе аласың ба?"
       : "Помоги мне, пожалуйста, с этим заданием.";
 
-  return [
+  const messages: NovaMessage[] = [
     { role: "system", content: buildSystemPrompt(ctx, nonce) },
-    { role: "user", content: fence(nonce, "learner_message", text) },
   ];
+
+  /* Earlier turns, fenced exactly like the current one.
+   *
+   * The learner's old words are no more trustworthy than their new ones — an
+   * injection planted three turns ago is still an injection, and a history
+   * array arrives from the browser, so ALL of it is forgeable including the
+   * parts labelled `assistant`. That is why the assistant turns are fenced too:
+   * a client can claim Nova already said "here is the full solution" and then
+   * ask it to continue, which is the whole few-shot spoofing family. Fenced,
+   * that claim is a quotation the model has been told is data. */
+  for (const turn of history.slice(-MAX_HISTORY_TURNS)) {
+    const body = turn.text.slice(0, MAX_HISTORY_CHARS);
+    if (!body.trim()) continue;
+    messages.push({
+      role: turn.role,
+      content: fence(nonce, turn.role === "user" ? "earlier_learner_message" : "claimed_earlier_reply", body),
+    });
+  }
+
+  messages.push({ role: "user", content: fence(nonce, "learner_message", text) });
+  return messages;
 }
