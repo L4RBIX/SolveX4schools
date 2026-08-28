@@ -180,6 +180,66 @@ function checkMonth(month: Month) {
       if (!modes.includes("oral_explanation")) {
         err(aw, "no oral explanation — required by the programme's verification set (PDF p.6)");
       }
+
+      /*
+       * Does the check fit the minutes it claims?
+       *
+       * September's original monthly check carried four graded tasks against a
+       * stated twenty minutes and timed at over thirty. An adversarial review
+       * found the same shape in October and November: four graded blocks, and
+       * November's amounted to a from-scratch three-function program plus
+       * roughly eighteen separate written or spoken sub-answers.
+       *
+       * A learner cannot be told a check is twenty minutes and then handed
+       * forty, so the estimate below is arithmetic rather than judgement. Every
+       * number is arguable and meant to be argued with; what is not arguable is
+       * that somebody should have done the sum. An `explain` prompt is costed
+       * per QUESTION — four numbered questions is four answers — because that
+       * is where the September check quietly doubled.
+       */
+      const MINUTES_PER_BLOCK: Partial<Record<LessonBlock["type"], number>> = {
+        concept: 2,
+        worked_example: 3,
+        visual_simulation: 2,
+        reflection: 2,
+        prediction: 1.5,
+        multiple_choice: 1.5,
+        fill_blank: 3,
+        reorder_code: 3,
+        trace_code: 5,
+        find_bug: 6,
+        modify_code: 6,
+        test_case: 4,
+        write_code: 12,
+        challenge: 15,
+        arena_problem: 15,
+      };
+      const questionsIn = (text: string) =>
+        Math.max(1, (text.match(/\(\d\)/g) ?? []).length, (text.match(/\?/g) ?? []).length);
+
+      let estimate = 0;
+      for (const block of month.assessment.blocks) {
+        if (block.type === "explain") {
+          estimate += 2 * questionsIn(block.prompt.kk);
+        } else if (block.type === "verify") {
+          estimate +=
+            block.mode === "unseen_problem"
+              ? 12
+              : block.mode === "oral_explanation"
+                ? 2 * questionsIn(block.prompt.kk)
+                : 6;
+        } else {
+          estimate += MINUTES_PER_BLOCK[block.type] ?? 5;
+        }
+      }
+      if (estimate > month.assessment.minutes) {
+        warn(
+          aw,
+          `estimated ${Math.round(estimate)} min against a stated ${month.assessment.minutes} — ` +
+            `${month.assessment.blocks.length} blocks. A check that overruns is one a learner ` +
+            `cannot finish, and the part they do not reach is recorded as the part they could not do`,
+        );
+      }
     }
   }
 
