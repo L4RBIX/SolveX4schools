@@ -52,3 +52,6 @@ temp/
 # The Python runtime, copied out of node_modules by scripts/sync-pyodide-assets.mjs
 # on every build. 13 MB of WebAssembly that package.json already pins.
 public/pyodide/
+
+# Atomic-write temporaries left behind by a crashed writer.
+*.ts.tmp.*
