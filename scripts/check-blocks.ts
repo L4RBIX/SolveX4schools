@@ -26,6 +26,7 @@
  * Exit code 1 on any error. Warnings do not fail.
  */
 import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { checkOutput, checkerProblem, DEFAULT_CHECKER } from "../schools/exec/checker";
@@ -37,6 +38,24 @@ import { extractConstructs, CONSTRUCTS } from "../schools/curriculum/capability"
 import type { ConstructId } from "../schools/curriculum/capability";
 
 const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
+
+/**
+ * Two programs compared the way a learner would see them, not the way a byte
+ * comparison would.
+ *
+ * Trailing whitespace and a final newline are invisible on screen, so two
+ * programs differing only in those are the same program for the purpose of
+ * "has the learner already been shown this". Nothing else is normalised —
+ * renaming a variable really does make it a different program to read, and
+ * treating those as duplicates would flag legitimate work.
+ */
+function norm(source: string): string {
+  return source
+    .split("\n")
+    .map((l) => l.replace(/\s+$/, ""))
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
+}
 
 function run(source: string, stdin: string): { ok: boolean; out: string; err: string } {
   try {
@@ -290,6 +309,28 @@ function checkBlock(block: LessonBlock, file: string) {
       if (seen.has(c.input)) warn(id, `duplicate case input ${JSON.stringify(c.input)}`);
       seen.add(c.input);
     }
+
+    /*
+     * A layout the prompt asks for and the checker does not enforce.
+     *
+     * `m2.l3.b8` required one digit per line and showed a three-line sample,
+     * but `token` splits on all whitespace — so a program printing every digit
+     * on ONE line was graded correct against a prompt that forbids it. The
+     * learner is told the format matters and then finds it does not, which is
+     * the same lie in the other direction from marking them wrong on a space.
+     *
+     * A warning rather than an error: a multi-line answer whose prompt never
+     * claims a layout is legitimately `token`. The author decides, but they
+     * have to have decided.
+     */
+    const multiline = block.cases.some((c) => c.expectedOutput.includes("\n"));
+    if (multiline && checker.kind === "token") {
+      warn(
+        id,
+        "expected output spans several lines but the checker is `token`, which accepts " +
+          "them all on one line. If the prompt states a layout, declare { kind: \"exact\" }",
+      );
+    }
   }
 
   /* -- predictions state what Python prints ------------------------------ */
@@ -399,6 +440,53 @@ async function main() {
 
   const ids = new Map<string, string>();
 
+  /*
+   * Every sibling in the same month directory is loaded too, even when only one
+   * file was named on the command line.
+   *
+   * The most common defect the first adversarial review found was a task whose
+   * answer is already on screen — and in several cases the program was on
+   * screen in a DIFFERENT lesson of the same month. An author checking one file
+   * cannot see that, and telling them to check by hand is how it got shipped
+   * twice. Siblings are read for the duplicate-program comparison only; they
+   * are not re-validated, so naming one file still reports on one file.
+   */
+  const named = new Set(files.map((f) => path.resolve(f)));
+  const siblings = new Set<string>();
+  for (const f of named) {
+    const dir = path.dirname(f);
+    if (!/[/\\]m\d\d$/.test(dir)) continue;
+    for (const entry of readdirSync(dir)) {
+      const abs = path.join(dir, entry);
+      if (entry.endsWith(".ts") && !named.has(abs)) siblings.add(abs);
+    }
+  }
+
+  /** Programs a learner is SHOWN, and programs that are an answer. */
+  const shownBy = new Map<string, string>();
+  const solutionOf: { id: string; program: string; own: boolean }[] = [];
+
+  function collectPrograms(block: LessonBlock, own: boolean) {
+    const shown: string[] = [];
+    if ("code" in block && typeof block.code === "string" && block.code.trim()) shown.push(block.code);
+    if (block.type === "find_bug") shown.push(block.fixedCode);
+    if (block.type === "worked_example") shown.push(block.code);
+    if (block.type === "reorder_code") {
+      shown.push(block.correctOrder.map((l) => block.lines.find((x) => x.id === l)?.code ?? "").join("\n"));
+    }
+    if (block.type === "fill_blank") {
+      let i = 0;
+      shown.push(block.template.replace(/___/g, () => block.blanks[i++]?.answer ?? ""));
+    }
+    for (const s of shown) {
+      const k = norm(s);
+      if (k && !shownBy.has(k)) shownBy.set(k, block.id);
+    }
+    if ("referenceSolution" in block && typeof block.referenceSolution === "string") {
+      solutionOf.push({ id: block.id, program: norm(block.referenceSolution), own });
+    }
+  }
+
   for (const file of files) {
     const abs = path.resolve(file);
     const mod = (await import(pathToFileURL(abs).href)) as Record<string, unknown>;
@@ -415,8 +503,58 @@ async function main() {
         if (prev) err(block.id, `duplicate id — also in ${prev}`);
         ids.set(block.id, `${file}:${name}`);
         checkBlock(block, file);
+        collectPrograms(block, true);
       }
     }
+  }
+
+  for (const abs of siblings) {
+    try {
+      const mod = (await import(pathToFileURL(abs).href)) as Record<string, unknown>;
+      for (const v of Object.values(mod)) {
+        if (!Array.isArray(v)) continue;
+        for (const block of v as LessonBlock[]) {
+          if (block && typeof block === "object" && "type" in block) collectPrograms(block, false);
+        }
+      }
+    } catch {
+      /* A sibling that does not import is not this run's problem. */
+    }
+  }
+
+  /*
+   * The check itself. A reference solution that is byte-identical to a program
+   * the learner has already been SHOWN is transcription, not a task — and the
+   * review found it in October's palindrome, its vowel count, its primality
+   * check and November's helper tasks, all of which had passed every gate.
+   */
+  /**
+   * A support twin and the task it substitutes for are the SAME problem, so of
+   * course they share an answer — and no learner ever sees both, because the
+   * `tracks` arrays put them on different routes. `m2.l5.b6s` and `m2.l5.b6`
+   * are not a duplicate; they are the mechanism.
+   *
+   * The defect is a task sharing its answer with something the SAME learner has
+   * already been shown, which is what everything below is about.
+   */
+  const twinned = (a: string, b: string) => a === `${b}s` || b === `${a}s`;
+
+  const seenSolutions = new Map<string, string>();
+  for (const s of solutionOf) {
+    if (!s.own || !s.program) continue;
+    const shower = shownBy.get(s.program);
+    if (shower && shower !== s.id && !twinned(shower, s.id)) {
+      err(
+        s.id,
+        `its reference solution is byte-identical to a program the learner is SHOWN at ` +
+          `${shower} — the task is transcription, not work`,
+      );
+    }
+    const twin = seenSolutions.get(s.program);
+    if (twin && twin !== s.id && !twinned(twin, s.id)) {
+      err(s.id, `its reference solution is byte-identical to ${twin}'s — one of them is not a task`);
+    }
+    if (!seenSolutions.has(s.program)) seenSolutions.set(s.program, s.id);
   }
 
   const tasks = [...ids.keys()].length;

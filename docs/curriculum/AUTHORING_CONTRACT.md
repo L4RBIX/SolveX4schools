@@ -229,3 +229,143 @@ python3 -I -S -c '<solution>' <<< '<case input>'
 or check a whole file at once with the harness in
 `docs/curriculum/reviews/` (see the month reports). Do not hand back content
 whose Python you have not executed.
+
+---
+
+## What the first adversarial review actually found
+
+Six independent reviewers went at October and November after both had passed
+every automated gate. They returned 24 findings. These are the classes that
+recurred, written as rules because every one of them survived `check-blocks`,
+`curriculum:validate`, `content-execution` and `tracks-every-month`.
+
+### 1. A task whose answer is already on screen
+
+The single most common defect, in both months, in several forms:
+
+- a `write_code` whose `referenceSolution` is byte-identical to a program the
+  lesson **prints in full** a card or two earlier — in a `concept`, a
+  `worked_example`, or a `find_bug`'s `fixedCode`;
+- a `fill_blank` whose completed template is that same program;
+- a `find_bug` that repairs a program the next `write_code` then asks for.
+
+**The rule.** Before you finish a lesson, extract every program in it —
+`code`, `fixedCode`, `referenceSolution`, filled templates, joined reorder
+lines — and compare them pairwise. **Write a script; do not eyeball it.** Any
+two that are byte-identical is a defect unless one is deliberately the other's
+starting point in a `modify_code`, and even then the direction must be
+*forwards*: the starting program is something the learner has already finished,
+never something they are about to be asked for.
+
+Extend the comparison across the whole month, not just adjacent cards. A
+duplicate found across two lessons is worse, not better: `m3.l5.b5` was a
+byte-for-byte copy of `m3.l3.b5` — same program, same bug, same repair — and was
+counted twice toward the month's promised total.
+
+### 2. Cases that pass the shortcut the task exists to forbid
+
+A palindrome check that compares **only the first and last element** passed all
+seven cases of `m2.p6`, because every `no` case in the set had differing
+endpoints. The same shortcut passed `m3.l7.b7`. A `largest()` that stops one
+element short passed all seven cases of `m3.l8.b6`, because no case put the
+maximum in the final position — and «соңғы элементті өткізіп жіберу» is an error
+the programme names by hand.
+
+**The rule.** For every task, name the two or three degenerate programs a
+learner could write that are *not* the intended method, then write the case that
+kills each one. Specifically, and every time they apply:
+
+| Task shape | The shortcut that must fail |
+|---|---|
+| palindrome | endpoints equal, middle not — `abca` → `no`, `1 2 3 2 9`-style lists |
+| any maximum / minimum / search | the answer sitting at the **last** position, and at the **first** |
+| "count elements with property P" | every element having P, and none having it |
+| two-pointer / window | the answer being the whole list, and being a single element |
+| anything with a boundary | the value exactly **on** the boundary, and one either side |
+
+### 3. Output format stated in the prompt but not enforced by the checker
+
+`m2.l3.b8` requires one digit per line and shows a three-line sample. The
+default `token` checker splits on all whitespace, so a program printing every
+digit on one line is graded **correct** against a prompt that forbids it.
+
+**The rule.** If a prompt states a layout — one per line, a specific separator,
+a table, a triangle — the block declares `checker: { kind: "exact" }`. If it does
+not state a layout, do not describe one in the sample. The prompt and the checker
+must agree; `token` is a promise that only the values matter.
+
+### 4. Requirements no checker can see
+
+November's assessment and fourteen other November tasks tell the learner the
+solution **must define a function** and **must return rather than print**. Output
+comparison cannot see either. A submission with no functions at all passes.
+
+**The rule.** A structural requirement is not a graded requirement. You have
+three honest options, and you must pick one deliberately:
+
+1. **Make the output impossible without it.** Best where it works — e.g. require
+   the helper to be called on several inputs whose combination cannot be produced
+   another way.
+2. **State it as guidance and grade the answer.** Then the prompt says "write a
+   helper function" as advice, not as a rule the learner will be marked on.
+3. **Send it to a human.** Pair the coding block with an `explain` that asks what
+   each function takes and returns — which a teacher reads, and which is the
+   programme's own «әр функцияның міндетін … түсіндіру».
+
+What you may not do is state a rule the product will not enforce and let the
+learner believe it was checked.
+
+### 5. Assessments that do not fit their stated minutes
+
+Both 20-minute checks carried **four graded tasks**. November's amounted to a
+from-scratch three-function program plus roughly eighteen separate written or
+spoken sub-answers.
+
+**The rule.** Twenty minutes is **one** unseen problem plus **one** short written
+or oral piece. Count the sub-questions inside each `explain` prompt — four
+numbered questions is four answers, not one — and count them against the clock.
+If the month's own «Айлық сынақ» sentence names three things, one of them is the
+coding task and the other two are short. September's original check timed at 32+
+minutes against a stated 20; that is the defect being avoided, not a style note.
+
+Do not ask the same question twice: October's written block asked two of the
+questions its oral block asked four cards later.
+
+### 6. Constructs used before anything explains them
+
+`.append()`, `.join()` and `str()` appear in reference solutions from October
+onwards and are **named in no learner-facing prose in either month**. The
+construct budget in `check-blocks` permits them, which is exactly why the gap
+survived: a budget says what is *allowed*, not what has been *taught*.
+
+**The rule.** The first time a construct appears in any code the learner sees or
+must write, some `concept` or `worked_example` in that lesson names it and says
+what it does — one sentence is enough. If you find yourself using something no
+lesson has introduced, either introduce it or rewrite the solution without it.
+
+### 7. Prompts that describe the wrong learner's screen
+
+`m2.l1.b8s` is support-only and opens by pointing at "the previous task" — but
+the previous card *on the support route* is a different problem, because the task
+it names is the one support does not receive.
+
+**The rule.** A block carrying `tracks` must read correctly for the routes that
+receive it. Before referring to "the previous card", "the task above" or "the
+program you just wrote", compute the sequence each of its tracks actually gets
+(`publicLesson(lesson, track)`) and check the reference is true for all of them.
+
+### 8. Kazakh and Russian grammar, in both directions
+
+Native-speaker review found real errors in both languages: «нешеу» used
+attributively where «неше» is required; «жік» (a noun) written as if it were the
+imperative of «жіктеу»; «тік бұрышты үшбұрыш» split where the textbook form is
+«тікбұрышты үшбұрыш»; a Russian gender-agreement slip («переменная … он»); and a
+clause, «но ячейки это разные», that no native would write.
+
+**The rule.** Neither language is a translation of the other and both are read by
+children. Two specific traps this course keeps hitting: Kazakh interrogatives and
+number agreement, and Russian gender agreement when a feminine technical noun
+(«переменная», «функция», «строка») is referred back to. Where a Russian
+restrictive clause becomes a coordinate clause in Kazakh, the Kazakh often ends
+up asserting something the Russian only qualifies — check that the two sentences
+still make the same claim.
