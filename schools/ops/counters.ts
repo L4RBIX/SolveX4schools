@@ -160,6 +160,22 @@ export const OPS_COUNTERS = [
 
   /** A reducer sweep that threw outright. Projections are behind. */
   "sweep.failures",
+
+  /**
+   * A hint that never reached a model because the ledger could not be opened
+   * or read: no subject, no episode, no ladder, so no hint.
+   *
+   * The learner is told in their own language that their work is not being
+   * saved, which is the honest thing to say and the only thing they can act on.
+   * This is the number that says it to somebody who can fix it — otherwise a
+   * class losing its tutor for an afternoon surfaces as eighteen children
+   * saying "Nova is being weird today" and nothing an operator can see.
+   *
+   * NOT `nova.failures`, which means a provider was reached and refused. Here
+   * nothing was asked of a provider, nothing was written, and no rung of the
+   * hint ladder was spent.
+   */
+  "nova.store_unavailable",
 ] as const;
 
 export type OpsCounter = (typeof OPS_COUNTERS)[number];

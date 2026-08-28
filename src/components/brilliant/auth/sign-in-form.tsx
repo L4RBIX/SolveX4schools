@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Locale } from "@schools/curriculum/types";
+import type { Locale, Localized } from "@schools/curriculum/types";
 import { L, t } from "@schools/presentation/labels";
 import { useLocale } from "@/components/sx/i18n";
 
@@ -24,6 +24,32 @@ const SUBMIT =
 const ERROR_BOX =
   "rounded-[12px] border-2 border-b-warn-edge bg-b-warn-fill/25 px-4 py-3 " +
   "text-[15px] leading-6 text-b-ink";
+
+/**
+ * Which sentence a failed sign-in gets, decided from the STATUS.
+ *
+ * Status first and body second, and that order is the whole point. The body is
+ * the thing that goes missing when a server is in trouble — an empty 500, a
+ * proxy's own HTML, a connection cut mid-response — so a branch that reads the
+ * body first degrades to whatever its fallback is at exactly the moment it
+ * matters, and the fallback here used to be «wrong password».
+ *
+ * 401 is the ONLY status this product may blame a password for. It is the only
+ * one that means a password was compared: `/api/auth/login` answers 429 for the
+ * rate limiter, 400 for an empty field, 503 when the store is unreachable, and
+ * 401 for a credential that was actually checked and did not match.
+ *
+ * 400 keeps the credentials sentence on purpose — from this form it can only
+ * mean an empty username or password, which is a true thing to call a wrong
+ * login. Anything else unexpected in the 4xx range is a client bug rather than
+ * an outage, and telling a learner to wait for it would be its own small lie;
+ * that is the trade taken by the final fallthrough.
+ */
+function signInError(status: number): Localized {
+  if (status >= 500) return L.signInUnavailable;
+  if (status === 429) return L.signInRateLimited;
+  return L.signInFailed;
+}
 
 /**
  * Sign in.
@@ -58,9 +84,24 @@ export function SignInForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const data = (await res.json()) as { redirectTo?: string; error?: string };
+      /* `res.json()` on an empty body THROWS, and that is not a hypothetical:
+         a store outage used to return a bare 500 with nothing in it, this line
+         threw, and the catch at the bottom rendered «Аты немесе құпиясөз дұрыс
+         емес» for a password the server had never looked at.
+
+         The route now answers with a body in every case. Parsing defensively
+         anyway, because the sentence a child reads must not depend on a server
+         keeping that promise — and there are hops between here and it (a proxy,
+         a load balancer, a captive portal) that can replace the body without
+         asking anyone. */
+      /* `redirectTo` and nothing else. The body used to carry `error` here too,
+         and the failure branch read it; declaring only what is actually read
+         keeps that from creeping back — the body is data now, not the thing the
+         error message is decided from. */
+      const data = (await res.json().catch(() => ({}))) as { redirectTo?: string };
+
       if (!res.ok) {
-        setError(data.error === "rate_limited" ? t(L.signInRateLimited, loc) : t(L.signInFailed, loc));
+        setError(t(signInError(res.status), loc));
         setBusy(false);
         return;
       }
@@ -69,7 +110,13 @@ export function SignInForm() {
       router.refresh();
       router.push(data.redirectTo ?? "/home");
     } catch {
-      setError(t(L.signInFailed, loc));
+      /* The request never completed at all — school Wi-Fi dropping in a
+         corridor, the server restarting mid-lesson, DNS gone. Nothing was
+         compared, so this must not be the credentials sentence either. It is
+         the same fact as a 503 from the learner's side ("nothing was checked,
+         it is not you"), so it gets the same sentence rather than a fourth one
+         nobody needs to distinguish. */
+      setError(t(L.signInUnavailable, loc));
       setBusy(false);
     }
   }

@@ -18,6 +18,7 @@ import { capabilityFor } from "@schools/curriculum/capability";
 import { config } from "@schools/config";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
 import { bump, opsLog, type OpsCounter } from "@schools/ops/counters";
+import { L } from "@schools/presentation/labels";
 import { sanitizePayload } from "@solvex/learning-contracts";
 import type { LearningEventRow } from "@schools/store/learning-store";
 import type { Locale } from "@schools/curriculum/types";
@@ -174,13 +175,86 @@ async function deterministic(
   controller.enqueue(frame("done", { interventionId: null }));
 }
 
-export async function POST(request: Request) {
-  /* Production and preview require a session; development may stay anonymous.
-     See `schools/auth/policy.ts` — one place decides, so two routes cannot
-     disagree about whether a stranger may accumulate learning evidence. */
-  const access = await checkLearningAccess();
-  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+/**
+ * The ledger will not answer, and the learner is owed a sentence anyway.
+ *
+ * Every store touch above the model call used to sit outside any try/catch. A
+ * PGlite data directory that had become unreadable therefore produced an
+ * unhandled rejection and a bare 500 with an EMPTY BODY — before a single byte
+ * of SSE framing existed. The panel's entire error protocol is frames, so with
+ * nothing to read it fell through to «Жауап алынбады. Қайта көріңіз.» beside a
+ * Retry button with no cap on it: a fourteen-year-old pressing retry against a
+ * database that will not come back this lesson, and not one sentence anywhere
+ * telling them or their teacher what had happened — while `/api/health` knew
+ * exactly, in both languages, the whole time.
+ *
+ * So the failure is answered the way the safety gate and the budget ceiling
+ * already answer: a normal 200 SSE stream, a policy frame, and text streamed in
+ * chunks so the panel's states behave as they do for any other reply. The frame
+ * carries `storeDown` so the panel can drop the hint chrome rather than infer
+ * anything from the prose.
+ *
+ * No model is called here and nothing is written, and both are structural
+ * rather than cautious. The hint ceiling is DERIVED from the ledger — the rung
+ * last granted, the effort since, the assessment cap — so a Nova that answered
+ * on this path would answer with no idea what the learner has already been
+ * given, which is the single thing the ladder exists to prevent. An unbounded
+ * hint is worse for the learner than no hint plus the truth.
+ */
+function storeDown(
+  locale: Locale,
+  phase: "identity" | "rate_limit" | "ladder",
+  err: unknown,
+): Response {
+  bump("nova.store_unavailable");
+  /* The phase, because "the directory is gone" and "one query failed" are two
+     different Tuesdays and the counter alone cannot tell them apart. The
+     message is trimmed and nothing else is logged: a driver error can carry a
+     connection string, and no learner is identified in an ops line. */
+  opsLog("nova.store_unavailable", {
+    phase,
+    message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+  });
+  return sse((c) =>
+    deterministic(c, L.novaStoreDown[locale], {
+      granted: 0,
+      requested: 0,
+      capped: false,
+      reason: "granted_as_requested",
+      /* Null for the same reason the safety and budget frames send null: the
+         whole explanation IS the streamed sentence, and a policy notice pinned
+         above it would say the same thing twice in two registers. */
+      explanation: null,
+      action: null,
+      provider: "policy",
+      /* Deliberately NOT degraded. `degraded` means "there is no model behind
+         Nova", and the panel raises a banner telling the class exactly that.
+         The model is fine here; the database is not. Telling eighteen children
+         the tutor is offline when it is answering normally would be a second
+         wrong sentence stacked on top of the outage. */
+      degraded: false,
+      /* The one flag that is true, and the one the panel keys on. */
+      storeDown: true,
+    }),
+  );
+}
 
+export async function POST(request: Request) {
+  /*
+   * The body first, ahead of the session check, and the reason is the locale.
+   *
+   * Everything below this line can now fail with a sentence instead of an empty
+   * 500, and a sentence has to be in a language the reader actually has. The
+   * locale arrives in the body and nowhere else — there is no session yet, and
+   * a store that will not open cannot be asked for a preference — so an access
+   * check that ran first would leave the store-down path guessing, and guessing
+   * means Kazakh copy on the screen of a child being taught in Russian.
+   *
+   * Nothing is given away by the move: parsing JSON reads no session, opens no
+   * database and writes nothing. The only thing an unauthenticated caller gains
+   * is being told its own body was malformed before being told it is not signed
+   * in.
+   */
   let body: HintBody;
   try {
     body = (await request.json()) as HintBody;
@@ -188,12 +262,51 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid json" }, { status: 400 });
   }
 
+  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
+
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence.
+
+     Guarded, because it reads the session table: with a cookie in hand and a
+     dead store this was the very first thing that threw, ~80 lines before the
+     route produced a byte. `access.ok === false` keeps its own 401 — "we do not
+     know who you are" and "we cannot reach the database" are different answers
+     and collapsing them would let an outage read as a sign-in problem. */
+  let access: Awaited<ReturnType<typeof checkLearningAccess>>;
+  try {
+    access = await checkLearningAccess();
+  } catch (err) {
+    return storeDown(locale, "identity", err);
+  }
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const target = body.blockId ? findBlock(body.blockId) : null;
   if (!target) return Response.json({ error: "unknown block" }, { status: 404 });
 
-  const { subjectId } = await resolveIdentity();
-  const store = await getStore();
-  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
+  /*
+   * The identity and the store, under one guard.
+   *
+   * `resolveIdentity` opens the store to resolve the subject and `getStore`
+   * opens it outright, so on a broken data directory both reject — and neither
+   * had a catch, which is the incident this route was found in.
+   *
+   * Note what the guard unblocks further down. `checkAndConsumeBudget` is
+   * documented to fail OPEN precisely so that a database hiccup does not switch
+   * the tutor off for a whole class mid-lesson, and it is implemented that way,
+   * with a try/catch, a counter and a log line. None of that code could ever
+   * run: the store had already been opened here, unguarded, and the request was
+   * dead long before the budget had an opinion.
+   */
+  let subjectId: string;
+  let store: Awaited<ReturnType<typeof getStore>>;
+  try {
+    ({ subjectId } = await resolveIdentity());
+    store = await getStore();
+  } catch (err) {
+    return storeDown(locale, "identity", err);
+  }
+
   const message = typeof body.message === "string" ? body.message.slice(0, MAX_MESSAGE) : "";
 
   /* Shape-checked here, length-bounded in the prompt builder. Anything that is
@@ -214,7 +327,17 @@ export async function POST(request: Request) {
      gateway is one address, so an IP bucket would let the most active student
      throttle the whole classroom — which reads to eighteen children as the
      platform being broken. */
-  const limit = await takeToken(`nova:${subjectId}`, { capacity: 20, refillPerMinute: 10 });
+  let limit: Awaited<ReturnType<typeof takeToken>>;
+  try {
+    limit = await takeToken(`nova:${subjectId}`, { capacity: 20, refillPerMinute: 10 });
+  } catch (err) {
+    /* The bucket is a row in the same database, and this is the first QUERY the
+       route runs — a store that opened and then refuses to answer fails here
+       rather than at the open above. It is the same outage with the same
+       consequence, so it gets the same sentence rather than being carried
+       another thirty lines into an await that has no catch either. */
+    return storeDown(locale, "rate_limit", err);
+  }
   if (!limit.ok) {
     return Response.json(
       { error: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds },
@@ -302,18 +425,6 @@ export async function POST(request: Request) {
     );
   }
 
-  /*
-   * The episode, scoped to the caller.
-   *
-   * This is the one input on this route that the browser chooses and the server
-   * used to accept. It matters more here than anywhere else: `enforceHintPolicy`
-   * derives the ENTIRE hint ceiling from the episode — `lastGrantedLevel`,
-   * `lastHintAt` and every effort event — and the resulting grant is echoed
-   * straight back to the caller in the `policy` frame below. A foreign episode
-   * id would therefore compute one learner's help budget from another's work
-   * and report the answer. See `schools/learning/episode-scope.ts`.
-   */
-  const episodeId = await ownedEpisodeId(subjectId, body.episodeId);
   const requested = Number.isFinite(body.requestedLevel) ? Number(body.requestedLevel) : 0;
 
   /* What kind of work this is, resolved from the curriculum and never from the
@@ -322,14 +433,48 @@ export async function POST(request: Request) {
      an assessment is. */
   const taskKind = taskKindOf(target);
 
-  const { grant, directive, assessmentCapped } = await enforceHintPolicy({
-    store,
-    subjectId,
-    episodeId,
-    requested,
-    learnerOverride: body.override === true,
-    taskKind,
-  });
+  /*
+   * The episode, scoped to the caller — and the ladder derived from it.
+   *
+   * The episode is the one input on this route that the browser chooses and the
+   * server used to accept. It matters more here than anywhere else:
+   * `enforceHintPolicy` derives the ENTIRE hint ceiling from it —
+   * `lastGrantedLevel`, `lastHintAt` and every effort event — and the resulting
+   * grant is echoed straight back to the caller in the `policy` frame below. A
+   * foreign episode id would therefore compute one learner's help budget from
+   * another's work and report the answer. See
+   * `schools/learning/episode-scope.ts`.
+   *
+   * Both are guarded, and guarded together, because they are the same read from
+   * the same ledger and neither has an answer that is safe to invent. A grant
+   * computed without `lastGrantedLevel` is a ceiling computed from nothing,
+   * which for a learner mid-assessment is the difference between a question and
+   * the answer — so a ledger that will not answer ends the request with the
+   * honest sentence rather than a guessed ceiling.
+   *
+   * The catch also swallows a plain bug in the ladder, and that is a real cost:
+   * the learner would be told their work is not being saved on an afternoon
+   * when the database is fine. `phase` in the ops line is what separates the
+   * two for whoever is reading them, and the alternative — letting it escape —
+   * is the empty 500 this whole file exists to stop.
+   */
+  let episodeId: string;
+  let policy: Awaited<ReturnType<typeof enforceHintPolicy>>;
+  try {
+    episodeId = await ownedEpisodeId(subjectId, body.episodeId);
+    policy = await enforceHintPolicy({
+      store,
+      subjectId,
+      episodeId,
+      requested,
+      learnerOverride: body.override === true,
+      taskKind,
+    });
+  } catch (err) {
+    return storeDown(locale, "ladder", err);
+  }
+
+  const { grant, directive, assessmentCapped } = policy;
 
   const block = target.block;
 
@@ -692,9 +837,22 @@ export async function POST(request: Request) {
       ]);
       send("done", { interventionId });
     } catch (err) {
-      const kind = err instanceof NovaProviderError ? err.kind : "unknown";
-      // Never leave the UI spinning. An error is a state, not a silence.
-      send("error", { kind, retryable: err instanceof NovaProviderError && err.retryable });
+      /*
+       * Never leave the UI spinning. An error is a state, not a silence.
+       *
+       * Both fields are read, and by design: `kind` chooses which sentence the
+       * panel shows, and `retryable` decides whether a Retry button appears at
+       * all. A refusal that will refuse again — a timeout the deployment cannot
+       * beat, a provider that is off — must not be offered a button, because a
+       * learner given one presses it until the lesson is over. Anything that is
+       * not a `NovaProviderError` is an unknown that has NOT been reasoned
+       * about, so it is not retryable either.
+       */
+      const providerError = err instanceof NovaProviderError ? err : null;
+      send("error", {
+        kind: providerError?.kind ?? "unknown",
+        retryable: providerError?.retryable ?? false,
+      });
     } finally {
       if (usageIn > 0 || usageOut > 0) {
         try {

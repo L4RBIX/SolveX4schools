@@ -914,6 +914,60 @@ export const L = {
    * print `and_or_swap` at a Kazakh teacher and call it information.
    */
   teacherMistakeUnnamed: { kk: "бір қате", ru: "одна ошибка" },
+
+  /* --- NEW · Nova, when the ledger will not answer ----------------------- */
+  /*
+   * Said by `/api/nova/hint` when the store cannot be opened or cannot be read:
+   * no identity, no episode, no hint ladder, and therefore no hint. The learner
+   * asked a question and something has to come back — without this the route
+   * died before the first byte of SSE and the panel fell through to «Жауап
+   * алынбады. Қайта көріңіз.» beside a Retry button, which is a fourteen-year-
+   * old pressing retry against a database that will not return for an hour.
+   *
+   * Three facts in one breath, and each is load-bearing. That the work is not
+   * being saved, because a learner who solves six blocks and finds them gone
+   * the next morning stops trusting the product for the rest of the year. That
+   * they can keep going, because they can — the curriculum, the editor and the
+   * grader do not need this. And that the teacher has to be told, because the
+   * teacher is the only person in the room who can act on it.
+   *
+   * A learner's sentence, deliberately not the teacher's: `saving_progress` in
+   * `schools/ops/health.ts` states the same fact to an adult, ends in "tell the
+   * administrator", and lives in a `server-only` module that never reaches the
+   * browser. One shared string would either send a child to the school
+   * administrator or ship the ops report into the lesson bundle.
+   */
+  novaStoreDown: {
+    kk: "Қазір сенің жұмысыңды көре алмай тұрмын — жауаптарың да сақталмайды. Есепті шығара бер, бірақ мұғаліміңе айт: мұны түзету керек.",
+    ru: "Сейчас я не вижу твою работу — ответы пока не сохраняются. Продолжай решать, но скажи учителю: это нужно починить.",
+  },
+
+  /* --- NEW · a sign-in that was never checked ---------------------------- */
+  /*
+   * The sentence that exists because the alternative was a lie.
+   *
+   * When the store is unreachable, `/api/auth/login` compares nothing at all —
+   * the rate limiter is the first thing it touches and the rate limiter is a
+   * table. That used to escape as an empty 500, and the form fell through to
+   * `signInFailed`: «Аты немесе құпиясөз дұрыс емес». A product telling a
+   * fourteen-year-old they mistyped a password that was never read. They try
+   * again, they doubt the card the teacher wrote it on, and then they go and
+   * fetch the teacher, who cannot sign in either.
+   *
+   * Three things and nothing else: it is not you, nothing was checked, and here
+   * is who to tell if it keeps happening. No mention of a database, a server or
+   * a service — none of those is a word a learner can act on, and the one who
+   * can act on it is standing in the room.
+   *
+   * `signInFailed` stays exactly as it is, and stays the ONLY sentence in this
+   * product that is allowed to blame a password. It is now reachable only from
+   * a 401, which is the only status that means a password was actually
+   * compared.
+   */
+  signInUnavailable: {
+    kk: "Кіру уақытша істемей тұр. Құпиясөзің тексерілген жоқ — бір-екі минуттан кейін қайта көр. Қайталанса, мұғаліміңе айт.",
+    ru: "Вход временно не работает. Пароль не проверялся — попробуй через пару минут. Если не пройдёт, скажи учителю.",
+  },
 } as const;
 
 export function t(value: Localized, locale: Locale): string {
