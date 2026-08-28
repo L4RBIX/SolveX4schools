@@ -172,10 +172,15 @@ export function Hero({
 }: HeroProps = {}) {
   return (
     <section className="b-shell flex flex-col justify-center gap-8 py-12 lg:h-[760px] lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:py-0">
-      <div className="contents lg:block lg:w-full lg:max-w-[640px]">
+      {/* `lg:min-w-0` is the whole fix for the 1024 breakpoint: a flex item
+          defaults to `min-width: auto`, so a 76px display line containing
+          "программировать," refuses to shrink and pushes the 560px video off
+          the page. The display size now reaches 76px at 1280, which is where
+          the reference was measured, and holds at 60px between 1024 and 1280. */}
+      <div className="contents lg:block lg:w-full lg:max-w-[640px] lg:min-w-0">
         <h1
           className={cn(
-            "order-1 text-center text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[76px] lg:leading-[79.8px] lg:tracking-[-1.4px]",
+            "order-1 text-center text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[60px] lg:leading-[64px] lg:tracking-[-1.1px] xl:text-[76px] xl:leading-[79.8px] xl:tracking-[-1.4px]",
             headingFontClass,
           )}
         >

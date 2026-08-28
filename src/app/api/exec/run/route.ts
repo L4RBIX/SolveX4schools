@@ -1,4 +1,5 @@
 import { getExecutionProvider, EXECUTION_LIMITS } from "@schools/exec";
+import { MAX_REQUEST_BYTES, checkPayloadSize, requestTooLarge } from "@schools/exec/limits";
 import { resolveIdentity } from "@schools/learning/identity";
 import { takeToken } from "@schools/lib/rate-limit";
 
@@ -11,11 +12,35 @@ import { takeToken } from "@schools/lib/rate-limit";
  * experimenting experiments less.
  *
  * SUBMIT is the trusted path, and it lives on `/api/learning/submit`.
+ *
+ * ## RUN IS NOT IDEMPOTENT AND MUST NOT BECOME SO
+ *
+ * `/api/learning/submit` now carries a `submissionId` and refuses to grade the
+ * same submission twice. Nothing of the sort belongs here, and the temptation
+ * to make the two routes symmetrical is worth naming so nobody acts on it.
+ * Running the same program twice is the entire point of a Run button — change
+ * the input, or just look at it again — and there is no ledger row for a second
+ * run to corrupt, because this route writes nothing. Deduplicating it would
+ * remove a feature and call it hardening.
+ *
+ * The size limits below apply to both routes, because those are about what this
+ * service will hold in memory and hand to a subprocess, which is the same
+ * question wherever the code came from.
  */
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  /* Before the body is read. `request.json()` buffers whatever arrives, so the
+     cheapest possible refusal of a hundred-megabyte POST is one that happens
+     before it is parsed. See `schools/exec/limits.ts`. */
+  if (requestTooLarge(request)) {
+    return Response.json(
+      { error: "request too large", limitBytes: MAX_REQUEST_BYTES },
+      { status: 413 },
+    );
+  }
+
   let body: { sourceCode?: string; stdin?: string };
   try {
     body = (await request.json()) as { sourceCode?: string; stdin?: string };
@@ -24,11 +49,36 @@ export async function POST(request: Request) {
   }
 
   const source = typeof body.sourceCode === "string" ? body.sourceCode : "";
+  const stdin = typeof body.stdin === "string" ? body.stdin : "";
   if (!source.trim()) {
     return Response.json({ error: "sourceCode required" }, { status: 400 });
   }
-  if (source.length > EXECUTION_LIMITS.maxSourceBytes) {
-    return Response.json({ error: "source too large" }, { status: 413 });
+
+  /*
+   * Size, on both fields, in bytes.
+   *
+   * Two things were wrong here. The source check compared `source.length` —
+   * UTF-16 code units — against a limit named in BYTES, so a program commented
+   * in Kazakh or Russian was measured at roughly half the size it would occupy
+   * when written to the judge. And `stdin` had no limit at all: whatever the
+   * body contained went straight into a subprocess's pipe.
+   *
+   * Both now go through the same function the provider decorator uses, so the
+   * route and the judge cannot hold different opinions about what is too big,
+   * and the response names the ceiling and the actual size — a bare 413 tells a
+   * learner nothing they can act on.
+   */
+  const rejection = checkPayloadSize({ sourceCode: source, stdin });
+  if (rejection) {
+    return Response.json(
+      {
+        error: "payload too large",
+        reason: rejection.reason,
+        limitBytes: rejection.limitBytes,
+        actualBytes: rejection.actualBytes,
+      },
+      { status: 413 },
+    );
   }
 
   const { subjectId } = await resolveIdentity();
@@ -44,10 +94,34 @@ export async function POST(request: Request) {
   }
 
   const provider = await getExecutionProvider();
+  if (provider === null) {
+    /*
+     * No server judge — and for RUN, specifically, that is close to harmless.
+     *
+     * This route is the FALLBACK for browsers that cannot load Pyodide. The
+     * primary Run path is the learner's own browser and does not touch this
+     * code at all, so `EXEC_PROVIDER=none` costs a modern browser nothing. It
+     * costs a learner on a machine without WASM their Run button, which is
+     * worth saying plainly rather than returning an empty successful-looking
+     * result with no output in it.
+     *
+     * 503, not 500: nothing is broken. Nothing is configured.
+     */
+    return Response.json(
+      {
+        status: "provider_error",
+        error: "no_trusted_provider",
+        stdout: "",
+        stderr: "",
+        infrastructureError: true,
+      },
+      { status: 503 },
+    );
+  }
   const result = await provider.run({
     language: "python3",
     sourceCode: source,
-    stdin: typeof body.stdin === "string" ? body.stdin : "",
+    stdin,
     timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
     memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,
   });

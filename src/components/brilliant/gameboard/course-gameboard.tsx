@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { GameboardPedestal } from "./gameboard-pedestal";
 import {
@@ -54,14 +54,45 @@ export interface CourseGameboardProps {
     level: string;
     start: string;
     jumpHere: string;
+    /** Screen-reader name for the scroll-to-top control. */
+    scrollTop?: string;
   };
+  /**
+   * Even vertical rhythm instead of the reference's negative-margin collapse.
+   *
+   * The reference pins each level header and then pulls the node stack up
+   * underneath it with `-mt-30` / `-mt-50` against a `mb-50` header. Those
+   * numbers were measured against ITS rows, which are ~230px tall because a
+   * Rive pedestal is much taller than our static one. Against a 134px row the
+   * same numbers land differently in each section: 80px of air after the first
+   * header and zero after every other, so the board reads as both sparse and
+   * arbitrary.
+   *
+   * Off by default, so /brilliant/app/course keeps the measured geometry.
+   */
+  evenRhythm?: boolean;
+  /** Nova on the active node instead of Brilliant's Rive Koji. */
+  ownMascot?: boolean;
+  /**
+   * Rendered at the top of the node column, above the first level.
+   *
+   * A slot rather than a concrete component because this file is shared with
+   * the measurement baseline at /brilliant/app/course, which must keep
+   * rendering exactly as measured. It also has to be INSIDE this component:
+   * the scroller is `position: fixed`, so anything a caller renders next to
+   * `<CourseGameboard>` is painted underneath it rather than above the board.
+   */
+  beforeBoard?: ReactNode;
 }
 
 export function CourseGameboard({
   course = COURSE,
   levels = LEVELS,
   currentLevel = CURRENT_LEVEL,
-  labels = { level: "Level", start: "Start", jumpHere: "Jump here" },
+  labels = { level: "Level", start: "Start", jumpHere: "Jump here", scrollTop: "Scroll to top" },
+  evenRhythm = false,
+  ownMascot = false,
+  beforeBoard = null,
 }: CourseGameboardProps = {}) {
   const [selected, setSelected] = useState<GameboardNode | null>(null);
   const [showTop, setShowTop] = useState(false);
@@ -108,11 +139,14 @@ export function CourseGameboard({
   return (
     <div
       ref={scroller}
-      className="fixed inset-x-0 bottom-0 top-[65px] flex justify-start gap-8 overflow-y-auto overflow-x-hidden px-6 pt-5 xl:justify-center xl:px-28"
+      /* `min-w-0` on the board below: the reference pins it at 364px, which
+         with the container's own padding overflows a 375px phone and gives the
+         whole page a horizontal scrollbar. */
+      className="fixed inset-x-0 top-[65px] bottom-0 flex justify-start gap-8 overflow-x-hidden overflow-y-auto px-3 pt-5 sm:px-6 xl:justify-center xl:px-28"
     >
       {/* ---- left: course summary, sticky ---------------------------- */}
       <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] lg:block">
-        <div className="flex flex-col items-start gap-4 rounded-[20px] border-2 border-white/20 bg-b-bg p-8">
+        <div className="flex flex-col items-start gap-4 rounded-[20px] sx-card border-2 border-b-fg/20 p-8">
           <Image
             src={course.art}
             alt=""
@@ -123,14 +157,14 @@ export function CourseGameboard({
           <div className="flex flex-col gap-6 text-left">
             <div className="flex flex-col gap-4">
               <h1 className="text-[24px] leading-[30px] font-bold">{course.title}</h1>
-              <p className="text-white/60">{course.blurb}</p>
+              <p className="text-b-fg/60">{course.blurb}</p>
             </div>
             <div className="flex items-center gap-4 text-[14px] leading-[21px]">
-              <span className="flex items-center gap-2 text-white/60">
+              <span className="flex items-center gap-2 text-b-fg/60">
                 <LessonsIcon />
                 {course.lessons}
               </span>
-              <span className="flex items-center gap-2 text-white/60">
+              <span className="flex items-center gap-2 text-b-fg/60">
                 <ExercisesIcon />
                 {course.exercises}
               </span>
@@ -140,8 +174,10 @@ export function CourseGameboard({
       </aside>
 
       {/* ---- right: the board ---------------------------------------- */}
-      <div className="relative z-[1] mt-5 w-full min-w-[364px] max-w-[488px] flex-[2_1_364px]">
-        <div className="flex flex-col items-center gap-[30px]">
+      <div className="relative z-[1] mt-5 w-full max-w-[488px] min-w-0 flex-[2_1_364px] sm:min-w-[364px]">
+        <div className={cn("flex flex-col items-center", evenRhythm ? "gap-14" : "gap-[30px]")}>
+          {beforeBoard}
+
           {levels.map((level, li) => (
             <section key={level.index} className="w-full">
               <LevelHeader
@@ -149,18 +185,22 @@ export function CourseGameboard({
                 title={level.title}
                 current={level.index === currentLevel}
                 levelLabel={labels.level}
+                bottomGap={evenRhythm ? "mb-10" : "mb-50"}
               />
 
               <div
                 className={cn(
-                  "flex flex-col items-center gap-[30px] mb-15",
-                  li === 0 ? "-mt-30" : "-mt-50",
+                  "flex flex-col items-center gap-[30px]",
+                  evenRhythm ? "" : "mb-15",
+                  evenRhythm ? "" : li === 0 ? "-mt-30" : "-mt-50",
                 )}
               >
                 {level.nodes.map((node: GameboardNode) => (
                   <NodeRow
                     key={`${level.index}-${node.title}`}
                     node={node}
+                    wide={evenRhythm}
+                    ownMascot={ownMascot}
                     selected={selected?.title === node.title}
                     onSelect={() =>
                       setSelected((cur) => (cur?.title === node.title ? null : node))
@@ -186,6 +226,7 @@ export function CourseGameboard({
 
       <ScrollTopButton
         show={showTop}
+        label={labels.scrollTop}
         onClick={() => scroller.current?.scrollTo({ top: 0, behavior: "smooth" })}
       />
     </div>
@@ -200,10 +241,15 @@ export function CourseGameboard({
 function NodeRow({
   node,
   selected,
+  wide,
+  ownMascot,
   onSelect,
 }: {
   node: GameboardNode;
   selected: boolean;
+  /** Russian and Kazakh lesson names do not fit the reference's 274px row. */
+  wide?: boolean;
+  ownMascot?: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -219,7 +265,8 @@ function NodeRow({
         aria-pressed={selected}
         aria-disabled={node.locked || undefined}
         className={cn(
-          "group flex w-[274px] items-end gap-2 text-left",
+          "group flex items-end gap-2 text-left",
+          wide ? "w-[320px]" : "w-[274px]",
           node.locked ? "cursor-default" : "cursor-pointer",
         )}
       >
@@ -228,6 +275,11 @@ function NodeRow({
           selected={selected}
           active={node.active}
           review={node.review}
+          ownMascot={ownMascot}
+          /* A node is "locked" here because the lesson is not authored yet, not
+             because the learner has to earn it. So it is dimmed rather than
+             padlocked: a padlock promises a key. */
+          className={cn(ownMascot && node.locked && "opacity-35")}
         />
         {/* The label column was 138px, measured against short English titles.
             Kazakh lesson names run materially longer, so it grows rather than
@@ -238,12 +290,12 @@ function NodeRow({
             className={cn(
               "transition-colors",
               node.locked
-                ? "text-white/25"
+                ? "text-b-fg/25"
                 : node.done
-                  ? "text-white/70"
+                  ? "text-b-fg/70"
                   : node.active || selected
-                    ? "text-white"
-                    : "text-white/40",
+                    ? "text-b-fg"
+                    : "text-b-fg/40",
             )}
           >
             {node.title}
@@ -283,14 +335,16 @@ function LevelHeader({
   title,
   current,
   levelLabel = "Level",
+  bottomGap = "mb-50",
 }: {
   index: number;
   title: string;
   current: boolean;
   levelLabel?: string;
+  bottomGap?: string;
 }) {
   return (
-    <div className="sticky top-[41px] z-[1] mb-50 h-16 bg-b-bg px-4">
+    <div className={cn("sticky top-[41px] z-[1] h-16 bg-sx-page px-4", bottomGap)}>
       <div className="relative">
         <button
           type="button"
@@ -361,7 +415,7 @@ function FooterCard({
                 data-slot="button3d-face"
                 className={cn(
                   "flex h-12 w-full items-center justify-center rounded-[60px] px-6 py-[14px]",
-                  "leading-5 font-medium text-white",
+                  "leading-5 font-medium text-b-fg",
                   "bg-b-purple shadow-[0_4px_0_0_var(--color-b-purple-2)]",
                   "-translate-y-1 transition-[transform,box-shadow] duration-100 ease-out",
                   "group-active:translate-y-0 group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",
@@ -377,15 +431,23 @@ function FooterCard({
   );
 }
 
-function ScrollTopButton({ show, onClick }: { show: boolean; onClick: () => void }) {
+function ScrollTopButton({
+  show,
+  onClick,
+  label = "Scroll to top",
+}: {
+  show: boolean;
+  onClick: () => void;
+  label?: string;
+}) {
   return (
     <button
       type="button"
-      aria-label="Scroll to top"
+      aria-label={label}
       onClick={onClick}
       className={cn(
         "fixed bottom-10 left-1/2 z-20 flex h-12 w-12 -translate-x-[420px] items-center justify-center",
-        "rounded-full border-2 border-b-edge bg-b-bg transition-opacity duration-300",
+        "rounded-full sx-card border-2 border-b-edge transition-opacity duration-300",
         show ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

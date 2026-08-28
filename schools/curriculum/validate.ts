@@ -1,3 +1,4 @@
+import { checkerProblem } from "../exec/checker";
 import type { LessonBlock, Month } from "./types";
 import { ATTEMPT_BLOCK_TYPES } from "./types";
 import { PROGRAM } from "./program";
@@ -95,6 +96,25 @@ function checkBlock(block: LessonBlock, where: string) {
         where,
         `block "${block.id}" has no hidden case — a learner can pass it by printing the sample answer`,
       );
+    }
+  }
+
+  /*
+   * The checker has to be usable BEFORE anyone is graded by it.
+   *
+   * The case this exists for is a `numeric` checker with no declared tolerance.
+   * There is no global default and there deliberately never will be — a
+   * tolerance is a statement about how wrong this particular answer is allowed
+   * to be, and only the author of the task knows it. So the choice at runtime
+   * is between inventing a number for them (which marks children right or wrong
+   * on a rule nobody wrote) and refusing to grade. It refuses; this is the gate
+   * that means it never has to.
+   */
+  if ("checker" in block && block.checker) {
+    const problem = checkerProblem(block.checker);
+    if (problem) err(where, `block "${block.id}" declares an unusable checker — ${problem}`);
+    if (!("cases" in block) || !Array.isArray(block.cases) || block.cases.length === 0) {
+      warn(where, `block "${block.id}" declares a checker but has no cases for it to check`);
     }
   }
 }

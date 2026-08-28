@@ -1,4 +1,5 @@
 import type { LessonBlock, Locale } from "@schools/curriculum/types";
+import type { PublicBlock } from "@schools/curriculum/public";
 import { ATTEMPT_BLOCK_TYPES } from "@schools/curriculum/types";
 
 /**
@@ -89,6 +90,49 @@ export function canCheck(block: LessonBlock, answer: BlockAnswer): boolean {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Public-payload helpers                                                     */
+/*                                                                            */
+/* The browser no longer receives answer keys, so it cannot call `checkBlock`. */
+/* It still needs two things that require no key at all: whether a block is an */
+/* attempt, and whether the learner has entered enough to press Check. These   */
+/* work on the projected shape from `schools/curriculum/public.ts`.            */
+/* -------------------------------------------------------------------------- */
+
+export function isPublicAttemptBlock(block: PublicBlock): boolean {
+  return ATTEMPT_BLOCK_TYPES.has(block.type);
+}
+
+export function publicCanCheck(block: PublicBlock, answer: BlockAnswer): boolean {
+  if (!isPublicAttemptBlock(block)) return true;
+
+  switch (answer.kind) {
+    case "none":
+      return false;
+    case "option":
+      return answer.id.length > 0;
+    case "text":
+      return answer.value.trim().length > 0;
+    case "blanks":
+      return answer.values.length > 0 && answer.values.every((v) => v.trim().length > 0);
+    case "order":
+      return answer.ids.length > 0;
+    case "line":
+      return answer.line > 0;
+    case "grid": {
+      /* Variable NAMES survive the projection precisely so this still works —
+         the grid cannot know which cells are required without them. */
+      const keys =
+        block.type === "trace_code"
+          ? block.steps.flatMap((step, row) => step.vars.map((name) => `${row}:${name}`))
+          : [];
+      return keys.every((k) => (answer.cells[k] ?? "").trim().length > 0);
+    }
+    case "acknowledged":
+      return true;
+  }
+}
+
 function requiredGridKeys(block: LessonBlock): string[] {
   if (block.type !== "trace_code") return [];
   return block.steps.flatMap((step, row) =>
@@ -113,6 +157,7 @@ export function checkBlock(block: LessonBlock, answer: BlockAnswer): CheckResult
   switch (block.type) {
     /* --- passive blocks: acknowledged, never graded ------------------- */
     case "concept":
+    case "worked_example":
     case "visual_simulation":
     case "reflection":
       return { verdict: "unknown" };

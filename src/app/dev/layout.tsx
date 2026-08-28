@@ -19,20 +19,20 @@ export default function DevLayout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-dvh bg-b-bg font-b-sans text-white">
-      <header className="border-b border-white/20 bg-b-panel px-8">
+    <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
+      <header className="border-b border-b-fg/20 bg-b-panel px-8">
         <div className="mx-auto flex h-16 w-full max-w-[1216px] items-center gap-6">
           <span className="text-[15px] font-bold tracking-wide text-b-warn-icon uppercase">
             Dev
           </span>
           <nav className="flex gap-6">
             {tabs.map((t) => (
-              <Link key={t.href} href={t.href} className="text-white/60 hover:text-white">
+              <Link key={t.href} href={t.href} className="text-b-fg/60 hover:text-b-fg">
                 {t.label}
               </Link>
             ))}
           </nav>
-          <Link href="/" className="ml-auto text-white/40 hover:text-white">
+          <Link href="/" className="ml-auto text-b-fg/40 hover:text-b-fg">
             ← product
           </Link>
         </div>

@@ -105,44 +105,79 @@
 @theme {
   /* ---- brilliant.org ------------------------------------------------- */
   /* light surface (homepage) */
-  --color-b-paper: #f5f3f1;
-  --color-b-white: #ffffff;
-  --color-b-ink: #000000;
-  --color-b-muted: rgba(0, 0, 0, 0.4);
-  --color-b-line: rgba(0, 0, 0, 0.1);
+  --color-b-paper: light-dark(#f5f3f1, #f5f3f1);
+  --color-b-white: light-dark(#ffffff, #ffffff);
+  --color-b-ink: light-dark(#101114, #000000);
+  --color-b-muted: light-dark(rgba(16, 17, 20, 0.55), rgba(0, 0, 0, 0.4));
+  --color-b-line: light-dark(rgba(16, 17, 20, 0.1), rgba(0, 0, 0, 0.1));
+
+  /*
+     The ink every surface writes with.
+
+     `text-white/60` appears 206 times in this product, `border-white/20` 88
+     times. On a light surface each of those is invisible, and the fix cannot be
+     "rewrite every component" — so the literal `white` becomes a token that the
+     theme moves. Tailwind v4 composes opacity with `color-mix`, so `text-b-fg/60`
+     behaves exactly as `text-white/60` did on the dark arm.
+  */
+  /*
+     The page ground, distinct from the card surface.
+
+     In the dark arm they are the same colour (#141414) and separation comes
+     entirely from a 2px `b-edge` rule — that is how the reference is built. On
+     a light surface a hairline rule alone is not enough: the reference's own
+     light pages sit white cards on a warm off-white ground and let a soft
+     shadow do the lifting. So the two tokens diverge in light and stay
+     identical in dark, and no component has to know which theme it is in.
+  */
+  --color-sx-page: light-dark(#f5f3f1, #141414);
+
+  /*
+     Ink for a surface that is dark in BOTH themes.
+
+     A filled green or blue button, and a code block, do not follow the theme —
+     they are dark either way, which is what makes them read as an action and
+     as code. Their ink is therefore white in both arms. Written as a token
+     rather than a literal `text-white` so the exception is a decision on the
+     record instead of something that looks like a missed find-and-replace.
+  */
+  --color-b-on-fill: #ffffff;
+
+  --color-b-fg: light-dark(#16181d, #ffffff);
+  --color-b-fg-strong: light-dark(#000000, #ffffff);
 
   /* dark surface (/courses, course map, lesson player) */
-  --color-b-dark: #141414;
-  --color-b-panel: #1e1e1e;
-  --color-b-edge: #4c4c4c;
-  --color-b-dim: rgba(255, 255, 255, 0.4);
-  --color-b-dim-2: rgba(255, 255, 255, 0.2);
+  --color-b-dark: light-dark(#faf9f8, #141414);
+  --color-b-panel: light-dark(#ffffff, #1e1e1e);
+  --color-b-edge: light-dark(rgba(16, 17, 20, 0.14), #4c4c4c);
+  --color-b-dim: light-dark(rgba(16, 17, 20, 0.5), rgba(255, 255, 255, 0.4));
+  --color-b-dim-2: light-dark(rgba(16, 17, 20, 0.22), rgba(255, 255, 255, 0.2));
 
   /* accents */
-  --color-b-green: #29cc57;
-  --color-b-green-2: #5ed981;
-  --color-b-blue: #4a5cd6;
-  --color-b-blue-2: #3860be;
+  --color-b-green: light-dark(#12923d, #29cc57);
+  --color-b-green-2: light-dark(#12923d, #5ed981);
+  --color-b-blue: light-dark(#3446bd, #4a5cd6);
+  --color-b-blue-2: light-dark(#2a3aa3, #3860be);
 
   /* ---- authenticated app shell ---------------------------------------
      Panda's own tokens, read from an element inside `html[data-theme="dark"]`
      (reading `:root` returns the LIGHT arm and is wrong here). */
-  --color-b-bg: #141414; /* bg.primary */
-  --color-b-elevated: #1e1e1e; /* bg.elevated / bg.secondary */
-  --color-b-border: rgba(255, 255, 255, 0.2); /* border.primary */
-  --color-b-text-2: rgba(255, 255, 255, 0.6); /* text.secondary */
-  --color-b-text-off: rgba(255, 255, 255, 0.2); /* text.disabled */
-  --color-b-pear: #d8e82e; /* pear.500 — filled streak bolt */
-  --color-b-purple: #9d62ff; /* purple.500 */
-  --color-b-purple-2: #874de5; /* purple.600 — 3D lip */
+  --color-b-bg: light-dark(#ffffff, #141414); /* bg.primary */
+  --color-b-elevated: light-dark(#ffffff, #1e1e1e); /* bg.elevated / bg.secondary */
+  --color-b-border: light-dark(rgba(16, 17, 20, 0.12), rgba(255, 255, 255, 0.2)); /* border.primary */
+  --color-b-text-2: light-dark(rgba(16, 17, 20, 0.62), rgba(255, 255, 255, 0.6)); /* text.secondary */
+  --color-b-text-off: light-dark(rgba(16, 17, 20, 0.3), rgba(255, 255, 255, 0.2)); /* text.disabled */
+  --color-b-pear: light-dark(#7d8a00, #d8e82e); /* pear.500 — filled streak bolt */
+  --color-b-purple: light-dark(#6d3fd4, #9d62ff); /* purple.500 */
+  --color-b-purple-2: light-dark(#5a2fbd, #874de5); /* purple.600 — 3D lip */
 
   /* ---- /you/ dashboard ------------------------------------------------ */
-  --color-b-chart: #456dff; /* problems-solved bar */
-  --color-b-green-deep: #004e16; /* summary gradient top, resilience chip */
-  --color-b-lilac: #b689ff; /* initiative icon */
-  --color-b-lilac-deep: #5a2ea3; /* initiative chip */
-  --color-b-deck-on: #170b29; /* active course thumbnail fill */
-  --color-b-deck-on-edge: #7139cc; /* active course thumbnail border, LEVEL label */
+  --color-b-chart: light-dark(#3457e0, #456dff); /* problems-solved bar */
+  --color-b-green-deep: light-dark(#e6f4ea, #004e16); /* summary gradient top, resilience chip */
+  --color-b-lilac: light-dark(#7b4bd8, #b689ff); /* initiative icon */
+  --color-b-lilac-deep: light-dark(#efe7ff, #5a2ea3); /* initiative chip */
+  --color-b-deck-on: light-dark(#f0e9ff, #170b29); /* active course thumbnail fill */
+  --color-b-deck-on-edge: light-dark(#6d3fd4, #7139cc); /* active course thumbnail border, LEVEL label */
 
   /* ---- lesson player (authenticated) ---------------------------------
      Measured from the live player and from the scheduler interactive's own
@@ -151,47 +186,53 @@
      because the player ships `color-scheme: dark`. */
 
   /* scheduler — resting */
-  --color-b-sched-fill: #142563;
-  --color-b-sched-edge: #294bc6;
-  --color-b-sched-fill-hover: #213c9e;
-  --color-b-sched-edge-hover: #375ce3;
+  --color-b-sched-fill: light-dark(#eef2ff, #142563);
+  --color-b-sched-edge: light-dark(#c3cffb, #294bc6);
+  --color-b-sched-fill-hover: light-dark(#e0e8ff, #213c9e);
+  --color-b-sched-edge-hover: light-dark(#93a9f5, #375ce3);
   /* scheduler — selected, pre-check */
-  --color-b-sched-fill-on: #375ce3;
-  --color-b-sched-edge-on: #7491ff;
+  --color-b-sched-fill-on: light-dark(#3457e0, #375ce3);
+  --color-b-sched-edge-on: light-dark(#2440b8, #7491ff);
 
   /* verdict: wrong */
-  --color-b-warn: #b78900; /* card border, speech bubble, cta lip */
-  --color-b-warn-fill: #d7a613; /* wrong block fill */
-  --color-b-warn-edge: #f9d25c; /* wrong block border */
-  --color-b-warn-cta: #f7c325;
-  --color-b-warn-cta-ink: #5c4400;
-  --color-b-warn-icon: #fce49d;
+  --color-b-warn: light-dark(#a06a00, #b78900); /* card border, speech bubble, cta lip */
+  --color-b-warn-fill: light-dark(#f0b429, #d7a613); /* wrong block fill */
+  --color-b-warn-edge: light-dark(#a06a00, #f9d25c); /* wrong block border */
+  --color-b-warn-cta: light-dark(#f0b429, #f7c325);
+  --color-b-warn-cta-ink: light-dark(#4a3300, #5c4400);
+  --color-b-warn-icon: light-dark(#6b4600, #fce49d);
 
   /* verdict: right */
-  --color-b-ok: #009b2b; /* card + panel border */
-  --color-b-ok-fill: #15b441; /* right block fill, cta lip */
-  --color-b-ok-edge: #5ed981; /* right block border, satisfied icon */
-  --color-b-ok-panel: #001f09; /* panel wash */
-  --color-b-ok-progress: #9fe8b3; /* progress-bar fill */
+  --color-b-ok: light-dark(#12923d, #009b2b); /* card + panel border */
+  --color-b-ok-fill: light-dark(#1aa347, #15b441); /* right block fill, cta lip */
+  --color-b-ok-edge: light-dark(#12923d, #5ed981); /* right block border, satisfied icon */
+  --color-b-ok-panel: light-dark(#eaf7ee, #001f09); /* panel wash */
+  --color-b-ok-progress: light-dark(#34b45f, #9fe8b3); /* progress-bar fill */
 
   /* verdict: locked-out blocks + greyed panel */
-  --color-b-lock-fill: #383838;
-  --color-b-lock-edge: #4c4c4c;
-  --color-b-lock-panel: #4c4c4c;
-  --color-b-lock-panel-edge: #666666;
+  --color-b-lock-fill: light-dark(#eceae7, #383838);
+  --color-b-lock-edge: light-dark(rgba(16, 17, 20, 0.16), #4c4c4c);
+  --color-b-lock-panel: light-dark(#eceae7, #4c4c4c);
+  --color-b-lock-panel-edge: light-dark(rgba(16, 17, 20, 0.2), #666666);
 
   /* neutral cta */
-  --color-b-cta: #e5e5e5;
-  --color-b-cta-lip: #b3b3b3;
+  --color-b-cta: light-dark(#16181d, #e5e5e5);
+  --color-b-cta-lip: light-dark(#000000, #b3b3b3);
 
   /* pastel media panels, 555x387 r20 on the homepage */
-  --color-b-sky: #f0f8fa;
-  --color-b-mint: #e7eee2;
-  --color-b-peach: #ffede0;
+  --color-b-sky: light-dark(#eef6f9, #f0f8fa);
+  --color-b-mint: light-dark(#e7eee2, #e7eee2);
+  --color-b-peach: light-dark(#ffede0, #ffede0);
 
   /* ---- fonts: the references' own self-hosted webfaces ---------------- */
-  --font-b-sans: var(--font-cofo-brilliant), ui-sans-serif, system-ui, sans-serif;
-  --font-b-serif: var(--font-cofo-robert), Georgia, serif;
+  /* The CoFo faces are declared only inside src/app/brilliant/layout.tsx, which
+     404s in production. The var fallback is therefore the production value: the
+     product renders in IBM Plex Sans (SIL OFL, and it carries Ә Ғ Қ Ң Ө Ұ Ү Һ І),
+     and the reverse-engineering baseline still renders in the real thing.
+     Written as a fallback rather than as two token sets so that no component has
+     to know which tree it is in. */
+  --font-b-sans: var(--font-cofo-brilliant, var(--font-plex-sans)), ui-sans-serif, system-ui, sans-serif;
+  --font-b-serif: var(--font-cofo-robert, var(--font-plex-sans)), Georgia, serif;
   --font-b-mono: var(--font-source-code-pro), ui-monospace, monospace;
 
   /* ---- motion -------------------------------------------------------- */
@@ -218,6 +259,97 @@
   );
 }
 
+/* ============================================================================
+   THEME
+
+   Three states, not two:
+
+     :root                       no stamp — follow the operating system
+     :root[data-theme="light"]   an explicit choice
+     :root[data-theme="dark"]    an explicit choice
+
+   The un-stamped state is the common one (a viewer who has never opened
+   preferences), so it must resolve correctly on its own rather than defaulting
+   to whichever arm happens to be written first.
+
+   ## Why `light-dark()` and not two blocks of overrides
+
+   The obvious shape — a `@media (prefers-color-scheme: light)` block plus a
+   `[data-theme="light"]` block — means every token is written twice and the two
+   copies drift the first time someone edits one of them. `light-dark()`
+   resolves against the element's own `color-scheme`, so each token is authored
+   ONCE and the only thing a theme switch changes is a single `color-scheme`
+   declaration. The scheduler widget in the reference player does exactly this;
+   the note further up this file records that its colours are all authored as
+   `light-dark(<light>, <dark>)`.
+
+   ## Why the historical token names stay
+
+   Components address colour through `b-*` utilities. Some of those names are
+   surface ROLES rather than colours — `b-white` is "the page surface of a
+   public page", which in dark mode is not white. Redefining the variable moves
+   every call site at once; renaming 100+ call sites would move nothing except
+   the risk. The `--surface-*` / `--text-*` / `--border-*` names below are the
+   vocabulary new code should use, aliased onto the same values so the two
+   cannot drift.
+   ========================================================================== */
+
+:root {
+  /* No stamp: the operating system decides, and `light-dark()` follows. */
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/*
+  The reverse-engineering baseline never themes.
+
+  `/brilliant/*` exists to be compared against screenshots of the original,
+  which is dark. Letting it follow the viewer's preference would make the one
+  thing it is for — "does this still match?" — depend on an OS setting.
+*/
+[data-site="brilliant"] {
+  color-scheme: dark;
+}
+
+/* ---- semantic vocabulary -------------------------------------------------
+   Aliases onto the themed tokens above. New code uses these names; the `b-*`
+   utilities keep working because both resolve to the same variable. */
+:root {
+  --surface-page: var(--color-b-bg);
+  --surface-raised: var(--color-b-elevated);
+  --surface-card: var(--color-b-panel);
+  --surface-interactive: color-mix(in oklab, var(--color-b-fg) 6%, transparent);
+  /* Code stays dark in BOTH themes — that is what makes a code block read as
+     code rather than as a quoted paragraph. It therefore needs its own ink:
+     `--text-primary` is dark in the light theme and would be invisible here. */
+  --surface-code: light-dark(#1b1d23, #0d0d0d);
+  --border-subtle: color-mix(in oklab, var(--color-b-fg) 12%, transparent);
+  --border-strong: color-mix(in oklab, var(--color-b-fg) 24%, transparent);
+  --text-primary: var(--color-b-fg);
+  --text-secondary: color-mix(in oklab, var(--color-b-fg) 62%, transparent);
+  --text-muted: color-mix(in oklab, var(--color-b-fg) 42%, transparent);
+  --accent: var(--color-b-purple);
+  --accent-soft: color-mix(in oklab, var(--color-b-purple) 18%, transparent);
+  --success: var(--color-b-ok-edge);
+  --warning: var(--color-b-warn-edge);
+  --danger: light-dark(#c0362c, #ff6b6b);
+  --shadow-soft: light-dark(
+    0 1px 2px rgb(16 17 20 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.4)
+  );
+  --shadow-raised: light-dark(
+    0 12px 32px rgb(16 17 20 / 0.1),
+    0 12px 32px rgb(0 0 0 / 0.45)
+  );
+}
+
 @layer base {
   html {
     /*
@@ -225,8 +357,10 @@
       auto-dark inversion applied on top. Opt out explicitly, then paint an
       unambiguous default so no route inherits a UA canvas colour.
     */
-    color-scheme: only light;
-    background-color: #ffffff;
+    /* `color-scheme` is set by the theme rules above, not here. Painting an
+       unambiguous ground is still this rule's job: without it a route inherits
+       the UA canvas and flashes the wrong colour before the first paint. */
+    background-color: var(--color-b-bg);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
@@ -234,18 +368,62 @@
 
   body {
     margin: 0;
-    background-color: #ffffff;
-    color: #191f28;
+    background-color: var(--color-b-bg);
+    color: var(--text-primary);
   }
 
+  /*
+    Focus is drawn with the accent rather than `currentColor`.
+
+    `currentColor` disappears whenever the focused element's own colour is close
+    to its background — a ghost button, a muted link, an icon button at 20%
+    opacity. Those are exactly the controls a keyboard user is most likely to be
+    on. The accent is legible on both themes by construction.
+  */
   :focus-visible {
-    outline: 2px solid currentColor;
+    outline: 2px solid var(--accent);
     outline-offset: 3px;
     border-radius: 4px;
+  }
+
+  /*
+    An explicit preference beats the OS.
+
+    `prefers-reduced-motion` is honoured further down this file. A learner who
+    turns motion OFF in preferences on a machine that asks for reduced motion
+    must still get animation, so the app stamps `data-motion` and this pair is
+    what makes the stamp win.
+  */
+  :root[data-motion="reduce"] *,
+  :root[data-motion="reduce"] *::before,
+  :root[data-motion="reduce"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 @layer components {
+  /*
+    A card.
+
+    In dark this is exactly what the reference does — a flat panel separated by
+    a 2px rule. In light the same rule would be the only thing holding the card
+    off the ground, which reads flat and cheap, so a soft shadow does the
+    lifting and the border steps back. `light-dark()` keeps it one declaration.
+  */
+  .sx-card {
+    background-color: var(--color-b-bg);
+    box-shadow: light-dark(var(--shadow-soft), none);
+  }
+
+  /* The raised variant: menus, dropdowns, the Nova panel. */
+  .sx-raised {
+    background-color: var(--color-b-panel);
+    box-shadow: var(--shadow-raised);
+  }
+
   /* brilliant.org container: 1296px inner at 1440 viewport */
   .b-shell {
     @apply mx-auto w-full max-w-[1296px] px-5 sm:px-8;
@@ -349,13 +527,15 @@
   }
 }
 
+/* Scoped with `:not([data-motion="full"])` so a learner who explicitly asked
+   for motion gets it even on a machine configured to reduce it. */
 @media (prefers-reduced-motion: reduce) {
-  html {
+  html:not([data-motion="full"]) {
     scroll-behavior: auto;
   }
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

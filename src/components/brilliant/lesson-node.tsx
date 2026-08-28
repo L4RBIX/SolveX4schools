@@ -167,7 +167,7 @@ export function LessonNode({ node, open, onToggle, className }: LessonNodeProps)
         <span
           className={cn(
             "max-w-[200px] text-[16px] leading-6 font-normal sm:max-w-[240px]",
-            locked ? "text-b-dim" : "text-white",
+            locked ? "text-b-dim" : "text-b-fg",
           )}
         >
           {node.title}
@@ -185,13 +185,13 @@ export function LessonNode({ node, open, onToggle, className }: LessonNodeProps)
               transition={{ ...enter, duration: 0.26 }}
               className="overflow-hidden"
             >
-              <div className="mt-5 mb-1.5 w-[468px] max-w-full rounded-[16px] border-2 border-white/20 bg-b-dark p-6 shadow-[0_4px_0_0_rgba(255,255,255,0.2)]">
-                <p className="text-center text-[18px] leading-6 font-bold text-white">
+              <div className="mt-5 mb-1.5 w-[468px] max-w-full rounded-[16px] border-2 border-b-fg/20 bg-b-dark p-6 shadow-[0_4px_0_0_rgba(255,255,255,0.2)]">
+                <p className="text-center text-[18px] leading-6 font-bold text-b-fg">
                   {node.title}
                 </p>
                 <button
                   type="button"
-                  className="b-press mt-5 h-12 w-full rounded-[56px] bg-b-blue text-[16px] font-normal text-white shadow-[0_4px_0_0_#3860be] hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_0_#3860be]"
+                  className="b-press mt-5 h-12 w-full rounded-[56px] bg-b-blue text-[16px] font-normal text-b-fg shadow-[0_4px_0_0_#3860be] hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_0_#3860be]"
                 >
                   Start
                 </button>

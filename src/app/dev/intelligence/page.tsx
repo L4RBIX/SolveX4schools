@@ -25,6 +25,11 @@ export default async function IntelligenceLab() {
   const decision = persisted ? decide(persisted.state) : null;
   const lastSweep = await store.lastSweepAt();
 
+  /* Read once, through a helper. Calling Date.now() inline in a component body
+     is flagged as impure, and it would also give two different answers to two
+     readers of the same page. */
+  const now = readClock();
+
   const counts = await sql.query<{ event_name: string; source_trust: string; n: number }>(
     `select event_name, source_trust, count(*)::int as n
        from learning_events where subject_id = $1
@@ -43,7 +48,7 @@ export default async function IntelligenceLab() {
           k="state age"
           v={
             persisted
-              ? `${Math.round((Date.now() - Date.parse(persisted.computedAt)) / 1000)}s`
+              ? `${Math.round((now - Date.parse(persisted.computedAt)) / 1000)}s`
               : "no state"
           }
         />
@@ -51,14 +56,14 @@ export default async function IntelligenceLab() {
 
       <Section title="1 — Raw events, by name and trust">
         <table className="w-full text-left text-[14px]">
-          <thead className="text-white/40">
+          <thead className="text-b-fg/40">
             <tr><th className="py-1">event</th><th>trust</th><th className="text-right">n</th></tr>
           </thead>
           <tbody className="font-b-mono">
             {counts.rows.map((r) => (
-              <tr key={`${r.event_name}:${r.source_trust}`} className="border-t border-white/10">
+              <tr key={`${r.event_name}:${r.source_trust}`} className="border-t border-b-fg/10">
                 <td className="py-1">{r.event_name}</td>
-                <td className={r.source_trust === "browser" ? "text-white/40" : "text-b-green-2"}>
+                <td className={r.source_trust === "browser" ? "text-b-fg/40" : "text-b-green-2"}>
                   {r.source_trust}
                 </td>
                 <td className="text-right tabular-nums">{r.n}</td>
@@ -66,7 +71,7 @@ export default async function IntelligenceLab() {
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-[13px] text-white/40">
+        <p className="mt-3 text-[13px] text-b-fg/40">
           Green trust levels are ones the server or the judge stated. `browser` is
           what a client claimed and is never used to raise a belief.
         </p>
@@ -74,7 +79,7 @@ export default async function IntelligenceLab() {
 
       <Section title="2 — Episodes">
         <table className="w-full text-left text-[14px]">
-          <thead className="text-white/40">
+          <thead className="text-b-fg/40">
             <tr>
               <th className="py-1">task</th><th>skill</th><th>outcome</th>
               <th>struggle</th><th className="text-right">indep.</th><th className="text-right">attrib.</th>
@@ -82,9 +87,9 @@ export default async function IntelligenceLab() {
           </thead>
           <tbody className="font-b-mono">
             {inputs.map((i) => (
-              <tr key={i.episodeId} className="border-t border-white/10">
+              <tr key={i.episodeId} className="border-t border-b-fg/10">
                 <td className="py-1">{i.taskRef}</td>
-                <td className={i.skill ? "" : "text-white/30"}>{i.skill ?? "— (unmeasured)"}</td>
+                <td className={i.skill ? "" : "text-b-fg/30"}>{i.skill ?? "— (unmeasured)"}</td>
                 <td>{i.episode.outcome}</td>
                 <td>{i.episode.struggle_class ?? "—"}</td>
                 <td className="text-right tabular-nums">{i.episode.independence_weight}</td>
@@ -93,7 +98,7 @@ export default async function IntelligenceLab() {
             ))}
           </tbody>
         </table>
-        <p className="mt-3 text-[13px] text-white/40">
+        <p className="mt-3 text-[13px] text-b-fg/40">
           A null skill is correct for an episode that produced no verdict. It is what
           keeps ungraded work out of the model.
         </p>
@@ -101,11 +106,11 @@ export default async function IntelligenceLab() {
 
       <Section title="3 — LearnerState">
         {persisted ? (
-          <pre className="overflow-x-auto font-b-mono text-[13px] leading-5 text-white/80">
+          <pre className="overflow-x-auto font-b-mono text-[13px] leading-5 text-b-fg/80">
             {JSON.stringify(persisted.state, null, 2)}
           </pre>
         ) : (
-          <p className="text-white/50">No state yet — the sweep has seen nothing from this subject.</p>
+          <p className="text-b-fg/50">No state yet — the sweep has seen nothing from this subject.</p>
         )}
       </Section>
 
@@ -117,17 +122,17 @@ export default async function IntelligenceLab() {
             <Row k="confidence" v={decision.primary.confidence.toFixed(2)} />
             <Row k="reason" v={decision.primary.reason} />
             <Row k="expected" v={decision.primary.expectedOutcome} />
-            <pre className="mt-3 overflow-x-auto font-b-mono text-[13px] leading-5 text-white/80">
+            <pre className="mt-3 overflow-x-auto font-b-mono text-[13px] leading-5 text-b-fg/80">
               {JSON.stringify(decision.primary.nova, null, 2)}
             </pre>
           </>
         ) : (
-          <p className="text-white/50">No decision without state.</p>
+          <p className="text-b-fg/50">No decision without state.</p>
         )}
       </Section>
 
       <Section title="5 — Learner-facing evidence (what /you shows)">
-        <pre className="overflow-x-auto font-b-mono text-[13px] leading-5 text-white/80">
+        <pre className="overflow-x-auto font-b-mono text-[13px] leading-5 text-b-fg/80">
           {JSON.stringify(
             buildEvidence(persisted?.state ?? null, 1).filter((s) => s.state !== "not_started"),
             null,
@@ -150,9 +155,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex gap-4 border-t border-white/10 py-1 text-[14px] first:border-0">
-      <span className="w-40 shrink-0 text-white/40">{k}</span>
+    <div className="flex gap-4 border-t border-b-fg/10 py-1 text-[14px] first:border-0">
+      <span className="w-40 shrink-0 text-b-fg/40">{k}</span>
       <span className="font-b-mono break-all">{v}</span>
     </div>
   );
+}
+
+/** Wall clock, read outside the component body. */
+function readClock(): number {
+  return Date.now();
 }

@@ -71,3 +71,58 @@ export function allLessons(): { month: Month; lesson: Lesson }[] {
     month.units.flatMap((unit) => unit.lessons.map((lesson) => ({ month, lesson }))),
   );
 }
+
+/**
+ * Something a learner can finish: a lesson, or a month's own check.
+ *
+ * Deliberately NOT the `Lesson` object. The one caller is the completion route,
+ * which needs to know that an id is real and how many blocks it has — and
+ * handing it the authored lesson would put every `referenceSolution` one
+ * careless `Response.json` away from a browser. `public.ts` exists because that
+ * has already happened once.
+ */
+export interface Completable {
+  id: string;
+  /** 1 = September … 9 = May. */
+  monthIndex: number;
+  /** Blocks in the authored object. The ceiling for any count a client reports. */
+  blockCount: number;
+  status: PublicationStatus;
+}
+
+/**
+ * Look one up by the id the lesson player reports on completion.
+ *
+ * Covers assessments as well as lessons, because the monthly check is recorded
+ * under its own id — `assessment-route.tsx` marks `m1.assessment` complete so
+ * the board can show it done without it being counted as a tenth lesson.
+ *
+ * Returns null for anything not in the curriculum. That is the whole point: a
+ * completion for an id nobody authored is a forged request, not content we have
+ * yet to write.
+ */
+export function findCompletable(id: string): Completable | null {
+  for (const month of PROGRAM.months) {
+    for (const unit of month.units) {
+      for (const lesson of unit.lessons) {
+        if (lesson.id === id) {
+          return {
+            id,
+            monthIndex: month.index,
+            blockCount: lesson.blocks.length,
+            status: lesson.status,
+          };
+        }
+      }
+    }
+    if (month.assessment?.id === id) {
+      return {
+        id,
+        monthIndex: month.index,
+        blockCount: month.assessment.blocks.length,
+        status: month.assessment.status,
+      };
+    }
+  }
+  return null;
+}

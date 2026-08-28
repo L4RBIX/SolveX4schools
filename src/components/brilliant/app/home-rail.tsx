@@ -15,11 +15,22 @@ import { StreakBolt } from "./app-icons";
  * the layout is the original's, the numbers are not the owner's.
  */
 
-const LEAGUES_BADGE =
-  "/assets/original/brilliant/brilliant.org/images/loggedInHomepage/leagues-locked.svg";
-
 export interface HomeRailProps {
-  name?: string;
+  /**
+   * The learner's name, when one is known.
+   *
+   * `null` means nobody has told us — which is the truth until enrolment
+   * exists. The greeting then drops the comma and the name rather than
+   * addressing a fourteen-year-old by somebody else's.
+   */
+  name?: string | null;
+  /**
+   * Days active this week. Counted from real episodes, never a placeholder.
+   *
+   * The big numeral is the COUNT OF ACTIVE DAYS, not a consecutive-day streak:
+   * nothing in the ledger records unbroken runs, and calling a count a streak
+   * would be a claim the data cannot carry.
+   */
   streak?: number;
   /** Which of the five day slots are already earned. */
   days?: { label: string; done: boolean }[];
@@ -39,17 +50,33 @@ export interface HomeRailProps {
    * not part of this product and inventing one would be a fabricated metric.
    */
   goal?: { eyebrow: string; detail: string; badge?: string } | null;
+  /**
+   * Stack above the deck on narrow screens instead of disappearing.
+   *
+   * The reference hides this rail entirely below 1024 because brilliant.org
+   * serves a different mobile design there. We do not have a different mobile
+   * design, so hiding it means a learner on a phone never sees their greeting,
+   * their week, their goal, or the Ask control — the whole left half of the
+   * product. Off by default so /brilliant/app/home keeps the measured
+   * behaviour.
+   */
+  stackOnMobile?: boolean;
 }
 
 export interface RailLabels {
   welcome: string;
+  /** Used when no name is known. Not `welcome` with the name cut off. */
+  welcomeAnonymous: string;
   askPlaceholder: string;
   ask: string;
   streakPrompt: React.ReactNode;
+  /** Screen-reader name for the week strip. */
+  daysLabel: string;
 }
 
 const DEFAULT_LABELS: RailLabels = {
   welcome: "Welcome",
+  welcomeAnonymous: "Welcome",
   askPlaceholder: "What do you want to learn?",
   ask: "Ask",
   streakPrompt: (
@@ -57,6 +84,7 @@ const DEFAULT_LABELS: RailLabels = {
       Solve <strong className="font-bold">3 problems</strong> to start a streak
     </>
   ),
+  daysLabel: "",
 };
 
 const DEFAULT_DAYS = [
@@ -76,58 +104,76 @@ export function HomeRail({
   className,
   labels,
   goal = { eyebrow: "Unlock Leagues", detail: "", badge: undefined },
+  stackOnMobile = false,
 }: HomeRailProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
   return (
     <aside
       className={cn(
-        "sticky top-[105px] z-10 hidden w-[384px] min-w-[384px] flex-col items-start gap-5 pb-7 lg:flex",
+        "flex-col items-start gap-5 pb-7",
+        "lg:sticky lg:top-[105px] lg:z-10 lg:flex lg:w-[384px] lg:min-w-[384px]",
+        stackOnMobile ? "flex w-full min-w-0" : "hidden",
         className,
       )}
     >
       <p className="w-full text-[20px] leading-[30px] font-bold">
-        {L.welcome}, {name}
+        {name ? `${L.welcome}, ${name}` : L.welcomeAnonymous}
       </p>
 
       <AskBar placeholder={L.askPlaceholder} action={L.ask} />
 
       {/* streak card — 2px #4C4C4C border, radius 16 */}
-      <div className="w-full rounded-2xl border-2 border-b-edge bg-b-bg">
+      <div className="w-full rounded-2xl sx-card border-2 border-b-edge">
         <div className="flex flex-col gap-2 p-6">
           <div className="mx-1 flex h-[60px] items-center justify-between">
             <div className="flex w-[68px] items-center">
               <span className="block min-w-9 text-[48px] leading-[60px] font-bold tabular-nums">{streak}</span>
-              <StreakBolt size={32} completed={streak > 0} className={streak > 0 ? "text-b-pear" : "text-white/40"} />
+              <StreakBolt size={32} completed={streak > 0} className={streak > 0 ? "text-b-pear" : "text-b-fg/40"} />
             </div>
-            <StreakCharges charges={2} />
+            {/* The reference shows "streak charges" — a freeze mechanic this
+                product does not have. Removed rather than drawn inert. */}
           </div>
 
           <p className="mb-2">{L.streakPrompt}</p>
 
-          <div className="flex flex-1 justify-between">
+          <ul
+            aria-label={L.daysLabel || undefined}
+            className="flex flex-1 justify-between"
+          >
             {days.map((d) => (
-              <div key={d.label} className="flex w-12 flex-col items-center gap-2">
+              <li key={d.label} className="flex w-11 flex-col items-center gap-2">
                 <DayBolt done={d.done} />
-                <span className="p-1 text-center font-bold">{d.label}</span>
-              </div>
+                <span className="p-1 text-center text-[15px] font-bold">{d.label}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
 
       {/* goal card — radius 20, padding 20 */}
       {goal ? (
-        <div className="flex w-full items-center rounded-[20px] border-2 border-b-edge bg-b-bg p-5">
-          <Image
-            src={goal.badge ?? LEAGUES_BADGE}
-            alt=""
-            width={64}
-            height={64}
-            className="mr-4 h-16 w-16 shrink-0"
-          />
+        <div className="flex w-full items-center rounded-[20px] sx-card border-2 border-b-edge p-5">
+          {goal.badge ? (
+            <Image
+              src={goal.badge}
+              alt=""
+              width={64}
+              height={64}
+              className="mr-4 h-16 w-16 shrink-0"
+            />
+          ) : (
+            /* The reference puts `leagues-locked.svg` here — a padlocked
+               shield. Two problems: it is Brilliant's file, and a padlock next
+               to a weekly practice target says the target is something the
+               learner has to unlock. It is not; it is 40 minutes. */
+            <GoalRing
+              filled={goalFraction(goal.detail)}
+              className="mr-4 h-16 w-16 shrink-0"
+            />
+          )}
           <div className="min-w-0">
             <p className="b-eyebrow leading-[18px]">{goal.eyebrow}</p>
-            <p className="leading-6 text-white/60">
+            <p className="leading-6 text-b-fg/60">
               {goal.detail || `${xp} of ${xpGoal} XP`}
             </p>
           </div>
@@ -146,7 +192,7 @@ function AskBar({ placeholder, action }: { placeholder: string; action: string }
   return (
     <button
       type="button"
-      className="flex h-[52px] w-full items-center gap-2 rounded-full border-2 border-white/20 bg-b-bg py-1 pr-1 pl-4 text-left"
+      className="flex h-[52px] w-full items-center gap-2 rounded-full sx-card border-2 border-b-fg/20 py-1 pr-1 pl-4 text-left"
     >
       {/* lucide-search, 24 viewBox drawn at 16 */}
       <svg
@@ -159,15 +205,15 @@ function AskBar({ placeholder, action }: { placeholder: string; action: string }
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden="true"
-        className="shrink-0 text-white/60"
+        className="shrink-0 text-b-fg/60"
       >
         <circle cx="11" cy="11" r="8" />
         <path d="m21 21-4.3-4.3" />
       </svg>
-      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-white/40">
+      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-b-fg/40">
         {placeholder}
       </span>
-      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-white/5 px-[14px] py-2 leading-5 font-medium text-white/20">
+      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-b-fg/5 px-[14px] py-2 leading-5 font-medium text-b-fg/20">
         {action}
       </span>
     </button>
@@ -179,48 +225,6 @@ function AskBar({ placeholder, action }: { placeholder: string; action: string }
  * in the original and exposed only to assistive tech, which is why the card
  * shows nothing but the two icons.
  */
-function StreakCharges({ charges }: { charges: number }) {
-  return (
-    <button type="button" className="relative flex h-6 items-center justify-center gap-2">
-      <span className="sr-only">Streak Charges</span>
-      {Array.from({ length: charges }, (_, i) => (
-        <svg
-          key={i}
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-          className="shrink-0 text-white/20"
-        >
-          <mask id={`chg-${i}`} fill="white">
-            <rect x="4.80029" y="2.39795" width="14.4" height="19.2009" rx="1.07939" />
-          </mask>
-          <rect
-            x="4.80029"
-            y="2.39795"
-            width="14.4"
-            height="19.2009"
-            rx="1.07939"
-            stroke="currentColor"
-            strokeWidth="3.75925"
-            mask={`url(#chg-${i})`}
-          />
-          <path
-            d="M9.07959 0.938721L14.9214 0.938721C14.9982 0.938878 15.0609 1.00151 15.061 1.07837L15.061 1.45923L8.93994 1.45923L8.93994 1.07837L8.95166 1.02466C8.97278 0.974571 9.02184 0.938839 9.07959 0.938721Z"
-            stroke="currentColor"
-            strokeWidth="1.87963"
-          />
-          <path
-            d="M9.0791 23.0598L14.9209 23.0598C14.9978 23.0597 15.0604 22.997 15.0605 22.9202L15.0605 22.5393L8.93945 22.5393L8.93945 22.9202L8.95117 22.9739C8.97229 23.024 9.02136 23.0597 9.0791 23.0598Z"
-            stroke="currentColor"
-            strokeWidth="1.87963"
-          />
-        </svg>
-      ))}
-    </button>
-  );
-}
 
 /**
  * A day slot: a bolt inside a 30px ring, drawn on a 32 viewBox at 48px.
@@ -234,7 +238,10 @@ function DayBolt({ done }: { done: boolean }) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M10.2903 16.2252L16.5654 8.24794C16.9417 7.76964 17.7079 8.10483 17.612 8.70578L16.7061 14.3834H20.5934C21.3322 14.3834 21.7459 15.2351 21.2891 15.8159L15.014 23.7931C14.6378 24.2714 13.8716 23.9362 13.9674 23.3353L14.8734 17.6577H10.9861C10.2472 17.6577 9.83354 16.8059 10.2903 16.2252Z"
-        fill={done ? "var(--color-b-pear)" : "rgba(255,255,255,0.2)"}
+        /* The unearned bolt is a token, not a literal: `rgba(255,255,255,0.2)`
+           is invisible on a light card, and this is the one glyph on the rail
+           that has to read as "not yet" rather than as "missing". */
+        fill={done ? "var(--color-b-pear)" : "var(--color-b-text-off)"}
       />
       <rect
         x="1"
@@ -242,10 +249,58 @@ function DayBolt({ done }: { done: boolean }) {
         width="30"
         height="30"
         rx="15"
-        stroke="#fff"
+        stroke="var(--color-b-fg)"
         strokeOpacity="0.2"
         strokeWidth="1.5"
       />
     </svg>
   );
+}
+
+/**
+ * The weekly-goal dial.
+ *
+ * Drawn here rather than loaded: it is two circles, and an inline one carries
+ * no licence and no request. The arc is the fraction of the target actually
+ * reached — nothing else on this card is decorative.
+ */
+function GoalRing({ filled, className }: { filled: number; className?: string }) {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const shown = Math.max(0, Math.min(1, filled));
+  return (
+    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className={className}>
+      <circle cx="32" cy="32" r={r} stroke="currentColor" strokeWidth="6" className="text-b-fg/10" />
+      {shown > 0 ? (
+        <circle
+          cx="32"
+          cy="32"
+          r={r}
+          stroke="var(--color-b-pear)"
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={`${c * shown} ${c}`}
+          transform="rotate(-90 32 32)"
+        />
+      ) : null}
+      <circle cx="32" cy="32" r="4" className="fill-b-fg/25" />
+    </svg>
+  );
+}
+
+/**
+ * Read the two numerals out of the detail line ("12 из 40 мин").
+ *
+ * The caller already builds that sentence per locale, and threading a second
+ * numeric prop through for the same fact invites the two disagreeing. Anything
+ * unparseable yields an empty ring, which is the safe direction to be wrong in.
+ */
+function goalFraction(detail: string): number {
+  const nums = detail.match(/\d+/g);
+  if (!nums || nums.length < 2) return 0;
+  const [a, b] = nums.map(Number);
+  // Kazakh puts the target first ("40 мин ішінен 12"), Russian puts it second.
+  const done = Math.min(a, b);
+  const target = Math.max(a, b);
+  return target > 0 ? done / target : 0;
 }

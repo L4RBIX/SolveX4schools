@@ -109,7 +109,7 @@ export default function NovaLab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end gap-4">
-        <label className="flex flex-col gap-1 text-[13px] text-white/60">
+        <label className="flex flex-col gap-1 text-[13px] text-b-fg/60">
           requested level
           <input
             type="number" min={0} max={4} value={level}
@@ -117,11 +117,11 @@ export default function NovaLab() {
             className="h-10 w-24 rounded-[8px] border-2 border-b-edge bg-black px-3 font-b-mono"
           />
         </label>
-        <label className="flex items-center gap-2 text-[13px] text-white/60">
+        <label className="flex items-center gap-2 text-[13px] text-b-fg/60">
           <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
           learner override (&ldquo;just tell me&rdquo;)
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-white/60">
+        <label className="flex flex-col gap-1 text-[13px] text-b-fg/60">
           locale
           <select
             value={locale}
@@ -178,11 +178,11 @@ export default function NovaLab() {
         </div>
       ) : null}
 
-      <p className="text-[13px] text-white/40">
+      <p className="text-[13px] text-b-fg/40">
         status: {status}{errorKind ? ` (${errorKind})` : ""}
       </p>
 
-      <p className="text-[13px] leading-5 text-white/40">
+      <p className="text-[13px] leading-5 text-b-fg/40">
         The attack buttons cannot change the <code>granted</code> level — it is computed
         from the ledger before the prompt exists. What they test is whether the reply
         text holds up, which only means something against a real model

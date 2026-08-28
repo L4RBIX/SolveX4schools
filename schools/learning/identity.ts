@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { config } from "@schools/config";
 import { getStore } from "@schools/store";
+import { currentUser } from "@schools/auth/session";
 
 /**
  * Who is this learner?
@@ -29,6 +30,30 @@ export interface Identity {
 }
 
 export async function resolveIdentity(): Promise<Identity> {
+  /*
+   * A signed-in learner is the identity. The anonymous cookie below is the
+   * fallback, and it is now genuinely a fallback rather than the mechanism.
+   *
+   * This is the single line that makes "student A cannot read student B" true
+   * across every learning route at once: the subject is derived from the
+   * session on the server, so there is no parameter for a browser to tamper
+   * with and no route that has to remember to check. A learner who signs in on
+   * a second device resolves to the same subject through the `user_id` alias,
+   * which is what stops a shared classroom machine from being one learner and
+   * one learner on two machines from being two.
+   */
+  const user = await currentUser();
+  if (user) {
+    const store = await getStore();
+    const classes = await store.classesForLearner(user.userId);
+    const enrolled = classes[0] ?? config.pilot;
+    const subjectId = await store.resolveSubjectForUser(user.userId, {
+      schoolId: "schoolId" in enrolled ? enrolled.schoolId : config.pilot.schoolId,
+      classId: "classId" in enrolled ? enrolled.classId : config.pilot.classId,
+    });
+    return { subjectId, anonId: user.userId, isNew: false };
+  }
+
   const jar = await cookies();
   const existing = jar.get(COOKIE)?.value;
 

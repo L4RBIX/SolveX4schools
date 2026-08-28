@@ -1,11 +1,13 @@
 "use client";
 
-import type { Locale, Month } from "@schools/curriculum/types";
+import type { Locale } from "@schools/curriculum/types";
+import type { MonthOutline } from "@schools/curriculum/public";
 import { programmeToLearningPath } from "@schools/presentation/adapters";
 import { L, t } from "@schools/presentation/labels";
 import { useLocale } from "@/components/sx/i18n";
 import { useProgress } from "@/lib/progress";
 import { AppHeader } from "./app-header";
+import { accountMenu } from "./account-menu";
 import { LearningPathsPage } from "./learning-paths";
 import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "./school-chrome";
 
@@ -19,7 +21,7 @@ import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "./school-chrome";
  * The horizontal tile carousel, the category art, the per-tile progress bars
  * and the favourite star are all the original's.
  */
-export function YearRoadmap({ months }: { months: Month[] }) {
+export function YearRoadmap({ months }: { months: MonthOutline[] }) {
   const { locale, setLocale } = useLocale();
   const progress = useProgress();
 
@@ -32,7 +34,7 @@ export function YearRoadmap({ months }: { months: Month[] }) {
   });
 
   return (
-    <div className="min-h-dvh bg-b-bg font-b-sans text-white">
+    <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="courses"
         links={SCHOOL_NAV(loc)}
@@ -40,6 +42,14 @@ export function YearRoadmap({ months }: { months: Month[] }) {
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
         accentPill={null}
+        /* No XP in this product. The one real weekly number lives on the home
+           rail, where it has room to say what it counts. */
+        xp={null}
+        a11y={{
+          menu: loc === "kk" ? "Мәзір" : "Меню",
+          streak: loc === "kk" ? "Осы аптадағы белсенділік" : "Активность на этой неделе",
+        }}
+        accountMenu={accountMenu(loc)}
         trailing={<LocaleSwitch locale={loc} onChange={setLocale} />}
       />
       <LearningPathsPage
@@ -51,7 +61,10 @@ export function YearRoadmap({ months }: { months: Month[] }) {
           others: "",
           askPlaceholder: t(L.askPlaceholder, loc),
           ask: t(L.ask, loc),
+          prev: t(L.carouselPrev, loc),
+          next: t(L.carouselNext, loc),
         }}
+        showStar={false}
       />
     </div>
   );

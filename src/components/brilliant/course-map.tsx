@@ -83,7 +83,7 @@ export function CourseMap({
     >
       <h2
         id="course-map-title"
-        className="text-[30px] leading-9 font-bold text-white"
+        className="text-[30px] leading-9 font-bold text-b-fg"
       >
         Course map
       </h2>
@@ -135,7 +135,7 @@ export function CourseMap({
             type="button"
             onClick={scrollToTop}
             aria-label="Back to top"
-            className="b-press sticky bottom-6 z-30 flex size-12 shrink-0 items-center justify-center self-start rounded-full border-2 border-white/20 bg-b-dark text-white hover:border-white/40 active:shadow-none"
+            className="b-press sticky bottom-6 z-30 flex size-12 shrink-0 items-center justify-center self-start rounded-full border-2 border-b-fg/20 bg-b-dark text-b-fg hover:border-b-fg/40 active:shadow-none"
           >
             <ChevronUp aria-hidden="true" className="size-5" strokeWidth={2} />
           </button>

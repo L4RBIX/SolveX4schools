@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { YouEvidence } from "@/components/brilliant/app/you-evidence";
+import { requirePageSession } from "@schools/auth/page-guard";
+import { SchoolYou } from "@/components/brilliant/app/school-you";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Прогресс" };
 
-export default function YouPage() {
-  return <YouEvidence />;
+export default async function YouPage() {
+  await requirePageSession();
+  return <SchoolYou />;
 }

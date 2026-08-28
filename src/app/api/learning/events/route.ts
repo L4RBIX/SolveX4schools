@@ -1,12 +1,14 @@
 import { after, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import {
+  isClientReportable,
   isLearningEventName,
   sanitizePayload,
   type LearningEventName,
 } from "@solvex/learning-contracts";
 import { config } from "@schools/config";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { maybeSweep } from "@schools/reducer/trigger";
 
@@ -25,6 +27,13 @@ import { maybeSweep } from "@schools/reducer/trigger";
  * - **Trust.** `source_trust` is stamped server-side. A client claiming `judge`
  *   is recorded as `browser` — trust is earned by a valid attestation, which is
  *   checked on the submit route, not asserted in a request body.
+ * - **The OUTCOME events, entirely.** `isClientReportable` refuses them.
+ *   Stamping a forged verdict as `browser` is only a defence if something
+ *   downstream reads the stamp, and nothing did — so the fix is in both
+ *   places: ingest will not create the row, and the projections that count
+ *   solves now require judge trust.
+ * - **The episode.** `ownedEpisodeId` refuses one that belongs to another
+ *   learner, exactly as the submit and hint routes already do.
  * - **Environment and cohort.** Stamped from server config, so a preview deploy
  *   cannot claim to be production.
  * - **The subject.** Read from an httpOnly cookie, never from the body.
@@ -50,6 +59,12 @@ interface IncomingEvent {
 const MAX_BATCH = 100;
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: { events?: IncomingEvent[] };
   try {
     body = (await request.json()) as { events?: IncomingEvent[] };
@@ -71,6 +86,22 @@ export async function POST(request: Request) {
     // name it has never seen would fall through to a default and quietly
     // change the episode's event_count.
     if (typeof name !== "string" || !isLearningEventName(name)) return [];
+
+    /*
+     * Not a browser's to create, even though it is a real event name.
+     *
+     * This block is what the comment at the top of the file has always claimed
+     * and the code never did. Without it, any signed-in learner could POST
+     * `verdict_received` with `verdict: "accepted"` and have it counted: the
+     * row landed stamped `browser`, which was the correct stamp and no defence
+     * at all, because the read paths did not look at the stamp.
+     *
+     * Dropped silently, along with everything else that fails validation here.
+     * A 400 that names the refused event teaches whoever is probing exactly
+     * which name to try next, and an honest client never sends these — they
+     * have server-side writers.
+     */
+    if (!isClientReportable(name)) return [];
 
     return [
       {

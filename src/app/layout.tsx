@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 
-import { LocaleProvider } from "@/components/sx/i18n";
+import {
+  PREFERENCES_BOOT_SCRIPT,
+  PreferencesProvider,
+} from "@/components/sx/preferences";
 
 import "./globals.css";
 import "./solvex.css";
@@ -33,40 +36,20 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 /**
- * The references' own self-hosted webfonts, extracted from their /_next/static
- * media directories. These are the real families, not stand-ins:
- *   brilliant.org -> CoFo Brilliant (UI/body) + CoFo Robert (display) + Source Code Pro
+ * Source Code Pro is the reference's code face and is SIL OFL, so it ships.
  *
- * RELEASE BLOCKER: CoFo Brilliant and CoFo Robert are commercially licensed by
- * Contrast Foundry. They are here for the local reverse-engineering study under
- * /brilliant and MUST NOT be deployed or redistributed. Nothing under the
- * SolveX4Schools product surface loads them — it uses IBM Plex Sans and
- * JetBrains Mono above, both SIL OFL. Before any public deploy, either drop the
- * /brilliant routes or drop these three localFont declarations.
- * Source Code Pro is open-licence (SIL OFL) and is fine either way.
+ * CoFo Brilliant and CoFo Robert are NOT here. They are commercially licensed
+ * by Contrast Foundry, and they used to be declared in this file — which put
+ * their `@font-face` rules and their `--font-cofo-*` variables into the CSS of
+ * every production page, with `--font-b-sans` (the family the entire product
+ * renders in) pointing straight at them. That is not a note to act on later; it
+ * is redistribution on every request.
+ *
+ * They now live in `src/app/brilliant/layout.tsx`, the reverse-engineering
+ * baseline, which `notFound()`s in production. `--font-b-sans` in globals.css
+ * falls back to IBM Plex Sans wherever `--font-cofo-brilliant` is undefined —
+ * which, outside that layout, is everywhere.
  */
-
-const cofoBrilliant = localFont({
-  variable: "--font-cofo-brilliant",
-  display: "swap",
-  src: [
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_regular-s.p.0x-1wd4a7iit8.woff2", weight: "400", style: "normal" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_italic-s.p.01uthtfhv3qu6.woff2", weight: "400", style: "italic" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_medium-s.p.1vop2d5y_jpw2.woff2", weight: "500", style: "normal" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_medium_italic-s.p.30ni91w93hr35.woff2", weight: "500", style: "italic" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_bold-s.p.00peqb48xfqwb.woff2", weight: "700", style: "normal" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_brilliant_bold_italic-s.p.3orrcir-ph8bn.woff2", weight: "700", style: "italic" },
-  ],
-});
-
-const cofoRobert = localFont({
-  variable: "--font-cofo-robert",
-  display: "swap",
-  src: [
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_robert_medium-s.p.3krozkcg6qt-u.woff2", weight: "500", style: "normal" },
-    { path: "../../public/assets/original/brilliant/brilliant.org/_next/static/media/cofo_robert_medium_italic-s.p.2b_znar3654ya.woff2", weight: "500", style: "italic" },
-  ],
-});
 
 const sourceCodePro = localFont({
   variable: "--font-source-code-pro",
@@ -96,12 +79,36 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    /*
+      `lang`, `data-theme` and `data-motion` are all stamped before first paint
+      by the boot script below and kept in step afterwards by
+      `PreferencesProvider`. The attributes here are the no-JavaScript answer:
+      Kazakh because the programme is Kazakh-first, and no theme stamp at all so
+      the CSS falls through to `prefers-color-scheme`.
+
+      `suppressHydrationWarning` is required and is narrow: the boot script
+      mutates exactly these attributes on this element between the server render
+      and hydration, which is the one case React cannot know about and the one
+      case the warning is not useful for.
+    */
     <html
+      suppressHydrationWarning
       lang="kk"
-      className={`${plexSans.variable} ${jetbrainsMono.variable} ${cofoBrilliant.variable} ${cofoRobert.variable} ${sourceCodePro.variable}`}
+      className={`${plexSans.variable} ${jetbrainsMono.variable} ${sourceCodePro.variable}`}
     >
+      <head>
+        {/*
+          Synchronous, inline, and first. A theme applied from an effect paints
+          one frame of the wrong palette — on a projector in a classroom that is
+          a white flash, and it is the single most obvious "unfinished" tell a
+          product can have.
+        */}
+        <script
+          dangerouslySetInnerHTML={{ __html: PREFERENCES_BOOT_SCRIPT }}
+        />
+      </head>
       <body>
-        <LocaleProvider>{children}</LocaleProvider>
+        <PreferencesProvider>{children}</PreferencesProvider>
       </body>
     </html>
   );

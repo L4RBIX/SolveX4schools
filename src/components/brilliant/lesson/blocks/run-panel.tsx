@@ -1,0 +1,327 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
+import type { Locale } from "@schools/curriculum/types";
+import type { PublicCase } from "@schools/curriculum/public";
+import { isLearnerOutcome } from "@schools/execution/trust";
+import { capabilityFor, surfaceForBlock } from "@schools/execution/trust-policy";
+import { L, t } from "@schools/presentation/labels";
+import type { LearningPayload } from "@solvex/learning-contracts";
+import { usePython } from "@/lib/pyodide/use-python";
+import { Button3D } from "../button-3d";
+import {
+  byteLength,
+  clampStdin,
+  runButtonState,
+  runEventPayload,
+  runStatusNote,
+  runTrustLines,
+  seedStdin,
+} from "./run-state";
+
+/**
+ * RUN — the learner's program, in the learner's browser.
+ *
+ * ## Why this is not a second Check
+ *
+ * Check is the footer's, it is one per block, and it decides. Run lives inside
+ * the block beside the editor, it can be pressed thirty times, and it decides
+ * nothing: it shows what the program does. The two are different actions and
+ * the difference has to survive being read by a fourteen-year-old at speed, so
+ * they differ in three channels at once — position (in the card vs in the
+ * footer), weight (a secondary face vs the primary CTA), and a sentence that
+ * says outright which one marks you.
+ *
+ * ## What this component is not allowed to do
+ *
+ * It never sees an expected output, so it can never compute a pass. That is not
+ * restraint, it is arithmetic: `publicBlock()` strips hidden cases and
+ * reference solutions before the block reaches the browser, and `LocalRunResult`
+ * has no field a verdict could live in. The worker is handed the learner's
+ * source and the learner's stdin and nothing else.
+ *
+ * Timeouts, the output cap and the terminate-and-replace on a runaway loop are
+ * all `PythonRunner`'s, and re-implementing any of them here would mean two
+ * budgets that can disagree. This file only renders what the runner decided.
+ */
+
+export interface RunPanelProps {
+  blockId: string;
+  blockType: string;
+  /** The lesson (or assessment) this block belongs to. Decides the surface. */
+  lessonId: string;
+  monthIndex: number;
+  /** What is in the editor right now. */
+  source: string;
+  visibleCases: readonly PublicCase[];
+  locale: Locale;
+  /** The block has been checked. The editor is frozen, so Run is too. */
+  locked: boolean;
+  /**
+   * This block is the page on screen.
+   *
+   * The player mounts every page at once and never unmounts them, so without
+   * this a lesson whose twelfth block holds code would start a 13 MB CPython
+   * download the moment the first concept card rendered. `usePython`'s contract
+   * is to preload where a coding block actually IS; here that means where the
+   * learner actually is.
+   */
+  active: boolean;
+  /**
+   * Does this deployment have a judge that can produce evidence?
+   *
+   * The browser genuinely cannot know — `schools/config.ts` carries
+   * `import "server-only"` — so this arrives as a prop, and the default claims
+   * the WEAKER thing rather than the stronger one. See `SchoolLessonProps`.
+   */
+  trustedProviderConfigured: boolean;
+  /**
+   * Report that a Run happened. Never what it printed.
+   *
+   * The payload is built by `runEventPayload` and typed `LearningPayload`, so
+   * stdout, stderr and source are compile errors rather than review comments.
+   */
+  onRun?: (payload: LearningPayload) => void;
+}
+
+export function RunPanel({
+  blockId,
+  blockType,
+  lessonId,
+  monthIndex,
+  source,
+  visibleCases,
+  locale,
+  locked,
+  active,
+  trustedProviderConfigured,
+  onRun,
+}: RunPanelProps) {
+  const python = usePython({ preload: active });
+
+  const seeded = useMemo(() => seedStdin(visibleCases), [visibleCases]);
+  const [stdin, setStdin] = useState(seeded);
+  /** True when the last edit was longer than the cap and was cut. */
+  const [clamped, setClamped] = useState(false);
+  /**
+   * The source as it was when the visible result was produced.
+   *
+   * Kept so an edited program can say so instead of silently presenting last
+   * run's output as this program's. Computed during render rather than cleared
+   * from an effect — an effect would drop the output a frame after the
+   * keystroke, which reads as the panel flickering.
+   */
+  const [ranSource, setRanSource] = useState<string | null>(null);
+
+  const surface = useMemo(
+    () => surfaceForBlock({ blockType, blockId, lessonId }),
+    [blockType, blockId, lessonId],
+  );
+  const capability = useMemo(
+    () => capabilityFor(surface, trustedProviderConfigured),
+    [surface, trustedProviderConfigured],
+  );
+
+  const button = runButtonState({
+    phase: python.phase,
+    isRunning: python.isRunning,
+    locked,
+    sourceBytes: byteLength(source),
+    hasSource: source.trim().length > 0,
+  });
+
+  /* The policy's answer, honoured rather than assumed. Every surface allows a
+     local Run today; if one ever stops, the button must disappear here rather
+     than in a condition somebody remembers to add. */
+  if (!capability.canRunLocally) return null;
+
+  const result = python.result;
+  const stale = result !== null && ranSource !== null && ranSource !== source;
+
+  async function press() {
+    if (button.action === "retry") {
+      void python.ensureReady();
+      return;
+    }
+    if (button.action !== "run") return;
+
+    const outcome = await python.run({ source, stdin });
+    setRanSource(source);
+
+    /* `runtime_unavailable` is the one status `isLearnerOutcome` refuses, and
+       refusing it here is the whole reason that helper is shared with the
+       server: a CPython download that failed on school Wi-Fi is our problem,
+       and recording it as effort would be recording something the learner did
+       not do. Everything else — including a `SyntaxError` two seconds in — is
+       real effort and is exactly what Nova's hint ladder is missing today. */
+    if (!isLearnerOutcome(outcome.status)) return;
+
+    onRun?.(
+      runEventPayload({
+        lessonId,
+        monthIndex,
+        blockId,
+        isCustomInput: stdin !== seeded,
+      }),
+    );
+  }
+
+  return (
+    <section
+      className="flex w-full flex-col gap-3 rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] p-4"
+      aria-label={t(L.run, locale)}
+    >
+      <p className="text-[14px] leading-5 text-b-fg/60">{t(L.runWhatItDoes, locale)}</p>
+
+      <label className="flex w-full flex-col gap-1.5">
+        <span className="text-[14px] leading-5 text-b-fg/60">{t(L.runInputLabel, locale)}</span>
+        <textarea
+          value={stdin}
+          rows={Math.min(4, Math.max(1, stdin.split("\n").length))}
+          spellCheck={false}
+          disabled={locked}
+          onChange={(e) => {
+            /* The cap is `LOCAL_LIMITS.maxStdinBytes`, enforced on the way in
+               rather than on the way out: a paste that would be refused by the
+               runner is cut here, where the learner can see what survived. */
+            const next = clampStdin(e.target.value);
+            setClamped(next !== e.target.value);
+            setStdin(next);
+          }}
+          className={cn(
+            "w-full resize-y rounded-[12px] border-2 bg-[#12141a] p-3 font-b-mono text-[15px] leading-[26px] text-[#e8ecf4]",
+            "placeholder:text-b-on-fill/35 focus:outline-none disabled:opacity-70",
+            "transition-colors duration-100",
+            locked ? "border-b-lock-edge" : "border-b-fg/15 focus:border-b-sched-edge-on",
+          )}
+        />
+        <span className="text-[13px] leading-5 text-b-fg/40">{t(L.runInputHint, locale)}</span>
+        {clamped ? (
+          <span className="text-[13px] leading-5 text-b-warn-edge">
+            {t(L.runInputClamped, locale)}
+          </span>
+        ) : null}
+      </label>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button3D
+          variant="secondary"
+          className="w-[200px] shrink-0"
+          disabled={button.disabled}
+          onClick={() => void press()}
+        >
+          <span className="flex items-center gap-2">
+            {button.action === "run" && !button.disabled ? <PlayGlyph /> : null}
+            {t(button.label, locale)}
+          </span>
+        </Button3D>
+        {button.note ? (
+          <p className="min-w-0 flex-1 text-[14px] leading-5 text-b-fg/60">
+            {t(button.note, locale)}
+          </p>
+        ) : null}
+      </div>
+
+      {result ? (
+        <div className="flex flex-col gap-3" aria-live="polite">
+          {stale ? (
+            <p className="text-[14px] leading-5 text-b-warn-edge">{t(L.runStale, locale)}</p>
+          ) : null}
+
+          {(() => {
+            const note = runStatusNote(result.status);
+            return note ? (
+              <p className="text-[15px] leading-6 text-b-fg/80">{t(note, locale)}</p>
+            ) : null;
+          })()}
+
+          {/* Separate panes, always in this order. A learner who cannot see
+              which stream a line came from cannot tell a printed answer from a
+              traceback, and half of debugging is knowing which one you are
+              looking at. */}
+          <OutputPane label={t(L.runStdout, locale)} text={result.stdout} tone="out" />
+          {result.stdout.length === 0 && result.status === "ok" ? (
+            <p className="text-[14px] leading-5 text-b-fg/40">{t(L.runNoOutput, locale)}</p>
+          ) : null}
+
+          {result.stderr.length > 0 ? (
+            <>
+              <OutputPane label={t(L.runStderr, locale)} text={result.stderr} tone="err" />
+              <p className="text-[13px] leading-5 text-b-fg/40">
+                {t(L.runStderrIsPython, locale)}
+              </p>
+            </>
+          ) : null}
+
+          {result.truncated ? (
+            <p className="text-[13px] leading-5 text-b-fg/40">{t(L.runTruncated, locale)}</p>
+          ) : null}
+
+          {/* Trust marking, attached to the RESULT rather than to the panel.
+              It is a statement about where this output came from, so it appears
+              when there is output to make it about. */}
+          <ul className="flex flex-col gap-1 border-t-2 border-b-fg/10 pt-3">
+            {runTrustLines(surface, capability).map((line, i) => (
+              <li
+                key={i}
+                className={cn(
+                  "text-[14px] leading-5",
+                  /* The first line is a fact about the runtime; the rest are
+                     the policy warning the learner what it is not worth. */
+                  i === 0 ? "text-b-fg/50" : "text-b-fg/75",
+                )}
+              >
+                {t(line, locale)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * One stream, verbatim.
+ *
+ * `whitespace-pre` plus its own horizontal scroller: a long line of output must
+ * scroll inside this box and never widen the lesson card. The surface is the
+ * same near-black `CodePanel` uses and for the same reason — output is code's
+ * material, not prose — which is why the two colours are literals here rather
+ * than theme tokens that would invert into dark ink on a dark panel.
+ */
+function OutputPane({ label, text, tone }: { label: string; text: string; tone: "out" | "err" }) {
+  return (
+    <div className="w-full">
+      <p className="mb-1.5 text-[14px] leading-5 text-b-fg/60">{label}</p>
+      <pre
+        className={cn(
+          "max-h-64 w-full overflow-auto rounded-[8px] bg-[#12141a] px-3 py-2",
+          "font-b-mono text-[15px] leading-[26px] whitespace-pre",
+          /* Salmon rather than the product's amber. Amber already means "your
+             answer is wrong" everywhere else in the player, and a traceback is
+             not a verdict — it is the interpreter telling you what it hit. */
+          tone === "err" ? "text-[#ff9e8a]" : "text-[#e8ecf4]",
+        )}
+      >
+        {text.length > 0 ? text : " "}
+      </pre>
+    </div>
+  );
+}
+
+/**
+ * Drawn here rather than added to `icons.tsx`.
+ *
+ * That file's premise is that every path in it was copied out of the live
+ * brilliant.org DOM. A triangle we drew ourselves does not belong under that
+ * claim, and quietly filing it there would make the file's own comment false.
+ */
+function PlayGlyph() {
+  return (
+    <svg width="12" height="14" viewBox="0 0 12 14" fill="none" aria-hidden="true">
+      <path d="M1 1.5v11l10-5.5-10-5.5Z" fill="currentColor" />
+    </svg>
+  );
+}

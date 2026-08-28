@@ -5,6 +5,12 @@ import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { ClassroomView, LearnerRow, SignalKind } from "@schools/presentation/classroom";
 import { EVIDENCE_TONE, type EvidenceState } from "@schools/presentation/evidence";
+import { t } from "@schools/presentation/labels";
+import {
+  teacherLoadFailure,
+  teacherLoadFailureLabel,
+  type TeacherLoadFailure,
+} from "@schools/presentation/teacher-outcome";
 import { SKILL_BY_ID } from "@schools/curriculum/skills";
 import { useLocale } from "@/components/sx/i18n";
 
@@ -30,9 +36,9 @@ import { useLocale } from "@/components/sx/i18n";
 
 const SIGNAL_TONE: Record<SignalKind, string> = {
   recurring_misconception: "border-b-warn/50 bg-b-warn/10 text-b-warn-icon",
-  no_activity: "border-white/20 bg-white/5 text-white/70",
-  unexplained_failures: "border-b-lock-edge bg-b-lock-fill text-white/70",
-  high_assistance: "border-b-sched-edge bg-b-sched-fill text-white/80",
+  no_activity: "border-b-fg/20 bg-b-fg/5 text-b-fg/70",
+  unexplained_failures: "border-b-lock-edge bg-b-lock-fill text-b-fg/70",
+  high_assistance: "border-b-sched-edge bg-b-sched-fill text-b-fg/80",
   ready_to_stretch: "border-b-ok/50 bg-b-ok-panel text-b-ok-edge",
 };
 
@@ -40,27 +46,54 @@ export function TeacherClassroom({ classId }: { classId: string }) {
   const { locale } = useLocale();
   const loc = locale as Locale;
   const [view, setView] = useState<ClassroomView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /*
+   * A CLOSED union, not a string.
+   *
+   * This used to be `useState<string|null>` fed straight from the caught
+   * error's message, and that was whatever happened to be thrown: the guard's
+   * own reason on an expired session or a class this teacher does not teach,
+   * and — when the route 500s and a proxy returns an HTML error page — the JSON
+   * parser's own complaint about an unexpected `<`, rendered verbatim at a
+   * teacher between two lessons. Typing the state as the union means there is no
+   * value a failure can carry that ends up on the screen; the string is chosen
+   * here, from three we wrote.
+   */
+  const [error, setError] = useState<TeacherLoadFailure | null>(null);
 
   useEffect(() => {
     let live = true;
     fetch(`/api/teacher/class/${encodeURIComponent(classId)}`)
-      .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.json()).error))))
-      .then((d: ClassroomView) => live && setView(d))
-      .catch((e: Error) => live && setError(e.message));
+      .then(async (r) => {
+        if (!r.ok) {
+          /* The body may not be JSON at all — that is the case that produced the
+             parser error above — so a failure to read it is just another way of
+             saying "unavailable", never something to propagate. */
+          const reason = await r
+            .json()
+            .then((d: { error?: unknown }) => d?.error)
+            .catch(() => null);
+          if (live) setError(teacherLoadFailure(reason));
+          return;
+        }
+        const data = (await r.json()) as ClassroomView;
+        if (live) setView(data);
+      })
+      // No parameter, deliberately: there is nothing in a network error a
+      // teacher can act on, and reading it is how it ends up rendered.
+      .catch(() => live && setError("unavailable"));
     return () => {
       live = false;
     };
   }, [classId]);
 
   return (
-    <div className="min-h-dvh bg-b-bg font-b-sans text-white">
-      <header className="border-b border-white/20 bg-b-panel px-8">
+    <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
+      <header className="border-b border-b-fg/20 bg-b-panel px-8">
         <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center gap-4">
           <span className="text-[15px] font-bold tracking-wide text-b-warn-icon uppercase">
             Мұғалім · Учитель
           </span>
-          <span className="font-b-mono text-[14px] text-white/50">{classId}</span>
+          <span className="font-b-mono text-[14px] text-b-fg/50">{classId}</span>
           <span className="ml-auto rounded-full border border-b-warn/40 px-3 py-1 text-[12px] text-b-warn-icon">
             {loc === "kk"
               ? "Тек әзірлеу режимінде — авторизация әлі жоқ"
@@ -71,7 +104,7 @@ export function TeacherClassroom({ classId }: { classId: string }) {
 
       <main className="mx-auto w-full max-w-[1400px] px-8 py-8">
         {error ? (
-          <p className="text-white/60">{error}</p>
+          <p className="text-b-fg/60">{t(teacherLoadFailureLabel(error), loc)}</p>
         ) : !view ? (
           <div className="h-40 animate-pulse rounded-[16px] border-2 border-b-edge bg-b-panel/40" />
         ) : (
@@ -81,7 +114,7 @@ export function TeacherClassroom({ classId }: { classId: string }) {
               <Stat
                 label={loc === "kk" ? "Әлі бастамаған" : "Ещё не начали"}
                 value={view.notStarted}
-                tone={view.notStarted > 0 ? "text-white/50" : undefined}
+                tone={view.notStarted > 0 ? "text-b-fg/50" : undefined}
               />
               <Stat
                 label={loc === "kk" ? "Назар аударуды қажет етеді" : "Требуют внимания"}
@@ -100,7 +133,7 @@ export function TeacherClassroom({ classId }: { classId: string }) {
             </div>
 
             {view.learners.length === 0 ? (
-              <p className="text-white/50">
+              <p className="text-b-fg/50">
                 {loc === "kk"
                   ? "Бұл сыныпта әлі ешкім тапсырма орындамаған."
                   : "В этом классе ещё никто не выполнял заданий."}
@@ -120,7 +153,7 @@ export function TeacherClassroom({ classId }: { classId: string }) {
                 </h2>
                 <div className="overflow-x-auto rounded-[16px] border-2 border-b-edge">
                   <table className="w-full min-w-max text-left text-[14px]">
-                    <thead className="bg-b-panel text-white/50">
+                    <thead className="bg-b-panel text-b-fg/50">
                       <tr>
                         <th className="px-4 py-2">{loc === "kk" ? "Дағды" : "Навык"}</th>
                         <th className="px-3 py-2 text-right">
@@ -139,7 +172,7 @@ export function TeacherClassroom({ classId }: { classId: string }) {
                     </thead>
                     <tbody>
                       {view.skillBreakdown.map((s) => (
-                        <tr key={s.skillId} className="border-t border-white/10">
+                        <tr key={s.skillId} className="border-t border-b-fg/10">
                           <td className="px-4 py-2">
                             {SKILL_BY_ID.get(s.skillId)?.title[loc] ?? s.skillId}
                           </td>
@@ -163,10 +196,13 @@ export function TeacherClassroom({ classId }: { classId: string }) {
 
 function LearnerCard({ row, loc }: { row: LearnerRow; loc: Locale }) {
   return (
-    <li className="rounded-[16px] border-2 border-b-edge bg-b-bg px-5 py-4">
+    <li className="rounded-[16px] sx-card border-2 border-b-edge px-5 py-4">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-        <span className="font-b-mono text-[15px] font-bold">{row.label}</span>
-        <span className="text-[13px] text-white/50">
+        {/* The learner's name, now that enrolment supplies one. `label` — a short
+            subject id — remains the fallback, and it is deliberately not a
+            fiction: before migration 0012 there was no name to show. */}
+        <span className="text-[15px] font-bold">{row.displayName ?? row.label}</span>
+        <span className="text-[13px] text-b-fg/50">
           {row.episodes} {loc === "kk" ? "әрекет" : "попыток"} ·{" "}
           <span className="text-b-ok-edge">{row.soloSolved}</span>{" "}
           {loc === "kk" ? "өз бетінше" : "самостоятельно"} · {row.assistedSolved}{" "}
@@ -174,14 +210,14 @@ function LearnerCard({ row, loc }: { row: LearnerRow; loc: Locale }) {
           {row.unexplainedFailures > 0 ? (
             <>
               {" · "}
-              <span className="text-white/40">
+              <span className="text-b-fg/40">
                 {row.unexplainedFailures} {loc === "kk" ? "себебі белгісіз" : "без причины"}
               </span>
             </>
           ) : null}
         </span>
         {row.lastActiveAt ? (
-          <span className="ml-auto text-[13px] text-white/30">
+          <span className="ml-auto text-[13px] text-b-fg/30">
             {new Date(row.lastActiveAt).toLocaleDateString(loc === "kk" ? "kk-KZ" : "ru-RU")}
           </span>
         ) : null}
@@ -207,7 +243,7 @@ function LearnerCard({ row, loc }: { row: LearnerRow; loc: Locale }) {
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           {row.skills.map((s) => (
             <span key={s.skillId} className="text-[12px]">
-              <span className="text-white/40">
+              <span className="text-b-fg/40">
                 {SKILL_BY_ID.get(s.skillId)?.title[loc] ?? s.skillId}
               </span>{" "}
               <span className={EVIDENCE_TONE[s.state as EvidenceState]}>●</span>
@@ -221,8 +257,8 @@ function LearnerCard({ row, loc }: { row: LearnerRow; loc: Locale }) {
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
-    <div className="min-w-[160px] rounded-[14px] border-2 border-b-edge bg-b-bg px-4 py-3">
-      <p className="b-eyebrow leading-[16px] text-white/50">{label}</p>
+    <div className="min-w-[160px] rounded-[14px] sx-card border-2 border-b-edge px-4 py-3">
+      <p className="b-eyebrow leading-[16px] text-b-fg/50">{label}</p>
       <p className={cn("mt-1 text-[26px] leading-[32px] font-bold tabular-nums", tone)}>{value}</p>
     </div>
   );
@@ -230,7 +266,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: str
 
 function Count({ n, tone }: { n: number; tone?: string }) {
   return (
-    <td className={cn("px-3 py-2 text-right tabular-nums", n === 0 ? "text-white/20" : tone)}>
+    <td className={cn("px-3 py-2 text-right tabular-nums", n === 0 ? "text-b-fg/20" : tone)}>
       {n}
     </td>
   );

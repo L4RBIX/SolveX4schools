@@ -34,13 +34,18 @@ type GlobalWithStore = typeof globalThis & { [KEY]?: Promise<StoreHandle> };
 
 async function open(): Promise<StoreHandle> {
   if (config.databaseUrl) {
-    // Production path. The driver is loaded lazily so `pg` is not a
-    // dependency of a development install that will never use it.
-    throw new Error(
-      "DATABASE_URL is set but the Postgres driver is not wired yet. " +
-        "Add schools/store/postgres-driver.ts implementing SqlExecutor over pg.Pool; " +
-        "the SQL, the migrations and LearningStore are already shared.",
-    );
+    /* Production path. Loaded lazily so `pg` is not pulled into a development
+       install that will never open a socket.
+
+       `applyLocalBootstrap: false`: migration 0000 creates the `anon` and
+       `authenticated` roles that a managed Postgres already has, and running it
+       against one fails. The other migrations are byte-identical to the ones
+       PGlite runs — that sameness is the point, and is why a constraint that
+       rejects a row in development rejects it here. */
+    const { PostgresExecutor } = await import("./postgres-driver");
+    const sql = await PostgresExecutor.open(config.databaseUrl);
+    await migrate(sql, { applyLocalBootstrap: false });
+    return { sql, store: new LearningStore(sql) };
   }
 
   const sql = await PgliteExecutor.open(config.dataDir);
