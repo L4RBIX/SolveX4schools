@@ -887,6 +887,124 @@ export class LearningStore {
     return v ? toIso(v) : null;
   }
 
+  /**
+   * Record what the engine decided, so the decision can be argued with later.
+   *
+   * Migration 0006 creates `learning_actions` and says exactly why: *"the
+   * decision engine is unfalsifiable without this. It would issue DIAGNOSE
+   * forever to a learner it never learns anything about and nothing would
+   * notice."* Nothing wrote the table. `runSweep` computed a decision per
+   * subject and every caller discarded it.
+   *
+   * ## Why one row per decision would be wrong
+   *
+   * The sweep runs every twenty seconds. Writing a row each time would put
+   * thousands of identical DIAGNOSE rows against one learner in an afternoon,
+   * and the table's actual question — *what did the system decide, and what
+   * happened next?* — would be unanswerable under the noise.
+   *
+   * So a decision is recorded only when it CHANGES. `issued_at` then means what
+   * it says: the moment the system started believing this, which is the only
+   * timestamp an outcome can sensibly be measured from.
+   *
+   * ## What this is not
+   *
+   * Not a source of truth. Events remain the evidence; this is a log of
+   * conclusions drawn from them, and `buildLearnerState` never reads it back.
+   * If the two ever disagree, the events are right.
+   */
+  async recordDecision(row: {
+    actionId: string;
+    subjectId: string;
+    actionType: string;
+    skillId: string | null;
+    expectedOutcome: string;
+    namedMisconception: string | null;
+    reason: string;
+    confidence: number;
+    novaMode: string | null;
+    maxHintLevel: number | null;
+    engineVersion: number;
+  }): Promise<boolean> {
+    /* The most recent decision for this subject. Compared on the fields that
+       change what Nova is allowed to do — not on `reason`, whose prose can be
+       reworded by a core update without the decision itself having moved. */
+    const prev = await this.sql.query<{
+      action_type: string;
+      skill_id: string | null;
+      named_misconception: string | null;
+      max_hint_level: number | null;
+    }>(
+      `select action_type, skill_id, named_misconception, max_hint_level
+         from learning_actions
+        where subject_id = $1
+        order by issued_at desc
+        limit 1`,
+      [row.subjectId],
+    );
+
+    const last = prev.rows[0];
+    if (
+      last &&
+      last.action_type === row.actionType &&
+      (last.skill_id ?? null) === row.skillId &&
+      (last.named_misconception ?? null) === row.namedMisconception &&
+      (last.max_hint_level ?? null) === row.maxHintLevel
+    ) {
+      return false;
+    }
+
+    await this.sql.query(
+      `insert into learning_actions
+         (action_id, subject_id, action_type, skill_id, expected_outcome,
+          named_misconception, reason, confidence, nova_mode, max_hint_level,
+          engine_version)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       on conflict (action_id) do nothing`,
+      [
+        row.actionId, row.subjectId, row.actionType, row.skillId,
+        row.expectedOutcome, row.namedMisconception, row.reason,
+        /* The column is `check (confidence between 0 and 1)`. A core that ever
+           returned something outside that would fail the whole sweep for one
+           learner rather than record a slightly wrong number, so it is clamped
+           here — the decision is what matters, not its second decimal. */
+        Math.min(1, Math.max(0, row.confidence)),
+        row.novaMode, row.maxHintLevel, row.engineVersion,
+      ],
+    );
+    return true;
+  }
+
+  /** The decisions on record for one learner, newest first. For the dev lab. */
+  async decisionsFor(subjectId: string, limit = 20): Promise<
+    {
+      actionId: string;
+      actionType: string;
+      skillId: string | null;
+      namedMisconception: string | null;
+      confidence: number;
+      issuedAt: string;
+    }[]
+  > {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select action_id, action_type, skill_id, named_misconception,
+              confidence, issued_at
+         from learning_actions
+        where subject_id = $1
+        order by issued_at desc
+        limit $2`,
+      [subjectId, limit],
+    );
+    return r.rows.map((x) => ({
+      actionId: x.action_id as string,
+      actionType: x.action_type as string,
+      skillId: (x.skill_id as string) ?? null,
+      namedMisconception: (x.named_misconception as string) ?? null,
+      confidence: Number(x.confidence),
+      issuedAt: toIso(x.issued_at),
+    }));
+  }
+
   async recordIntervention(row: {
     interventionId: string;
     subjectId: string;

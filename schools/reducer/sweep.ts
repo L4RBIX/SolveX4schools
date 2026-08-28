@@ -57,6 +57,16 @@ export interface SweepResult {
   episodesReduced: number;
   subjectsRebuilt: number;
   decisions: Record<string, LearningDecision>;
+  /**
+   * How many decisions were newly written to `learning_actions`.
+   *
+   * Almost always 0 on a quiet sweep, and that is the point: a row is written
+   * only when the decision CHANGES. The sweep runs every twenty seconds, so
+   * recording every pass would put thousands of identical DIAGNOSE rows against
+   * one learner in an afternoon and bury the question the table exists to
+   * answer.
+   */
+  decisionsRecorded: number;
   errors: { episodeId: string; message: string }[];
   /**
    * Subjects whose projection could not be rebuilt.
@@ -84,6 +94,7 @@ export async function runSweep(
     episodesReduced: 0,
     subjectsRebuilt: 0,
     decisions: {},
+    decisionsRecorded: 0,
     errors: [],
     stateErrors: [],
   };
@@ -174,7 +185,46 @@ export async function runSweep(
         const inputs = await store.episodeInputsFor(subjectId);
         const state = buildLearnerState(subjectId, inputs);
         await store.putLearnerState(subjectId, state);
-        result.decisions[subjectId] = decide(state);
+        const decision = decide(state);
+        result.decisions[subjectId] = decision;
+
+        /*
+         * Persist it, but only when it has changed.
+         *
+         * Migration 0006 created `learning_actions` for exactly this and said
+         * why: the decision engine is unfalsifiable without it — it would issue
+         * DIAGNOSE forever to a learner it never learns anything about and
+         * nothing would notice. The table was never written to; this line
+         * computed a decision and every caller threw it away.
+         *
+         * Guarded separately from the state rebuild above. A decision that
+         * cannot be logged is a gap in the audit trail; a projection that
+         * cannot be written is a learner whose evidence has stopped moving.
+         * Letting the first take down the second would trade something
+         * important for something merely useful.
+         */
+        try {
+          const wrote = await store.recordDecision({
+            actionId: randomUUID(),
+            subjectId,
+            actionType: decision.primary.actionType,
+            skillId: decision.primary.skill,
+            expectedOutcome: decision.primary.expectedOutcome,
+            namedMisconception: decision.primary.nova.namedMisconception ?? null,
+            reason: decision.primary.reason,
+            confidence: decision.primary.confidence,
+            novaMode: decision.primary.nova.mode,
+            maxHintLevel: decision.primary.nova.maxHintLevel,
+            engineVersion: decision.version,
+          });
+          if (wrote) result.decisionsRecorded += 1;
+        } catch (err) {
+          result.stateErrors.push({
+            subjectId,
+            message: `decision not recorded: ${err instanceof Error ? err.message : String(err)}`,
+          });
+        }
+
         result.subjectsRebuilt += 1;
       } catch (err) {
         result.stateErrors.push({
