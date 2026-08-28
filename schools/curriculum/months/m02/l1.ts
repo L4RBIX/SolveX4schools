@@ -220,46 +220,84 @@ export const M2_L1: LessonBlock[] = [
     skillRefs: ["loops.for", "loops.accumulator"],
     sourceType: "product-authored",
     tracks: ["support"],
+    /*
+     * The twin of `m2.l1.b8`, on b8's statement — the sum of squares — and no
+     * longer on the worked example's.
+     *
+     * It used to be the 1..n sum, whose filled-in form was the program `b7`
+     * prints on the previous card, and whose first two answers b7's own
+     * reasoning states in words («цикл БАСТАЛҒАНҒА ДЕЙІН 0 деп қоямыз»,
+     * «`range(1, n + 1)` деп жазамыз»). Support's one encounter with the month's
+     * headline family was therefore transcription with the answers supplied.
+     *
+     * The third blank is the one that carries the work now: `i * i` cannot be
+     * read off b7, and a learner who writes `i` there fails the visible sample
+     * exactly as `b8` does. The first two remain the accumulator and the
+     * inclusive bound, which is the principle b7 exists to teach and which the
+     * learner is supposed to be able to apply.
+     */
     prompt: {
-      kk: "Дәл сол есеп: 1-ден n-ге дейінгі қосынды. Құрылымы дайын — үш орынды толтыр. Циклге дейін қосынды неден басталады, `range` қай санға дейін жетуі керек және әр қадамда `s`-ке не істейміз?",
-      ru: "Та же задача: сумма от 1 до n. Структура готова — заполни три места. С чего начинается сумма до цикла, до какого числа должен дойти `range` и что делаем с `s` на каждом шаге?",
+      kk: "Алдыңғы есептің дәл өзі: квадраттардың қосындысы. Құрылымы дайын — үш орынды толтыр. Циклге дейін қосынды неден басталады, `range` қай санға дейін жетуі керек және әр қадамда `s`-ке нені қосамыз? Есіңде болсын: санның өзін емес, квадратын.",
+      ru: "Та же задача, что и в предыдущем задании: сумма квадратов. Структура готова — заполни три места. С чего начинается сумма до цикла, до какого числа должен дойти `range` и что именно прибавляем к `s` на каждом шаге? Помни: не само число, а его квадрат.",
     },
     template:
-      "n = int(input())\ns = ___\nfor i in range(1, ___):\n    s = s ___ i\nprint(s)",
+      "n = int(input())\ns = ___\nfor i in range(1, ___):\n    s = s + ___\nprint(s)",
     blanks: [
       { id: "f1", answer: "0" },
       { id: "f2", answer: "n + 1", alternatives: ["n+1"] },
-      { id: "f3", answer: "+" },
+      { id: "f3", answer: "i * i", alternatives: ["i*i", "i ** 2", "i**2"] },
     ],
   },
   {
     id: "m2.l1.b8",
     type: "write_code",
     skillRefs: ["loops.for", "loops.accumulator"],
-    /* Named verbatim in October's practice paragraph: «1-ден n-ге дейінгі
-       қосынды». */
-    sourceType: "curriculum-derived",
-    pdfPage: 7,
+    /*
+     * A sibling of «1-ден n-ге дейінгі қосынды», not the family itself — hence
+     * product-authored, and the distinction is load-bearing.
+     *
+     * This task WAS the plain 1..n sum, and its reference solution was
+     * byte-identical to the program `m2.l1.b7` prints one card earlier, whose
+     * own reasoning steps state two of the three things the support twin then
+     * asked the learner to fill in. Both routes were transcribing a program
+     * from the previous screen: for core and advanced the copy was five lines,
+     * for support it was three tokens with two of the answers written out in
+     * prose above them. That is the modelled program handed back as the
+     * exercise.
+     *
+     * Squaring the term keeps the whole of the modelled reasoning applicable —
+     * initialise before the loop, `range(1, n + 1)` to include n, accumulate
+     * inside — while making the program genuinely different, and it puts the
+     * copy-the-model failure on the VISIBLE sample: a learner who reproduces
+     * b7 exactly prints 15 where 55 is expected, and can see why.
+     *
+     * The named family keeps an independent task of its own at `m2.p2`, which
+     * is the a..b sum with a = 1 as its first case, unscaffolded and open to
+     * all three routes.
+     */
+    sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бір бүтін сан n беріледі (1 ≤ n ≤ 1000). 1 + 2 + … + n қосындысын шығар. Мысалы n = 5 болса, жауап 15.",
-      ru: "Дано целое число n (1 ≤ n ≤ 1000). Выведи сумму 1 + 2 + … + n. Например, при n = 5 ответ 15.",
+      kk: "Бір бүтін сан n беріледі (1 ≤ n ≤ 1000). 1² + 2² + … + n² қосындысын шығар — яғни әр санның өзін емес, квадратын қос. Мысалы n = 5 болса, 1 + 4 + 9 + 16 + 25 = 55.",
+      ru: "Дано целое число n (1 ≤ n ≤ 1000). Выведи сумму 1² + 2² + … + n² — то есть складывай не сами числа, а их квадраты. Например, при n = 5 получится 1 + 4 + 9 + 16 + 25 = 55.",
     },
-    referenceSolution: "n = int(input())\ns = 0\nfor i in range(1, n + 1):\n    s = s + i\nprint(s)",
-    /* The visible sample carries the month's two signature errors in the open:
-       `range(1, n)` prints 10 instead of 15, and `s = 0` moved inside the loop
-       prints 5. Both surface on a case the learner can see and reason about
-       rather than on a hidden one. n = 1 then kills a range that starts at 2
-       (prints 0) and an accumulator initialised to 1 (prints 2); n = 1000 is the
-       top of the bound the prompt states, so the promise is tested and not
-       merely described. */
+    referenceSolution:
+      "n = int(input())\ns = 0\nfor i in range(1, n + 1):\n    s = s + i * i\nprint(s)",
+    /* The visible sample carries three signature errors in the open. Copying
+       b7's program unchanged prints 15 instead of 55 — the mistake this task
+       was rewritten to catch, caught where the learner can see it. `range(1, n)`
+       prints 30, and `s = 0` moved inside the loop prints 25. n = 1 then kills a
+       range starting at 2 (prints 0) and an accumulator initialised to 1
+       (prints 2); n = 1000 is the top of the stated bound, so the promise is
+       tested rather than merely described. */
     cases: [
-      { input: "5", expectedOutput: "15" },
+      { input: "5", expectedOutput: "55" },
       { input: "1", expectedOutput: "1" },
-      { input: "2", expectedOutput: "3", hidden: true },
-      { input: "10", expectedOutput: "55", hidden: true },
-      { input: "100", expectedOutput: "5050", hidden: true },
-      { input: "1000", expectedOutput: "500500", hidden: true },
+      { input: "2", expectedOutput: "5", hidden: true },
+      { input: "3", expectedOutput: "14", hidden: true },
+      { input: "10", expectedOutput: "385", hidden: true },
+      { input: "100", expectedOutput: "338350", hidden: true },
+      { input: "1000", expectedOutput: "333833500", hidden: true },
     ],
   },
   {

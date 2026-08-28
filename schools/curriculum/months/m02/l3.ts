@@ -221,11 +221,26 @@ export const M2_L3: LessonBlock[] = [
     skillRefs: ["loops.while", "arith.remainder", "arith.integer_division"],
     sourceType: "product-authored",
     tracks: ["support"],
+    /*
+     * The starting program is `m2.l3.b6`'s — the digit COUNTER the learner has
+     * just completed themselves — and deliberately not `m2.l3.b7`'s.
+     *
+     * It was b7's, byte for byte, and b7 is the from-scratch digit-sum task
+     * that the support route meets on the immediately preceding card. Since the
+     * player mounts every block at once and Continue is never gated, the twin
+     * was printing the previous task's answer key one screen ahead of it. The
+     * only route affected was the one route that most needed the task.
+     *
+     * A program the learner has already finished is the right thing to hand
+     * them: the edit — stop counting, start printing the peeled digit — is
+     * structural rather than transcription, and nothing in the month solves it
+     * for them.
+     */
     prompt: {
-      kk: "Бұл бағдарлама цифрлардың қосындысын шығарады. Оны цифрлардың өзін соңғысынан бастап әр жолға бөлек шығаратындай өзгерт. Қосындының қажеті жоқ. 1 ≤ n ≤ 1 000 000 000.",
-      ru: "Эта программа выводит сумму цифр. Измени её так, чтобы она выводила сами цифры, начиная с последней, каждую с новой строки. Сумма больше не нужна. 1 ≤ n ≤ 1 000 000 000.",
+      kk: "Бұл бағдарлама цифрлардың САНЫН есептейді — сен оны жаңа ғана толықтырдың. Енді оны цифрлардың өзін соңғысынан бастап әр жолға бөлек шығаратындай өзгерт. Санағыштың қажеті жоқ. 1 ≤ n ≤ 1 000 000 000.",
+      ru: "Эта программа считает КОЛИЧЕСТВО цифр — ты её только что дополнил. Теперь измени её так, чтобы она выводила сами цифры, начиная с последней, каждую с новой строки. Счётчик больше не нужен. 1 ≤ n ≤ 1 000 000 000.",
     },
-    code: "n = int(input())\ns = 0\nwhile n > 0:\n    s = s + n % 10\n    n = n // 10\nprint(s)",
+    code: "n = int(input())\nc = 0\nwhile n > 0:\n    c = c + 1\n    n = n // 10\nprint(c)",
     referenceSolution: "n = int(input())\nwhile n > 0:\n    print(n % 10)\n    n = n // 10",
     cases: [
       { input: "407", expectedOutput: "7\n0\n4" },

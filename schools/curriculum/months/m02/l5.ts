@@ -185,9 +185,25 @@ export const M2_L5: LessonBlock[] = [
     skillRefs: ["lists.traverse", "loops.for", "loops.accumulator"],
     sourceType: "product-authored",
     tracks: ["support"],
+    /*
+     * Four lines sit at indent 0 and their order is the whole task.
+     *
+     * The earlier version had three — read, initialise, print — and the
+     * deterministic shuffle happened to leave all three already in place, so
+     * the remaining three could be ordered by their indents (0, 4, 8) without
+     * reading a word. A support task solvable by counting spaces is not a
+     * support task, it is a shorter one.
+     *
+     * The second `print` fixes that from the content side rather than by hoping
+     * for a less helpful shuffle: `print(best)` and `print(len(a))` are
+     * indistinguishable by indentation, both must land after the loop, and only
+     * the prompt says which comes first. `best = a[0]` versus `for x in a:` is a
+     * second such decision. Neither is ambiguous — there is exactly one correct
+     * order — but neither is derivable from whitespace.
+     */
     prompt: {
-      kk: "Жолдарды дұрыс ретке қой: бір жолдағы сандар оқылады да, солардың ең үлкені шығады. Бастапқы мән тізімнің бірінші элементінен алынатынын ұмытпа.",
-      ru: "Расставь строки по порядку: читаются числа из одной строки и выводится наибольшее из них. Помни, что начальное значение берётся из первого элемента списка.",
+      kk: "Жолдарды дұрыс ретке қой: бір жолдағы сандар оқылады, ең үлкені табылады, содан кейін АЛДЫМЕН ең үлкен сан, СОСЫН сандардың саны бөлек жолдарға шығады. Бастапқы мән тізімнің бірінші элементінен алынатынын ұмытпа.",
+      ru: "Расставь строки по порядку: читаются числа из одной строки, находится наибольшее, а затем выводятся СНАЧАЛА наибольшее число, ПОТОМ количество чисел — каждое на своей строке. Помни, что начальное значение берётся из первого элемента списка.",
     },
     lines: [
       { id: "r1", code: "a = list(map(int, input().split()))" },
@@ -196,8 +212,9 @@ export const M2_L5: LessonBlock[] = [
       { id: "r4", code: "    if x > best:" },
       { id: "r5", code: "        best = x" },
       { id: "r6", code: "print(best)" },
+      { id: "r7", code: "print(len(a))" },
     ],
-    correctOrder: ["r1", "r2", "r3", "r4", "r5", "r6"],
+    correctOrder: ["r1", "r2", "r3", "r4", "r5", "r6", "r7"],
   },
   {
     id: "m2.l5.b6",

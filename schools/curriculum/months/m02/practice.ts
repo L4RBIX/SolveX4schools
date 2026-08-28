@@ -12,7 +12,10 @@ import type { LessonBlock } from "../../types";
  * Four decisions taken once, so no block below re-litigates them.
  *
  * 1. **Not a rerun of the lessons.** m2.l1–m2.l6 already own the concrete
- *    tasks the PDF's October practice paragraph names: sum 1..n (m2.l1.b8),
+ *    tasks the PDF's October practice paragraph names: the 1..n sum, modelled
+ *    in m2.l1.b7 and practised unscaffolded at m2.p2 below (m2.l1.b8 sits in
+ *    the same family on squares, so that the lesson task is not the worked
+ *    example handed back),
  *    the divisor COUNT (m2.l2.b6), the digit sum (m2.l3.b7), the list maximum
  *    (m2.l5.b6), the count above the average (m2.l5.b8), the vowel count
  *    (m2.l6.b6), the word palindrome (m2.l6.b7). Setting the same statements
@@ -40,7 +43,7 @@ import type { LessonBlock } from "../../types";
  *    route, support included: the programme asks support for *more*
  *    assembling and *less* writing from scratch across the month, and the
  *    month's lessons already carry that substitution at every `s` id — a
- *    support learner who has done ten scaffolded twins still has to write
+ *    support learner who has done the nine scaffolded twins still has to write
  *    something alone by the end of it. m2.p9 adds a second interacting
  *    accumulator (core + advanced) and m2.p10 is the nested loop
  *    (advanced only).
