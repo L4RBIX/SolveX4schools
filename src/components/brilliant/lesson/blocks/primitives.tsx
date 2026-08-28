@@ -93,9 +93,32 @@ export function LessonParagraph({ text }: { text: string }) {
 /**
  * The prompt line above an interaction. 16/24, matching the scheduler slide's
  * "Tap meeting blocks to construct a valid schedule."
+ *
+ * ## Why `whitespace-pre-wrap`
+ *
+ * September's prompts were all one line, so a bare `<p>` was indistinguishable
+ * from a correct one. Months 2–4 have twenty-eight prompts that carry newlines —
+ * a stated input format on its own line, numbered sub-questions, and in
+ * `m2.l7` an ASCII picture under «дәл былай шығуы керек» ("it must come out
+ * exactly like this"). Under the CSS initial value `white-space: normal` every
+ * one of those newlines and every run of spaces collapses to a single space, so
+ * the learner met a task whose prompt promised an exact layout above a
+ * paragraph-shaped blob, and `m2.l7.b8s` — a `reorder_code` on the support
+ * route, which renders no case table — had no other copy of the shape at all.
+ *
+ * `pre-wrap` and not `pre-line`: `pre-line` preserves newlines but still
+ * collapses runs of spaces and strips leading whitespace, which is exactly the
+ * indentation an ASCII triangle is made of. `pre-wrap` keeps both and still
+ * wraps long lines, so a prose prompt is unaffected.
+ *
+ * This does not make prompts a good place for byte-exact pictures: the text
+ * here is the proportional body face, so an ASCII shape is visible but ragged.
+ * Where the layout IS the answer, the authoritative copy is the case table under
+ * the editor, which already renders in `font-b-mono whitespace-pre`. The prompt
+ * says what the shape is; the table shows it.
  */
 export function BlockPrompt({ children }: { children: ReactNode }) {
-  return <p className="w-full text-[16px] leading-6">{children}</p>;
+  return <p className="w-full whitespace-pre-wrap text-[16px] leading-6">{children}</p>;
 }
 
 /* -------------------------------------------------------------------------- */
