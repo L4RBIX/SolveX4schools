@@ -335,14 +335,34 @@ export const M3_L2: LessonBlock[] = [
   {
     /*
      * SUPPORT SUBSTITUTION for b8 — «құрастыру мен толықтыру көбірек, нөлден
-     * жазу азырақ» (p.6). The same problem, with the loop and the reading
-     * given, and the three blanks are exactly the three decisions b8 is about:
-     * the second parameter's name, the operator that makes a box FULL rather
-     * than fractional, and which of the two numbers read from the line goes
-     * into the second parameter.
+     * жазу азырақ» (p.6). The same problem, with the header, the loop and the
+     * reading given: what is removed is the typing, not the idea.
      *
-     * A support learner therefore still meets the two-parameter call in full;
-     * what is removed is the typing, not the idea.
+     * One of the three blanks used to be the second parameter's NAME, with
+     * `print(items ___ capacity)` sitting one line beneath it. That is not a
+     * decision. The prompt said the header must match the name the body uses,
+     * the body said `capacity`, and the whole of the work was copying a word —
+     * work the browser did too, because the projection strips `blanks[].answer`
+     * and then ships a template that spells the answer out. That is the leak
+     * `payload-privacy` reports, and it is a content defect before it is a
+     * privacy one: a blank with one readable answer teaches nothing.
+     *
+     * Blanking the body's use as well would not repair it. Any identifier is
+     * legal in both places, so `x` twice is a correct program marked wrong by a
+     * stored answer, which is the trap b5's note argues against. So the header
+     * is given whole and the blanks moved onto the two decisions b8 is actually
+     * about: the operator that makes a box FULL rather than fractional, and
+     * which of the two numbers read from the line lands in which parameter.
+     * `a` and `b` are both on screen and both fit the slot, so the template no
+     * longer answers the question — and getting the pair backwards prints a
+     * number rather than raising, which is precisely the hazard b4 predicted
+     * and b6 repaired.
+     *
+     * The statement is spelled out in full for the same reason. Support never
+     * receives b8, so «сол қорап есебі» / «той же задачи» pointed at a card
+     * this route has never seen, and the meaning of the two numbers on a line
+     * was written down nowhere — which is exactly what the new blanks ask the
+     * learner to map.
      */
     id: "m3.l2.b8s",
     type: "fill_blank",
@@ -350,14 +370,14 @@ export const M3_L2: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бұл — сол қорап есебінің дайын қаңқасы. Үш бос орынды толтыр: тақырыптағы екінші параметрдің аты дене қолданатын атпен бірдей болсын; толық қораптардың саны бүтін бөлу арқылы табылады; ал шақыруда жолдан оқылған екінші сан екінші параметрге түсуі керек.",
-      ru: "Это готовый каркас той же задачи про коробки. Заполни три пропуска: имя второго параметра в заголовке должно совпадать с именем, которое использует тело; количество полных коробок находится целочисленным делением; а в вызове второе прочитанное из строки число должно попасть во второй параметр.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100) — тапсырыстар саны. Келесі n жолдың әрқайсысында екі бүтін сан бос орынмен: заттар саны (0 ≤ бірінші ≤ 10000) және бір қорапқа сыятын зат саны (1 ≤ екінші ≤ 1000). Әр тапсырыс үшін толық толған қораптардың саны жеке жолға шығуы керек. Қаңқасы дайын — үш орынды толтыр. Біріншісі — амал белгісі: жартылай толған қорап саналмайды, сондықтан бөлудің бөлшек бөлігі тасталуы тиіс. Қалған екеуі — шақырудағы аргументтердің реті: `boxes` алдымен заттар санын, сосын бір қорапқа сыятын зат санын күтеді, ал жолдан оқылған сандар `a` мен `b`-да тұр. Ретті шатастырсаң, Python қате бермейді — жай ғана басқа сан шығарады.",
+      ru: "В первой строке дано число n (1 ≤ n ≤ 100) — количество заказов. В каждой из следующих n строк через пробел даны два целых числа: количество предметов (0 ≤ первое ≤ 10000) и вместимость одной коробки (1 ≤ второе ≤ 1000). Для каждого заказа нужно вывести отдельной строкой количество полностью заполненных коробок. Каркас готов — заполни три места. Первое — знак операции: наполовину заполненная коробка не считается, поэтому дробная часть деления должна отбрасываться. Остальные два — порядок аргументов в вызове: `boxes` ждёт сначала количество предметов, а потом вместимость коробки, а прочитанные из строки числа лежат в `a` и `b`. Если перепутать порядок, Python не сообщит об ошибке — он просто выведет другое число.",
     },
     template:
-      "def boxes(items, ___):\n    print(items ___ capacity)\n\nn = int(input())\nfor i in range(n):\n    a, b = map(int, input().split())\n    boxes(a, ___)",
+      "def boxes(items, capacity):\n    print(items ___ capacity)\n\nn = int(input())\nfor i in range(n):\n    a, b = map(int, input().split())\n    boxes(___, ___)",
     blanks: [
-      { id: "f1", answer: "capacity" },
-      { id: "f2", answer: "//" },
+      { id: "f1", answer: "//" },
+      { id: "f2", answer: "a" },
       { id: "f3", answer: "b" },
     ],
   },

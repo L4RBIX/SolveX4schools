@@ -244,11 +244,22 @@ export const M3_L4: LessonBlock[] = [
      * negative on the odd side and reverses the order so a solution that
      * answers for the same value twice dies, and `1000000 999999` is large
      * enough that nobody solves it by recognising the number.
+     *
+     * `exact` and not the default `token`, because both prompts say «жеке
+     * жолға» / «в отдельной строке» and `token` throws the line break away:
+     * `print(check(a), check(b))` emits `even odd` on one line and passed all
+     * five cases — run, 5/5 — against a prompt that forbids it. That is a
+     * layout the prompt states and nothing enforces. It is also the cheapest
+     * possible place to tighten: every expected line here is one word with no
+     * interior spacing, so `exact` adds the one requirement the prompt already
+     * made and not a single one about spaces nobody asked for, and the visible
+     * case `4 7` shows the two lines before anything is hidden.
      */
     id: "m3.l4.b7",
     type: "modify_code",
     skillRefs: ["scope.local_global", "func.parameters", "func.reuse"],
     sourceType: "product-authored",
+    checker: { kind: "exact" },
     prompt: {
       kk: "Бұл бағдарлама бір сан оқып, `even` немесе `odd` шығарады, бірақ `check` функциясы сыртқы `n` айнымалысына жүгінеді — сондықтан оны басқа санмен шақыру мүмкін емес. Енді бір жолда бос орынмен бөлінген екі бүтін сан беріледі. `check` функциясын санды параметр арқылы қабылдайтындай етіп қайта жаз да, оны екі рет шақыр: әр сан үшін жеке жолға `even` немесе `odd` шығар.",
       ru: "Эта программа читает одно число и выводит `even` или `odd`, но функция `check` тянется к внешней переменной `n` — поэтому вызвать её с другим числом невозможно. Теперь в одной строке через пробел даны два целых числа. Перепиши `check` так, чтобы число приходило параметром, и вызови её дважды: для каждого числа выведи `even` или `odd` в отдельной строке.",
@@ -300,12 +311,23 @@ export const M3_L4: LessonBlock[] = [
      * two mutants this task exists to kill — printing the outer value first,
      * and mutating one shared box so both lines read 3n — die on every one of
      * them.
+     *
+     * Those two mutants died; a third did not, and it is the reason this block
+     * now carries `exact`. Both prompts name a first line and a second line,
+     * and `token` cannot see a line break, so `print(triple(n), n)` printed
+     * `15 5` and passed all six cases against a prompt that asked for two.
+     * The same argument as b7, and the same reason it costs nothing: the
+     * expected output is two bare numbers, so the only thing `exact` newly
+     * demands is the line break the prompt already demanded, and `5` and `1`
+     * are visible, so a learner who gets the shape wrong finds out on the
+     * sample rather than inside a hidden case they cannot read.
      */
     id: "m3.l4.b8",
     type: "write_code",
     skillRefs: ["scope.local_global", "func.define", "func.parameters"],
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
+    checker: { kind: "exact" },
     prompt: {
       kk: "Бір бүтін сан беріледі. `triple` деген функция жаз, оның параметрінің аты да `n` болсын. Функцияның ішінде `n`-ді үш есе үлкейтіп, сол мәнді бірінші жолға шығар. Функцияны шақырғаннан кейін сыртқы `n`-ді екінші жолға шығар. Екі `n` — екі бөлек қорап, сондықтан екінші жолда бастапқы сан тұруы керек. Мысалы `5` үшін жауап: `15`, содан кейін `5`.",
       ru: "Дано одно целое число. Напиши функцию `triple`, параметр которой тоже называется `n`. Внутри функции увеличь `n` втрое и выведи это значение в первой строке. После вызова функции выведи внешнее `n` во второй строке. Два `n` — это две разные ячейки, поэтому во второй строке должно остаться исходное число. Например, для `5` ответ: `15`, затем `5`.",

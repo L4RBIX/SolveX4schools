@@ -8,30 +8,53 @@ import type { LessonBlock } from "../../types";
  * March's practice paragraph (p.9) names six families by hand: «картада қанша
  * арал бар», «берілген нүктеден аймақты бояу», «бір ұяшықтан екіншісіне жетуге
  * бола ма», «лабиринттегі ең қысқа жол», «ең үлкен аралдың өлшемі»,
- * «маршрутты қалпына келтіру». Five of them are set here unscaffolded —
- * `m7.p3`, `m7.p4`, `m7.p5`, `m7.p6`, `m7.p7` — and carry `curriculum-derived`
- * for that reason. The route-restoration family belongs to `m7.l4`, which
- * teaches printing the path; repeating it here would be a second copy of a
- * lesson task rather than a new problem, so this set takes the other half of
- * that idea instead: `m7.p10` asks for the length of a route that is forced
- * through a stated waypoint, which needs two waves and no path printing.
+ * «маршрутты қалпына келтіру». Every block below sits inside one of them, and
+ * the month is «алғашқы танысу» — a first acquaintance — so the statements are
+ * short and the maps small enough to draw on squared paper while thinking.
+ * March also promises only about 26 tasks, the smallest month of the year, so
+ * ten unscaffolded problems is a large share of it and none of them is long.
  *
- * The month is «алғашқы танысу» — a first acquaintance — and it is the
- * smallest month in the year: p.9 promises about 26 tasks. Ten unscaffolded
- * problems is therefore a large share of it, so every statement here is short
- * and every map is small enough to draw on squared paper while thinking.
+ * ## The one decision that shaped every statement here
+ *
+ * The lessons got to the plain form of five of these families first, and a
+ * practice set that restates a lesson task measures whether a learner
+ * remembers the lesson, not whether they can solve. Concretely: `m7.l2.b8`
+ * counts the islands, `m7.l2.b9` gives the size of the region round a named
+ * cell, `m7.l2.b10` gives the size of the largest island, `m7.l3.b8` answers
+ * yes/no reachability and `m7.l3.b9` gives the shortest-path length. Setting
+ * any of those again here would be the same program under a second id — the
+ * defect the first adversarial review found most often, in the form that is
+ * hardest to see, because the two programs are in different files.
+ *
+ * So each block stays in its family and moves the question one step on, the
+ * way October's practice set did (count → sum, word → list):
+ *
+ * | Family (p.9) | The lesson's question | The question here |
+ * |---|---|---|
+ * | how many islands | how many are there | how many reach the edge of the map (`m7.p3`) |
+ * | paint the region from a point | how big is it | paint it and print the map back (`m7.p4`) |
+ * | the largest island | how big is it | how many islands are that big (`m7.p5`) |
+ * | can you get there | one finish, yes/no | two candidates, which ones (`m7.p6`) |
+ * | the shortest path | to one named finish | to the nearest way out of the map (`m7.p7`) |
+ *
+ * `m7.p4` is the only one that is not a variation but the family's own words
+ * read literally: «берілген нүктеден аймақты бояу» is *paint*, and nothing
+ * else in March prints a map. `m7.p1` and `m7.p2` are the two rungs before any
+ * traversal, `m7.p8` and `m7.p9` read the wave after it settles, and `m7.p10`
+ * is the route family taken from the other side — `m7.l4` restores and prints
+ * a path, so this one measures a route that is forced through a waypoint and
+ * prints no path at all.
  *
  * ## Six decisions taken once, so no block below re-litigates them
  *
  * 1. **One input format, stated in full in every prompt, in both languages.**
  *    First line `n m`; then `n` lines of exactly `m` characters, `.` free and
- *    `#` wall; then, where the task needs them, further lines of coordinates.
- *    Rows and columns are numbered **from 0**, which every prompt says out
- *    loud: it is Python's own numbering, and asking a fourteen-year-old to
- *    subtract one before they have a working traversal is a second bug source
- *    bolted onto the first. `1 ≤ n ≤ 20` and `1 ≤ m ≤ 20` everywhere, so a
- *    learner who reaches for recursion instead of the queue is safe from
- *    Python's recursion limit — at most 400 cells deep.
+ *    `#` wall; then, where the task needs them, the coordinates on **one**
+ *    final line — which is the convention `m7.l2.b9` and `m7.l3.b8` already
+ *    set, so a learner meets one input shape all month. Rows and columns are
+ *    numbered from 0 and every prompt says so. `1 ≤ n ≤ 20` and `1 ≤ m ≤ 20`
+ *    everywhere, so a learner who reaches for recursion instead of the queue
+ *    is safe from Python's limit — at most 400 cells deep.
  *
  * 2. **The queue is a list with a moving head index.** `collections.deque` is
  *    never taught by this programme and importing it would put an unexplained
@@ -43,13 +66,11 @@ import type { LessonBlock } from "../../types";
  *    this file uses a construct later than December.
  *
  * 3. **`m7.p8` is not the brief's "how many cells are reachable from the
- *    start".** In a grid the cells reachable from a free cell ARE its region,
- *    so that statement is `m7.p4` with different words and would have shipped
- *    the same program twice under two ids — the defect the first adversarial
- *    review found most often, in the form that is hardest to see. The rung is
- *    kept and the question moved one step on: how many cells are within **k**
- *    moves. That needs the distance the wave carries, not just the fact of
- *    reaching, so it is a genuinely different program and it sets up `m7.p9`.
+ *    start".** On a grid the cells reachable from a free cell ARE its region,
+ *    so that statement is `m7.l2.b9` a third time. The rung is kept and the
+ *    question moved on: how many cells lie within **k** moves. That needs the
+ *    distance the wave carries, not just the fact of arriving, and it sets up
+ *    `m7.p9`.
  *
  * 4. **`m7.p10` asks for a helper function as advice, not as a rule.** Output
  *    comparison cannot see whether a submission defined `spread()`, and telling
@@ -68,24 +89,32 @@ import type { LessonBlock } from "../../types";
  *    misunderstandings landing on one number. The pipeline emitting
  *    `unattributed_failure` and asking the learner is the correct outcome.
  *
- * 6. **The checker stays `token` throughout.** No prompt here claims a layout.
- *    `m7.p9` prints two numbers and its prompt asks for two numbers, the way
- *    September's `m1.p4` does; the coordinates are the exercise, not the space
- *    between them.
+ * 6. **`m7.p4` is the only `exact` checker.** Its prompt states a layout — n
+ *    lines of m characters — so `token`, which would accept the whole map on
+ *    one line, would be a promise the grader does not keep. Every other block
+ *    prints values whose arrangement nobody asked about, `m7.p9`'s two
+ *    coordinates included, and stays on `token` as `m1.p4` does.
  *
  * ## The wrong programs these cases are built to fail
  *
  * Every block carries at least one hidden case chosen against a named
- * degenerate solution, and all of them were executed against the real thing
- * before this file was written. Across the ten: the missing bounds check —
- * which in Python does not crash on `r - 1` but **wraps to the far edge**, so
- * `m7.p3` carries a map whose top and bottom rows fuse into one island under
- * it; the visited mark set on exit instead of on entry, which counts a cell
- * twice and dies on any two-by-two open block; the start cell being a wall; an
- * unreachable finish; a 1×1 map; a map that is entirely walls; a map that is
- * entirely free; diagonal neighbours treated as neighbours; Manhattan distance
- * substituted for a real shortest path; and depth-first exploration returning
- * the first route found rather than the shortest.
+ * degenerate solution, and all forty-one of them were executed against these
+ * case sets before this file was written; every one fails at least one case.
+ * Across the ten: the missing bounds check — which in Python does not crash on
+ * `r - 1` but **wraps to the far edge**, so `m7.p3` carries a map whose top and
+ * bottom rows fuse into one island under it; the visited mark set on exit
+ * instead of on entry, which counts a cell twice and dies on any two-by-two
+ * open block; the start cell being a wall; an unreachable target; a 1×1 map; a
+ * map that is entirely walls; a map that is entirely free; diagonal neighbours
+ * treated as neighbours; straight-line distance substituted for a real
+ * shortest path; and depth-first exploration returning the first route found
+ * rather than the shortest.
+ *
+ * One honest gap, recorded rather than papered over: on `m7.p7` the missing
+ * lower-bound check alone cannot be caught, because every cell the wrap
+ * reaches is itself an edge cell and the answer was already fixed when the
+ * wave got there. The wrap is caught at `m7.p3`, and the missing upper-bound
+ * check crashes at `m7.p7` like everywhere else.
  *
  * ## Tracks
  *
@@ -101,7 +130,10 @@ export const M7_PRACTICE: LessonBlock[] = [
     /* Rung 1: no traversal at all, just the input format. Before a learner can
        be wrong about neighbours they have to be right about reading n rows of
        m characters, and a first grid task that also demands a queue hides one
-       failure behind the other. The only decision here is the `== "."` test. */
+       failure behind the other. Distinct from m7.l1.b9, which counts the free
+       neighbours of ONE named cell, and from m7.l1.b10, which counts free
+       cells that have a wall beside them; this one has no neighbour test in it
+       at all. */
     id: "m7.p1",
     type: "write_code",
     skillRefs: ["grid.cells", "loops.nested", "loops.counter"],
@@ -143,7 +175,9 @@ export const M7_PRACTICE: LessonBlock[] = [
        named in code rather than seen. The trap is real and it is not the one a
        learner expects — the obvious four-loops-round-the-frame solution counts
        every corner twice, and on a 1×1 map counts the single cell four times.
-       `debug.boundary` is the skill and this is what it looks like on a grid. */
+       `debug.boundary` is the skill and this is what it looks like on a grid.
+       It also sets up m7.p3 and m7.p7, which both ask about the edge again
+       once a wave is involved. */
     id: "m7.p2",
     type: "write_code",
     skillRefs: ["grid.cells", "debug.boundary", "loops.nested"],
@@ -183,17 +217,19 @@ export const M7_PRACTICE: LessonBlock[] = [
          every cell is on the edge. */
       { input: "4 1\n.\n#\n#\n.", expectedOutput: "2", hidden: true },
       /* One row, the mirror of the case above. A program that only inspects
-         the top and bottom rows happens to be right here, which is why the
-         next case is not this one. */
+         the top and bottom rows happens to be right here, which is why it is
+         not alone in the set. */
       { input: "1 5\n.#.#.", expectedOutput: "3", hidden: true },
     ],
   },
   {
-    /* Rung 3, and the first traversal. PDF p.9 family «картада қанша арал бар».
-       Counting regions is the cheapest possible use of a wave: the answer does
-       not depend on the order cells come out of the queue, only on the mark
-       being set. That is deliberate — the first task that needs a queue should
-       fail for one reason at a time. */
+    /* Rung 3, and the first traversal. PDF p.9 family «картада қанша арал бар»
+       — but m7.l2.b8 already asks for the count, so this asks which of them
+       reach the edge. The wave now has to carry something with it: a flag
+       raised by any cell of the island, not by the cell it started from. That
+       is the smallest possible version of "the wave computes a property of the
+       whole region", and it is why the answer cannot be assembled cell by cell
+       the way m7.p2's could. */
     id: "m7.p3",
     type: "write_code",
     skillRefs: ["graph.regions", "graph.bfs", "grid.cells", "debug.boundary"],
@@ -203,103 +239,123 @@ export const M7_PRACTICE: LessonBlock[] = [
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картада неше арал бар екенін шығар. Арал — бір-бірімен байланысқан бос ұяшықтардың тобы. " +
+        "Арал — бір-бірімен байланысқан бос ұяшықтардың тобы. " +
         "Екі ұяшық ортақ қабырғасы болса ғана көрші саналады: жоғары, төмен, солға, оңға. Тек бұрышы түйіскен ұяшықтар көрші емес. " +
-        "Картада бос ұяшық мүлде болмаса, 0 шығар.",
+        "Егер аралдың кемінде бір ұяшығы ең үстіңгі жолда, ең астыңғы жолда, ең сол жақ бағанда немесе ең оң жақ бағанда тұрса, ол арал картаның шетіне шығады деп саналады. Сондай аралдардың санын шығар. " +
+        "Ондай арал болмаса, 0 шығар.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "Выведи, сколько на карте островов. Остров — это группа свободных клеток, связанных друг с другом. " +
+        "Остров — это группа свободных клеток, связанных друг с другом. " +
         "Соседними считаются только клетки с общей стороной: сверху, снизу, слева, справа. Клетки, соприкасающиеся лишь углом, соседями не считаются. " +
-        "Если свободных клеток на карте нет совсем, выведи 0.",
+        "Выведи, сколько островов выходит на край карты. Остров выходит на край, если хотя бы одна его клетка стоит в самой верхней строке, в самой нижней строке, в самом левом столбце или в самом правом столбце. " +
+        "Если таких островов нет, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nislands = 0\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            islands += 1\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\nprint(islands)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\ncoastal = 0\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            touches = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                if r == 0 or r == n - 1 or c == 0 or c == m - 1:\n                    touches = 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            if touches == 1:\n                coastal += 1\nprint(coastal)",
     cases: [
-      { input: "4 5\n..#..\n..#..\n#####\n..#..", expectedOutput: "4" },
-      /* Two cells that touch only at a corner. A solution that walks eight
-         neighbours instead of four prints 1. The prompt says this in both
-         languages, so the case is enforcing something the learner was told. */
-      { input: "2 2\n.#\n#.", expectedOutput: "2", hidden: true },
+      /* Three islands of one cell each, two of them on the edge: a program
+         that counts every island prints 3. */
+      { input: "5 5\n.####\n#####\n##.##\n#####\n####.", expectedOutput: "2" },
+      /* One island, entirely inland. The answer is 0 while the map is far from
+         empty — the case for a program that assumes every island reaches out. */
+      { input: "4 4\n####\n#..#\n#..#\n####", expectedOutput: "0", hidden: true },
+      /* Four corner cells. Also the missing-bounds-check case, and in Python
+         the missing check does not crash: `g[r - 1]` with r = 0 is `g[-1]`,
+         the LAST row, and `g[r][c - 1]` with c = 0 is the last column. Without
+         `r > 0` and `c > 0` the map wraps into a ring and all four corners
+         fuse into one island, so the program prints 1. */
+      { input: "3 3\n.#.\n###\n.#.", expectedOutput: "4", hidden: true },
       { input: "1 1\n.", expectedOutput: "1", hidden: true },
       { input: "1 1\n#", expectedOutput: "0", hidden: true },
-      /* Entirely free — one island, not n × m of them. */
+      /* Entirely free: one island, which of course touches the edge. */
       { input: "3 3\n...\n...\n...", expectedOutput: "1", hidden: true },
       /* Entirely walls. */
       { input: "2 3\n###\n###", expectedOutput: "0", hidden: true },
-      /* A snake: every free cell belongs to one island, but reading only the
-         cell above and the cell to the left cannot see it. The "count a cell
-         as a new island when its up and left neighbours are walls" rule — the
-         commonest way to answer this without a traversal at all — prints 3. */
-      { input: "5 5\n.....\n####.\n.....\n.####\n.....", expectedOutput: "1", hidden: true },
-      /* Four separate corners. This is the missing-bounds-check case, and in
-         Python the missing check does not crash: `g[r - 1]` with r = 0 is
-         `g[-1]`, the LAST row, and `g[r][c - 1]` with c = 0 is the last column.
-         So a solution without `r > 0` and `c > 0` wraps the map into a ring
-         and fuses all four corners into one island. It prints 1. */
-      { input: "3 3\n.#.\n###\n.#.", expectedOutput: "4", hidden: true },
+      /* The island reaches the edge at exactly one cell, (3,1), and the scan
+         starts the wave at (1,1), which is inland. A program that tests the
+         starting cell instead of carrying the flag through the wave prints 0. */
+      { input: "4 4\n####\n#..#\n#..#\n#.##", expectedOutput: "1", hidden: true },
+      /* Two cells touching only at a corner, both on the edge: eight-way
+         neighbours merge them into one island and print 1. */
+      { input: "2 2\n.#\n#.", expectedOutput: "2", hidden: true },
     ],
   },
   {
-    /* Rung 4. PDF p.9 family «берілген нүктеден аймақты бояу». Same wave as
-       m7.p3, different question: one region rather than all of them, and the
-       starting cell is now given rather than found. That moves the mark from
-       "have I been here" to "is this cell part of the answer", and it is the
-       first task where a cell counted twice is a wrong number rather than
-       wasted time. */
+    /* Rung 4. PDF p.9 family «берілген нүктеден аймақты бояу», read literally:
+       paint. m7.l2.b9 measures the region; this one shows it, which means the
+       mark a learner has been setting to avoid revisiting a cell becomes the
+       output itself — the same line of code doing both jobs at once, which is
+       the clearest way to see what a visited mark actually is.
+       The prompt states a layout, so the checker is `exact`; see decision 6.
+       Rebuilding a row is `line = line + g[i][j]`, plain string addition from
+       September, so nothing here needs `.join()`. */
     id: "m7.p4",
     type: "write_code",
     skillRefs: ["graph.regions", "graph.bfs", "grid.cells"],
     sourceType: "curriculum-derived",
     pdfPage: 9,
+    checker: { kind: "exact" },
     prompt: {
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картадан кейінгі жолда r мен c сандары беріледі — бір ұяшықтың координаталары; жол мен баған нөмірлері 0-ден басталады. " +
-        "Сол ұяшық жататын аймақта неше ұяшық бар екенін шығар. Аймақ — байланысқан бос ұяшықтардың тобы, көрсетілген ұяшықтың өзі де саналады. " +
-        "Екі ұяшық ортақ қабырғасы болса ғана көрші саналады; тек бұрышы түйіскен ұяшықтар көрші емес. " +
-        "Егер көрсетілген ұяшықтың орнында қабырға тұрса, 0 шығар.",
+        "Соңғы жолда r мен c сандары беріледі — бір ұяшықтың координаталары; жол мен баған нөмірлері 0-ден басталады. " +
+        "Аймақ — байланысқан бос ұяшықтардың тобы; ұяшықтар ортақ қабырғасы болғанда ғана көрші саналады, тек бұрышы түйіскендер емес. " +
+        "Көрсетілген ұяшық жататын аймақтың әрбір ұяшығын `o` латын әрпіне ауыстыр да, картаны сол қалпында қайта шығар: n жол, әр жолда m таңба. Қалған таңбалар өзгермейді. " +
+        "Егер көрсетілген ұяшықтың орнында қабырға тұрса, картаны еш өзгертпей шығар.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "В строке после карты даны числа r и c — координаты одной клетки; нумерация строк и столбцов начинается с нуля. " +
-        "Выведи, сколько клеток в области, которой принадлежит эта клетка. Область — это группа связанных свободных клеток, сама указанная клетка тоже считается. " +
-        "Соседними считаются только клетки с общей стороной; клетки, соприкасающиеся лишь углом, соседями не являются. " +
-        "Если на месте указанной клетки стоит стена, выведи 0.",
+        "В последней строке даны числа r и c — координаты одной клетки; нумерация строк и столбцов начинается с нуля. " +
+        "Область — это группа связанных свободных клеток; соседними считаются только клетки с общей стороной, а не соприкасающиеся углом. " +
+        "Замени каждую клетку области, которой принадлежит указанная клетка, на латинскую букву `o` и выведи карту обратно: n строк, по m символов в каждой. Остальные символы не меняются. " +
+        "Если на месте указанной клетки стоит стена, выведи карту без изменений.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc = map(int, input().split())\nsize = 0\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"#\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        size += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"#\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"#\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"#\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"#\"\n            qr.append(r)\n            qc.append(c + 1)\nprint(size)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc = map(int, input().split())\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"o\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"o\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"o\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"o\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"o\"\n            qr.append(r)\n            qc.append(c + 1)\nfor i in range(n):\n    line = \"\"\n    for j in range(m):\n        line = line + g[i][j]\n    print(line)",
     cases: [
-      /* The named region is a two-by-two block, which is the smallest shape in
-         which a cell has two already-queued neighbours. A solution that sets
-         the visited mark when a cell comes OUT of the queue instead of when it
-         goes in pushes the fourth cell twice and prints 5. The visible sample
-         catches it, so this mistake is found in the editor, not on a hidden
-         case — it is the error PDF p.9 asks March to teach. */
-      { input: "4 5\n..#..\n..#..\n#####\n.....\n0 0", expectedOutput: "4" },
-      /* The named cell is a wall. */
-      { input: "4 5\n..#..\n..#..\n#####\n.....\n2 2", expectedOutput: "0", hidden: true },
-      /* Entirely free: one region covering the whole map. */
-      { input: "3 3\n...\n...\n...\n1 1", expectedOutput: "9", hidden: true },
-      /* A region of exactly one cell, with a much larger region elsewhere on
-         the map: a program that counts every free cell prints 4. */
-      { input: "3 3\n.#.\n###\n...\n0 0", expectedOutput: "1", hidden: true },
-      { input: "1 1\n.\n0 0", expectedOutput: "1", hidden: true },
-      /* The whole map is the two-by-two block, so the mark-on-exit bug prints
-         5 with nothing else on the map to hide behind. */
-      { input: "2 2\n..\n..\n0 0", expectedOutput: "4", hidden: true },
-      /* The named cell is in the SMALLER region and the larger one comes
-         first in reading order. Kills both "count every free cell" (prints 13)
-         and "count the first region you find" (prints 10). */
-      { input: "4 5\n.....\n.....\n#####\n....#\n3 0", expectedOutput: "4", hidden: true },
+      /* Two regions on the map and only the top-left one is painted, so
+         painting every free cell is a visible failure. Printing the rows in
+         the wrong order is too. */
+      {
+        input: "4 5\n..#..\n..#..\n#####\n.....\n0 0",
+        expectedOutput: "oo#..\noo#..\n#####\n.....",
+      },
+      /* The named cell is a wall: the map comes back untouched, which is the
+         case a program that starts the wave without looking fails. */
+      {
+        input: "4 5\n..#..\n..#..\n#####\n.....\n2 2",
+        expectedOutput: "..#..\n..#..\n#####\n.....",
+        hidden: true,
+      },
+      /* Entirely free: the whole map is one region. */
+      { input: "3 3\n...\n...\n...\n1 1", expectedOutput: "ooo\nooo\nooo", hidden: true },
+      { input: "1 1\n.\n0 0", expectedOutput: "o", hidden: true },
+      { input: "1 1\n#\n0 0", expectedOutput: "#", hidden: true },
+      /* The other free cell touches the named one only at a corner and must
+         stay a dot: eight-way spreading paints it. */
+      { input: "2 2\n.#\n#.\n0 0", expectedOutput: "o#\n#.", hidden: true },
+      /* A snake that doubles back twice: nothing short of a real traversal
+         reaches the last row from the first. */
+      {
+        input: "5 5\n.....\n####.\n.....\n.####\n.....\n0 0",
+        expectedOutput: "ooooo\n####o\nooooo\no####\nooooo",
+        hidden: true,
+      },
+      /* The named cell is alone in a region of one while a larger region sits
+         below it untouched. */
+      { input: "3 3\n.#.\n###\n...\n0 0", expectedOutput: "o#.\n###\n...", hidden: true },
     ],
   },
   {
-    /* Rung 5. PDF p.9 family «ең үлкен аралдың өлшемі». The wave is now inside
-       a scan and its result has to be compared, which is October's
-       best-so-far over something that is not a number in a list. The empty map
-       is the case that decides whether `best` was initialised honestly. */
+    /* Rung 5. PDF p.9 family «ең үлкен аралдың өлшемі» — m7.l2.b10 owns the
+       size, so this asks how many islands share it. That needs the sizes kept
+       rather than folded away as they arrive, which is the first time this
+       month a wave's results have to outlive the wave, and it turns a
+       one-variable best-so-far into a maximum followed by a count. The
+       one-pass shortcut with `>=` is the tempting wrong answer and it is
+       killed on the visible sample. */
     id: "m7.p5",
     type: "write_code",
     skillRefs: ["graph.regions", "graph.bfs", "compare.operators"],
@@ -309,49 +365,53 @@ export const M7_PRACTICE: LessonBlock[] = [
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картадағы ең үлкен аралда неше ұяшық бар екенін шығар. Арал — байланысқан бос ұяшықтардың тобы. " +
-        "Екі ұяшық ортақ қабырғасы болса ғана көрші саналады; тек бұрышы түйіскен ұяшықтар көрші емес. " +
-        "Картада бос ұяшық мүлде болмаса, 0 шығар.",
+        "Арал — байланысқан бос ұяшықтардың тобы; ұяшықтар ортақ қабырғасы болғанда ғана көрші саналады, тек бұрышы түйіскендер емес. " +
+        "Ең үлкен аралда неше ұяшық бар екенін тап та, дәл сондай өлшемдегі аралдардың санын шығар. " +
+        "Мысалы, аралдардың өлшемдері 4, 5 және 5 болса, жауап 2. Картада бос ұяшық мүлде болмаса, 0 шығар.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "Выведи, сколько клеток в самом большом острове карты. Остров — это группа связанных свободных клеток. " +
-        "Соседними считаются только клетки с общей стороной; клетки, соприкасающиеся лишь углом, соседями не являются. " +
-        "Если свободных клеток на карте нет совсем, выведи 0.",
+        "Остров — это группа связанных свободных клеток; соседними считаются только клетки с общей стороной, а не соприкасающиеся углом. " +
+        "Найди, сколько клеток в самом большом острове, и выведи количество островов ровно такого размера. " +
+        "Например, если размеры островов 4, 5 и 5, ответ 2. Если свободных клеток на карте нет совсем, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nbest = 0\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            size = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                size += 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            if size > best:\n                best = size\nprint(best)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsizes = []\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            size = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                size += 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            sizes.append(size)\nbest = 0\nfor i in range(len(sizes)):\n    if sizes[i] > best:\n        best = sizes[i]\nsame = 0\nfor i in range(len(sizes)):\n    if sizes[i] == best:\n        same += 1\nprint(same)",
     cases: [
-      /* The largest island is found SECOND, so a program that reports the
-         first one it meets prints 4. The right-hand island is also a block
-         four cells wide, so a mark set on exit inflates it and prints 14. */
-      { input: "4 4\n.#..\n.#..\n.#..\n.#..", expectedOutput: "8" },
-      /* Largest island last in reading order — kills "keep the first". */
-      { input: "3 5\n.#...\n.#...\n.#...", expectedOutput: "9", hidden: true },
-      /* Largest island first in reading order — kills "keep the last", which
-         is what dropping the `if size > best` comparison amounts to. */
-      { input: "3 5\n...#.\n...#.\n...#.", expectedOutput: "9", hidden: true },
-      /* Entirely walls: there is no island, and `best` must already be 0. */
+      /* Three islands sized 4, 5 and 5. Printing the largest size gives 5,
+         printing the number of islands gives 3, and the one-pass `>=` count
+         gives 3 as well — all three wrong on the sample the learner can see. */
+      { input: "5 5\n.#.#.\n.#.#.\n.#.#.\n.#.#.\n##.#.", expectedOutput: "2" },
+      /* Every island is the same size, so the answer is every island. */
+      { input: "3 3\n.#.\n###\n.#.", expectedOutput: "4", hidden: true },
+      /* One clear winner, and it is found LAST. */
+      { input: "3 5\n.#...\n.#...\n.#...", expectedOutput: "1", hidden: true },
+      /* One clear winner, and it is found FIRST. */
+      { input: "3 5\n...#.\n...#.\n...#.", expectedOutput: "1", hidden: true },
+      /* Entirely walls: no island at all, and `best` must already be 0. */
       { input: "2 3\n###\n###", expectedOutput: "0", hidden: true },
-      /* Entirely free: one island of nine, not nine islands of one. */
-      { input: "3 3\n...\n...\n...", expectedOutput: "9", hidden: true },
-      { input: "1 1\n#", expectedOutput: "0", hidden: true },
-      /* A two-by-two block against a strip of two: under a mark set on exit
-         the block reports 5 and still wins, so this case is here to make the
-         printed number wrong, not just the ranking. */
-      { input: "3 4\n..#.\n..#.\n####", expectedOutput: "4", hidden: true },
-      /* Two islands of exactly the same size — the tie a `>` and a `>=` both
-         survive, included so the answer does not depend on which was written. */
-      { input: "2 3\n.#.\n.#.", expectedOutput: "2", hidden: true },
+      /* Entirely free: one island, so one island of the largest size. */
+      { input: "3 3\n...\n...\n...", expectedOutput: "1", hidden: true },
+      { input: "1 1\n.", expectedOutput: "1", hidden: true },
+      /* Sizes 1, 2, 3 in reading order: the `>=` one-pass count prints 3. */
+      { input: "5 5\n.####\n#####\n..###\n#####\n...##", expectedOutput: "1", hidden: true },
+      /* Sizes 3, 2, 1 — the same shapes met in the opposite order. */
+      { input: "5 5\n...##\n#####\n..###\n#####\n.####", expectedOutput: "1", hidden: true },
+      /* Two islands of four cells: a two-by-two block and a straight strip.
+         Their true sizes are equal, so the answer is 2 — but a mark set when a
+         cell leaves the queue instead of when it enters counts the block as
+         five and the strip as four, and prints 1. Only a compact shape shows
+         that bug; a strip alone hides it, which is why both are here. */
+      { input: "5 5\n..###\n..###\n#####\n....#\n#####", expectedOutput: "2", hidden: true },
     ],
   },
   {
-    /* Rung 6. PDF p.9 family «бір ұяшықтан екіншісіне жетуге бола ма». The
-       output is a word, so the token is stated in both prompts and both
-       prompts name the same two English words — a learner reading the Russian
-       and a learner reading the Kazakh print the same thing. Two coordinate
-       lines arrive here for the first time; every later block reuses the
-       shape. */
+    /* Rung 6. PDF p.9 family «бір ұяшықтан екіншісіне жетуге бола ма».
+       m7.l3.b8 asks it of one finish and answers yes/no; this asks it of two
+       and answers with one of four words, which means the wave has to be run
+       ONCE and read twice — a learner who reruns it per candidate gets the
+       right answer and will notice the waste, which is m7.l5's whole subject.
+       Four output tokens, all English, both prompts naming all four. */
     id: "m7.p6",
     type: "write_code",
     skillRefs: ["graph.bfs", "graph.regions", "grid.cells"],
@@ -361,106 +421,111 @@ export const M7_PRACTICE: LessonBlock[] = [
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картадан кейін екі жол келеді: алдымен бастау ұяшығының r мен c координаталары, содан кейін финиш ұяшығының r мен c координаталары. Жол мен баған нөмірлері 0-ден басталады. " +
-        "Бір қадамда тек көрші бос ұяшыққа — жоғарыға, төменге, солға немесе оңға — жүруге болады; бұрыштап жүруге болмайды. " +
-        "Бастаудан финишке жетуге бола ма? Жетуге болса `yes`, болмаса `no` деген ағылшын сөзін шығар. " +
-        "Бастау немесе финиш ұяшығының орнында қабырға тұруы мүмкін — ондай жағдайда жауап `no`.",
+        "Соңғы жолда алты сан беріледі: бастау ұяшығының r мен c координаталары, бірінші тексерілетін ұяшықтың r мен c координаталары, содан кейін екінші тексерілетін ұяшықтың r мен c координаталары. Жол мен баған нөмірлері 0-ден басталады. " +
+        "Бір қадамда тек көрші бос ұяшыққа жүруге болады: жоғарыға, төменге, солға немесе оңға; бұрыштап жүруге болмайды. " +
+        "Бастаудан осы екі ұяшықтың қайсысына жетуге болатынын анықта да, дәл бір ағылшын сөзін шығар: екеуіне де жетсе `both`, тек біріншісіне жетсе `first`, тек екіншісіне жетсе `second`, ешқайсысына жетпесе `none`. " +
+        "Бастау ұяшығының да, тексерілетін ұяшықтардың да орнында қабырға тұруы мүмкін; қабырғаға жету мүмкін емес. Тексерілетін ұяшық бастаудың өзі болса, оған жеткен болып саналады, және екі тексерілетін ұяшық бірдей болуы да мүмкін.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "После карты идут две строки: сначала координаты r и c стартовой клетки, затем координаты r и c финишной клетки. Нумерация строк и столбцов начинается с нуля. " +
-        "За один шаг можно перейти только в соседнюю свободную клетку — вверх, вниз, влево или вправо; ходить по диагонали нельзя. " +
-        "Можно ли добраться от старта до финиша? Выведи английское слово `yes`, если можно, и `no`, если нельзя. " +
-        "На месте стартовой или финишной клетки может оказаться стена — тогда ответ `no`.",
+        "В последней строке даны шесть чисел: координаты r и c стартовой клетки, координаты r и c первой проверяемой клетки, затем координаты r и c второй проверяемой клетки. Нумерация строк и столбцов начинается с нуля. " +
+        "За один шаг можно перейти только в соседнюю свободную клетку: вверх, вниз, влево или вправо; ходить по диагонали нельзя. " +
+        "Определи, до каких из этих двух клеток можно добраться из старта, и выведи ровно одно английское слово: `both` — если до обеих, `first` — если только до первой, `second` — если только до второй, `none` — если ни до одной. " +
+        "На месте стартовой клетки, как и на месте проверяемых, может стоять стена; до стены добраться нельзя. Если проверяемая клетка — это сам старт, считается, что до неё добрались; две проверяемые клетки тоже могут совпадать.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc = map(int, input().split())\nfr, fc = map(int, input().split())\nanswer = \"no\"\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"#\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r == fr and c == fc:\n            answer = \"yes\"\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"#\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"#\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"#\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"#\"\n            qr.append(r)\n            qc.append(c + 1)\nprint(answer)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc, ar, ac, br, bc = map(int, input().split())\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"o\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"o\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"o\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"o\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"o\"\n            qr.append(r)\n            qc.append(c + 1)\none = 0\ntwo = 0\nif g[ar][ac] == \"o\":\n    one = 1\nif g[br][bc] == \"o\":\n    two = 1\nif one == 1 and two == 1:\n    print(\"both\")\nelif one == 1:\n    print(\"first\")\nelif two == 1:\n    print(\"second\")\nelse:\n    print(\"none\")",
     cases: [
-      { input: "4 5\n.....\n.###.\n.....\n.....\n0 0\n3 4", expectedOutput: "yes" },
-      /* Both ends free, in different regions. The whole task is this case: a
-         program that answers `yes` whenever both cells are `.` — no traversal
-         at all — passes everything else in the set and dies here. */
-      { input: "3 3\n..#\n###\n#..\n0 0\n2 2", expectedOutput: "no", hidden: true },
-      /* The start is a wall. A program that begins the wave without looking at
-         the start cell walks out of it and answers `yes`. */
-      { input: "3 3\n#..\n...\n...\n0 0\n2 2", expectedOutput: "no", hidden: true },
-      /* The finish is a wall, on an otherwise open map. */
-      { input: "3 3\n...\n...\n..#\n0 0\n2 2", expectedOutput: "no", hidden: true },
-      /* Start and finish are the same free cell: zero steps still counts. */
-      { input: "3 3\n...\n.#.\n...\n1 0\n1 0", expectedOutput: "yes", hidden: true },
-      /* Start and finish are the same cell and it is a wall — the pair above
-         and this one together forbid "if they are equal, print yes". */
-      { input: "3 3\n...\n.#.\n...\n1 1\n1 1", expectedOutput: "no", hidden: true },
-      { input: "1 1\n.\n0 0\n0 0", expectedOutput: "yes", hidden: true },
-      /* The two cells touch at a corner and nowhere else: a diagonal step
-         would answer `yes`, and the prompt forbids one. */
-      { input: "2 2\n.#\n#.\n0 0\n1 1", expectedOutput: "no", hidden: true },
+      /* The map is two corridors either side of a wall column. Both candidates
+         are free; only the first is on the start's side. A program that
+         answers `both` whenever the two cells are free fails here, on the
+         sample the learner can see. */
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 3 1 0 4", expectedOutput: "first" },
+      /* The mirror, which is the case a program that only ever inspects the
+         first candidate cannot pass. */
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 0 4 3 0", expectedOutput: "second", hidden: true },
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 3 1 1 0", expectedOutput: "both", hidden: true },
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 0 4 3 4", expectedOutput: "none", hidden: true },
+      /* The start is a wall, and both candidates are free and would be
+         reachable from anywhere else in their corridor. */
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 2 0 0 0 4", expectedOutput: "none", hidden: true },
+      /* The first candidate is a wall, the second is one step away. */
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 0 2 1 1", expectedOutput: "second", hidden: true },
+      /* One cell, and it is the start and both candidates at once. */
+      { input: "1 1\n.\n0 0 0 0 0 0", expectedOutput: "both", hidden: true },
+      /* The two candidates are the same cell. */
+      { input: "4 5\n..#..\n..#..\n..#..\n..#..\n0 0 1 1 1 1", expectedOutput: "both", hidden: true },
+      /* The first candidate touches the start only at a corner; the second IS
+         the start. A diagonal step would answer `both`. */
+      { input: "2 2\n.#\n#.\n0 0 1 1 0 0", expectedOutput: "second", hidden: true },
     ],
   },
   {
     /* Rung 7. PDF p.9 family «лабиринттегі ең қысқа жол» — the centre of the
-       month. Everything before this counts cells; this one needs the wave to
-       arrive in layers, and the mark now carries a number instead of a flag.
-       `dist` starting at -1 does two jobs at once: it is the visited test and
-       it is the answer for a finish that was never reached, which is why the
-       program ends `print(dist[fr][fc])` with no special case for -1. */
+       month. m7.l3.b9 measures the distance to one named finish, so this one
+       has many finishes at once: get OUT of the map. Every cell on the frame
+       is a target, and the answer is the nearest of them, which is what a wave
+       is for and what a straight-line guess cannot do — the sample is a room
+       whose only door is on the far side, one step from the top edge and six
+       steps from the way out.
+       `dist` starting at -1 does two jobs: it is the visited test and it is
+       the "never reached" answer. */
     id: "m7.p7",
     type: "write_code",
-    skillRefs: ["graph.shortest_path", "graph.bfs", "grid.cells"],
+    skillRefs: ["graph.shortest_path", "graph.bfs", "debug.boundary"],
     sourceType: "curriculum-derived",
     pdfPage: 9,
     prompt: {
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картадан кейін екі жол келеді: бастау ұяшығының r мен c координаталары, содан кейін финиш ұяшығының r мен c координаталары. Жол мен баған нөмірлері 0-ден басталады. " +
+        "Соңғы жолда бастау ұяшығының r мен c координаталары беріледі; жол мен баған нөмірлері 0-ден басталады. " +
         "Бір қадамда тек көрші бос ұяшыққа жүруге болады: жоғары, төмен, сол, оң. " +
-        "Бастаудан финишке дейінгі ең қысқа жолда неше қадам бар екенін шығар. Бастау мен финиш бір ұяшық болса, жауап 0. " +
-        "Финишке жету мүмкін болмаса немесе екеуінің біреуінің орнында қабырға тұрса, -1 шығар.",
+        "Картаның шетіне шығу үшін ең аз неше қадам керек екенін шығар. Ұяшық ең үстіңгі жолда, ең астыңғы жолда, ең сол жақ бағанда немесе ең оң жақ бағанда тұрса, ол шеткі ұяшық саналады. " +
+        "Бастаудың өзі шеткі ұяшық болса, жауап 0. Бірде-бір шеткі бос ұяшыққа жету мүмкін болмаса немесе бастау ұяшығының орнында қабырға тұрса, -1 шығар.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "После карты идут две строки: координаты r и c стартовой клетки, затем координаты r и c финишной клетки. Нумерация строк и столбцов начинается с нуля. " +
+        "В последней строке даны координаты r и c стартовой клетки; нумерация строк и столбцов начинается с нуля. " +
         "За один шаг можно перейти только в соседнюю свободную клетку: вверх, вниз, влево, вправо. " +
-        "Выведи, сколько шагов в кратчайшем пути от старта до финиша. Если старт и финиш — одна и та же клетка, ответ 0. " +
-        "Если до финиша не добраться или на месте одной из этих двух клеток стоит стена, выведи -1.",
+        "Выведи, за какое наименьшее число шагов можно выйти на край карты. Клетка считается краевой, если она в самой верхней строке, в самой нижней строке, в самом левом столбце или в самом правом столбце. " +
+        "Если старт сам стоит на краю, ответ 0. Если ни до одной свободной краевой клетки не добраться или на месте стартовой клетки стоит стена, выведи -1.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\nfr, fc = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nprint(dist[fr][fc])",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nout = -1\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0:\n            if i == 0 or i == n - 1 or j == 0 or j == m - 1:\n                if out == -1 or dist[i][j] < out:\n                    out = dist[i][j]\nprint(out)",
     cases: [
-      /* Two steps down a clear left-hand column while the middle of the map
-         is a wall. A depth-first walk that tries "right" first wanders the
-         whole outer ring and prints 10; counting the CELLS on the path instead
-         of the steps between them prints 3. Both are visible failures. */
-      { input: "3 5\n.....\n.###.\n.....\n0 0\n2 0", expectedOutput: "2" },
-      /* The wall makes the real path three times the straight-line guess:
-         |0-2| + |0-0| is 2, the answer is 6. This is the case that kills a
-         submission which computes a distance without ever walking. */
-      { input: "3 3\n...\n##.\n...\n0 0\n2 0", expectedOutput: "6", hidden: true },
-      /* The finish is free but cut off. */
-      { input: "3 3\n..#\n###\n#..\n0 0\n2 2", expectedOutput: "-1", hidden: true },
-      /* Start equals finish: zero steps, not one and not -1. */
-      { input: "3 3\n...\n...\n...\n1 1\n1 1", expectedOutput: "0", hidden: true },
-      /* The start is a wall. */
-      { input: "3 3\n#..\n...\n...\n0 0\n2 2", expectedOutput: "-1", hidden: true },
-      /* The finish is a wall on an otherwise open map, so a program that
-         reaches every reachable cell and then reads the finish still has to
-         have left -1 sitting there. */
-      { input: "3 3\n...\n...\n..#\n0 0\n2 2", expectedOutput: "-1", hidden: true },
-      { input: "1 1\n.\n0 0\n0 0", expectedOutput: "0", hidden: true },
-      /* A maze with two routes of equal length round a blocked middle. A wave
-         that forgets to check whether a cell already has a distance re-queues
-         cells for ever and never prints anything. */
-      { input: "5 5\n.....\n.###.\n.#...\n.#.#.\n.....\n0 0\n4 4", expectedOutput: "8", hidden: true },
+      /* A room with one door. The start is one row below the top edge, so the
+         straight-line distance to the frame is 1; the only free cell ON the
+         frame is the door at the bottom, five steps away. Counting the cells
+         stood on rather than the steps taken prints 6. */
+      { input: "5 5\n#####\n#...#\n#.#.#\n#...#\n##.##\n1 2", expectedOutput: "5" },
+      /* The start is already on the top row. */
+      { input: "3 3\n...\n.#.\n...\n0 1", expectedOutput: "0", hidden: true },
+      /* A sealed room: the region is large but no cell of it is on the frame. */
+      { input: "5 5\n#####\n#...#\n#...#\n#...#\n#####\n2 2", expectedOutput: "-1", hidden: true },
+      /* The start is a wall on a map that is otherwise wide open. */
+      { input: "3 3\n#..\n...\n...\n0 0", expectedOutput: "-1", hidden: true },
+      /* One cell, which is its own frame. */
+      { input: "1 1\n.\n0 0", expectedOutput: "0", hidden: true },
+      /* Entirely free: one step out from the middle. */
+      { input: "3 3\n...\n...\n...\n1 1", expectedOutput: "1", hidden: true },
+      /* A zig-zag corridor: six steps to the only way out, against a
+         straight-line guess of one. */
+      { input: "5 6\n######\n#....#\n####.#\n#....#\n####.#\n1 1", expectedOutput: "6", hidden: true },
+      /* Four free cells sit on the frame at distances 1, 2, 2 and 3. The
+         nearest is (1,0); the FIRST in reading order is (0,0), two steps away.
+         A program that takes the first edge cell it meets in the scan rather
+         than the smallest distance prints 2. */
+      { input: "4 4\n.###\n....\n###.\n####\n1 1", expectedOutput: "1", hidden: true },
     ],
   },
   {
     /* Rung 8. Not the brief's "how many cells are reachable" — see decision 3
-       in the file comment; on a grid that question is m7.p4 with different
-       words. Here the wave has to be read AFTER it settles: the distance is no
-       longer a means to one cell's answer but the thing every cell is judged
-       on. This is also the first block whose input has a value on its own
-       line after the coordinates. */
+       in the file comment; on a grid that question is m7.l2.b9 a third time.
+       Here the wave has to be read AFTER it settles: the distance stops being
+       a means to one cell's answer and becomes the thing every cell is judged
+       on. The k boundary is the exercise, so `k = 0` and a k larger than any
+       real distance are both in the set. */
     id: "m7.p8",
     type: "write_code",
     skillRefs: ["graph.bfs", "graph.shortest_path", "loops.counter"],
@@ -469,44 +534,44 @@ export const M7_PRACTICE: LessonBlock[] = [
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Одан кейінгі жолда бастау ұяшығының r мен c координаталары, ал ең соңғы жолда k саны беріледі (0 ≤ k ≤ 400). Жол мен баған нөмірлері 0-ден басталады. " +
+        "Соңғы жолда үш сан беріледі: бастау ұяшығының r мен c координаталары және k саны (0 ≤ k ≤ 400). Жол мен баған нөмірлері 0-ден басталады. " +
         "Бір қадамда тек көрші бос ұяшыққа жүруге болады: жоғары, төмен, сол, оң. " +
         "Бастаудан ең көбі k қадам жасап жетуге болатын бос ұяшықтардың санын шығар. Бастаудың өзі де саналады — оған 0 қадам керек. " +
         "Бастау ұяшығының орнында қабырға тұрса, 0 шығар.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "В следующей строке даны координаты r и c стартовой клетки, а в последней строке — число k (0 ≤ k ≤ 400). Нумерация строк и столбцов начинается с нуля. " +
+        "В последней строке даны три числа: координаты r и c стартовой клетки и число k (0 ≤ k ≤ 400). Нумерация строк и столбцов начинается с нуля. " +
         "За один шаг можно перейти только в соседнюю свободную клетку: вверх, вниз, влево, вправо. " +
         "Выведи, сколько свободных клеток достижимо из старта не более чем за k шагов. Сам старт тоже считается — до него нужно 0 шагов. " +
         "Если на месте стартовой клетки стоит стена, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\nk = int(input())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nnear = 0\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0 and dist[i][j] <= k:\n            near += 1\nprint(near)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc, k = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nnear = 0\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0 and dist[i][j] <= k:\n            near += 1\nprint(near)",
     cases: [
       /* Twelve cells are reachable in the end and only five are within two
          steps, so "count everything the wave touched" prints 12; `< k` where
          `<= k` was meant drops the second layer and prints 3. */
-      { input: "3 5\n.....\n.###.\n.....\n0 0\n2", expectedOutput: "5" },
+      { input: "3 5\n.....\n.###.\n.....\n0 0 2", expectedOutput: "5" },
       /* k = 0 — the boundary itself. The answer is the start alone. */
-      { input: "3 5\n.....\n.###.\n.....\n0 0\n0", expectedOutput: "1", hidden: true },
+      { input: "3 5\n.....\n.###.\n.....\n0 0 0", expectedOutput: "1", hidden: true },
       /* The start is a wall, and k is large enough to reach everything if the
          wave were allowed to begin. */
-      { input: "3 3\n#..\n...\n...\n0 0\n5", expectedOutput: "0", hidden: true },
+      { input: "3 3\n#..\n...\n...\n0 0 5", expectedOutput: "0", hidden: true },
       /* k far beyond any real distance: the cap must not add cells that are
          walls or unreachable. Eight, not nine. */
-      { input: "3 3\n...\n.#.\n...\n0 0\n100", expectedOutput: "8", hidden: true },
-      /* Walls stretch the real distances: six cells are within Manhattan
+      { input: "3 3\n...\n.#.\n...\n0 0 100", expectedOutput: "8", hidden: true },
+      /* Walls stretch the real distances: six cells are within straight-line
          distance 3 of the start, only four are within three actual steps. */
-      { input: "3 3\n...\n##.\n...\n0 0\n3", expectedOutput: "4", hidden: true },
+      { input: "3 3\n...\n##.\n...\n0 0 3", expectedOutput: "4", hidden: true },
       /* A two-by-two open block: a mark set on exit counts a cell twice and
          prints 5. */
-      { input: "2 2\n..\n..\n0 0\n5", expectedOutput: "4", hidden: true },
+      { input: "2 2\n..\n..\n0 0 5", expectedOutput: "4", hidden: true },
       /* One cell and k = 0 together. */
-      { input: "1 1\n.\n0 0\n0", expectedOutput: "1", hidden: true },
+      { input: "1 1\n.\n0 0 0", expectedOutput: "1", hidden: true },
       /* The start is free but boxed in; the far corner is free and would be a
          diagonal step away. */
-      { input: "2 2\n.#\n#.\n0 0\n10", expectedOutput: "1", hidden: true },
+      { input: "2 2\n.#\n#.\n0 0 10", expectedOutput: "1", hidden: true },
     ],
   },
   {
@@ -514,9 +579,10 @@ export const M7_PRACTICE: LessonBlock[] = [
        PLACE rather than a quantity, which is what makes the tie-break real: a
        maximum over cells has ties far more often than a maximum over a list of
        numbers, and the last cell the queue hands back is a perfectly good
-       farthest cell that is usually the WRONG one to print. So the prompt
-       states the rule — smallest row, then smallest column — and the hidden
-       cases enforce it rather than trusting the wave's order.
+       farthest cell that is usually the WRONG one to print. m7.l3.b9s shows a
+       program that prints the largest DISTANCE; asking for the cell instead,
+       with a stated rule for ties, is a different question and a harder one,
+       and none of its hidden cases can be passed by reading that program off.
        Two numbers on the output, and the prompt asks for two numbers rather
        than for a layout, so the checker stays `token` as it does at m1.p4. */
     id: "m7.p9",
@@ -577,12 +643,13 @@ export const M7_PRACTICE: LessonBlock[] = [
     /* Rung 10, advanced only. The route family from p.9 read as a composition:
        the shortest way from A to C that is forced through B is the shortest
        way from A to B plus the shortest way from B to C, and nothing else in
-       the month has asked a learner to run the wave twice from two different
-       cells. Written with a helper it is a short program; written without one
-       it is the same twenty lines twice, which is the argument the prompt
-       makes as ADVICE — a checker cannot see a `def`, so the prompt says
-       outright that the number is what gets graded. See decision 4 in the
-       file comment. */
+       the month runs the wave twice from two different cells. m7.l4 owns
+       restoring and printing the path; this owns measuring a route, and prints
+       no path at all.
+       Written with a helper it is a short program; written without one it is
+       the same twenty lines twice, which is the argument the prompt makes as
+       ADVICE — a checker cannot see a `def`, so the prompt says outright that
+       the number is what gets graded. See decision 4 in the file comment. */
     id: "m7.p10",
     type: "write_code",
     skillRefs: ["graph.shortest_path", "graph.bfs", "func.define", "func.reuse"],
@@ -592,48 +659,48 @@ export const M7_PRACTICE: LessonBlock[] = [
       kk:
         "Бірінші жолда n мен m сандары беріледі (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — картаның жол саны мен баған саны. " +
         "Келесі n жолдың әрқайсысында дәл m таңба тұрады: `.` — бос ұяшық, `#` — қабырға. " +
-        "Картадан кейін үш жол келеді: бастау ұяшығының, аялдама ұяшығының және финиш ұяшығының r мен c координаталары. Жол мен баған нөмірлері 0-ден басталады. " +
+        "Соңғы жолда алты сан беріледі: бастау ұяшығының, аялдама ұяшығының және финиш ұяшығының r мен c координаталары, осы ретпен. Жол мен баған нөмірлері 0-ден басталады. " +
         "Бір қадамда тек көрші бос ұяшыққа жүруге болады: жоғары, төмен, сол, оң. " +
-        "Бастаудан шығып, міндетті түрде аялдамаға соғып, содан кейін финишке жететін ең қысқа жолда неше қадам бар екенін шығар. Жол бір ұяшықтан бірнеше рет өтуіне болады. " +
-        "Бастаудан аялдамаға немесе аялдамадан финишке жету мүмкін болмаса, -1 шығар; үш ұяшықтың біреуінің орнында қабырға тұрса, жауап та -1. " +
-        "Кеңес: бір ұяшықтан барлық ұяшыққа дейінгі қашықтықты есептейтін функция жазып, оны екі рет шақырған ыңғайлы. Бұл — талап емес, кеңес: жауап шығарылған сан бойынша тексеріледі.",
+        "Бастаудан шығып, міндетті түрде аялдамаға соғып, содан кейін финишке жететін ең қысқа жолда неше қадам бар екенін шығар. Жол бір ұяшықтан бірнеше рет өтуі мүмкін. " +
+        "Бастаудан аялдамаға немесе аялдамадан финишке жету мүмкін болмаса, -1 шығар; осы үш ұяшықтың біреуінің орнында қабырға тұрса, жауап та -1. " +
+        "Кеңес: бір ұяшықтан барлық ұяшыққа дейінгі қашықтықты есептейтін функция жазып, оны екі рет шақырған ыңғайлы. Бұл — талап емес, кеңес: жауап шыққан сан бойынша тексеріледі.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
-        "После карты идут три строки: координаты r и c стартовой клетки, клетки-остановки и финишной клетки. Нумерация строк и столбцов начинается с нуля. " +
+        "В последней строке даны шесть чисел: координаты r и c стартовой клетки, клетки-остановки и финишной клетки — именно в этом порядке. Нумерация строк и столбцов начинается с нуля. " +
         "За один шаг можно перейти только в соседнюю свободную клетку: вверх, вниз, влево, вправо. " +
         "Выведи, сколько шагов в кратчайшем пути, который идёт из старта, обязательно заходит в клетку-остановку и только потом приходит на финиш. Путь может проходить через одну и ту же клетку несколько раз. " +
         "Если из старта не добраться до остановки или от остановки до финиша, выведи -1; если на месте одной из этих трёх клеток стоит стена, ответ тоже -1. " +
         "Совет: удобно написать функцию, которая считает расстояния от одной клетки до всех остальных, и вызвать её дважды. Это совет, а не требование: ответ проверяется по выведенному числу.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\n\n\ndef spread(sr, sc):\n    d = []\n    for i in range(n):\n        line = []\n        for j in range(m):\n            line.append(-1)\n        d.append(line)\n    if g[sr][sc] == \"#\":\n        return d\n    d[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and d[r - 1][c] == -1:\n            d[r - 1][c] = d[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and d[r + 1][c] == -1:\n            d[r + 1][c] = d[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and d[r][c - 1] == -1:\n            d[r][c - 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and d[r][c + 1] == -1:\n            d[r][c + 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\n    return d\n\n\nsr, sc = map(int, input().split())\nwr, wc = map(int, input().split())\nfr, fc = map(int, input().split())\nfirst = spread(sr, sc)\nsecond = spread(wr, wc)\na = first[wr][wc]\nb = second[fr][fc]\nif a == -1 or b == -1:\n    print(-1)\nelse:\n    print(a + b)",
+      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\n\n\ndef spread(sr, sc):\n    d = []\n    for i in range(n):\n        line = []\n        for j in range(m):\n            line.append(-1)\n        d.append(line)\n    if g[sr][sc] == \"#\":\n        return d\n    d[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and d[r - 1][c] == -1:\n            d[r - 1][c] = d[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and d[r + 1][c] == -1:\n            d[r + 1][c] = d[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and d[r][c - 1] == -1:\n            d[r][c - 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and d[r][c + 1] == -1:\n            d[r][c + 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\n    return d\n\n\nsr, sc, wr, wc, fr, fc = map(int, input().split())\nfirst = spread(sr, sc)\nsecond = spread(wr, wc)\na = first[wr][wc]\nb = second[fr][fc]\nif a == -1 or b == -1:\n    print(-1)\nelse:\n    print(a + b)",
     cases: [
       /* The stop is in the opposite corner from the finish, so the detour
          costs 10 where the direct route costs 2. A submission that ignores the
          stop prints 2; one that measures both legs from the START rather than
          the second from the stop prints 6. Both fail in the editor. */
-      { input: "3 5\n.....\n.###.\n.....\n0 0\n0 4\n2 0", expectedOutput: "10" },
+      { input: "3 5\n.....\n.###.\n.....\n0 0 0 4 2 0", expectedOutput: "10" },
       /* The stop is the start: the first leg is 0, not 1 and not skipped. */
-      { input: "3 3\n...\n.#.\n...\n0 0\n0 0\n2 2", expectedOutput: "4", hidden: true },
+      { input: "3 3\n...\n.#.\n...\n0 0 0 0 2 2", expectedOutput: "4", hidden: true },
       /* The stop is the finish: the second leg is 0. */
-      { input: "3 3\n...\n.#.\n...\n0 0\n2 2\n2 2", expectedOutput: "4", hidden: true },
+      { input: "3 3\n...\n.#.\n...\n0 0 2 2 2 2", expectedOutput: "4", hidden: true },
       /* All three are the same single cell. */
-      { input: "1 1\n.\n0 0\n0 0\n0 0", expectedOutput: "0", hidden: true },
+      { input: "1 1\n.\n0 0 0 0 0 0", expectedOutput: "0", hidden: true },
       /* The stop is free but sealed off in its own region while the finish is
          reachable, so a program that only checks the finish prints a number. */
-      { input: "4 4\n....\n....\n####\n..#.\n0 0\n3 0\n1 3", expectedOutput: "-1", hidden: true },
+      { input: "4 4\n....\n....\n####\n..#.\n0 0 3 0 1 3", expectedOutput: "-1", hidden: true },
       /* The mirror: the stop is reachable and the finish is not. */
-      { input: "4 4\n....\n....\n####\n..#.\n0 0\n1 3\n3 3", expectedOutput: "-1", hidden: true },
+      { input: "4 4\n....\n....\n####\n..#.\n0 0 1 3 3 3", expectedOutput: "-1", hidden: true },
       /* The stop is a wall. A wave started from a wall cell without checking
          it walks out into the free cells around it and reports a distance. */
-      { input: "4 4\n....\n....\n####\n..#.\n0 0\n2 0\n1 3", expectedOutput: "-1", hidden: true },
+      { input: "4 4\n....\n....\n####\n..#.\n0 0 2 0 1 3", expectedOutput: "-1", hidden: true },
       /* The stop lies ON the direct route, so the detour costs nothing: the
          answer is the plain distance, 4, and a program that always adds
          something for the visit gets it wrong. */
-      { input: "1 5\n.....\n0 0\n0 2\n0 4", expectedOutput: "4", hidden: true },
+      { input: "1 5\n.....\n0 0 0 2 0 4", expectedOutput: "4", hidden: true },
       /* The start is a wall. */
-      { input: "3 3\n#..\n...\n...\n0 0\n1 1\n2 2", expectedOutput: "-1", hidden: true },
+      { input: "3 3\n#..\n...\n...\n0 0 1 1 2 2", expectedOutput: "-1", hidden: true },
     ],
   },
 ];

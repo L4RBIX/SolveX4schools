@@ -207,6 +207,7 @@ export const M7_L1: LessonBlock[] = [
       },
     ],
     code: "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nr, c = map(int, input().split())\ndr = [-1, 1, 0, 0]\ndc = [0, 0, -1, 1]\nfor k in range(4):\n    nr = r + dr[k]\n    nc = c + dc[k]\n    if nr >= 0 and nr < n and nc >= 0 and nc < m:\n        print(nr, nc)",
+    stdin: "3 4\n.#..\n....\n..#.\n0 1",
     result: {
       kk: "(0, 1) ұяшығы үшін үш жол шығады: `1 1`, содан кейін `0 0`, содан кейін `0 2`. Жоғарғы көрші (−1, 1) картада жоқ, сондықтан ол мүлде шықпады — жоғарғы жолдағы ұяшықтың үш көршісі бар.",
       ru: "Для клетки (0, 1) выведутся три строки: `1 1`, затем `0 0`, затем `0 2`. Верхнего соседа (−1, 1) на карте нет, поэтому он не вывелся вовсе — у клетки в верхней строке соседей три.",
@@ -337,7 +338,21 @@ export const M7_L1: LessonBlock[] = [
     ],
   },
   {
-    id: "m7.l1.b8",
+        /*
+     * The `dr` / `dc` setup row is gone.
+     *
+     * It asked the learner to write down `[-1, 1, 0, 0]` and `[0, 0, -1, 1]` —
+     * two list literals printed four lines above in the program they are
+     * reading. `payload-privacy` calls a trace value a secret, and it was
+     * right twice over: copying a literal off the screen is not tracing, and
+     * the row taught nothing the code had not already said.
+     *
+     * What is left is the part that is actually derived: four rows, one per
+     * direction, each holding `nr`, `nc` and the bounds verdict. The corner
+     * cell (0, 3) was chosen so two of the four neighbours fall outside the
+     * map, which is the whole point of the lesson.
+     */
+id: "m7.l1.b8",
     type: "trace_code",
     skillRefs: ["grid.cells", "debug.boundary"],
     /* «Кодты қолмен орындау» is one of the programme's five verification
@@ -353,7 +368,6 @@ export const M7_L1: LessonBlock[] = [
     code: "n = 3\nm = 4\nr = 0\nc = 3\ndr = [-1, 1, 0, 0]\ndc = [0, 0, -1, 1]\nfor k in range(4):\n    nr = r + dr[k]\n    nc = c + dc[k]\n    ok = 0\n    if nr >= 0 and nr < n and nc >= 0 and nc < m:\n        ok = 1\n    print(nr, nc, ok)",
     steps: [
       { line: 4, vars: { n: "3", m: "4", r: "0", c: "3" } },
-      { line: 6, vars: { dr: "[-1, 1, 0, 0]", dc: "[0, 0, -1, 1]" } },
       { line: 13, vars: { k: "0", nr: "-1", nc: "3", ok: "0" } },
       { line: 13, vars: { k: "1", nr: "1", nc: "3", ok: "1" } },
       { line: 13, vars: { k: "2", nr: "0", nc: "2", ok: "1" } },

@@ -602,10 +602,10 @@ export const M5_PRACTICE: LessonBlock[] = [
      * up to k survive a crossing-out, which is one `//` and a subtraction.
      *
      * OPTION 1 from the authoring contract, and it is the reason this block can
-     * ask for the method at all: the last three cases put the answer past
-     * 10⁹ and past 10¹², so a program that counts 1, 2, 3 … never prints
-     * anything. The input that does it is two numbers long. Verified by running
-     * both programs, not argued.
+     * ask for the method at all: cases 7 to 10 put the answer past 10⁹ and past
+     * 10¹², so a program that counts 1, 2, 3 … never prints anything. The input
+     * that does it is two numbers long. Verified by running both programs, not
+     * argued.
      *
      * The wrong programs, and the case that kills each:
      *   prints m                       → case 3, where m = 5 and the answer is 9;
@@ -857,8 +857,8 @@ export const M5_PRACTICE: LessonBlock[] = [
      *   starts the search below the
      *   largest plank and prints it      → case 8 as well;
      *   `parts < k` where `parts <= k`
-     *   was meant                        → case 2, where exactly k pieces are
-     *                                      needed, and case 6;
+     *   was meant                        → cases 1 and 5, where the best cut
+     *                                      uses all k pieces;
      *   `cur + x < cap`                  → case 5, where two planks fill a piece
      *                                      exactly;
      *   sorts the planks first           → cases 11 and 12, the only two whose

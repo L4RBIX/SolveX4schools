@@ -165,23 +165,51 @@ export const M3_L7: LessonBlock[] = [
     /*
      * «Платформа функция шақырылғанда қандай параметр мәндері кіретінін,
      * қандай жергілікті айнымалылар пайда болатынын және return кезінде не
-     * қайтатынын визуалды көрсетеді» (p.8) — done by hand, and this time with
-     * a call inside a call: line 13 hands `count_lucky`'s return value to
-     * `print`, and `count_lucky` calls `last_digit` once per element.
+     * қайтатынын визуалды көрсетеді» (p.8) — done by hand, over a call that
+     * happens inside another call: `count_lucky` runs `last_digit` once per
+     * element.
      *
      * `d` exists so the inner function's return value has a name and therefore
      * a column. Without it the trace would show the outer loop only and the
      * nested call would be invisible, which is the one thing this block is for.
+     *
+     * The grid used to carry `nums` and `a` too, and both were free. Their
+     * value is `[17, 4, 27, 30]`, written on line 12 of the program printed
+     * directly above the table, so seven of the cells asked a learner to copy a
+     * list already on their screen and then scored them for it. Free was the
+     * smaller half of the damage. `nums` stood in the two call-site rows only,
+     * so on the five rows inside the function the renderer supplied its own
+     * em-dash — and an em-dash in this grid means «this name does not exist
+     * here», which is false about a module-level name. `m3.l5.b1`'s second
+     * failure is a function body reading exactly such a name instead of its
+     * parameter, and that failure only bites because the name IS visible in
+     * there; a table two lessons later saying it is not would undo it.
+     *
+     * So the columns are the four values the program does not state. `total` is
+     * the new one and it is what the last row is for: the number `count_lucky`
+     * hands back has to land somewhere, and giving it a name turns «return
+     * кезінде не қайтады» into a question with an answer rather than something
+     * that happens inside `print`'s brackets. It is also the shape `m3.l5.b2`
+     * argued for when it took `global` away — the caller keeps the result.
+     *
+     * The parameter half of the p.8 clause did not leave with the `a` column,
+     * it moved one function inwards. `x` is the value that goes in to
+     * `last_digit` on this pass and `d` is what comes back, so every row holds
+     * one argument beside its return; what `a` is worth saying about it — same
+     * list as `nums`, unchanged for the whole call — the prompt says in a
+     * sentence, which costs nothing and asks for no transcription.
+     *
+     * Every name is in every row, with `-` for «does not exist», the convention
+     * `m3.l8.b4` set. That is the point of the last row: `x`, `d` and `c` being
+     * gone by line 13 is the most interesting thing on it, and a name left out
+     * of the row would have the grid answer that for free.
      *
      * The data is [17, 4, 27, 30]. 17 is first and counts, 30 is last and does
      * not, so neither "the first decides" nor "the last decides" survives. 30
      * is there for `d = 0`: a learner who reads `last_digit` as "the digit on
      * the left" gets 3 and the row disagrees. Rows are recorded at the `for`
      * line with the body already finished for that `x`, the convention
-     * `m2.l5.b4` set and `m3.l8.b4` kept.
-     *
-     * The last row is line 13 with the function gone: `a`, `x`, `d` and `c` no
-     * longer exist, which l4 has already named and this only asks them to see.
+     * `m2.l5.b4` set.
      */
     id: "m3.l7.b3",
     type: "trace_code",
@@ -189,8 +217,8 @@ export const M3_L7: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 8,
     prompt: {
-      kk: "`count_lucky` тізімді аралайды және әр сан үшін `last_digit` функциясын шақырады — бұл функцияның ішіндегі функция шақыруы. Кестені толтыр. Әр қатар — цикл денесі сол `x` үшін толық орындалып болғандағы күй: `a` (параметр), `x`, `d` (ішкі шақыру қайтарған мән) және `c`. Ең соңғы қатар — функция аяқталып, басқару 13-жолға қайтқан сәт: сол сәтте қандай аттар әлі бар?",
-      ru: "`count_lucky` проходит по списку и для каждого числа вызывает `last_digit` — это вызов функции внутри функции. Заполни таблицу. Каждая строка — состояние в момент, когда тело цикла для этого `x` уже полностью выполнилось: `a` (параметр), `x`, `d` (то, что вернул внутренний вызов) и `c`. Самая последняя строка — момент, когда функция закончилась и управление вернулось на строку 13: какие имена в этот момент ещё существуют?",
+      kk: "`count_lucky` тізімді аралайды және әр сан үшін `last_digit` функциясын шақырады — бұл функцияның ішіндегі функция шақыруы. Кестеде төрт баған: `x` — цикл айнымалысы әрі `last_digit`-ке параметр болып кіретін мән, `d` — сол шақыру `return` еткен нәтиже, `c` — жауап жиналатын жергілікті айнымалы, `total` — функция қайтарған мән жазылатын, функциядан тыс жердегі ат. Ат сол сәтте әлі пайда болмаған немесе жойылып кеткен болса, `-` таңбасын қой. Алғашқы төрт қатар — цикл денесі сол `x` үшін толық орындалып болған сәт, бесінші қатар — `return c` жолына жеткен сәт, ал соңғы қатар — 13-жол толығымен орындалып біткен сәт. `a` параметрі — 12-жолдағы сол тізімнің өзі, тек екінші аты: шақыру басталғанда мәнді алады да, шақыру біткенше өзгермейді, сондықтан кестеде оның бағаны жоқ.",
+      ru: "`count_lucky` проходит по списку и для каждого числа вызывает `last_digit` — это вызов функции внутри функции. В таблице четыре столбца: `x` — переменная цикла и одновременно значение, которое уходит параметром в `last_digit`; `d` — то, что этот вызов вернул; `c` — локальная переменная, в которой копится ответ; `total` — имя вне функции, куда записывается возвращённое значение. Если имя в этот момент ещё не появилось или уже исчезло, поставь знак `-`. Первые четыре строки — момент, когда тело цикла для этого `x` уже полностью выполнилось, пятая — момент, когда выполнение дошло до `return c`, а последняя — момент, когда строка 13 выполнилась целиком. Параметр `a` — это тот же список из строки 12 под вторым именем: он получает значение в начале вызова и до его конца не меняется, поэтому столбца для него нет.",
     },
     code:
       "def last_digit(n):\n" +
@@ -205,15 +233,15 @@ export const M3_L7: LessonBlock[] = [
       "    return c\n" +
       "\n" +
       "nums = [17, 4, 27, 30]\n" +
-      "print(count_lucky(nums))",
+      "total = count_lucky(nums)\n" +
+      "print(total)",
     steps: [
-      { line: 12, vars: { nums: "[17, 4, 27, 30]" } },
-      { line: 6, vars: { a: "[17, 4, 27, 30]", x: "17", d: "7", c: "1" } },
-      { line: 6, vars: { a: "[17, 4, 27, 30]", x: "4", d: "4", c: "1" } },
-      { line: 6, vars: { a: "[17, 4, 27, 30]", x: "27", d: "7", c: "2" } },
-      { line: 6, vars: { a: "[17, 4, 27, 30]", x: "30", d: "0", c: "2" } },
-      { line: 10, vars: { a: "[17, 4, 27, 30]", x: "30", d: "0", c: "2" } },
-      { line: 13, vars: { nums: "[17, 4, 27, 30]" } },
+      { line: 6, vars: { x: "17", d: "7", c: "1", total: "-" } },
+      { line: 6, vars: { x: "4", d: "4", c: "1", total: "-" } },
+      { line: 6, vars: { x: "27", d: "7", c: "2", total: "-" } },
+      { line: 6, vars: { x: "30", d: "0", c: "2", total: "-" } },
+      { line: 10, vars: { x: "30", d: "0", c: "2", total: "-" } },
+      { line: 13, vars: { x: "-", d: "-", c: "-", total: "2" } },
     ],
   },
   {
@@ -405,19 +433,36 @@ export const M3_L7: LessonBlock[] = [
      * азырақ» (p.6).
      *
      * The finished program here is NOT b6's reference solution: the counting
-     * function walks the list by index, so a support learner who later sees the
-     * other route's answer meets a second correct shape rather than the
-     * sentence they already typed. `digit_sum` is given whole, because on this
-     * route it is not what is being asked.
+     * function walks the list by index and gives the returned digit sum a name
+     * of its own, so a support learner who later sees the other route's answer
+     * meets a second correct shape rather than the sentence they already typed.
+     * `digit_sum` is given whole, because on this route it is not what is being
+     * asked. `d` is the name b3 used for the same thing an hour earlier — what
+     * came back out of the inner call — and reusing it is free.
      *
-     * The three blanks are the three decisions the task actually contains and
-     * none of them can be filled from the shape of the line:
-     *   1. `>` and not `>=` — the word «қатаң» / «строго» is in the statement
+     * The third blank was the function name in `print(___(nums, k))`, answer
+     * `count_above`. That word is written in the `def` line of the same
+     * template and twice more in the prompt above it, so whatever the blank was
+     * testing, it could be filled by copying. The shape leaked the rest: of the
+     * two functions on screen only one takes two arguments, so even a learner
+     * who had never met the word could fill it by counting brackets. The call
+     * at the bottom is now given whole.
+     *
+     * Its replacement is the one decision in this program that is nowhere on
+     * screen: what `digit_sum` is handed. The loop walks positions, so
+     * `digit_sum(i)` compiles, runs, and quietly totals the digits of 0, 1,
+     * 2 … — the index-for-element slip, and the reason this block claims
+     * `lists.index` at all. `a[i]` versus `i` is the entire difference between
+     * delegating over a list and delegating over its subscripts, and it is the
+     * delegation that the whole lesson is about.
+     *
+     * The three blanks, none fillable from the shape of its line:
+     *   1. `a[i]` and not `i` — the helper receives the element, not the place
+     *      the element sits in;
+     *   2. `>` and not `>=` — the word «қатаң» / «строго» is in the statement
      *      and this is where it is spent;
-     *   2. `c` and not `i` — what leaves a counting function is the count, and
-     *      `return i` compiles and prints the last index;
-     *   3. `count_above` and not `digit_sum` — the main program calls the
-     *      function that answers the question, not the one that helps it.
+     *   3. `c` and not `i` — what leaves a counting function is the count, and
+     *      `return i` compiles and prints the last index.
      */
     id: "m3.l7.b6s",
     type: "fill_blank",
@@ -426,12 +471,12 @@ export const M3_L7: LessonBlock[] = [
     tracks: ["support"],
     prompt: {
       kk:
-        "Бірінші жолда k саны беріледі (0 ≤ k ≤ 50), екінші жолда бос орынмен бөлінген бүтін сандар. Бағдарлама цифрлар қосындысы k-дан ҚАТАҢ үлкен сандардың санын шығаруы керек. Құрылымы дайын: `digit_sum` бір санның цифрларының қосындысын қайтарады, `count_above` сол функцияны әр элемент үшін шақырып, санайды.\n" +
-        "Үш орынды толтыр: салыстыру белгісі қандай, `count_above` нені қайтарады және негізгі бағдарлама қай функцияны шақырады?\n" +
+        "Бірінші жолда k саны беріледі (0 ≤ k ≤ 50), екінші жолда бос орынмен бөлінген бүтін сандар. Бағдарлама цифрлар қосындысы k-дан ҚАТАҢ үлкен сандардың санын шығаруы керек. Құрылымы дайын: `digit_sum` бір санның цифрларының қосындысын қайтарады, `count_above` сол функцияны әр элемент үшін шақырып, қайтқан мәнді `d`-ға жазады да, санайды.\n" +
+        "Үш орынды толтыр: `digit_sum` қандай мәнмен шақырылады, `d` мен k-ны қалай салыстырамыз және `count_above` нені қайтарады?\n" +
         "k = 5 және сандар «34 7 90 12» болса, жауап 3.",
       ru:
-        "В первой строке дано число k (0 ≤ k ≤ 50), во второй — целые числа через пробел. Программа должна вывести количество чисел, у которых сумма цифр СТРОГО больше k. Структура уже готова: `digit_sum` возвращает сумму цифр одного числа, а `count_above` вызывает её для каждого элемента и считает.\n" +
-        "Заполни три места: какой знак сравнения нужен, что возвращает `count_above` и какую функцию вызывает основная программа.\n" +
+        "В первой строке дано число k (0 ≤ k ≤ 50), во второй — целые числа через пробел. Программа должна вывести количество чисел, у которых сумма цифр СТРОГО больше k. Структура уже готова: `digit_sum` возвращает сумму цифр одного числа, а `count_above` вызывает её для каждого элемента, кладёт возвращённое значение в `d` и считает.\n" +
+        "Заполни три места: с каким значением вызывается `digit_sum`, как сравнить `d` с k и что возвращает `count_above`.\n" +
         "При k = 5 и числах «34 7 90 12» ответ равен 3.",
     },
     template:
@@ -445,17 +490,18 @@ export const M3_L7: LessonBlock[] = [
       "def count_above(a, k):\n" +
       "    c = 0\n" +
       "    for i in range(len(a)):\n" +
-      "        if digit_sum(a[i]) ___ k:\n" +
+      "        d = digit_sum(___)\n" +
+      "        if d ___ k:\n" +
       "            c = c + 1\n" +
       "    return ___\n" +
       "\n" +
       "k = int(input())\n" +
       "nums = list(map(int, input().split()))\n" +
-      "print(___(nums, k))",
+      "print(count_above(nums, k))",
     blanks: [
-      { id: "f1", answer: ">" },
-      { id: "f2", answer: "c" },
-      { id: "f3", answer: "count_above" },
+      { id: "f1", answer: "a[i]" },
+      { id: "f2", answer: ">" },
+      { id: "f3", answer: "c" },
     ],
   },
   {

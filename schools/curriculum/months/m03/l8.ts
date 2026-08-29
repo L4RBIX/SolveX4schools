@@ -228,9 +228,9 @@ export const M3_L8: LessonBlock[] = [
      * «Платформа функция шақырылғанда қандай параметр мәндері кіретінін,
      * қандай жергілікті айнымалылар пайда болатынын және return кезінде не
      * қайтатынын визуалды көрсетеді» (p.8). This is that trace done by hand,
-     * and the column set is chosen from that sentence: the parameter `a`, the
-     * local `x` and the local `best`, plus the caller's `nums` so that the
-     * parameter has something to be compared against.
+     * and the three columns are the three things that sentence names, in its
+     * order: the locals `x` and `best` that the call brings into existence, and
+     * `top` — the caller's name for what `return` handed back.
      *
      * The data is [4, 9, 9, 2]. `4` is first and is not the answer, `2` is last
      * and is not the answer, so "returns the first" and "returns the last" both
@@ -238,31 +238,39 @@ export const M3_L8: LessonBlock[] = [
      * is false, so `best` does not move, and a learner who expected an update
      * on every element sees it not happen.
      *
-     * The last row is line 9 with the function already finished. `a`, `x` and
-     * `best` are gone there — that is a scope observation the learner makes for
-     * themselves, one lesson before `m3.l4` names it.
+     * ## Why the list has no column
      *
-     * ## What the table used to claim, and why it was false
+     * It had two: `nums` beside `a`, on all eight rows, to show that one list
+     * can wear two names. What it actually showed was how to copy. The value of
+     * both columns is printed on line 8 of the program the learner is looking
+     * at, so fourteen of the thirty-two cells were transcription — and the grid
+     * marks a cell by exact string equality, so `[4,9,9,2]` typed without the
+     * spaces lost all fourteen while proving nothing whatever about scope. The
+     * privacy scanner reported the same fact from the other side: a cell whose
+     * answer can be read off the screen is a cell whose answer the page has to
+     * ship, and `[4, 9, 9, 2]` was in the payload fourteen times over. Hiding it
+     * was never available — it IS the program.
      *
-     * `nums` was listed only on the two caller rows. The grid draws a dash into
-     * any cell whose row does not name the variable, and that dash means one
-     * thing in this course — `m3.l4.b4` spells it out for the learner: «Ат әлі
-     * пайда болмаған немесе жойылып кеткен сәтте `-` таңбасын қой». So the six
-     * rows inside `largest` were asserting that the caller's list stops
-     * existing the moment the call begins and comes back when it returns.
-     * Instrumenting the program says otherwise: `nums` is bound from line 8
-     * onwards and never unbound. And the false claim pointed the wrong way —
-     * this block exists to set up the fact that the LOCALS are what vanish,
-     * so a table that vanishes the global too teaches the opposite. `nums`
-     * now carries its value on all eight rows.
+     * Dropping the two names does not drop the parameter. Nobody fills the `x`
+     * column, or the 4 that starts `best`, without having understood that `a`
+     * is the caller's list: every value in the table is read out of it. So the
+     * parameter is now used instead of copied, which tests the same idea harder
+     * and costs no cells. That `nums` and `a` are one list and two names is
+     * said in the prompt, where a claim is free.
      *
-     * The dashes that remain are all true, and the learner types every one of
-     * them: `a`, `x` and `best` before the call and after the return, `x` on
-     * the row where `best = a[0]` has run but the loop has not yet bound it.
-     * That is the `m3.l4.b4` convention rather than an omission the renderer
-     * fills in — and it has to be, because the prompt asks which names still
-     * exist at line 9, and a dash the app supplies answers that question
-     * before the learner is asked it.
+     * `top` is what took their place, and it earns the last row. Its value is
+     * written nowhere in the program — it is what the call produced — and it
+     * separates two beliefs that the old all-dash final row could not tell
+     * apart: that `best` is still 9 out here, and that the 9 died with the
+     * frame. One row, both caught, and the learner sees which one they hold.
+     *
+     * Every dash is true, and an instrumented run says so: at line 8 none of
+     * the three names is bound; `x` is still unbound on the row where
+     * `best = a[0]` has run and the loop has not yet turned; at line 9 the
+     * frame holding `x` and `best` is gone while `top` holds 9. They are typed
+     * by the learner, per the `m3.l4.b4` convention, and not drawn by the
+     * renderer — the prompt asks which names still exist at line 9, and a dash
+     * the app supplies would answer that before the learner is asked.
      */
     id: "m3.l8.b4",
     type: "trace_code",
@@ -270,8 +278,8 @@ export const M3_L8: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 8,
     prompt: {
-      kk: "Функция шақырылғанда ішінде қандай айнымалылар пайда болатынын қадамдап жаз. Кестеде төрт баған: `nums` — функциядан тыс жердегі тізім, `a` — параметр, `x` — цикл айнымалысы, `best` — жауап жиналатын жергілікті айнымалы. Ат сол сәтте әлі пайда болмаған немесе жойылып кеткен болса, `-` таңбасын қой. Ең соңғы қатар — функция аяқталып, басқару 9-жолға қайтқан сәт: сол сәтте қай аттар әлі бар, соны ойлан.",
-      ru: "Пройди по шагам и запиши, какие переменные появляются внутри функции при вызове. В таблице четыре столбца: `nums` — это список вне функции, `a` — параметр, `x` — переменная цикла, `best` — локальная переменная, в которой копится ответ. Если имя в этот момент ещё не появилось или уже исчезло, поставь знак `-`. Самая последняя строка — момент, когда функция закончилась и управление вернулось на строку 9: подумай, какие имена в этот момент ещё существуют.",
+      kk: "Функция шақырылғанда ішінде қандай айнымалылар пайда болатынын, шақыру біткен соң олардың қайсысы қалатынын қадамдап жаз. Кестеде үш баған: `x` — цикл айнымалысы, `best` — жауап жиналатын жергілікті айнымалы, `top` — функциядан тыс жердегі, қайтқан мән жазылатын айнымалы. `nums` тізімі функцияға `a` параметрі арқылы беріледі: бұл — бір тізім, екі ат, сондықтан `x` пен `best`-тің мәндерін сол тізімнен оқисың. Цикл қатарлары — цикл денесі сол `x` үшін толық орындалып болғандағы күй. Ат сол сәтте әлі пайда болмаған немесе жойылып кеткен болса, `-` таңбасын қой. Бірінші қатар — шақыруға дейінгі сәт, ең соңғысы — 9-жол орындалып, қайтқан мән `top`-қа жазылған сәт: сол сәтте қай аттар әлі бар, соны ойлан.",
+      ru: "Пройди по шагам и запиши, какие переменные появляются внутри функции при вызове и какие из них остаются, когда вызов закончился. В таблице три столбца: `x` — переменная цикла, `best` — локальная переменная, в которой копится ответ, `top` — переменная вне функции, куда попадает возвращённое значение. Список `nums` приходит в функцию через параметр `a`: это один список под двумя именами, поэтому значения `x` и `best` ты читаешь именно из него. Строки цикла — это состояние в тот момент, когда тело цикла для этого `x` уже полностью выполнилось. Если имя в этот момент ещё не появилось или уже исчезло, поставь знак `-`. Первая строка — момент до вызова, последняя — момент, когда строка 9 выполнилась и возвращённое значение уже записано в `top`: подумай, какие имена в этот момент ещё существуют.",
     },
     code:
       "def largest(a):\n" +
@@ -282,22 +290,23 @@ export const M3_L8: LessonBlock[] = [
       "    return best\n" +
       "\n" +
       "nums = [4, 9, 9, 2]\n" +
-      "print(largest(nums))",
-    /* One row per pass of the loop body, recorded at the header line the way
-       `m2.l5.b4` records it, plus the call site before and after. `nums` and
-       `a` stand side by side in every row of the call on purpose: one list,
-       two names, which is the whole meaning of passing a parameter — and it is
-       only visible while both names are on screen at once. `x` survives the
-       loop, so the line-6 row still holds 2; that is not a typo. */
+      "top = largest(nums)\n" +
+      "print(top)",
+    /* One row per pass of the loop body, recorded at the header line with the
+       body already finished for that `x` — the convention `m2.l5.b4` set and
+       `m3.l7.b3` also keeps — plus the call site before and after. `x` survives
+       the loop, so the line-6 row still holds 2; that is not a typo. The call
+       is written as an assignment rather than as an argument to `print` so the
+       returned value gets a name, and the last row can ask what became of it. */
     steps: [
-      { line: 8, vars: { nums: "[4, 9, 9, 2]", a: "-", x: "-", best: "-" } },
-      { line: 2, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "-", best: "4" } },
-      { line: 3, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "4", best: "4" } },
-      { line: 3, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "9", best: "9" } },
-      { line: 3, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "9", best: "9" } },
-      { line: 3, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "2", best: "9" } },
-      { line: 6, vars: { nums: "[4, 9, 9, 2]", a: "[4, 9, 9, 2]", x: "2", best: "9" } },
-      { line: 9, vars: { nums: "[4, 9, 9, 2]", a: "-", x: "-", best: "-" } },
+      { line: 8, vars: { x: "-", best: "-", top: "-" } },
+      { line: 2, vars: { x: "-", best: "4", top: "-" } },
+      { line: 3, vars: { x: "4", best: "4", top: "-" } },
+      { line: 3, vars: { x: "9", best: "9", top: "-" } },
+      { line: 3, vars: { x: "9", best: "9", top: "-" } },
+      { line: 3, vars: { x: "2", best: "9", top: "-" } },
+      { line: 6, vars: { x: "2", best: "9", top: "-" } },
+      { line: 9, vars: { x: "-", best: "-", top: "9" } },
     ],
   },
   {

@@ -315,23 +315,39 @@ export const M3_L5: LessonBlock[] = [
        output, assembled rather than written. PDF p.6: «дайын кодты құрастыру
        мен толықтыру көбірек, нөлден жазу азырақ». The three blanks are the
        three decisions of the task: how a digit is removed, how the result
-       leaves the function, and how one function's answer becomes the other
-       function's argument. */
+       leaves the function, and what the second function is handed.
+
+       That third blank used to be the function's NAME — `print(parity(___(x)))`
+       answered `digit_sum` — and `def digit_sum(n):` is the first line of the
+       same template. `payload-privacy` reports it and is right to: a blank
+       answer is graded material, so it stays a secret even when the block
+       publishes it itself. It was also the emptiest of the three decisions.
+       Two names are in scope, one of them is already written outside the
+       parentheses, and the hole is filled by copying — no learner who got it
+       wrong learned anything from getting it right.
+
+       Blanking the whole argument asks what the task is actually about.
+       `parity` decides `even`/`odd` from the DIGIT SUM, not from the number, so
+       a learner who answers `x` gets a program that compiles, runs, prints
+       nothing alarming and calls 12 `even`. That is the same mistake m3.l5.b8's
+       first case («12 13») exists to catch on the core route, and the support
+       route had no way to make it until now. The name stays visible, and it
+       should be: what is hidden is which value goes into it. */
     id: "m3.l5.b8s",
     type: "fill_blank",
     skillRefs: ["func.define", "func.return", "func.parameters"],
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бағдарлама әр сан үшін оның цифрлар қосындысы жұп болса `even`, тақ болса `odd` шығаруы керек. Қаңқасы дайын, үш орынды толтыр: бірінші орынға санның соңғы цифрын алып тастайтын амал, екінші орынға қосындыны шақырушыға жеткізетін сөз, үшінші орынға `parity` функциясына берілетін санды дайындайтын функцияның аты керек.",
-      ru: "Программа должна для каждого числа выводить `even`, если сумма его цифр чётная, и `odd`, если нечётная. Каркас готов, заполни три пропуска: в первый — операцию, которая убирает последнюю цифру числа, во второй — слово, доставляющее сумму вызывающей стороне, в третий — имя функции, которая готовит число для `parity`.",
+      kk: "Бағдарлама әр сан үшін оның цифрлар қосындысы жұп болса `even`, тақ болса `odd` шығаруы керек. Қаңқасы дайын, үш орынды толтыр: бірінші орынға санның соңғы цифрын алып тастайтын амал, екінші орынға қосындыны шақырушыға жеткізетін сөз, үшінші орынға `parity` функциясына берілетін өрнек керек.",
+      ru: "Программа должна для каждого числа выводить `even`, если сумма его цифр чётная, и `odd`, если нечётная. Каркас готов, заполни три пропуска: в первый — операцию, которая убирает последнюю цифру числа, во второй — слово, доставляющее сумму вызывающей стороне, в третий — выражение, которое передаётся функции `parity`.",
     },
     template:
-      "def digit_sum(n):\n    s = 0\n    while n > 0:\n        s = s + n % 10\n        n = n ___ 10\n    ___ s\n\ndef parity(x):\n    if x % 2 == 0:\n        return \"even\"\n    return \"odd\"\n\na = list(map(int, input().split()))\nfor x in a:\n    print(parity(___(x)))",
+      "def digit_sum(n):\n    s = 0\n    while n > 0:\n        s = s + n % 10\n        n = n ___ 10\n    ___ s\n\ndef parity(x):\n    if x % 2 == 0:\n        return \"even\"\n    return \"odd\"\n\na = list(map(int, input().split()))\nfor x in a:\n    print(parity(___))",
     blanks: [
       { id: "f1", answer: "//" },
       { id: "f2", answer: "return" },
-      { id: "f3", answer: "digit_sum" },
+      { id: "f3", answer: "digit_sum(x)" },
     ],
   },
   {

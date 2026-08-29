@@ -182,6 +182,7 @@ export const M3_L6: LessonBlock[] = [
       "    a = read_group()\n" +
       "    c = count_ok(a)\n" +
       "    report(c)",
+    stdin: "160 148 155 170\n120 130 151",
     result: {
       kk: "«160 148 155 170» және «120 130 151» енгізілгенде экранға төрт жол шығады: 3, ok, 1, low.",
       ru: "При вводе «160 148 155 170» и «120 130 151» на экран выйдут четыре строки: 3, ok, 1, low.",
@@ -371,19 +372,40 @@ export const M3_L6: LessonBlock[] = [
     ],
   },
   {
-    /* Three functions are given complete and the three calls are the holes, so
-       the block asks only the question the lesson is about: which part produces
-       what, and what travels between them. The middle blank is an argument
-       rather than a name on purpose — knowing that `report` reports is easy,
-       and knowing that the WORD has to be handed to `count_char` is the part a
-       learner gets wrong by writing `read_word` or `ch`. */
+    /* The three holes used to be the three calls in the main program, and the
+       first of them wanted `read_word` — a name printed at the top of its own
+       template, in the line `def read_word():`. The payload scanner named it
+       and the scanner is right: a blank whose answer is already on the screen
+       is not a decision, it is transcription with an extra step. The comment
+       that used to stand here conceded as much about the other two — «knowing
+       that `report` reports is easy» — so one hole out of three was doing the
+       work. Shortening the name until it slipped under the scanner's length
+       floor would have preserved exactly that task and only stopped it being
+       reported.
+
+       So the main program is given whole now, and it is given whole because it
+       is the EVIDENCE. `k = count_char(w, "a")` is what proves the counting
+       function has to hand its number back instead of printing it. The `"a"`
+       standing in that call is what proves the comparison inside must be with
+       `ch` and not with the letter today's task happens to ask for: write
+       `x == "a"` and the function quietly stops working for any other letter,
+       which is the parameter mistake this whole lesson exists to prevent, and
+       it is the mistake a learner cannot even make while the answer is a name
+       to be copied. The third hole is the rule itself — `report` is the only
+       place «кемінде бір рет» is decided, exactly as b2's fourth step argued.
+       None of the three answers appears anywhere in the template; a learner
+       who wants them reads the wiring rather than the definitions.
+
+       `c >= 1` and its siblings are listed as alternatives because they are the
+       same condition on a count, and marking a correct program wrong is the one
+       thing a fill_blank must not do. */
     id: "m3.l6.b6",
     type: "fill_blank",
     skillRefs: ["func.define", "func.parameters", "func.return", "strings.sequence"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бір жолда кіші латын әріптерінен тұратын бір сөз беріледі (ұзындығы 1-ден 30-ға дейін). Бағдарлама екі жол шығарады: бірінші жолда сөздегі `a` әрпінің саны, екінші жолда — кемінде бір `a` болса `yes`, мүлде болмаса `no` деген ағылшын сөзі. Үш функция дайын жазылған, ал негізгі бағдарламаның үш жолында бос орын қалдырылған. Әр бос орынға не тұратынын шеш: қайсысы сөзді әкеледі, оған қандай дерек беріледі және қайсысы жауапты шығарады.",
-      ru: "В одной строке дано одно слово из строчных латинских букв (длиной от 1 до 30). Программа выводит две строки: в первой — сколько букв `a` в слове, во второй — английское слово `yes`, если буква `a` встречается хотя бы раз, и `no`, если её нет совсем. Три функции уже написаны, а в трёх строках основной программы оставлены пропуски. Реши, что стоит в каждом: какая функция приносит слово, какие данные ей передаются и какая функция выводит ответ.",
+      kk: "Бір жолда кіші латын әріптерінен тұратын бір сөз беріледі (ұзындығы 1-ден 30-ға дейін). Бағдарлама екі жол шығарады: бірінші жолда сөздегі `a` әрпінің саны, екінші жолда — кемінде бір `a` болса `yes`, мүлде болмаса `no` деген ағылшын сөзі. Есеп үш функцияға бөлінген, ал негізгі бағдарламаның үш жолы толық жазылған — жауап сол жолдарда, оларды мұқият оқы. Үш орынды толтыр. Біріншісі: `count_char` кез келген әріп үшін жұмыс істеуі керек, қай әріпті санайтынын негізгі бағдарлама шешіп, оны `ch` параметрімен береді — цикл ішінде кезектегі әріп немен салыстырылады? Екіншісі: `count_char` ештеңе шығармайды, оның нәтижесін негізгі бағдарлама `k`-ға жазады — демек функцияның соңғы жолы не істеуі керек? Үшіншісі: `yes` пен `no` тек `report` ішінде шешіледі — қандай шарт орындалғанда `yes` шығады?",
+      ru: "В одной строке дано одно слово из строчных латинских букв (длиной от 1 до 30). Программа выводит две строки: в первой — сколько букв `a` в слове, во второй — английское слово `yes`, если буква `a` встречается хотя бы раз, и `no`, если её нет совсем. Задача разбита на три функции, а три строки основной программы написаны целиком — ответы там, прочитай их внимательно. Заполни три места. Первое: `count_char` должна работать с любой буквой, а какую именно считать, решает основная программа и передаёт её параметром `ch` — с чем тогда сравнивается очередная буква внутри цикла? Второе: `count_char` ничего не печатает, её результат основная программа кладёт в `k` — значит, что должна делать последняя строка функции? Третье: `yes` и `no` решаются только внутри `report` — при каком условии выводится `yes`?",
     },
     template:
       "def read_word():\n" +
@@ -392,24 +414,24 @@ export const M3_L6: LessonBlock[] = [
       "def count_char(w, ch):\n" +
       "    c = 0\n" +
       "    for x in w:\n" +
-      "        if x == ch:\n" +
+      "        if ___:\n" +
       "            c = c + 1\n" +
-      "    return c\n" +
+      "    ___\n" +
       "\n" +
       "def report(c):\n" +
       "    print(c)\n" +
-      "    if c > 0:\n" +
+      "    if ___:\n" +
       '        print("yes")\n' +
       "    else:\n" +
       '        print("no")\n' +
       "\n" +
-      "w = ___()\n" +
-      'k = count_char(___, "a")\n' +
-      "___(k)",
+      "w = read_word()\n" +
+      'k = count_char(w, "a")\n' +
+      "report(k)",
     blanks: [
-      { id: "f1", answer: "read_word" },
-      { id: "f2", answer: "w" },
-      { id: "f3", answer: "report" },
+      { id: "f1", answer: "x == ch", alternatives: ["ch == x"] },
+      { id: "f2", answer: "return c" },
+      { id: "f3", answer: "c > 0", alternatives: ["c >= 1", "0 < c", "1 <= c", "c != 0"] },
     ],
   },
   {

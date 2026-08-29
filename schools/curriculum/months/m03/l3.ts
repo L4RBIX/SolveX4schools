@@ -155,6 +155,7 @@ export const M3_L3: LessonBlock[] = [
       "\n" +
       "a, b = map(int, input().split())\n" +
       "print(digit_sum(a) + digit_sum(b))",
+    stdin: "407 23",
     result: {
       kk: "«407 23» енгізгенде: 16",
       ru: "При вводе «407 23»: 16",
