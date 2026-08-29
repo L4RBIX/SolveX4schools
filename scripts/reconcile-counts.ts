@@ -46,20 +46,12 @@
  *   npx tsx scripts/reconcile-counts.ts --markdown
  */
 import { MONTHS } from "../schools/curriculum/months";
-import { isTask } from "../schools/curriculum/inventory";
+import { isIndependent, isTask } from "../schools/curriculum/inventory";
 import { ATTEMPT_BLOCK_TYPES } from "../schools/curriculum/types";
 import type { LessonBlock, Month } from "../schools/curriculum/types";
 
 const TRACK = "core";
 const CONTEST_LESSON = /^m\d+\.c\d+$/;
-
-/** A complete program written from nothing — the PDF's «толық дербес шешім». */
-function isIndependent(b: LessonBlock): boolean {
-  if (b.type === "challenge") return true;
-  if (b.type === "write_code") return !b.starter?.trim();
-  if (b.type === "verify") return b.mode === "unseen_problem";
-  return false;
-}
 
 /** Any block whose answer is a program the learner writes or edits. */
 const CODING = new Set<LessonBlock["type"]>(["write_code", "modify_code", "challenge"]);

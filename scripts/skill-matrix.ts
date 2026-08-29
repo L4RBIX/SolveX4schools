@@ -34,6 +34,7 @@
  *   npx tsx scripts/skill-matrix.ts --markdown # the table for the audit doc
  */
 import { MONTHS } from "../schools/curriculum/months";
+import { isIndependent, isRequired } from "../schools/curriculum/inventory";
 import { SKILLS } from "../schools/curriculum/skills";
 import { ATTEMPT_BLOCK_TYPES } from "../schools/curriculum/types";
 import type { LessonBlock, Month, SkillId } from "../schools/curriculum/types";
@@ -60,32 +61,11 @@ function walk(month: Month): Located[] {
   return out;
 }
 
-/**
- * A block where the learner produces a whole program with nothing to start from.
- *
- * `modify_code` and `fill_blank` are excluded on purpose however much work they
- * involve: the programme counts «толық дербес шешім» — a complete independent
- * solution — and a task that hands over most of the program is not one, whatever
- * else it is good for.
- */
-function isIndependent(block: LessonBlock): boolean {
-  if (block.type === "challenge") return true;
-  if (block.type === "write_code") return !block.starter?.trim();
-  if (block.type === "verify") return block.mode === "unseen_problem";
-  return false;
-}
-
-/**
- * Evidence only counts when every learner on the route actually produces it.
- *
- * A bank task is validated, addressable and optional — so a skill whose only
- * independent evidence sits in the bank has no evidence for the learner who
- * does the required path and stops, which is the learner this matrix is about.
- * Counting it would let a month look covered because of work nobody has to do.
- */
-function isCore(block: LessonBlock): boolean {
-  return !block.bank;
-}
+/* Evidence only counts when every learner on the route actually produces it.
+   A skill whose only independent evidence sits in the bank has no evidence for
+   the learner who does the required path and stops, which is the learner this
+   matrix is about. `isRequired` is that question, in one place. */
+const isCore = isRequired;
 
 const ALL = MONTHS.flatMap(walk);
 

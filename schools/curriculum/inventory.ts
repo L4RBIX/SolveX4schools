@@ -171,6 +171,50 @@ export function findCompletable(id: string): Completable | null {
  * `core` is what is left, which is the right default because a task nobody has
  * argued out of the path is in it.
  */
+/**
+ * Does the learner produce a whole program with nothing to start from?
+ *
+ * This is the programme's «толық дербес шешім» — a complete independent
+ * solution, the thing p.11 promises about a hundred of. It is the sharpest
+ * measure of evidence the curriculum has, and it was defined four times: twice
+ * identically in `scripts/skill-matrix.ts` and `scripts/reconcile-counts.ts`,
+ * and inline again in `scripts/requirement-matrix.ts` and in the tests. Four
+ * copies of a definition that decides a headline number is three too many.
+ *
+ * `modify_code` and `fill_blank` are excluded however much work they involve:
+ * a task that hands over most of the program is not a complete independent
+ * solution, whatever else it is good for. `isGuided` is what they are.
+ */
+export function isIndependent(block: LessonBlock): boolean {
+  if (block.type === "challenge") return true;
+  if (block.type === "write_code") return !block.starter?.trim();
+  if (block.type === "verify") return block.mode === "unseen_problem";
+  return false;
+}
+
+/**
+ * The learner acts, but the program is not theirs to produce whole.
+ *
+ * A starter to extend, a template to fill, someone else's code to repair or
+ * reorder. Real evidence of understanding and a different kind from the above,
+ * which is why the skill matrix reports them in separate columns rather than
+ * folding both into "practised".
+ */
+export function isGuided(block: LessonBlock): boolean {
+  return isTask(block) && !isIndependent(block);
+}
+
+/**
+ * Is this task on the required path?
+ *
+ * Absent `bank` means core. Stated as a function because "is it required" is
+ * asked in a dozen places and `!block.bank` reads like a null check rather than
+ * like the curriculum decision it is.
+ */
+export function isRequired(block: LessonBlock): boolean {
+  return !block.bank;
+}
+
 export type TaskRole = "core" | "bank" | "assessment" | "contest";
 
 /** A contest lesson id, e.g. `m9.c1`. May's four practice contests. */

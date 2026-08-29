@@ -25,7 +25,7 @@
  *   npx tsx scripts/requirement-matrix.ts --markdown
  */
 import { MONTHS } from "../schools/curriculum/months";
-import { isTask, roleOf } from "../schools/curriculum/inventory";
+import { isIndependent, isTask, roleOf } from "../schools/curriculum/inventory";
 import {
   YEAR_END_OUTCOMES_KK,
   VERIFICATION_METHODS_KK,
@@ -80,10 +80,7 @@ const OUTCOME_EVIDENCE: { match: (b: LessonBlock) => boolean; why: string }[] = 
   },
   {
     // 3. writes the program independently rather than copying
-    match: (b) =>
-      b.type === "challenge" ||
-      (b.type === "write_code" && !b.starter?.trim()) ||
-      (b.type === "verify" && b.mode === "unseen_problem"),
+    match: isIndependent,
     why: "a whole program produced from an empty editor; a starter would be the copying this outcome rules out",
   },
   {

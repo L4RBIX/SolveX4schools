@@ -198,3 +198,72 @@ describe("one cost model, not two", () => {
     }
   });
 });
+
+describe("one definition of independent evidence", () => {
+  /**
+   * «толық дербес шешім» decides a headline number — the ~100 complete
+   * independent solutions the programme promises — and it was defined four
+   * times: identically in skill-matrix.ts and reconcile-counts.ts, and inline
+   * again in requirement-matrix.ts and in the tests.
+   *
+   * They all agreed, which is why nothing caught it. Four copies of a
+   * definition agree until one of them is edited, and the first symptom would
+   * have been two documents reporting different counts for the same promise.
+   */
+  it("lives in inventory.ts and nowhere else re-implements it", async () => {
+    const { readFileSync, readdirSync } = await import("node:fs");
+    const files = [
+      ...readdirSync("scripts").filter((f) => f.endsWith(".ts")).map((f) => `scripts/${f}`),
+      ...readdirSync("tests/school").filter((f) => f.endsWith(".ts")).map((f) => `tests/school/${f}`),
+    ];
+    const forks: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      /* A FORK is the whole predicate rebuilt: all three arms together —
+         `challenge`, a `write_code` with no starter, and `verify` with mode
+         `unseen_problem`.
+         Mentioning one arm is not a fork. `scripts/requirement-matrix.ts` maps
+         the programme's first year-end outcome — reading a statement and
+         separating what is given from what is asked — onto `test_case` and
+         `verify:unseen_problem`, which is a genuinely different concept that
+         happens to share a clause. Forcing that through the shared helper would
+         be abstraction for its own sake and would make it wrong. */
+      const arms = [
+        /"challenge"/.test(src),
+        /starter\?\.trim\(\)/.test(src),
+        /mode\s*===\s*"unseen_problem"/.test(src),
+      ].filter(Boolean).length;
+      if (arms === 3) forks.push(f);
+    }
+    expect(
+      forks,
+      "these re-implement isIndependent — import it from @schools/curriculum/inventory instead",
+    ).toEqual([]);
+  });
+
+  it("agrees with what the programme means by it", async () => {
+    const { isIndependent, isGuided, isTask } = await import("@schools/curriculum/inventory");
+    let independent = 0;
+    let guided = 0;
+    for (const month of MONTHS) {
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          for (const b of lesson.blocks) {
+            if (!isTask(b)) {
+              /* A block the learner does not act on is neither. */
+              expect(isIndependent(b), `${b.id}`).toBe(false);
+              expect(isGuided(b), `${b.id}`).toBe(false);
+              continue;
+            }
+            /* Every task is exactly one of the two. */
+            expect(isIndependent(b) !== isGuided(b), `${b.id} is both or neither`).toBe(true);
+            if (isIndependent(b)) independent += 1;
+            else guided += 1;
+          }
+        }
+      }
+    }
+    expect(independent).toBeGreaterThan(100);
+    expect(guided).toBeGreaterThan(100);
+  });
+});
