@@ -101,6 +101,23 @@ describe("the audit documents report the corpus that exists", () => {
     });
   }
 
+  it("the redundancy audit lists every banked task", () => {
+    /* This doc's table is the only place the bank is enumerated for a reader,
+       and a task banked later without a row here is invisible to them. */
+    const doc = read("FULL_YEAR_REDUNDANCY_AUDIT.md");
+    const banked: string[] = [];
+    for (const month of MONTHS) {
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          for (const b of lesson.blocks) if (b.bank) banked.push(b.id);
+        }
+      }
+    }
+    expect(banked.length).toBeGreaterThan(10);
+    const absent = banked.filter((id) => !doc.includes(`\`${id}\``));
+    expect(absent, "banked tasks with no row in the redundancy audit").toEqual([]);
+  });
+
   it("the content freeze is dated and says it is a snapshot", () => {
     /* The freeze doc is the ONE that must not track the corpus: it records a
        commit. So it is exempt from the checks above, and instead has to say so
