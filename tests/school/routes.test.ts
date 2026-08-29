@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { findCompletable } from "@schools/curriculum/inventory";
 
 /* Static imports: Vite's resolver treats `[` in a *dynamic* specifier as a
    glob, so `await import("…/[monthIndex]/page")` never resolves. A literal
@@ -121,9 +122,27 @@ describe("the product's own routes exist and are wired to the curriculum", () =>
     expect(months.map((m) => m.index)).toEqual(
       ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
     );
-    // Only authored lessons get a route. A pre-rendered page for an unwritten
-    // lesson is a link a learner can reach and find empty.
+    /* Only authored lessons get a route. A pre-rendered page for an unwritten
+     * lesson is a link a learner can reach and find empty.
+     *
+     * This used to assert the id SHAPE, `mN.lK`, which was a proxy for "is a
+     * real lesson" and stopped being one when May arrived: its four practice
+     * contests are `m9.c1`..`m9.c4`, which the programme asks for by name
+     * («төрт 45 минуттық жаттығу жарысы», p.10). The proxy rejected them while
+     * the routes themselves worked perfectly.
+     *
+     * So it now asserts the thing the comment always claimed: every
+     * pre-rendered id resolves to a lesson that exists and has blocks in it.
+     * That is strictly stronger than the regex — it would have caught a route
+     * for an empty `mN.lK` too, which a shape check never could. */
     expect(lessons.length).toBeGreaterThan(0);
-    expect(lessons.every((l) => /^m\d+\.l\d+$/.test(l.lessonId))).toBe(true);
+    const empty = lessons.filter((l) => {
+      const found = findCompletable(l.lessonId);
+      return !found || found.blockCount === 0;
+    });
+    expect(
+      empty.map((l) => l.lessonId),
+      "pre-rendered routes for lessons that are missing or have no blocks",
+    ).toEqual([]);
   });
 });

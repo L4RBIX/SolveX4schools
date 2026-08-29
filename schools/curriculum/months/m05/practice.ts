@@ -81,7 +81,7 @@ import type { LessonBlock } from "../../types";
  *   states a rule the product does not enforce.
  * - **Option 3 (send it to a human)** is not used here: this bank has no
  *   `explain` block by design, and January's written defence already exists at
- *   `m5.l7.b9` and in the monthly check's `m5.as.b2` and `m5.as.b4`.
+ *   `m5.l7.b9` and in the monthly check's `m5.as.b4`.
  *
  * p4 is the one place where a structural requirement IS enforceable, and it is
  * enforced: its list arrives unsorted, and the hidden case `10 2 8 4 6 12` /
