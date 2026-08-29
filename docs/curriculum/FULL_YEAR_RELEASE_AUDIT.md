@@ -73,7 +73,8 @@ Core route. These nine figures are kept apart on purpose; see `TASK_COUNT_RECONC
 | Finding | Resolution |
 |---|---|
 | "475 tasks against 279" was not a comparison | Units established from three places in the PDF that agree; 447 against 279. `TASK_COUNT_RECONCILIATION.md` |
-| `bank` was a label the completion policy never saw | One boolean crosses to the browser; `requirementFor` exempts banked tasks; asserted in both directions and mutation-tested. `tests/school/bank-is-optional.test.ts` |
+| `bank` was a label the completion policy never saw | One boolean crosses to the browser; `requirementFor` exempts banked tasks. `tests/school/bank-is-optional.test.ts` |
+| …and the exemption the policy granted, the interface refused | The footer had one button on an unchecked attempt block and the forward arrow is off, so a learner who declined an optional task could not finish the lesson — 29 of 29 affected lesson/route pairs. An optional task now carries a Skip and a line saying why; the task counters no longer put it in the denominator. `tests/school/optional-tasks-are-skippable.test.ts` |
 | Core-vs-bank had only ever been asked of October, and for the wrong reason | All 521 required tasks re-audited against the uniqueness test, one owner per month, no target. 17 findings, 14 applied, 1 rejected on the merits, 2 held for a human. |
 | A banked task cited a sibling arriving two lessons later | `m2.l6.b8` returned to core; the ordering rule and self-citation now fail as tests |
 | The workload model priced one hypothetical learner | Three scenarios, per-block estimates written out per learner |

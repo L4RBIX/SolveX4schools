@@ -52,7 +52,11 @@ That earlier October pass is the reason this re-audit exists. It was triggered b
 
 ## Everything now in the bank
 
-Absent means core. These 23 carry a `bank` field, and the field is a real exemption: `requirementFor` asks nothing of them, and a learner who skips every one of them completes every lesson.
+Absent means core. These 23 carry a `bank` field.
+
+The field is a real exemption, and getting there took two goes. `requirementFor` was taught to ask nothing of a banked task, and that was asserted, mutation-tested and written up as done — while the lesson player went on refusing to advance past any unchecked attempt block, optional or not. The policy said optional; the interface said no, and the interface is what a learner meets. In 29 of the 29 lesson/route pairs holding a bank task, a learner who declined it could not finish the lesson at all; nine of those were stuck on the last page, where the policy already considered the lesson complete and the Finish button was never rendered.
+
+An optional task now carries a Skip beside its Check, and a line saying it is extra practice. `tests/school/optional-tasks-are-skippable.test.ts` walks every affected lesson on every route the way the player does and asserts the learner reaches the end — and asserts the inverse, since a change making everything skippable would have satisfied the first half and deleted the curriculum's requirements.
 
 | Task | Type | Route | Role | Why it is spare |
 |---|---|---|---|---|
