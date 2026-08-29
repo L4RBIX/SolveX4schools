@@ -58,7 +58,7 @@ From-nothing tasks out of core tasks, per route:
 | core | 25/44 | 22/60 | 18/55 | 21/50 | 19/58 | 18/50 | 15/45 | 17/43 | 4/22 |
 | advanced | 27/46 | 23/63 | 20/59 | 24/55 | 20/61 | 20/55 | 15/47 | 18/46 | 4/23 |
 
-The ordering support < core < advanced holds in every month for from-nothing work — March is the one month where core and advanced tie at 15, and April recovers it. The support route consistently asks for roughly half as many programs from nothing as core, substituting a scaffolded form of the same task, which is what the support twin convention is.
+The ordering support < core < advanced holds in every month for from-nothing work, with two ties rather than a break: March at 15 for both core and advanced, and May at 4 — May because almost all of its independent work is the contest, which this table excludes. The support route consistently asks for roughly half as many programs from nothing as core, substituting a scaffolded form of the same task, which is what the support twin convention is.
 
 Note what this table also shows: the support route's **total** is barely smaller than core's. That is the same fact `FULL_YEAR_WORKLOAD.md` reaches from the other direction — the support route reduces difficulty, not quantity.
 

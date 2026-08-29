@@ -271,7 +271,7 @@ export interface WorkedExampleBlock extends BlockBase {
    * The same field `PredictionBlock` carries, for the same reason and after the
    * same discovery. A worked example states, in `result`, what its code prints
    * for the sample in `problem` — and that is a claim about Python that can
-   * only be checked by running Python. Eleven of the year's thirty-eight read
+   * only be checked by running Python. Thirteen of the year's forty read
    * stdin, so without this the sample lives in the prose and nowhere a test can
    * reach, and `tests/school/content-integrity.test.ts` could verify two thirds
    * of the worked examples and had to name the rest as unverifiable.

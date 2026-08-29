@@ -94,7 +94,7 @@ The obvious answer to "a slow learner needs twice the time" is that a slow learn
 | 8 Сәуір | 82% | 635 (125%) |
 | 9 Мамыр | 92% | 1125 (221%) |
 
-The support route costs about **83% of the core route** — a 17% reduction. A learner who needs twice as long needs roughly half, and gets a sixth.
+The support route costs **84% of the core route** over the year — a 16% reduction, ranging from 78% in November to 92% in May. A learner who needs twice as long needs roughly half, and gets a sixth.
 
 That is a design fact about the differentiation, not a bug in it. The support twins substitute an easier form of the same task — a `fill_blank` where core writes from nothing — so they reduce difficulty and reduce time only as a side effect. Nothing in the curriculum reduces the NUMBER of things a support learner must do.
 
@@ -111,7 +111,7 @@ A second reading that does not depend on the absolute estimates at all. Septembe
 
 **This is relative density, not workload validation.** It says a month is heavier or lighter than September. It does not say September is the right size — September has never been timed either — and it cannot say any month fits in 510 minutes. Treating it as validation is a mistake this workstream made once already, and it is why the three-scenario table above exists.
 
-On that reading October is the only month above September, by 12%, and every month from March onwards is materially lighter.
+On that reading two months sit above September: October by 12% and January by 6%, on all three routes, with December a third above it on the advanced route alone. Every month from March onwards is materially lighter.
 
 ## What would actually settle this
 

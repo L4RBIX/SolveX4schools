@@ -28,13 +28,13 @@ import type { LessonBlock, Localized, Month } from "@schools/curriculum/types";
  *
  * ## What is asserted about worked examples
  *
- * All 38 are executed. That took a schema addition: 11 of them read stdin, and
+ * All 40 are executed. That took a schema addition: 13 of them read stdin, and
  * `WorkedExampleBlock` had no field to say what with, so the sample lived in
  * the `problem` prose where no test could reach it. It now carries `stdin`, the
  * same field `PredictionBlock` has had for the same reason. The first version
  * of this file could check 27 and had to NAME the other 11 as unverifiable,
  * which is the honest way to ship a partial check — but a worked example is the
- * one block a learner is told to trust, so eleven unchecked ones was not a
+ * one block a learner is told to trust, so leaving any unchecked was not a
  * state to leave.
  *
  * The guard against that quietly regressing is here too: a worked example that
@@ -113,7 +113,7 @@ const python = hasPython();
 
 const WORKED = ALL.filter((e) => e.block.type === "worked_example");
 /* A worked example is runnable when it reads nothing, or when it declares the
-   input it is reasoned over. The eleven that read stdin now do — see the
+   input it is reasoned over. The thirteen that read stdin now do — see the
    `stdin` field on `WorkedExampleBlock` and why it was added. */
 const RUNNABLE = WORKED.filter((e) => {
   const b = e.block as { code: string; stdin?: string };

@@ -33,11 +33,11 @@ with 18 in the bank. Reclassification is one of the amendments allowed below;
 
 Only these, and each needs its reason stated in the commit:
 
-1. **Replacing a defective task.** A wrong answer key, an unreachable block, an answer leak, a prerequisite violation, a case set that accepts the shortcut the task forbids.
+1. **Replacing or removing a defective task.** A wrong answer key, an unreachable block, an answer leak, a prerequisite violation, a case set that accepts the shortcut the task forbids — or a block that duplicates another in the same assessment and pushes it past its stated duration. Removal was not in this list when the freeze was written, and `m5.as.b2` was removed anyway; the list is corrected rather than the history.
 2. **Closing a gap an audit proves.** Not "this month could use more problems" — a named official outcome with no evidence, a missing assessment requirement, a prerequisite with no bridge, a differentiation requirement unmet.
 3. **Moving a task between core and bank.** Classification is not authoring; it adds nothing and removes nothing.
 4. **Localisation repair** arising from native-speaker review.
-5. **Metadata that makes existing content verifiable.** The `stdin` field added to `WorkedExampleBlock` is the precedent: it authored no content, and it let the remaining eleven worked examples be executed instead of named as unverifiable.
+5. **Metadata that makes existing content verifiable.** The `stdin` field added to `WorkedExampleBlock` is the precedent: it authored no content, and it let the thirteen worked examples that read input be executed instead of named as unverifiable.
 
 ## Not allowed
 

@@ -103,9 +103,10 @@ about minutes, not tasks, and it is answered in
 | — of which independent solutions | 159 |
 | — of which guided coding | 23 |
 | — of which other interaction | 245 |
+| — of which May's contest problems | 20 |
 | Explanation blocks (not tasks) | 113 |
 | Assessment tasks | 36 |
 | Contest tasks | 20 |
-| Optional bank tasks | 8 |
+| Optional bank tasks | 18 |
 
 Regenerate with `npx tsx scripts/reconcile-counts.ts`.

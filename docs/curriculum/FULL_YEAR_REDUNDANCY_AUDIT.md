@@ -34,7 +34,7 @@ Three of those rules are now enforced as tests, because the first pass broke one
 | 9 Мамыр | 27 | 0 | 0 |
 | **Total** | **521** | **17** | **14** |
 
-**3.3% of the required path came out.** Nobody was aiming at a number.
+**14 of 521 came out — 2.7% of the required path.** Nobody was aiming at a number. 17 findings were raised; 3.3% is that figure, and counting findings rather than moves would report as removed three tasks that are still there.
 
 ## The three not applied
 

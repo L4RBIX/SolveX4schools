@@ -23,18 +23,19 @@ Covered by May's final tournament, which declares twenty skills where a monthly 
 
 Nothing the learner is graded on, all year, declares these. But the list divides sharply.
 
-**Declaration artifacts, not gaps — 4 skills.** `arith.basic`, `compare.operators`, `arith.remainder`, `strings.sequence`. An assessment block declares the three or four skills that are its *subject*, not every skill it touches. These four are touched constantly. Checked by extracting the constructs from every assessment program in the year:
+**Declaration artifacts, not gaps — 3 skills.** `arith.basic`, `compare.operators`, `strings.sequence`. (`arith.remainder` was in this group and does not belong: `op.mod` reaches only 2 of the 9 assessments, so unlike the other three it is not pervasive enough for the argument below to carry it. It is a real finding, of the same kind as the five below.) An assessment block declares the three or four skills that are its *subject*, not every skill it touches. These three are touched constantly. Checked by extracting the constructs from every assessment program in the year:
 
 | Skill | Constructs actually present in assessment code |
 |---|---|
 | `compare.operators` | `cmp.lt` (m2, m3, m5, m7, m8, m9), `cmp.gt` (m5, m8, m9), `cmp.le` (m1, m5, m6), `cmp.ge` (m1, m2, m6, m7, m9), `cmp.eq` (m3, m5, m7, m9) |
 | `arith.basic` | `op.add` (all nine), `op.sub` (m5–m9), `op.mul` (m1, m6, m8, m9) |
-| `arith.remainder` | `op.mod` (m3, m9) |
 | `strings.sequence` | `builtin.len` (m2, m3, m5, m7, m8, m9), `literal.str` (m1, m5, m6, m7, m9) |
 
-A learner cannot pass eight of the nine checks without using comparison operators. Adding `compare.operators` to every assessment's `skillRefs` would close the metric and change nothing about what anyone is asked to do, which is why this document does not recommend it.
+A learner cannot pass eight of the nine checks without using comparison operators, and addition appears in all nine. Adding `compare.operators` to every assessment's `skillRefs` would close the metric and change nothing about what anyone is asked to do, which is why this document does not recommend it.
 
-**Real findings — 5 skills.** A month teaches a named technique and its own check never touches it:
+`arith.remainder` failed this same test and is why the test is worth running rather than asserting: `op.mod` reaches only two of the nine assessments, so it does not belong with the other three and sits below instead.
+
+**Real findings — 6 skills.** Five where a month teaches a named technique and its own check never touches it, plus `arith.remainder`, which is practised in seven months and reaches assessment code in only two:
 
 | Skill | Taught | The month's check is about |
 |---|---|---|
@@ -43,6 +44,7 @@ A learner cannot pass eight of the nine checks without using comparison operator
 | `enumerate.all` | 6 Ақпан | recursion |
 | `graph.dfs` | 7 Наурыз | BFS and shortest paths |
 | `graph.path_restore` | 7 Наурыз | BFS and shortest paths |
+| `arith.remainder` | 1 Қыркүйек | — practised in seven months; `op.mod` reaches only m3 and m9 assessment code |
 
 These are genuine. Each is a technique the month spends lessons on, and a learner could pass that month's check having never demonstrated it. Not fixed here: a monthly check is 20 minutes and holds one unseen problem plus an explanation, so covering a second technique means displacing the first — a design decision about what each check is *for*, not a metric to close. January's check is a worked instance of that constraint.
 

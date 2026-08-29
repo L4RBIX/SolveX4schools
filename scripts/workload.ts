@@ -71,74 +71,20 @@ import { MONTHS } from "../schools/curriculum/months";
 import { isTask, roleOf } from "../schools/curriculum/inventory";
 import type { LessonBlock, Month, TrackLevel } from "../schools/curriculum/types";
 
-type Scenario = "fast" | "expected" | "slow";
-const SCENARIOS: readonly Scenario[] = ["fast", "expected", "slow"];
+import {
+  MONTH_BUDGET as BUDGET,
+  PASSIVE,
+  SCENARIOS,
+  costOf,
+  type Scenario,
+} from "../schools/curriculum/cost";
 
-/** Minutes a block costs, by learner. Argue with these; they are why. */
-const MINUTES: Record<LessonBlock["type"], Record<Scenario, number>> = {
-  /* Reading. A slow learner re-reads; nobody reads it in half the time. */
-  concept: { fast: 1.5, expected: 2, slow: 3.5 },
-  worked_example: { fast: 2, expected: 3, slow: 5 },
-  visual_simulation: { fast: 1.5, expected: 2, slow: 3.5 },
-  reflection: { fast: 1.5, expected: 2, slow: 3 },
-
-  /* Recognition. Fast is nearly instant; slow re-reads the code twice. */
-  prediction: { fast: 1, expected: 1.5, slow: 3 },
-  multiple_choice: { fast: 1, expected: 1.5, slow: 3 },
-
-  /* Filling in and assembling. Bounded above by how much is already on screen. */
-  fill_blank: { fast: 2, expected: 3, slow: 6 },
-  reorder_code: { fast: 2, expected: 3, slow: 6 },
-
-  /* Reading someone else's execution or someone else's mistake. Where a
-     struggling learner bogs down worst short of writing from nothing. */
-  trace_code: { fast: 3, expected: 5, slow: 11 },
-  find_bug: { fast: 3.5, expected: 6, slow: 13 },
-  modify_code: { fast: 3.5, expected: 6, slow: 13 },
-  test_case: { fast: 2.5, expected: 4, slow: 8 },
-
-  /* Writing. Per question — see `costOf`. */
-  explain: { fast: 1.5, expected: 2, slow: 3.5 },
-
-  /* From nothing. The widest spread, because being stuck has no ceiling and
-     2.5x is already a generous way to pretend that it does. */
-  write_code: { fast: 7, expected: 12, slow: 30 },
-  challenge: { fast: 9, expected: 15, slow: 37 },
-  arena_problem: { fast: 9, expected: 15, slow: 37 },
-  verify: { fast: 7, expected: 12, slow: 30 }, // refined per mode in `costOf`
-};
-
-/** The programme's own monthly budget, PDF p.5. */
-const BUDGET = { theory: 150, practice: 360, total: 510 };
-
-/** Blocks the learner reads rather than does — the programme's «түсіндіру». */
-const PASSIVE = new Set<LessonBlock["type"]>(["concept", "worked_example", "visual_simulation"]);
-
-function questionsIn(text: string): number {
-  return Math.max(1, (text.match(/\(\d\)/g) ?? []).length, (text.match(/\?/g) ?? []).length);
-}
-
-function costOf(block: LessonBlock, s: Scenario): number {
-  if (block.type === "explain") return MINUTES.explain[s] * questionsIn(block.prompt.kk);
-  if (block.type === "verify") {
-    switch (block.mode) {
-      case "unseen_problem":
-        return MINUTES.write_code[s];
-      case "manual_trace":
-        return MINUTES.trace_code[s];
-      case "find_bug":
-        return MINUTES.find_bug[s];
-      case "delayed_resolve":
-        /* An unaided re-solve of something met weeks ago. Cheaper than a new
-           problem for a learner who remembers it and dearer for one who does
-           not, which is most of the spread. */
-        return { fast: 6, expected: 10, slow: 26 }[s];
-      case "oral_explanation":
-        return MINUTES.explain[s] * questionsIn(block.prompt.kk);
-    }
-  }
-  return MINUTES[block.type][s];
-}
+/* The cost table used to live here, and a near-copy of it lived in
+   `schools/curriculum/validate.ts`. They disagreed by a minute or two, so
+   January's check read 21 minutes in this script and 22 in the validator's
+   warning. One table now, in `schools/curriculum/cost.ts`, which is library
+   code because the validator is library code and a script importing a script
+   is the wrong way round. */
 
 export interface Load {
   theory: number;

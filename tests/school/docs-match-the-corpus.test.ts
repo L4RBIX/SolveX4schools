@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { MONTHS } from "@schools/curriculum/months";
+import { loadOf } from "../../scripts/workload";
 import { isTask, monthInventory, roleOf } from "@schools/curriculum/inventory";
 import type { LessonBlock, Month } from "@schools/curriculum/types";
 
@@ -163,6 +164,37 @@ describe("the two things that count tasks agree", () => {
         inv.implemented,
         `month ${month.index}: the validator says ${inv.implemented} where the PDF-comparable count is ${comparable}`,
       ).toBe(comparable);
+    }
+  });
+});
+
+describe("one cost model, not two", () => {
+  /**
+   * `validate.ts` warns when an assessment overruns its stated duration, and
+   * `scripts/workload.ts` prices the year. Both used to carry their own minute
+   * table and they disagreed: January's check read 21 minutes in one and 22 in
+   * the other, and nothing said which was the curriculum's answer.
+   *
+   * Both now read `schools/curriculum/cost.ts`. This asserts the arithmetic on
+   * top of it still agrees, which a shared table makes likely but does not make
+   * certain — the validator sums assessment blocks and `loadOf` sums them by
+   * role, and those are different code paths over the same numbers.
+   */
+  it("the validator's assessment estimate matches the workload model's", async () => {
+    const { costOf } = await import("@schools/curriculum/cost");
+    for (const month of MONTHS) {
+      const a = month.assessment;
+      if (!a?.blocks.length) continue;
+      const direct = a.blocks.reduce((n, b) => n + costOf(b, "expected"), 0);
+      const viaLoad = loadOf(month, "core", "expected").assessment;
+      /* `loadOf` counts only attempt blocks in the assessment; the validator
+         counts every block. Assessments hold no passive blocks today, so the
+         two must agree — and if one ever gains a concept card, this is where
+         that shows up rather than in a silent one-minute drift. */
+      expect(
+        Math.round(viaLoad),
+        `month ${month.index}: validator says ${direct}, the workload model says ${viaLoad}`,
+      ).toBe(Math.round(direct));
     }
   });
 });

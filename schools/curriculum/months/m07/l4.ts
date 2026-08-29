@@ -403,9 +403,7 @@ export const M7_L4: LessonBlock[] = [
       "    c = nc\n" +
       "pr.append(sr)\n" +
       "pc.append(sc)\n" +
-      "pr.reverse()\n" +
-      "pc.reverse()\n" +
-      "for i in range(len(pr)):\n" +
+      "for i in range(len(pr) - 1, -1, -1):\n" +
       "    print(pr[i], pc[i])",
   },
   {
