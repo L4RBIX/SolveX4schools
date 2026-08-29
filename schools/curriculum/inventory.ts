@@ -126,3 +126,88 @@ export function findCompletable(id: string): Completable | null {
   }
   return null;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Curriculum role — what a learner must do vs what is available to them       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The role a task plays in the year, derived rather than declared twice.
+ *
+ * `expectedTaskCount` and `monthInventory` count every attempt block equally,
+ * which was right while the only question was "how much has been authored".
+ * It is the wrong number to plan a school year with: the programme promises
+ * «шамамен 250 оқу тапсырмасы» as a MINIMUM with «қосымша есептер» beyond it
+ * (p.11), and a month holding 85 tasks against a promised 38 is not a month
+ * that got 47 better — it is a month whose required path and whose optional
+ * breadth have not been told apart.
+ *
+ * Only one of these five is stored. `assessment` and `contest` are positional
+ * facts the curriculum already knows, and `bank` is one field on the block;
+ * `core` is what is left, which is the right default because a task nobody has
+ * argued out of the path is in it.
+ */
+export type TaskRole = "core" | "bank" | "assessment" | "contest";
+
+/** A contest lesson id, e.g. `m9.c1`. May's four practice contests. */
+const CONTEST_LESSON = /^m\d+\.c\d+$/;
+
+export interface RoleCounts {
+  /** Every block, including the passive ones a learner reads. */
+  blocks: number;
+  /** Attempt-bearing blocks — `isTask`. The denominator for everything below. */
+  tasks: number;
+  /** Tasks a learner on this route must do to complete the month. */
+  core: number;
+  /** Validated, addressable, and not required: extra practice, review, extension. */
+  bank: number;
+  /** Tasks in the month's own check. */
+  assessment: number;
+  /** Tasks inside a practice contest. */
+  contest: number;
+  /** Of the core tasks, the ones that are a whole program from a blank editor. */
+  coreCoding: number;
+}
+
+const CODING: ReadonlySet<LessonBlock["type"]> = new Set(["write_code", "modify_code", "challenge"]);
+
+export function roleOf(block: LessonBlock, lessonId: string, inAssessment: boolean): TaskRole {
+  if (inAssessment) return "assessment";
+  if (CONTEST_LESSON.test(lessonId)) return "contest";
+  return block.bank ? "bank" : "core";
+}
+
+/**
+ * Count a month by role, for one route.
+ *
+ * Per-route because the question a school asks is about a learner, and the
+ * three routes get different months by design. Passing no track counts the
+ * union, which is the authoring view rather than anybody's actual workload.
+ */
+export function roleCounts(month: Month, track?: string): RoleCounts {
+  const out: RoleCounts = { blocks: 0, tasks: 0, core: 0, bank: 0, assessment: 0, contest: 0, coreCoding: 0 };
+  const visible = (b: LessonBlock) =>
+    !track || !b.tracks || (b.tracks as readonly string[]).includes(track);
+
+  for (const unit of month.units) {
+    for (const lesson of unit.lessons) {
+      for (const block of lesson.blocks) {
+        if (!visible(block)) continue;
+        out.blocks += 1;
+        if (!isTask(block)) continue;
+        out.tasks += 1;
+        const role = roleOf(block, lesson.id, false);
+        out[role] += 1;
+        if (role === "core" && CODING.has(block.type)) out.coreCoding += 1;
+      }
+    }
+  }
+  for (const block of month.assessment?.blocks ?? []) {
+    if (!visible(block)) continue;
+    out.blocks += 1;
+    if (!isTask(block)) continue;
+    out.tasks += 1;
+    out.assessment += 1;
+  }
+  return out;
+}

@@ -171,6 +171,68 @@ export interface BlockBase {
   diagnosticMapping?: DiagnosticMapping;
   /** Which routes show this block. Absent means all three. */
   tracks?: TrackLevel[];
+  /**
+   * Optional breadth rather than required sequence. Absent means CORE.
+   *
+   * ## Why this is not `tracks`, and not anything else that already exists
+   *
+   * `tracks` answers "WHO sees this" — Қолдау, Негізгі, Тереңдетілген, the
+   * three routes PDF p.6 names. This answers "MUST they do it". The two are
+   * orthogonal and both are needed: an advanced-only block can be required of
+   * the advanced route, and an untracked block can be optional for everyone.
+   * Folding one into the other would make "bank" a fourth route, which is a
+   * claim the programme does not make and which `TrackLevel` would have to lie
+   * about.
+   *
+   * Nothing else fits either. `sourceType` is provenance — who wrote it, not
+   * whether it is required; a curriculum-derived task can be optional and a
+   * product-authored one can be core. `status` lives on the Lesson and means
+   * publication state. Expressing this structurally instead — moving optional
+   * blocks into their own lessons — would reorder the teaching sequence and
+   * change ids to encode something that is not about position.
+   *
+   * ## Absent is the default and the migration
+   *
+   * Every block authored before this field existed keeps its meaning: part of
+   * the required path. There is no backfill, no version bump, and September is
+   * untouched. A block only leaves the core path when somebody says so and says
+   * why — which is what `why` is for, and why it is not optional.
+   *
+   * ## What it does NOT do
+   *
+   * It does not hide anything. `schools/curriculum/public.ts` builds each
+   * public block field by field and this is not among them, so it never reaches
+   * a browser or Nova; and a bank task stays addressable by its own id, so a
+   * teacher-assignment or adaptive selector can reach it later without a new
+   * content model.
+   */
+  bank?: BankMembership;
+}
+
+/**
+ * Why a validated task sits outside the required path.
+ *
+ * Three roles, deliberately few. The programme's own count — «шамамен 250 оқу
+ * тапсырмасы … Бұл минимум жиын; платформада қосымша есептер бар» (p.11) — is a
+ * floor with extra problems available beyond it, and this is the field that
+ * makes the difference between the floor and the extra sayable.
+ */
+export interface BankMembership {
+  /**
+   * - `extra_practice` — another task on a skill the core path already
+   *   establishes. Correct, useful, and not needed to learn the thing.
+   * - `review` — deliberately revisits a skill from an EARLIER month, for
+   *   spaced practice rather than for first learning.
+   * - `extension` — beyond what the programme requires of this month at all.
+   */
+  role: "extra_practice" | "review" | "extension";
+  /**
+   * What the core path would lose if this were required, or gain if it were.
+   * Required, and checked for length by the validator: a task is removed from
+   * every learner's month by this field, and that is not a decision to record
+   * as a shrug.
+   */
+  why: string;
 }
 
 export interface ConceptBlock extends BlockBase {
