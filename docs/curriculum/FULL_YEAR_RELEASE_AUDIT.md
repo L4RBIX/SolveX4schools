@@ -64,7 +64,8 @@ Core route. These nine figures are kept apart on purpose; see `TASK_COUNT_RECONC
 | 3 | **The support route reduces difficulty, not quantity** — 83% of core's time, where a learner needing twice as long needs half. Three ways to answer that, none of them this workstream's to pick. | `FULL_YEAR_WORKLOAD.md` |
 | 4 | **September's monthly check costs 30 minutes against a stated 20.** Its own restructuring comment says p.7 asks for one unseen problem plus an explanation, and it ships a bug hunt and a four-question written block on top. The cut that finishes it: drop `m1.as.b2`, take `m1.as.b3` to two questions. Lands at 20. September is human-authored, so this is a human's edit. | `FULL_YEAR_SKILL_MATRIX.md` |
 | 5 | **Five months teach a named technique their own check never touches** — prefix sums, two pointers, exhaustive enumeration, depth-first search, path restoration. A 20-minute check holds one unseen problem; covering a second technique displaces the first. A decision about what a monthly check is for. | `FULL_YEAR_SKILL_MATRIX.md` |
-| 6 | **September carries two redundant tasks** (`m1.p2`, `m1.p4`), both with correctly named earlier siblings. Not moved: September is the only month a human has accepted and the baseline the relative-density reading rests on. Leaving it uncut makes every other month look lighter than it is, so the bias errs toward pruning less elsewhere. | `FULL_YEAR_REDUNDANCY_AUDIT` (this file's §Core and bank) |
+| 6 | **Two of the five verification methods are used once each.** p.6 names five ways independence is checked; `find_bug` appears in one monthly check (September) against 49 practice blocks, and `delayed_resolve` in one lesson (May). The outcome side agrees: finding your own error is assessed in September alone, inventing test cases in April alone. | `FULL_YEAR_REQUIREMENT_MATRIX.md` |
+| 7 | **September carries two redundant tasks** (`m1.p2`, `m1.p4`), both with correctly named earlier siblings. Not moved: September is the only month a human has accepted and the baseline the relative-density reading rests on. Leaving it uncut makes every other month look lighter than it is, so the bias errs toward pruning less elsewhere. | `FULL_YEAR_REDUNDANCY_AUDIT.md` |
 
 ### Closed by this workstream
 
@@ -103,4 +104,5 @@ The rejected one, `m8.p5`, leans on `m8.l5.b6`, which is a `find_bug` — the le
 
 - **Whether the difficulty curve is right for a fourteen-year-old.** `FULL_YEAR_DIFFICULTY_AUDIT.md` says the curve rises and how steeply — a median from-scratch program of 2 lines in September and 38 in March. It cannot say March is reachable from November.
 - **Whether the Kazakh is good Kazakh.** See #1.
+- **Whether the amount of evidence for each year-end outcome is enough.** `FULL_YEAR_REQUIREMENT_MATRIX.md` counts it and deliberately prints no verdict.
 - **Anything about Nova, execution providers, auth or the teacher backend.** Out of scope by instruction, and untouched apart from the two test fixes above.
