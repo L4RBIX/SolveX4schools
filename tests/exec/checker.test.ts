@@ -252,20 +252,30 @@ describe("a numeric checker with no tolerance", () => {
 /**
  * A checker on a block is worth nothing unless the grading path passes it.
  *
- * `runCases` takes the checker as its fourth argument and defaults it to
- * `token`. The submit route currently calls it with three, which is correct
- * TODAY for one reason only: no block in the programme declares a checker, so
- * every task is a `token` task and the default is the block's own declaration.
+ * ## That day came, and the debt was already paid
  *
- * The moment an author writes the first `{ kind: "exact" }` that stops being
- * true, and it stops being true SILENTLY — the block would say one thing and
- * the learner would be graded by another, which is the entire class of bug this
- * module exists to end. So the assertion is conditional on the content: as soon
- * as a checker is declared anywhere, the route must be passing it, and until
- * then this test states the debt out loud rather than leaving it in a comment.
+ * This block used to assert that NOTHING declared a checker, and to say so out
+ * loud rather than leaving the debt in a comment: `runCases` takes the checker
+ * as its fourth argument and defaults it to `token`, so a route calling it with
+ * three was correct only for as long as every task was a token task.
  *
- * The fix, when that day comes, is one argument:
- *   `await runCases(provider, answer.value, codeBlock.cases ?? [], codeBlock.checker)`
+ * October's «көбейту кестесі» is the first task in the programme where the
+ * layout IS the answer, and it declares `{ kind: "exact" }`. Ten blocks across
+ * October, January and February now do. The debt marker has therefore done its
+ * job and is replaced by the assertion it was standing in for: the route passes
+ * the block's own checker, and it must keep passing it.
+ *
+ * It turned out the route had already been fixed — the argument went in with a
+ * comment explaining why, ahead of the first task that needed it. What had NOT
+ * kept up was the check: the original regex allowed 200 characters between
+ * `runCases(` and `codeBlock.checker`, and the explanatory comment pushed them
+ * 579 apart. So the first content to declare a checker was met by a test
+ * failure about a bug that was not there.
+ *
+ * Counting characters was the mistake. The check now strips comments and string
+ * literals first and then looks at the call, so a future comment — or a
+ * reformat — cannot make it cry wolf again, and deleting the argument still
+ * fails it.
  */
 describe("the block's declaration reaches the grading path", () => {
   const ROUTE = "src/app/api/learning/submit/route.ts";
@@ -275,17 +285,36 @@ describe("the block's declaration reaches the grading path", () => {
     ...(month.assessment?.blocks ?? []),
   ]).filter((block) => "checker" in block && block.checker);
 
-  it("is not needed yet, because nothing declares a checker", () => {
-    expect(declared.map((b) => b.id)).toEqual([]);
+  it("is exercised by content that actually declares a checker", () => {
+    /* The guard on the assertion below. If the curriculum ever stopped
+       declaring checkers, the next test would pass vacuously and the route
+       could quietly lose the argument again. */
+    expect(
+      declared.length,
+      "no block declares a checker any more — the grading-path assertion below " +
+        "would now be vacuous, so either content regressed or this file should " +
+        "go back to being a debt marker",
+    ).toBeGreaterThan(0);
   });
 
-  it("is passed by the submit route as soon as anything does", () => {
-    if (declared.length === 0) return;
+  it("is passed by the submit route", () => {
     const route = readFileSync(ROUTE, "utf8");
+    /* Comments and string literals removed first. The previous version of this
+       check counted characters between `runCases(` and `codeBlock.checker`, and
+       a comment added between them — explaining why the argument was there —
+       pushed them 579 apart against a 200 limit. The check failed on the first
+       content that declared a checker, about a bug that had already been fixed.
+       A checker that reports a defect nobody introduced is worse than no
+       checker; it teaches the next person to disbelieve it. */
+    const bare = route
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/\/\/[^\n]*/g, " ")
+      .replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`/g, '""');
     expect(
-      /runCases\([\s\S]{0,200}?codeBlock\.checker/.test(route),
-      `${declared.map((b) => b.id).join(", ")} declare a checker, but ${ROUTE} still grades ` +
-        `with the default — pass codeBlock.checker to runCases`,
+      /runCases\([^)]*codeBlock\.checker/.test(bare),
+      `${declared.map((b) => b.id).join(", ")} declare a checker, but ${ROUTE} does not ` +
+        `pass codeBlock.checker to runCases — those tasks would be graded under the ` +
+        `default while the block says otherwise`,
     ).toBe(true);
   });
 });
