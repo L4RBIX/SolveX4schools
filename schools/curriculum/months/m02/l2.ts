@@ -98,6 +98,7 @@ export const M2_L2: LessonBlock[] = [
       },
     ],
     code: "c = 0\nfor w in input().split():\n    x = int(w)\n    if x > 10:\n        c += 1\nprint(c)",
+    stdin: "4 12 7 30 10",
     result: {
       kk: "«4 12 7 30 10» енгізілгенде: 2",
       ru: "При вводе «4 12 7 30 10»: 2",

@@ -122,6 +122,7 @@ const l1Blocks: LessonBlock[] = [
       },
     ],
     code: "age = int(input())\nprint(age + 10)",
+    stdin: "14",
     result: { kk: "14 енгізгенде: 24", ru: "При вводе 14: 24" },
   },
   {
@@ -631,6 +632,7 @@ const l5Blocks: LessonBlock[] = [
       },
     ],
     code: 't = int(input())\nif t > 25:\n    print("hot")\nelif t >= 10:\n    print("warm")\nelse:\n    print("cold")',
+    stdin: "25",
     result: { kk: "25 енгізгенде: warm", ru: "При вводе 25: warm" },
   },
   {
@@ -909,6 +911,7 @@ const l7Blocks: LessonBlock[] = [
       },
     ],
     code: 'h = int(input())\nif h >= 120:\n    print("yes")\nelse:\n    print("no")',
+    stdin: "120",
     result: { kk: "119 → no, 120 → yes, 121 → yes", ru: "119 → no, 120 → yes, 121 → yes" },
   },
   {
@@ -1154,6 +1157,7 @@ const l10Blocks: LessonBlock[] = [
       },
     ],
     code: "n, k = map(int, input().split())\nprint(n // k)",
+    stdin: "48 5",
     result: { kk: "48 5 енгізгенде: 9", ru: "При вводе 48 5: 9" },
   },
   {

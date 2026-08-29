@@ -217,6 +217,7 @@ export const M2_L1: LessonBlock[] = [
       },
     ],
     code: "n = int(input())\ns = 0\nfor i in range(1, n + 1):\n    s = s + i\nprint(s)",
+    stdin: "5",
     result: { kk: "5 енгізгенде: 15", ru: "При вводе 5: 15" },
   },
   {
