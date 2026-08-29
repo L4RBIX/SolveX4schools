@@ -439,6 +439,11 @@ export const M6_L2: LessonBlock[] = [
      *     positions are counted as different triples.
      */
     id: "m6.l2.b8",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m6.l1.b9's reference solution is this program with the target sum in place of the literal 0 — the same three loops, the same i < j < k bounds, the same counter, differing only in variable names. It is earlier and on the same route, and its hidden cases already are the zero-sum triple problem, negatives included. The size argument this prompt adds is stated to the learner rather than produced by them.",
+    },
     type: "write_code",
     skillRefs: ["enumerate.all", "loops.nested", "perf.time_estimate"],
     sourceType: "curriculum-derived",
@@ -481,6 +486,11 @@ export const M6_L2: LessonBlock[] = [
      * above» would be a different problem on their route.
      */
     id: "m6.l2.b8s",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m6.l1.b9s asks the same support learner to build the same three-loop target-sum counter, and writing that loop from a starter strictly contains this card's three blanks. It is earlier on the support route and its own cases are this sum-zero problem.",
+    },
     type: "fill_blank",
     skillRefs: ["enumerate.all", "loops.nested", "perf.time_estimate"],
     sourceType: "curriculum-derived",

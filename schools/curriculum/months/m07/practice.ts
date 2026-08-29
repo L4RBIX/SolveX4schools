@@ -135,6 +135,11 @@ export const M7_PRACTICE: LessonBlock[] = [
        cells that have a wall beside them; this one has no neighbour test in it
        at all. */
     id: "m7.p1",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Reading n and m plus n rows in this format is written from nothing at m7.l1.b9, and the nested scan with the same test and counter is written from nothing at m7.l2.b8 — both earlier, both on every route. This is the union of the two with nothing added, and three of its cases are already m7.l2.b8's.",
+    },
     type: "write_code",
     skillRefs: ["grid.cells", "loops.nested", "loops.counter"],
     sourceType: "product-authored",
@@ -651,6 +656,11 @@ export const M7_PRACTICE: LessonBlock[] = [
        ADVICE — a checker cannot see a `def`, so the prompt says outright that
        the number is what gets graded. See decision 4 in the file comment. */
     id: "m7.p10",
+    bank: {
+      role: "extra_practice",
+      why:
+        "The same problem as m7.l4.b9: a shortest route forced through a named cell, two waves from two starts, -1 when either leg fails. Every learner on this advanced route has already solved m7.l4.b9 from nothing. The only addition is a wall-cell guard, already forced by m7.p7 earlier in this same lesson.",
+    },
     type: "write_code",
     skillRefs: ["graph.shortest_path", "graph.bfs", "func.define", "func.reuse"],
     sourceType: "product-authored",

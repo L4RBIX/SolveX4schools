@@ -174,14 +174,15 @@ describe("a lesson — `lesson.v1`", () => {
        and it is the difference between a knob and a hole. */
     const generous: CompletionPolicy = { ...LESSON_COMPLETION_POLICY, allowance: 3 };
     const blocks: PolicyBlock[] = [
-      { id: "x1", type: "prediction", machineGradable: true, isAttempt: true },
-      { id: "x2", type: "prediction", machineGradable: true, isAttempt: true },
+      { id: "x1", type: "prediction", machineGradable: true, isAttempt: true, optional: false },
+      { id: "x2", type: "prediction", machineGradable: true, isAttempt: true, optional: false },
       {
         id: "v1",
         type: "verify",
         mode: "oral_explanation",
         machineGradable: false,
         isAttempt: true,
+        optional: false,
       },
     ];
 
@@ -203,8 +204,8 @@ describe("a lesson — `lesson.v1`", () => {
        untouched task may be swapped for one that is a rung short. */
     const generous: CompletionPolicy = { ...LESSON_COMPLETION_POLICY, allowance: 1 };
     const blocks: PolicyBlock[] = [
-      { id: "untouched", type: "prediction", machineGradable: true, isAttempt: true },
-      { id: "nearly", type: "prediction", machineGradable: true, isAttempt: true },
+      { id: "untouched", type: "prediction", machineGradable: true, isAttempt: true, optional: false },
+      { id: "nearly", type: "prediction", machineGradable: true, isAttempt: true, optional: false },
     ];
     const decision = evaluateCompletion({
       policy: { ...generous, attemptFloor: "measured", gradedFloor: "measured" },

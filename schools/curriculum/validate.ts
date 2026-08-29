@@ -64,6 +64,38 @@ function checkBlock(block: LessonBlock, where: string) {
     err(where, `block "${block.id}" claims curriculum provenance but cites no PDF page`);
   }
 
+  /* Bank membership, enforced rather than merely documented.
+   *
+   * The field decides whether a fourteen-year-old has to do a piece of work, so
+   * the bar for putting a task in the bank is that somebody wrote down why. The
+   * two rules below are the ones that can be checked mechanically:
+   *
+   * A non-attempt block cannot be optional. A concept the learner reads is not
+   * practice, so marking it `bank` says nothing and hides that the author meant
+   * something else — usually that the lesson should not have contained it.
+   *
+   * A justification has to name the tasks that make this one spare. "Extra
+   * practice" is a category, not a reason, and a reason that names no sibling
+   * cannot be checked by the next person or falsified by anyone. `extension` is
+   * exempt: a task that goes beyond the month's outcomes is justified by what
+   * it needs rather than by what already covers it. */
+  if (block.bank) {
+    if (!isTask(block)) {
+      err(where, `block "${block.id}" is not an attempt block but claims bank membership`);
+    }
+    const why = block.bank.why.trim();
+    if (why.length < 40) {
+      err(where, `block "${block.id}" is in the bank on a ${why.length}-character justification`);
+    }
+    if (block.bank.role !== "extension" && !/\bm\d+\.[a-z]\d+/.test(why)) {
+      err(
+        where,
+        `block "${block.id}" is banked as "${block.bank.role}" but its justification names no ` +
+          `task that already carries the evidence`,
+      );
+    }
+  }
+
   // The diagnostic rule from types.ts, enforced rather than merely documented.
   if (block.diagnosticMapping) {
     if (!isTask(block)) {

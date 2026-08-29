@@ -265,6 +265,15 @@ export const M9_C2: LessonBlock[] = [
      * a `while` loop prints the same number and is correct; a checker cannot see
      * the difference, so the prompt does not pretend to.
      *
+     * AND ONE THING THE JUDGE GENUINELY CANNOT STOP. The runner is plain
+     * `python3`, so a learner who already knows `math.gcd` can import it and be
+     * marked correct. Nothing here pretends otherwise. What the titles do is
+     * decline to hand over the search term: both are «the common divisor of all
+     * the numbers» rather than the textbook name of the function, so nobody is
+     * pointed at a library by the statement. The year has shown no import in any
+     * lesson, and the recurrence in the statement is the route the course has
+     * actually prepared a fourteen-year-old to take.
+     *
      * The degenerate programs, and what kills each:
      *   · every divisor tried from the smallest number downwards — the two
      *     nine-digit primes need a billion steps and finish nowhere near the
@@ -413,8 +422,9 @@ export const M9_C2: LessonBlock[] = [
       { input: "4 4\n.##.\n.##.\n.##.\n.##.\n0 3", expectedOutput: "4", hidden: true },
       /* Walled in on all four sides: he reaches only himself, and that is 0. */
       { input: "3 3\n###\n#.#\n###\n1 1", expectedOutput: "0", hidden: true },
-      /* Row -1 is the last row: without the bounds check the two regions join
-         and the answer collapses to 0. */
+      /* Row -1 is the last row of a three-row map, so a fill with no bounds
+         check either wraps into the bottom region or falls off the end of a
+         row. The truth is 2 and neither of those is 2. */
       { input: "3 3\n..#\n###\n#..\n0 0", expectedOutput: "2", hidden: true },
       /* The largest open map the constraints allow. A fill that marks a cell
          after recursing instead of before never finishes this one. */
@@ -453,8 +463,8 @@ export const M9_C2: LessonBlock[] = [
      *     split by a wall, one where K is cut off from S and one where F is cut
      *     off from K, and both must print −1;
      *   · −1 decided by whether F is reachable from S rather than through K —
-     *     the map where S and F are neighbours in the top row while K is walled
-     *     away below them;
+     *     the map where S and F sit two steps apart in the open top row while K
+     *     is walled away below them, so S reaches F and the answer is still −1;
      *   · cells counted instead of steps — a wave started at 1 instead of 0 is
      *     out by one on each of the two legs, so the one-row map where S is
      *     already at the shop answers 4 against a truth of 2, and the 1 × 1 map
@@ -517,7 +527,7 @@ export const M9_C2: LessonBlock[] = [
       { input: "4 5\n.....\n.###.\n.....\n.....\n0 0 2 0 0 4", expectedOutput: "8" },
       /* The smallest map, all three cells the same one: zero steps. */
       { input: "1 1\n.\n0 0 0 0 0 0", expectedOutput: "0", hidden: true },
-      /* S is already at the shop: counting cells instead of steps answers 3. */
+      /* S is already at the shop: counting cells instead of steps answers 4. */
       { input: "1 3\n...\n0 0 0 0 0 2", expectedOutput: "2", hidden: true },
       /* The shop is past the finish, so the detour is forced: 4 there, 2 back. */
       { input: "1 5\n.....\n0 0 0 4 0 2", expectedOutput: "6", hidden: true },

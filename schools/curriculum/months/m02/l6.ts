@@ -84,6 +84,11 @@ export const M2_L6: LessonBlock[] = [
   },
   {
     id: "m2.l6.b3",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m2.l4.b4 is this question already: which expression gives the last element, with len versus len - 1 as the same pair of options and the same off-by-one as the mapped failure. Only the sequence type changes, and m2.l6.b1 — the concept card one screen earlier — states that transfer outright, so the block asks the learner to confirm what they have just been told rather than to decide anything.",
+    },
     type: "multiple_choice",
     skillRefs: ["strings.sequence", "lists.index"],
     sourceType: "product-authored",
@@ -327,11 +332,6 @@ export const M2_L6: LessonBlock[] = [
      * printed as `yes`.
      */
     id: "m2.l6.b8",
-    bank: {
-      role: "extra_practice",
-      why:
-        "Reversing a word by walking indices backwards is the same move as m2.l8.b7, which reverses a LIST and is the PDF's own named family «тізімді кері аудару». One of the two belongs in the required path; the family keeps the one the programme names.",
-    },
     type: "write_code",
     skillRefs: ["strings.sequence", "loops.for", "loops.accumulator"],
     sourceType: "curriculum-derived",

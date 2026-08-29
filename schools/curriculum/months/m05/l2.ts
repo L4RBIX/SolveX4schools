@@ -162,6 +162,11 @@ export const M5_L2: LessonBlock[] = [
        observation is what b7 then asks them to turn into a program; the answer
        is nowhere on this card. */
     id: "m5.l2.b3",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m5.l1.b5 already has the learner hand-trace a closed-interval search for the same missing target, recording left, right and mid on every pass and writing the crossed exit row — the row where left also lands exactly on the count of elements below x. This is that program on a shorter list. Lesson 2's own subject, the half-open form and the pairing of condition with shift, is carried by its other blocks and not by this one.",
+    },
     type: "trace_code",
     skillRefs: ["bsearch.core", "bsearch.boundary", "lists.index"],
     sourceType: "curriculum-derived",

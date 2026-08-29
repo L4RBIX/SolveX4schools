@@ -198,6 +198,11 @@ export const M3_PRACTICE: LessonBlock[] = [
      * `999999999 1000000000` breaks it.
      */
     id: "m3.p3",
+    bank: {
+      role: "extra_practice",
+      why:
+        "The same digit-sum helper over the same two numbers from the same input line, on the same eight test inputs as m3.l3.b9. What changes is that the caller prints the larger sum instead of a verdict word, and m3.l3.b8 already establishes writing digit_sum from nothing on every route.",
+    },
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "func.reuse", "arith.remainder", "arith.integer_division"],
     sourceType: "product-authored",
@@ -255,6 +260,11 @@ export const M3_PRACTICE: LessonBlock[] = [
      * carries evidence.
      */
     id: "m3.p4",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m3.l8.b6 is the programme's own «максимум мен минимум функциясы» and already asks every route to write largest(a) from nothing plus its mirror, over the same boundaries — singleton, all equal, all negative, extreme at each end — under the same ban on builtins. This asks for half of that program. m3.l8.b5 has already fixed the start value and the comparison direction.",
+    },
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "lists.traverse", "lists.index", "compare.operators"],
     sourceType: "curriculum-derived",
@@ -360,6 +370,11 @@ export const M3_PRACTICE: LessonBlock[] = [
      * program's output is one string for both language tracks.
      */
     id: "m3.p6",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m3.l8.b7 already requires is_palindrome(word) returning 1/0 with the caller owning yes/no, across the same boundaries: the one-letter word whose loop never runs, even and odd lengths, ends matching where the middle does not. m3.p5 already establishes calling a returning helper once per line of input and already catches state leaking between calls. This is the two of them together.",
+    },
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "func.reuse", "strings.sequence", "loops.while"],
     sourceType: "curriculum-derived",
@@ -487,6 +502,11 @@ export const M3_PRACTICE: LessonBlock[] = [
      * expression and a crash, on every case.
      */
     id: "m3.p8",
+    bank: {
+      role: "extra_practice",
+      why:
+        "The same two helpers over the same one-line list, the same forbidden builtins, the same boundary families as m3.l8.b6. Only the caller's last line differs — a subtraction rather than the two returned values printed side by side — and m3.l8.b6 already requires both returns to be consumed in a single expression.",
+    },
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "lists.traverse", "compare.operators"],
     sourceType: "curriculum-derived",

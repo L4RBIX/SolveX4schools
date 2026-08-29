@@ -691,6 +691,11 @@ export const M7_L2: LessonBlock[] = [
      * empty grid, where `best` must still be printed as 0.
      */
     id: "m7.l2.b10",
+    bank: {
+      role: "extra_practice",
+      why:
+        "This program is m7.l2.b8's scan-and-launch control structure wrapped around m7.l2.b9's returning fill, line for line. The only statement neither already required is the running maximum, which December teaches, and the all-walls boundary is already m7.l2.b8's empty case.",
+    },
     type: "write_code",
     skillRefs: ["graph.regions", "graph.dfs", "recursion.core", "func.return"],
     sourceType: "curriculum-derived",
@@ -762,6 +767,11 @@ export const M7_L2: LessonBlock[] = [
      * and the two shapes are worth seeing as two shapes.
      */
     id: "m7.l2.b10s",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Support sees both m7.l2.b8 and m7.l2.b9 — both on every route, both earlier — and writes the visited mark and the recursive call from nothing in each, so two of the three blanks ask for strictly less than the same learner has already produced twice.",
+    },
     type: "fill_blank",
     skillRefs: ["graph.regions", "graph.dfs", "recursion.core", "func.return"],
     sourceType: "product-authored",

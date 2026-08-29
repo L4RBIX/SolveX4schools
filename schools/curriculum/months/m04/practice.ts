@@ -545,6 +545,11 @@ export const M4_PRACTICE: LessonBlock[] = [
      * every off-by-one there is a wrong total rather than a crash.
      */
     id: "m4.p9",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Both quantities are produced from nothing earlier on this route and in a harder form: m4.l6.b6 totals the cheapest k from a sorted list, and m4.l6.b8 computes the cheapest k and the dearest k of one sorted list in a single program and then adds the 2k > n overlap boundary this task has no equivalent of. Dropping the query loop and the boundary leaves no decision this route has not already made.",
+    },
     type: "write_code",
     skillRefs: ["sort.basic", "lists.index", "loops.accumulator", "perf.time_estimate"],
     sourceType: "product-authored",

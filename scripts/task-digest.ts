@@ -61,7 +61,7 @@ function answerCode(b: LessonBlock): string {
        constructs extracted are the ones a correct answer contains rather than
        the ones the surrounding scaffold happens to show. */
     let n = 0;
-    parts.push(b.template.replace(/___/g, () => b.blanks?.[n++]?.accept?.[0] ?? "x"));
+    parts.push(b.template.replace(/___/g, () => b.blanks?.[n++]?.answer ?? "x"));
   }
   return parts.join("\n");
 }

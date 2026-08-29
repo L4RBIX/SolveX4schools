@@ -38,35 +38,38 @@ import type { LessonBlock } from "../../types";
  * c1 walks the year's first half (Sept/Oct · Oct · Nov · Dec · Jan). c2 takes
  * February twice and March twice, behind an October/November opener. c3 is
  * mixed and leans on April. Between the four, every month of the year is
- * contested — and this one touches all nine on its own:
+ * contested. This one carries six of them in its five problems, plus February
+ * as the method two of the constraints rule out — and, deliberately, not March:
  *
  * | | month | technique |
  * |---|---|---|
  * | A | Sept + Oct | `//` with a rounding-up boundary, inside one traversal |
  * | B | Oct **or** Dec | an inner counting loop, or sort then neighbours |
  * | C | Nov + Dec + Jan | a helper applied q times, over a sorted list |
- * | D | Feb **or** Mar | a region on a grid — the wave, or recursion |
+ * | D | Apr | a table over a grid of costs, filled one row at a time |
  * | E | Apr (and why Feb's exhaustive search will not do) | a DP table |
  *
- * B and D are the two problems with more than one right answer, and neither
- * statement says which month to open. That is not vagueness: it is the
- * objective. For D, a flood fill written recursively and one written as March's
- * queue are the same solution and the judge cannot tell them apart, so
- * `n, m ≤ 20` is chosen to keep a recursive walk inside Python's recursion
- * limit at its worst (400 cells). E closes February the other way — by being
- * the problem where «барлық нұсқаны тексеру» is exactly the method that does
- * not finish.
+ * B is the problem with two correct solutions from two different months, and
+ * its statement says which of them to use no more than the others do. That is
+ * not vagueness: it is the objective.
  *
- * Two neighbours are worth naming, because a family recurring across two
- * contests is a fair thing for a reviewer to check. `m9.c2.p4` is also a walk
- * over a grid, but it fills from ONE given cell and reports what the fill did
- * not reach, with four neighbours; D enumerates every region, reports the
- * largest, and counts a corner as a join. The pair is better than either alone:
- * one punishes a diagonal step and the other requires it, which is the year's
- * shortest possible lesson in reading the statement instead of reusing a habit.
- * And `m9.l4.b3` puts a palindrome checker on screen — which is one reason this
- * contest does not ask for one, the other being that October already owns that
- * family outright (m2.l6).
+ * D and E are both April, and they are the two places where «барлық нұсқаны
+ * тексеру» — February's exhaustive check — is exactly the method that does not
+ * finish. February is contested directly in `m9.c2`, twice; meeting it here as
+ * the idea a constraint rules out is the other half of the same lesson.
+ *
+ * ## What this contest deliberately does NOT contain
+ *
+ * **No wave, and no map.** March is contested three times already — `m9.c2.p4`
+ * and `m9.c2.p5`, and the tournament's own D, «Ең үлкен көл», which is the
+ * largest connected region on a grid. A rehearsal that hands the learner the
+ * tournament's problem the week before is not a rehearsal, so the only grid in
+ * this contest is a field of numbers to be filled in, not a map to be walked.
+ *
+ * **No palindrome, and no words.** October owns that family outright (m2.l6),
+ * `m9.l4.b3` puts a full palindrome checker on screen, and `m9.c2.p1` already
+ * counts the words in a line that satisfy a property. B asks about duplicates
+ * in a list of numbers instead, which nothing in the month asks.
  *
  * ## Structural requirements: which honest option each place took
  *
@@ -81,22 +84,24 @@ import type { LessonBlock } from "../../types";
  *   would need an `explain` block, and a 45-minute contest of five problems has
  *   no room for one — `m9.l4` («Шешімді қорғау») is where the written defence
  *   lives, and the tournament is where it is marked.
- * - **E takes option 1 — the output is impossible without the method.** Its
- *   last hidden case is forty numbers whose answer is `no`, so a search over
- *   subsets cannot short-circuit and has to look at all of them. Measured:
- *   the table answers in 0.02 s, the plain recursive search does not finish in
- *   12 s, and neither does the same search with the obvious `s > half` pruning.
- *   That is a constraint the other method cannot meet, not a sentence in a
- *   prompt that nothing enforces.
+ * - **D and E take option 1 — the output is impossible without the method.**
+ *   E's last hidden case is forty numbers whose answer is `no`, so a search
+ *   over subsets cannot short-circuit and has to look at all of them; D's is a
+ *   twenty-row field with up to 5 · 3^19 routes through it. Measured, not
+ *   asserted:
+ *   E's table answers in 0.02 s while the plain recursive search does not finish
+ *   in 12 s and neither does the same search pruned at `s > half`; D's table
+ *   answers in 0.02 s while a recursive walk over the routes does not finish in
+ *   15 s. That is a constraint the other method cannot meet, not a sentence in
+ *   a prompt that nothing enforces.
  *
  * Nowhere below does a prompt say «функция жаз», «return қайтар» or «мына
  * әдісті қолдан» as a rule. C's own `skillRefs` follow from that decision: they
  * name `bsearch.*`, `sort.basic` and `perf.time_estimate` and **not** any
  * `func.*` skill, because a judge that sees one number per line cannot produce
- * evidence about whether a function was defined. D declares `graph.regions`,
- * `grid.cells` and `loops.nested` — what both legal traversals have in common —
- * and neither `graph.bfs` nor `recursion.core`, either of which would be a false
- * claim about half the submissions.
+ * evidence about whether a function was defined. B follows the same rule from
+ * the other side: it declares no `sort.basic`, because sorting is one of the two
+ * ways to answer it and half of the correct submissions never sort at all.
  *
  * ## What the skills say in general
  *
@@ -124,9 +129,10 @@ import type { LessonBlock } from "../../types";
  * linear solution passes every one of them. The input a timing case would need
  * is two hundred thousand numbers, which is not a thing a source file should
  * carry. So it is recorded here rather than dressed up, exactly as `m9.c1` did,
- * and no prompt claims the checker times anything. E is the one problem where a
- * case genuinely does separate the methods, and it does it because the answer is
- * `no` at forty items, not because a prompt says so.
+ * and no prompt claims the checker times anything. D and E are the two problems
+ * where a case genuinely does separate the methods, and they manage it only
+ * because a small input can still have an enormous number of routes through it —
+ * which C's shape does not allow.
  */
 export const M9_C4: LessonBlock[] = [
   {
@@ -155,8 +161,8 @@ export const M9_C4: LessonBlock[] = [
     skillRefs: ["arith.integer_division", "lists.traverse", "loops.for", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**A. Экскурсияға автобус.** Мектептің n сыныбы экскурсияға шығады, i-сыныпта a[i] оқушы бар. Бір автобусқа ең көбі k оқушы сияды. Әр сынып бөлек жүреді: бір автобуста екі түрлі сыныптың оқушысы отыра алмайды, ал бір сынып бірнеше автобусқа бөлініп мінсе болады.\n\nБарлық сыныпты тасу үшін ең аз дегенде неше автобус керек?\n\n**Кіріс.** Бірінші жолда бос орынмен бөлінген n мен k сандары (1 ≤ n ≤ 1000, 1 ≤ k ≤ 1000000000). Екінші жолда n бүтін сан: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Шығыс.** Бір бүтін сан — автобустардың ең аз саны.\n\n**Мысал.**\n\n```\n3 10\n15 20 3\n```\n\nЖауап: `5` — бірінші сыныпқа 2 автобус, екіншісіне 2, үшіншісіне 1.",
-      ru: "**A. Автобусы на экскурсию.** На экскурсию едут n классов школы, в i-м классе a[i] учеников. В один автобус помещается не больше k учеников. Классы едут по отдельности: в одном автобусе не могут оказаться ученики двух разных классов, а вот один класс может ехать в нескольких автобусах.\n\nСколько автобусов нужно самое меньшее, чтобы увезти все классы?\n\n**Вход.** В первой строке через пробел числа n и k (1 ≤ n ≤ 1000, 1 ≤ k ≤ 1000000000). Во второй строке n целых чисел: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Выход.** Одно целое число — наименьшее количество автобусов.\n\n**Пример.**\n\n```\n3 10\n15 20 3\n```\n\nОтвет: `5` — первому классу 2 автобуса, второму 2, третьему 1.",
+      kk: "**A. Экскурсияға автобус.** Мектептің n сыныбы экскурсияға шығады, i-сыныпта a[i] оқушы бар. Бір автобусқа ең көбі k оқушы сияды. Әр сынып бөлек жүреді: бір автобуста екі түрлі сыныптың оқушысы отыра алмайды, ал бір сынып бірнеше автобусқа бөлініп мінсе болады.\n\nБарлық сыныпты тасымалдау үшін ең аз дегенде неше автобус керек?\n\n**Кіріс.** Бірінші жолда бос орынмен бөлінген n мен k сандары (1 ≤ n ≤ 1000, 1 ≤ k ≤ 1000000000). Екінші жолда n бүтін сан: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Шығыс.** Бір бүтін сан — автобустардың ең аз саны.\n\n**Мысал.**\n\n```\n3 10\n15 20 3\n```\n\nЖауап: `5` — бірінші сыныпқа 2 автобус, екіншісіне 2, үшіншісіне 1.",
+      ru: "**A. Автобусы на экскурсию.** Из школы на экскурсию едут n классов, в i-м классе a[i] учеников. В один автобус помещается не больше k учеников. Классы едут по отдельности: в одном автобусе не могут оказаться ученики двух разных классов, а вот один класс может ехать в нескольких автобусах.\n\nСколько автобусов нужно самое меньшее, чтобы увезти все классы?\n\n**Вход.** В первой строке через пробел числа n и k (1 ≤ n ≤ 1000, 1 ≤ k ≤ 1000000000). Во второй строке n целых чисел: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Выход.** Одно целое число — наименьшее количество автобусов.\n\n**Пример.**\n\n```\n3 10\n15 20 3\n```\n\nОтвет: `5` — первому классу 2 автобуса, второму 2, третьему 1.",
     },
     referenceSolution:
       "n, k = map(int, input().split())\n" +
@@ -224,8 +230,8 @@ export const M9_C4: LessonBlock[] = [
     skillRefs: ["lists.traverse", "lists.index", "loops.counter", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**B. Жалғыз шешілген есептер.** Жаттығу жарысында барлығы n шешім жіберілді. i-шешім a[i] нөмірлі есепке жіберілген; бір есепке бірнеше шешім келуі де мүмкін.\n\nДәл бір шешім келген есептер нешеу?\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n бүтін сан: a[1] … a[n], әрқайсысының абсолют шамасы 1000000000-нан аспайды.\n\n**Шығыс.** Бір бүтін сан — тізімде дәл бір рет кездесетін нөмірлердің саны. Ондай нөмір болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n6\n4 5 4 3 5 4\n```\n\nЖауап: `1` — бұл 3 нөмірлі есеп. 4 нөмірге үш шешім, 5 нөмірге екі шешім келген.",
-      ru: "**B. Задачи с единственным решением.** На тренировочном соревновании отправили всего n решений. i-е решение отправлено к задаче с номером a[i]; к одной задаче может прийти и несколько решений.\n\nСколько задач получили ровно одно решение?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 1000). Во второй строке n целых чисел через пробел: a[1] … a[n], каждое по модулю не больше 1000000000.\n\n**Выход.** Одно целое число — сколько номеров встречается в списке ровно один раз. Если таких номеров нет, выведи 0.\n\n**Пример.**\n\n```\n6\n4 5 4 3 5 4\n```\n\nОтвет: `1` — это задача с номером 3. К номеру 4 пришло три решения, к номеру 5 — два.",
+      kk: "**B. Жалғыз шешілген есептер.** Жаттығу жарысында барлығы n шешім жіберілді. i-шешім a[i] нөмірлі есепке жіберілген; бір есепке бірнеше шешім келуі де мүмкін.\n\nДәл бір шешім келген есептер нешеу?\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n бүтін сан: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Шығыс.** Бір бүтін сан — тізімде дәл бір рет кездесетін нөмірлердің саны. Ондай нөмір болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n6\n4 5 4 3 5 4\n```\n\nЖауап: `1` — бұл 3 нөмірлі есеп. 4 нөмірге үш шешім, 5 нөмірге екі шешім келген.",
+      ru: "**B. Задачи с единственным решением.** На тренировочном соревновании отправили всего n решений. i-е решение отправлено к задаче с номером a[i]; к одной задаче может прийти и несколько решений.\n\nСколько задач получили ровно одно решение?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 1000). Во второй строке n целых чисел через пробел: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Выход.** Одно целое число — сколько номеров встречается в списке ровно один раз. Если таких номеров нет, выведи 0.\n\n**Пример.**\n\n```\n6\n4 5 4 3 5 4\n```\n\nОтвет: `1` — это задача с номером 3. К номеру 4 пришло три решения, к номеру 5 — два.",
     },
     referenceSolution:
       "n = int(input())\n" +
@@ -256,9 +262,9 @@ export const M9_C4: LessonBlock[] = [
       { input: "3\n1 2 1", expectedOutput: "1", hidden: true },
       /* Runs of three, two, one and two. */
       { input: "8\n2 2 2 3 3 4 5 5", expectedOutput: "1", hidden: true },
-      /* Negative numbers, and both ends of the stated range. */
-      { input: "4\n-3 -3 4 -1", expectedOutput: "2", hidden: true },
-      { input: "2\n1000000000 -1000000000", expectedOutput: "2", hidden: true },
+      /* A pair and two singletons, and both ends of the stated range. */
+      { input: "4\n3 3 4 1", expectedOutput: "2", hidden: true },
+      { input: "2\n1000000000 1", expectedOutput: "2", hidden: true },
     ],
   },
   {
@@ -276,6 +282,13 @@ export const M9_C4: LessonBlock[] = [
      * no output here can be made impossible without a function, and because
      * option 3 would need an `explain` block this contest has no minutes for.
      * A learner who writes one long loop has broken no rule and is told so.
+     *
+     * The tournament also has a sorted list with a boundary in it — its B takes
+     * the k-th best score and asks who advances, its C searches over the answer
+     * — and neither is this problem: one threshold the input names is not q
+     * thresholds the learner has to find, and neither of them is a search over a
+     * list. Rehearsing the idea while leaving the tournament's questions unseen
+     * is the point of a rehearsal.
      *
      * THE LAYOUT. The prompt states one answer per line, so the block declares
      * `{ kind: "exact" }`. Under the default `token` checker a program printing
@@ -347,103 +360,104 @@ export const M9_C4: LessonBlock[] = [
   },
   {
     /*
-     * D · ten minutes. MARCH's «байланысқан аймақтар» on March's own map format
-     * — «n m», then n rows of `.` and `#` — walked with the queue m7.l3 built
-     * out of two parallel lists and a head index. FEBRUARY's recursion solves it
-     * just as well: a recursive flood fill is the same traversal, and `n, m ≤ 20`
-     * is chosen so its deepest possible call chain is 400, safely inside
-     * Python's limit. The judge cannot tell the two apart and does not try, which
-     * is why this block declares `graph.regions`, `grid.cells` and `loops.nested`
-     * and neither `graph.bfs` nor `recursion.core`.
+     * D · ten minutes. APRIL: «қадамдап толтырылатын кесте» over a grid of
+     * costs, filled one row at a time, where the entry for a cell is the
+     * cheapest way of ARRIVING at it — «алдыңғы жауаптар арқылы шешу» with the
+     * previous answers being the row above. Only the previous row is ever
+     * needed, so the reference keeps two lists rather than a full table; that is
+     * a choice, not a requirement, and a learner who builds the whole table gets
+     * the same number.
      *
-     * TWO CLAUSES ARE CHANGED FROM MARCH, AND BOTH ARE IN THE STATEMENT. The
-     * regions are made of `#`, not of the free cells March's lessons always
-     * used; and two cells are neighbours when they share a side OR a corner —
-     * eight neighbours, not four. Both are stated in bold in both languages, so
-     * nothing is hidden. What IS deliberate is that the visible sample answers 4
-     * under either rule: a learner who pastes a four-neighbour walk from March
-     * sees it pass and finds out on the hidden cases, which is precisely what
-     * «жеке қателер журналы … тексеру тізіміне айналады» is for.
+     * WHY THIS IS A TABLE AND NOT A MAP. March is contested three times already
+     * — twice in `m9.c2` and once in the tournament itself, whose D is «Ең үлкен
+     * көл». A rehearsal that hands the learner the tournament's own problem is
+     * not a rehearsal, so the grid here is a field of numbers to fill in rather
+     * than a map to walk, and no wave appears in this contest at all.
+     *
+     * The bound n, m ≤ 200 is what rules out walking every route, and unlike C
+     * a case can prove it: the 20 × 5 field below holds up to 5 · 3^19 routes,
+     * and every one of them has to be walked before the cheapest is known.
+     * Measured
+     * — the table answers in 0.02 s and a recursive enumeration of the routes
+     * does not finish in 15 s. Option 1 of the authoring contract again.
      *
      * The degenerate programs:
-     *   · four neighbours instead of eight — the diagonal chain «5 5» answers 1
-     *     where the truth is 5, the corner-touch map answers 2 against 4, and the
-     *     checkerboard answers 1 against 8;
-     *   · counting the regions instead of measuring the largest — the visible
-     *     sample answers 2, and the full map answers 1 against 9;
-     *   · marking a cell when it LEAVES the queue instead of when it enters, so
-     *     a cell is counted twice — the full 3 × 3 map answers 32 against 9, and
-     *     even the visible sample answers 7 against 4. That is m7.l5's whole
-     *     subject and a compact block is the only shape that shows it;
-     *   · keeping the last region's size instead of the largest — «3 5» with the
-     *     big region first answers 1 against 2, and the mirrored map catches the
-     *     opposite mistake;
-     *   · measuring the free cells by mistake — the visible sample answers 13;
-     *   · assuming there is at least one `#` — the snowless yard is 0.
+     *   · the smallest number in each row added up, with the neighbour rule
+     *     ignored — the 4 × 4 field answers 5 against 8, and the visible sample
+     *     already answers 12 against 13;
+     *   · a straight vertical line, never stepping sideways — «3 2» / «6 0 / 1 8
+     *     / 1 5» answers 8 against 2, and the sample answers 14;
+     *   · starting in the leftmost column instead of the cheapest one — the same
+     *     «3 2» field, for the same reason and with the same number;
+     *   · stepping to the cheapest of the three cells below at every step,
+     *     which is the greedy rule that looks obviously right — «2 3» / «2 3 6 /
+     *     6 7 1» answers 8, the truth is 4, and it is the only case built for it;
+     *   · `prev[j - 1]` written without the `j > 0` guard, which in Python does
+     *     not crash: index −1 silently reads the LAST column of the row above.
+     *     «4 3» / «1 1 4 / 7 1 0 / 4 9 7 / 4 6 5» answers 9 against 10 for it,
+     *     and no other case here does;
+     *   · enumerating every route — the 20 × 5 field.
+     * n = 1, m = 1 and the 1 × 1 field are all legal inputs, and each of them
+     * breaks a loop that assumes there is a row above or a column beside.
      */
     id: "m9.c4.p4",
     type: "challenge",
-    skillRefs: ["graph.regions", "grid.cells", "loops.nested"],
+    skillRefs: ["dp.core", "dp.table", "grid.cells", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**D. Ең үлкен қар алаңы.** Аула n жол мен m бағанға бөлінген. Әр ұяшық не бос, не қар басқан.\n\nЕкі қар ұяшығы **ортақ қабырғасы болса да, ортақ бұрышы болса да** көрші саналады — яғни ұяшықтың ең көбі сегіз көршісі бар. Бір-бірімен көрші қар ұяшықтары бір алаң құрайды: бір алаңның кез келген екі ұяшығының арасында тек қар ұяшықтары арқылы жүріп өтуге болады.\n\n**Кіріс.** Бірінші жолда n мен m сандары (1 ≤ n ≤ 20, 1 ≤ m ≤ 20). Келесі n жолдың әрқайсысында дәл m таңба: `.` — бос ұяшық, `#` — қар басқан ұяшық.\n\n**Шығыс.** Бір бүтін сан — ең үлкен алаңдағы қар ұяшықтарының саны. Аулада қар мүлде болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n4 5\n##...\n##...\n...#.\n...##\n```\n\nЖауап: `4`.",
-      ru: "**D. Самая большая заснеженная область.** Двор разбит на n строк и m столбцов. Каждая клетка либо свободна, либо занесена снегом.\n\nДве снежные клетки считаются соседними, **если у них есть общая сторона или хотя бы общий угол**, — то есть у клетки не больше восьми соседей. Соседние снежные клетки образуют одну область: между любыми двумя клетками одной области можно пройти только по снежным клеткам.\n\n**Вход.** В первой строке числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20). В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — клетка со снегом.\n\n**Выход.** Одно целое число — сколько снежных клеток в самой большой области. Если снега во дворе нет совсем, выведи 0.\n\n**Пример.**\n\n```\n4 5\n##...\n##...\n...#.\n...##\n```\n\nОтвет: `4`.",
+      kk: "**D. Егістік арқылы арық.** Егістік n жол мен m бағаннан тұратын торға бөлінген. i-жол мен j-бағанда тұрған ұяшықты қазудың құны a[i][j].\n\nЕгістіктің бірінші жолынан соңғы жолына дейін арық қазу керек: әр жолдан дәл бір ұяшық таңдалады. Көрші екі жолда таңдалған ұяшықтардың бағандары бір-бірінен ең көбі бірге өзгешеленуі тиіс — яғни арық тік төмен де, қиғаш төмен де жүре алады. Бірінші жолда қай бағаннан бастау да, соңғы жолда қай бағанда аяқтау да еркін.\n\nАрықтың құны — таңдалған ұяшықтардың құндарының қосындысы. Ең арзан арықтың құны қандай?\n\n**Кіріс.** Бірінші жолда n мен m сандары (1 ≤ n ≤ 200, 1 ≤ m ≤ 200). Келесі n жолдың әрқайсысында бос орынмен бөлінген m бүтін сан (0 ≤ a[i][j] ≤ 1000).\n\n**Шығыс.** Бір бүтін сан — ең арзан арықтың құны.\n\n**Мысал.**\n\n```\n3 3\n2 1 3\n6 5 4\n7 8 9\n```\n\nЖауап: `13` — құны 1, содан кейін 5, содан кейін 7 болатын ұяшықтар таңдалады.",
+      ru: "**D. Арык через поле.** Поле разбито на n строк и m столбцов. Прокопать клетку, стоящую в строке i и столбце j, стоит a[i][j].\n\nЧерез поле нужно прокопать арык от первой строки до последней: в каждой строке выбирается ровно одна клетка. Столбцы клеток, выбранных в двух соседних строках, должны отличаться не больше чем на единицу — то есть арык идёт либо прямо вниз, либо вниз по диагонали. С какого столбца начать в первой строке и каким закончить в последней, ты выбираешь сам.\n\nСтоимость арыка — сумма стоимостей выбранных клеток. Какова стоимость самого дешёвого арыка?\n\n**Вход.** В первой строке числа n и m (1 ≤ n ≤ 200, 1 ≤ m ≤ 200). В каждой из следующих n строк m целых чисел через пробел (0 ≤ a[i][j] ≤ 1000).\n\n**Выход.** Одно целое число — стоимость самого дешёвого арыка.\n\n**Пример.**\n\n```\n3 3\n2 1 3\n6 5 4\n7 8 9\n```\n\nОтвет: `13` — выбраны клетки стоимостью 1, затем 5, затем 7.",
     },
     referenceSolution:
       "n, m = map(int, input().split())\n" +
-      "g = []\n" +
+      "a = []\n" +
       "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "seen = []\n" +
-      "for i in range(n):\n" +
-      "    row = []\n" +
+      "    a.append(list(map(int, input().split())))\n" +
+      "prev = []\n" +
+      "for j in range(m):\n" +
+      "    prev.append(a[0][j])\n" +
+      "for i in range(1, n):\n" +
+      "    cur = []\n" +
       "    for j in range(m):\n" +
-      "        row.append(0)\n" +
-      "    seen.append(row)\n" +
-      "dr = [-1, -1, -1, 0, 0, 1, 1, 1]\n" +
-      "dc = [-1, 0, 1, -1, 1, -1, 0, 1]\n" +
-      "best = 0\n" +
-      "for sr in range(n):\n" +
-      "    for sc in range(m):\n" +
-      '        if g[sr][sc] == "#" and seen[sr][sc] == 0:\n' +
-      "            seen[sr][sc] = 1\n" +
-      "            qr = [sr]\n" +
-      "            qc = [sc]\n" +
-      "            head = 0\n" +
-      "            size = 0\n" +
-      "            while head < len(qr):\n" +
-      "                r = qr[head]\n" +
-      "                c = qc[head]\n" +
-      "                head = head + 1\n" +
-      "                size = size + 1\n" +
-      "                for t in range(8):\n" +
-      "                    nr = r + dr[t]\n" +
-      "                    nc = c + dc[t]\n" +
-      "                    if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '                        if g[nr][nc] == "#" and seen[nr][nc] == 0:\n' +
-      "                            seen[nr][nc] = 1\n" +
-      "                            qr.append(nr)\n" +
-      "                            qc.append(nc)\n" +
-      "            if size > best:\n" +
-      "                best = size\n" +
-      "print(best)",
+      "        best = prev[j]\n" +
+      "        if j > 0 and prev[j - 1] < best:\n" +
+      "            best = prev[j - 1]\n" +
+      "        if j < m - 1 and prev[j + 1] < best:\n" +
+      "            best = prev[j + 1]\n" +
+      "        cur.append(best + a[i][j])\n" +
+      "    prev = cur\n" +
+      "answer = prev[0]\n" +
+      "for j in range(m):\n" +
+      "    if prev[j] < answer:\n" +
+      "        answer = prev[j]\n" +
+      "print(answer)",
     cases: [
-      { input: "4 5\n##...\n##...\n...#.\n...##", expectedOutput: "4" },
-      /* A staircase joined only by corners: four neighbours give 1. */
-      { input: "5 5\n#....\n.#...\n..#..\n...#.\n....#", expectedOutput: "5", hidden: true },
-      /* Two pieces that touch at exactly one corner. */
-      { input: "3 3\n##.\n..#\n..#", expectedOutput: "4", hidden: true },
-      /* No snow at all, and the whole yard under snow. */
-      { input: "2 3\n...\n...", expectedOutput: "0", hidden: true },
-      { input: "3 3\n###\n###\n###", expectedOutput: "9", hidden: true },
-      /* The smallest maps there are, with and without snow. */
-      { input: "1 1\n#", expectedOutput: "1", hidden: true },
-      { input: "1 1\n.", expectedOutput: "0", hidden: true },
-      /* The biggest region is found last, then first. */
-      { input: "3 5\n#....\n.....\n...##", expectedOutput: "2", hidden: true },
-      { input: "3 5\n##...\n.....\n....#", expectedOutput: "2", hidden: true },
-      /* A checkerboard: eight neighbours make it one region of eight cells. */
-      { input: "4 4\n#.#.\n.#.#\n#.#.\n.#.#", expectedOutput: "8", hidden: true },
+      { input: "3 3\n2 1 3\n6 5 4\n7 8 9", expectedOutput: "13" },
+      /* The cheapest first step leads into the expensive row: greedy gives 8. */
+      { input: "2 3\n2 3 6\n6 7 1", expectedOutput: "4", hidden: true },
+      /* The row minima sit in columns too far apart to be joined: they add to 5,
+         and no legal road is that cheap. */
+      { input: "4 4\n2 1 9 9\n3 5 1 8\n1 9 0 9\n3 7 8 6", expectedOutput: "8", hidden: true },
+      /* The road has to start in the right column and step left: a straight
+         line, and a road forced to start at column one, both give 8. */
+      { input: "3 2\n6 0\n1 8\n1 5", expectedOutput: "2", hidden: true },
+      /* An unguarded prev[j - 1] reads the last column of the row above here. */
+      { input: "4 3\n1 1 4\n7 1 0\n4 9 7\n4 6 5", expectedOutput: "10", hidden: true },
+      /* One row: the answer is the cheapest cell in it, with no step at all. */
+      { input: "1 4\n7 2 9 5", expectedOutput: "2", hidden: true },
+      /* One column: there is nothing to choose, so every cell is paid for. */
+      { input: "4 1\n3\n1\n4\n1", expectedOutput: "9", hidden: true },
+      /* The smallest field there is, and a field where every road is free. */
+      { input: "1 1\n0", expectedOutput: "0", hidden: true },
+      { input: "3 3\n0 0 0\n0 0 0\n0 0 0", expectedOutput: "0", hidden: true },
+      /* Twenty rows of five: 5 · 3^19 routes. Filling the table takes 0.02 s;
+         walking the routes one at a time does not finish. */
+      {
+        input:
+          "20 5\n16 41 65 66 83\n14 29 77 80 72\n54 74 71 94 99\n63 97 99 76 57\n31 1 79 11 15\n37 13 58 2 88\n63 87 41 27 51\n33 45 46 49 96\n66 82 10 93 44\n12 72 69 38 37\n59 19 83 91 92\n74 40 4 91 48\n47 60 55 12 52\n75 71 64 15 55\n65 97 77 63 51\n68 34 54 73 62\n66 67 4 74 29\n99 17 7 91 67\n86 14 92 80 55\n61 19 62 30 16",
+        expectedOutput: "530",
+        hidden: true,
+      },
     ],
   },
   {

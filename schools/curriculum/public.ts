@@ -102,6 +102,20 @@ function splitCases(
 interface PublicBase {
   id: string;
   type: LessonBlock["type"];
+  /**
+   * True when finishing the lesson does not require this block.
+   *
+   * This is the ONE thing that crosses from `bank`. The membership itself —
+   * which role it plays and the justification naming the sibling tasks that
+   * already carry the evidence — is editorial reasoning written for whoever
+   * maintains the curriculum, and it names other block ids, so it stays on the
+   * server with `skillRefs` and provenance.
+   *
+   * What crosses is the only part the learner is owed: whether they have to do
+   * it. Absent means required, so every block authored before the bank existed
+   * projects exactly as it did.
+   */
+  optional?: true;
 }
 
 export type PublicConcept = PublicBase & Pick<ConceptBlock, "title" | "body" | "code"> & { type: "concept" };
@@ -254,8 +268,21 @@ function seededShuffle<T>(items: readonly T[], seed: string): T[] {
   return out;
 }
 
-/** Project one block. Exhaustive: a new `BlockType` breaks the build here. */
+/**
+ * Project one block, and say whether the learner has to do it.
+ *
+ * The projection proper is `projectBlock`, which is exhaustive over the block
+ * types. `optional` is attached here rather than inside seventeen switch arms —
+ * one place to read, and no way for a new block type to acquire the field by
+ * being forgotten.
+ */
 export function publicBlock(block: LessonBlock): PublicBlock {
+  const projected = projectBlock(block);
+  return block.bank ? { ...projected, optional: true } : projected;
+}
+
+/** Project one block. Exhaustive: a new `BlockType` breaks the build here. */
+function projectBlock(block: LessonBlock): PublicBlock {
   switch (block.type) {
     case "concept":
       return { id: block.id, type: "concept", title: block.title, body: block.body, code: block.code };

@@ -346,6 +346,11 @@ export const M7_L5: LessonBlock[] = [
      * writing `nr < n` is the decision.
      */
     id: "m7.l5.b7",
+    bank: {
+      role: "extra_practice",
+      why:
+        "The four blanks are the neighbour guard the learner already completed at m7.l2.b7, and the card one screen earlier, m7.l5.b6, prints that guard verbatim as its correct answer. Swapping recursion for a queue around the blanks changes the surrounding program but not what is being asked for.",
+    },
     type: "fill_blank",
     skillRefs: ["graph.regions", "graph.bfs", "debug.boundary"],
     sourceType: "curriculum-derived",
