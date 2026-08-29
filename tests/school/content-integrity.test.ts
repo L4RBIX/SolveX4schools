@@ -42,11 +42,22 @@ import type { LessonBlock, Localized, Month } from "@schools/curriculum/types";
  * than dropping out of the set and letting the suite report success over
  * whatever is left.
  *
- * The check is deliberately weak in one direction. `result` is Localized prose,
- * not a raw string, so it is asserted to CONTAIN the numbers the program prints
- * rather than to equal its output. That catches the failure that matters — a
- * stated answer the program does not produce — without demanding the prose be
- * a transcript.
+ * The comparison cannot be equality: `result` is Localized prose in two
+ * languages, not a raw string. What it can be is every claim the sentence makes
+ * about the output being one the program produces. Three checks, weakest first:
+ *
+ * - PRESENCE — every number printed appears somewhere in the result.
+ * - ORDER — they appear in the order they are printed, checked per language.
+ *   Presence alone accepts "7 and then 3" for a program printing 3 then 7, and
+ *   a transposition is exactly what an author writing the sentence from memory
+ *   produces. The learner cannot catch it: the worked example is the block they
+ *   are told to trust.
+ * - VERBATIM — a short output line that is not a bare number appears as written.
+ *   `pets`, `yes`, `4 3`. These are the tokens a learner compares against their
+ *   own run, where a paraphrase is a wrong answer.
+ *
+ * Long lines are exempt from the last one, because a result may reasonably
+ * summarise a table rather than reproduce it.
  */
 
 const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
@@ -140,18 +151,66 @@ describe("a worked example prints what it says it prints", () => {
       const printed = got.out.trim();
       if (!printed) return; // A worked example that prints nothing states no result to check.
 
-      /* Every distinct number the program prints must appear somewhere in the
-         stated result. Numbers rather than the whole transcript, because the
-         result is a sentence in two languages and the claim being checked is
-         "the answer it names is the answer it computes". */
-      const numbers = [...new Set(printed.match(/-?\d+(?:\.\d+)?/g) ?? [])];
       const stated = `${block.result.kk} ${block.result.ru}`;
+
+      /* Three checks, weakest first. `result` is a sentence in two languages
+         rather than a transcript, so none of them can demand equality — what
+         they can demand is that every claim the sentence makes about the output
+         is one the program actually produces.
+
+         1. PRESENCE. Every distinct number printed appears somewhere. */
+      const numbers = [...new Set(printed.match(/-?\d+(?:\.\d+)?/g) ?? [])];
       const missing = numbers.filter((n) => !stated.includes(n));
       expect(
         missing,
         `${block.id} (${where}) prints ${JSON.stringify(printed)} but its stated result ` +
           `never mentions ${missing.join(", ")}:\n  kk: ${block.result.kk}\n  ru: ${block.result.ru}`,
       ).toEqual([]);
+
+      /* 2. ORDER. The numbers appear in the order the program prints them.
+         Presence alone passes a result that says "7 and then 3" for a program
+         printing 3 then 7 — a transposition, which is exactly the mistake an
+         author makes writing the sentence from memory, and exactly the one a
+         learner cannot catch because the worked example is what they are told
+         to trust. Checked per language: the two are separate sentences and a
+         transposition in one is not excused by the other being right. */
+      const sequence = printed.match(/-?\d+(?:\.\d+)?/g) ?? [];
+      if (sequence.length > 1) {
+        for (const [lang, text] of [
+          ["kk", block.result.kk],
+          ["ru", block.result.ru],
+        ] as const) {
+          let cursor = 0;
+          let brokeAt: string | null = null;
+          for (const n of sequence) {
+            const at = text.indexOf(n, cursor);
+            if (at < 0) {
+              brokeAt = n;
+              break;
+            }
+            cursor = at + n.length;
+          }
+          expect(
+            brokeAt,
+            `${block.id} (${where}) prints ${JSON.stringify(printed)} — the ${lang} result does ` +
+              `not name those values in that order (stopped at ${brokeAt}):\n  ${text}`,
+          ).toBeNull();
+        }
+      }
+
+      /* 3. VERBATIM. A short line of output that is not a bare number has to
+         appear as written. `pets`, `yes`, `4 3` — the tokens a learner compares
+         against their own run, where a paraphrase is a wrong answer. Long lines
+         are excluded: a result sentence may reasonably summarise a table rather
+         than reproduce it. */
+      for (const line of printed.split("\n").map((l) => l.trim()).filter(Boolean)) {
+        if (line.length > 40 || /^-?\d+(?:\.\d+)?$/.test(line)) continue;
+        expect(
+          stated.includes(line),
+          `${block.id} (${where}) prints the line ${JSON.stringify(line)}, which its stated ` +
+            `result never shows:\n  kk: ${block.result.kk}\n  ru: ${block.result.ru}`,
+        ).toBe(true);
+      }
     });
   }
 });
