@@ -266,6 +266,19 @@ function checkBlock(block: LessonBlock, file: string) {
     const c = compiles(code);
     if (!c.ok) err(id, `${label} is not valid Python:\n${c.err}`);
     else checkConstructs(id, label, code);
+    /*
+     * A blank placeholder that escaped into a program.
+     *
+     * `___` is a legal Python identifier, so `compile()` accepts it without a
+     * murmur and every other gate in this file passes. A careless whole-file
+     * string replace put one inside a worked example's code four hundred lines
+     * from the block being edited, and nothing caught it — the learner would
+     * have met a fully reasoned example with a hole where a loop condition
+     * belonged. Only `fill_blank.template` may contain them.
+     */
+    if (block.type !== "fill_blank" && code.includes("___")) {
+      err(id, `${label} contains a \`___\` placeholder — only a fill_blank template may`);
+    }
   }
 
   /* -- reference solutions, executed ------------------------------------- */
