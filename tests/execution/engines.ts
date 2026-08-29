@@ -201,7 +201,12 @@ const provider = new LocalExecutionProvider();
 export function runServer(
   source: string,
   stdin: string,
-  timeLimitMs = EXECUTION_LIMITS.timeLimitMs,
+  /* Annotated `number` rather than left to inference. `EXECUTION_LIMITS` is
+     `as const`, so the default narrowed this parameter to the literal 5000 and
+     the two fixtures that override the budget could not be passed at all — a
+     typecheck error that has been failing `npm run typecheck` for as long as
+     the runaway-loop fixture has existed. */
+  timeLimitMs: number = EXECUTION_LIMITS.timeLimitMs,
 ): Promise<ExecutionResult> {
   return provider.run({
     language: "python3",

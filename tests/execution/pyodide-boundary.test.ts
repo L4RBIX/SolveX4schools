@@ -423,6 +423,30 @@ describe("nothing under src/lib/pyodide can reach the server's half of the world
 /* 4 — no September secret is sitting in the Pyodide source                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Is this secret too much like ordinary program text to mean anything here?
+ *
+ * `secretStringsOf` has a length floor tuned for the haystack it was written
+ * for: built HTML, in Kazakh and Russian, where an eight-character Python
+ * fragment colliding by accident is implausible. This haystack is TypeScript,
+ * and the two share a language. `m3.l6.b6`'s blank answer is `return c`, which
+ * appears in `runner.ts` because it returns something starting with a c.
+ *
+ * The discriminator is NOT length. 57% of the programme's secrets are under
+ * twenty characters and almost all of them are DATA — `-9 -3 -7`, `333833500`,
+ * `200 10000` — which cannot collide with TypeScript at all and are exactly
+ * what a debugging paste would leave behind. What can collide is a short
+ * fragment of CODE: letters, spaces and operators, no digits.
+ *
+ * So that is the rule, and it costs 28 of 1572 secrets — 1.8% of the scan — and
+ * hides exactly one collision, the one named above. `secretStringsOf` itself is
+ * untouched: `payload-privacy.test.ts` remains the single source of truth for
+ * leak detection and its floor is its own.
+ */
+function collidesWithProse(secret: string): boolean {
+  return secret.length < 24 && !/\d/.test(secret) && /^[A-Za-z_ .()[\]=<>+*/-]+$/.test(secret);
+}
+
 describe("no answer key has been pasted into the Pyodide path", () => {
   const haystack = PYODIDE_MODULES.map((m) => m.source).join("\n");
 
@@ -439,8 +463,13 @@ describe("no answer key has been pasted into the Pyodide path", () => {
        structural assertions above cannot: somebody hard-coding a fixture into
        the runner while debugging and leaving it there. */
     let searched = 0;
+    let skipped = 0;
     for (const { block } of EVERY_BLOCK) {
       for (const secret of secretStringsOf(block)) {
+        if (collidesWithProse(secret)) {
+          skipped += 1;
+          continue;
+        }
         searched += 1;
         expect(haystack, `${block.id} secret found in src/lib/pyodide:\n${secret}`).not.toContain(
           secret,
@@ -448,6 +477,10 @@ describe("no answer key has been pasted into the Pyodide path", () => {
       }
     }
     expect(searched, "no secrets were collected — the walk is broken").toBeGreaterThan(30);
+    /* The exemption is narrow and must stay narrow. If this number grows, the
+       rule below is catching more than the handful of cases it was written for
+       and the scan is quietly shrinking. */
+    expect(skipped, "the code-fragment exemption has widened").toBeLessThan(40);
   });
 
   it("contains neither of the two short sentinels the audits name by hand", () => {
