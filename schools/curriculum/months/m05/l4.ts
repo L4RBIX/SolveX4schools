@@ -560,35 +560,56 @@ export const M5_L4: LessonBlock[] = [
      * reference (== / < / else, with `t`), so the filled template is not a copy
      * of any program in this lesson.
      */
+    /*
+     * The blanks used to be `pairs + 1`, `left + 1` and `right - 1`, and all
+     * three were printed in the two branches directly above them — so a support
+     * learner copied the answers off their own screen. `payload-privacy` caught
+     * it: a blank answer is a secret, and it appeared verbatim in the template.
+     *
+     * Two-pointer code repeats `left = left + 1` and `right = right - 1` by
+     * nature, so no blank on a pointer update can avoid this. The two blanks
+     * that survive are the ones whose text occurs exactly ONCE — and they
+     * happen to be the two decisions January is actually about:
+     *
+     *   `len(a) - 1` — the right pointer starts on the last index, not past it.
+     *                  The off-by-one this whole month is written around.
+     *   `left < right` — the loop stops when the pointers MEET, not after.
+     *                  With `<=` the element at that position is paired with
+     *                  itself, and the prompt says each number joins at most
+     *                  one pair.
+     *
+     * The body is now given whole, which is the right trade for Қолдау: the
+     * learner reads a correct two-pointer walk and supplies the two boundaries,
+     * rather than transcribing three lines they can see.
+     */
     id: "m5.l4.b9s",
     type: "fill_blank",
-    skillRefs: ["twopointers.core", "loops.counter", "lists.index"],
+    skillRefs: ["twopointers.core", "bsearch.boundary", "lists.index"],
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бағдарлама реттелген тізімнен қосындысы `s` болатын жұптарды санауы керек: әр орындағы сан ең көбі бір жұпқа кіреді. Қосынды тым кіші не тым үлкен болғандағы екі тармақ жазылып қойған. Соңғы тармақ — қосынды дәл `s` болған жағдай: онда жұп табылды, ал оның екі саны да пайдаланылып кетті, сондықтан екеуін де сегменттен шығару керек. Үш орынды толықтыр.",
-      ru: "Программа должна считать пары с суммой `s` в отсортированном списке: число с каждой позиции входит не более чем в одну пару. Две ветки — когда сумма слишком мала и когда слишком велика — уже написаны. Последняя ветка — случай, когда сумма ровно `s`: пара найдена, и оба её числа уже использованы, поэтому оба нужно убрать из отрезка. Дополни три места.",
+      kk: "Бағдарлама реттелген тізімнен қосындысы `s` болатын жұптарды санайды: әр орындағы сан ең көбі бір жұпқа кіреді. Циклдің ішіндегі үш тармақ түгел жазылған. Сен екі ШЕКАРАНЫ толықтырасың: оң көрсеткіш қай индекстен басталады және цикл қашан тоқтайды? Есіңде болсын: `left` пен `right` бір орынға келгенде, ол сан өзімен жұп құра алмайды.",
+      ru: "Программа считает пары с суммой `s` в отсортированном списке: число с каждой позиции входит не более чем в одну пару. Все три ветки внутри цикла уже написаны. Тебе нужно дополнить две ГРАНИЦЫ: с какого индекса начинается правый указатель и когда цикл останавливается? Помни: когда `left` и `right` сходятся в одной позиции, это число не может составить пару само с собой.",
     },
     template:
       "a = list(map(int, input().split()))\n" +
       "s = int(input())\n" +
       "left = 0\n" +
-      "right = len(a) - 1\n" +
+      "right = ___\n" +
       "pairs = 0\n" +
-      "while left < right:\n" +
+      "while ___:\n" +
       "    if a[left] + a[right] < s:\n" +
       "        left = left + 1\n" +
       "    elif a[left] + a[right] > s:\n" +
       "        right = right - 1\n" +
       "    else:\n" +
-      "        pairs = ___\n" +
-      "        left = ___\n" +
-      "        right = ___\n" +
+      "        pairs = pairs + 1\n" +
+      "        left = left + 1\n" +
+      "        right = right - 1\n" +
       "print(pairs)",
     blanks: [
-      { id: "f1", answer: "pairs + 1" },
-      { id: "f2", answer: "left + 1" },
-      { id: "f3", answer: "right - 1" },
+      { id: "f1", answer: "len(a) - 1" },
+      { id: "f2", answer: "left < right", alternatives: ["right > left"] },
     ],
   },
 ];

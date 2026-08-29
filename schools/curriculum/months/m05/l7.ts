@@ -394,14 +394,32 @@ export const M5_L7: LessonBlock[] = [
        two lengths added together, the tail was lost — the prompt says so, and
        that turns the lesson's one hard idea into something the learner can
        verify on their own screen. m2.l5.b6s uses the same device. */
+    /*
+     * The two tail conditions were the blanks, and the main loop's header —
+     * printed four lines above them — is `while i < len(a) and j < len(b):`.
+     * Both answers were on screen, so a support learner copied them.
+     * `payload-privacy` caught it: a blank answer is a secret and it appeared
+     * verbatim in the template.
+     *
+     * Merge code cannot avoid repeating those two tests, so the fix is to blank
+     * EVERY occurrence rather than to find an expression that occurs once. With
+     * the header blanked as well, the template contains neither answer, and the
+     * learner has to decide the same thing three times in three different
+     * shapes: both lists still have numbers (`and`), then each list alone.
+     *
+     * That is also the better lesson. The tail exists precisely because the
+     * main loop's condition is an AND — it stops the moment EITHER list runs
+     * out — and writing the three conditions next to each other is what makes
+     * that visible.
+     */
     id: "m5.l7.b7s",
     type: "fill_blank",
     skillRefs: ["twopointers.core", "lists.traverse", "loops.while"],
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Екі жол беріледі, әр жолда бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір сан), және әр жол өсу ретімен реттелген. Бағдарлама екі тізімді біріктіріп, бірінші жолға барлық сандарды бос орынмен бөліп, екінші жолға сол сандардың санын шығарады. Басты цикл дайын. Екі орынды толтыр: басты цикл біткен соң қалған бөлікті көшіретін екі циклдің шарттары. Екінші жолдағы сан өзіңді тексереді: егер ол екі тізімнің ұзындықтарының қосындысынан кем болса, қалған бөлік жоғалып кеткен.",
-      ru: "Даны две строки, в каждой — целые числа через пробел (не меньше одного числа в строке), и каждая строка отсортирована по возрастанию. Программа сливает списки и выводит в первой строке все числа через пробел, а во второй — их количество. Главный цикл уже написан. Заполни два пропуска: условия двух циклов, которые переписывают остаток после главного цикла. Число во второй строке проверяет тебя: если оно меньше суммы длин двух списков, значит остаток потерялся.",
+      kk: "Екі жол беріледі, әр жолда бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір сан), және әр жол өсу ретімен реттелген. Бағдарлама екі тізімді біріктіріп, бірінші жолға барлық сандарды бос орынмен бөліп, екінші жолға сол сандардың санын шығарады. Үш циклдің шартын толтыр. Біріншісі — басты цикл: ол ЕКІ тізімде де сан қалғанда ғана жүреді, сондықтан оның шарты екі бөліктен тұрады. Қалған екеуі — басты цикл біткен соң қалған бөлікті көшіретін циклдер, әрқайсысы бір тізімді ғана қарайды. Екінші жолдағы сан өзіңді тексереді: егер ол екі тізімнің ұзындықтарының қосындысынан кем болса, қалған бөлік жоғалып кеткен.",
+      ru: "Даны две строки, в каждой — целые числа через пробел (не меньше одного числа в строке), и каждая строка отсортирована по возрастанию. Программа сливает списки и выводит в первой строке все числа через пробел, а во второй — их количество. Заполни условия трёх циклов. Первый — главный: он работает, только пока числа остались в ОБОИХ списках, поэтому его условие состоит из двух частей. Остальные два переписывают остаток после главного цикла, и каждый смотрит только на один список. Число во второй строке проверяет тебя: если оно меньше суммы длин двух списков, значит остаток потерялся.",
     },
     template:
       "a = list(map(int, input().split()))\n" +
@@ -409,7 +427,7 @@ export const M5_L7: LessonBlock[] = [
       "i = 0\n" +
       "j = 0\n" +
       "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
+      "while ___:\n" +
       "    if a[i] <= b[j]:\n" +
       "        res.append(a[i])\n" +
       "        i += 1\n" +
@@ -425,8 +443,9 @@ export const M5_L7: LessonBlock[] = [
       'print(" ".join(map(str, res)))\n' +
       "print(len(res))",
     blanks: [
-      { id: "f1", answer: "i < len(a)", alternatives: ["len(a) > i"] },
-      { id: "f2", answer: "j < len(b)", alternatives: ["len(b) > j"] },
+      { id: "f1", answer: "i < len(a) and j < len(b)", alternatives: ["j < len(b) and i < len(a)"] },
+      { id: "f2", answer: "i < len(a)", alternatives: ["len(a) > i"] },
+      { id: "f3", answer: "j < len(b)", alternatives: ["len(b) > j"] },
     ],
   },
   {
