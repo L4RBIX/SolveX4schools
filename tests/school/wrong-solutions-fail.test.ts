@@ -45,6 +45,40 @@ interface Run {
   err: string;
 }
 
+/**
+ * Run one program against many inputs in a SINGLE interpreter.
+ *
+ * A process per case is the obvious way and it does not scale. This file wanted
+ * 196 of them, running concurrently with the 825 of `content-execution`, and
+ * the workers began to die — which surfaced as a different fixture failing on
+ * each run and an unrelated test file failing to load at all. A heisenbug in a
+ * suite whose whole job is to be believed is worse than a slow suite.
+ *
+ * `support/run-cases.py` gives each case a fresh globals dict, its own stdin
+ * and its own stdout. Verified against per-process execution over all 164 case
+ * results with zero disagreements before this replaced it.
+ */
+function runCases(source: string, inputs: string[]): Run[] {
+  if (!inputs.length) return [];
+  try {
+    const out = execFileSync(PYTHON, ["tests/school/support/run-cases.py"], {
+      input: JSON.stringify({ program: source, cases: inputs.map((input) => ({ input })) }),
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 32 * 1024 * 1024,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return (JSON.parse(out) as { status: string; out: string }[]).map((r) => ({
+      ok: r.status === "ok",
+      out: r.out,
+      err: r.status === "ok" ? "" : r.status,
+    }));
+  } catch (e) {
+    const err = e as { stderr?: string };
+    throw new Error(`the batched runner itself failed: ${(err.stderr ?? String(e)).slice(0, 400)}`);
+  }
+}
+
 function run(source: string, stdin: string): Run {
   try {
     const out = execFileSync(PYTHON, ["-I", "-S", "-c", source], {
@@ -162,13 +196,10 @@ describe("programs that were wrongly accepted stay rejected", () => {
         expect(cases.length, `${f.blockId} declares no cases`).toBeGreaterThan(0);
 
         const src = wrongProgramFor(f, block);
-        const failed: string[] = [];
-        for (const c of cases) {
-          const got = run(src, c.input);
-          if (!got.ok || got.out !== c.expectedOutput.trim()) {
-            failed.push(c.input.length > 40 ? `${c.input.slice(0, 40)}…` : c.input);
-          }
-        }
+        const results = runCases(src, cases.map((c) => c.input));
+        const failed = cases
+          .filter((c, i) => !results[i].ok || results[i].out !== c.expectedOutput.trim())
+          .map((c) => (c.input.length > 40 ? `${c.input.slice(0, 40)}…` : c.input));
         expect(
           failed.length,
           `${f.blockId}: the wrong program passes every declared case again — ` +
@@ -180,15 +211,15 @@ describe("programs that were wrongly accepted stay rejected", () => {
         it.runIf(python)("an alternative CORRECT algorithm still passes", () => {
           const block = BLOCKS[f.blockId];
           const cases = (block as unknown as { cases?: { input: string; expectedOutput: string }[] }).cases ?? [];
-          for (const c of cases) {
-            const got = run(f.alternative!, c.input);
-            expect(got.ok, `${f.blockId}: the alternative crashed on ${JSON.stringify(c.input.slice(0, 40))}`).toBe(true);
+          const results = runCases(f.alternative!, cases.map((c) => c.input));
+          cases.forEach((c, i) => {
+            expect(results[i].ok, `${f.blockId}: the alternative crashed on ${JSON.stringify(c.input.slice(0, 40))}`).toBe(true);
             expect(
-              got.out,
+              results[i].out,
               `${f.blockId}: the case set rejects a correct alternative algorithm — ` +
                 `a task tests correct behaviour, not authorship of the reference`,
             ).toBe(c.expectedOutput.trim());
-          }
+          });
         });
       }
     });

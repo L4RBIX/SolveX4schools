@@ -360,6 +360,14 @@ export function SchoolLesson({
   /* Counted from the block states, not accumulated in a counter. A block the
      learner returns to and gets right on the second pass must not count twice,
      and a derived number cannot drift from what the cards show. */
+  const requiredCorrectCount = useMemo(
+    () =>
+      blocks.filter(
+        (b) => isAttemptBlock(b) && b.optional !== true && states[b.id]?.verdict === "correct",
+      ).length,
+    [blocks, states],
+  );
+
   const solvedCount = useMemo(
     () =>
       blocks.filter(
@@ -605,6 +613,12 @@ export function SchoolLesson({
       <LessonComplete
         lesson={lesson}
         states={states}
+        /* Required-only, like `attemptCount` beside it. Counting every settled
+           block against a required-only denominator produced "10 / 3" on the
+           congratulations screen for a learner who did the optional work — the
+           same defect the denominator was changed to fix, left in the
+           numerator. */
+        correctCount={requiredCorrectCount}
         attemptCount={attemptCount}
         locale={locale}
         backHref={backHref}
@@ -747,7 +761,7 @@ export function SchoolLesson({
                 not need. Without it "optional" is a fact about the schema that
                 no learner can observe: the Skip button appears and nothing on
                 screen says why this card has one and the last one did not. */}
-            {isOptional && verdict === "unchecked" ? (
+            {isOptional && (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
               <p className="mx-auto max-w-[367px] px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60">
                 {t(L.optionalNote, locale)}
               </p>
@@ -769,8 +783,23 @@ export function SchoolLesson({
                     <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
                       {t(L.check, locale)}
                     </Button3D>
+                    {/* On the last page this control ends the lesson, so it says
+                        so. Labelling it «Өткізіп жіберу» there told the learner
+                        they were skipping ahead when they were finishing. */}
                     <Button3D variant="secondary" onClick={advance}>
-                      {t(L.skipOptional, locale)}
+                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
+                    </Button3D>
+                  </>
+                )}
+
+                {/* Wrong answer on an optional task: Try again, or move on. */}
+                {mode === "retry-optional" && (
+                  <>
+                    <Button3D variant="warn" onClick={retry}>
+                      {t(L.tryAgain, locale)}
+                    </Button3D>
+                    <Button3D variant="secondary" onClick={advance}>
+                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
                     </Button3D>
                   </>
                 )}
@@ -931,19 +960,24 @@ function LessonPage({ children }: { children: React.ReactNode }) {
 function LessonComplete({
   lesson,
   states,
+  correctCount,
   attemptCount,
   locale,
   backHref,
 }: {
   lesson: PublicLesson;
   states: Record<string, BlockState>;
+  correctCount: number;
   attemptCount: number;
   locale: Locale;
   backHref: string;
 }) {
-  const values = Object.values(states);
-  const correct = values.filter((s) => s.verdict === "correct").length;
-  const unmeasured = values.filter((s) => s.verdict === "unmeasured").length;
+  const correct = correctCount;
+  /* Unmeasured is a property of the whole lesson rather than of the required
+     path: a block a teacher must read is a block a teacher must read whether or
+     not the learner had to do it. It carries no denominator, so it does not
+     produce the impossible fraction `correct` did. */
+  const unmeasured = Object.values(states).filter((s) => s.verdict === "unmeasured").length;
 
   return (
     <div className="flex h-[100dvh] flex-col items-center justify-center bg-b-dark px-8 font-b-sans text-b-fg">

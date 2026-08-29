@@ -57,17 +57,31 @@ function project(id: string, blocks: Lesson["blocks"], track: TrackLevel) {
   return publicLesson(shell, track).blocks;
 }
 
-function walkLesson(id: string, blocks: Lesson["blocks"], track: TrackLevel, mode: "minimal" | "maximal"): Walk {
+function walkLesson(
+  id: string,
+  blocks: Lesson["blocks"],
+  track: TrackLevel,
+  mode: "minimal" | "maximal" | "tries-and-fails",
+): Walk {
   const pub = project(id, blocks, track);
 
   let required = 0;
   let optional = 0;
-  const verdict = new Map<string, "unchecked" | "correct">();
+  const verdict = new Map<string, "unchecked" | "correct" | "wrong">();
   for (const b of pub) {
     if (!isPublicAttemptBlock(b)) continue;
     const isOptional = (b as { optional?: true }).optional === true;
     if (isOptional) optional += 1;
     else required += 1;
+    /* `tries-and-fails` is the learner the first two walks could not see: they
+       attempt every optional task and get it wrong. Modelling only
+       `unchecked | correct` is why nothing caught `optional` being ignored on a
+       wrong verdict, which took the way past an optional task away from exactly
+       the learner who had engaged with it. */
+    if (mode === "tries-and-fails" && isOptional) {
+      verdict.set(b.id, "wrong");
+      continue;
+    }
     const done = mode === "maximal" || !isOptional;
     verdict.set(b.id, done ? "correct" : "unchecked");
   }
@@ -79,7 +93,7 @@ function walkLesson(id: string, blocks: Lesson["blocks"], track: TrackLevel, mod
     const m = footerMode(v, attempt, isOptional);
     /* The modes that put a forward control on screen. `check` does not: its one
        button submits an answer this learner has declined to give. */
-    if (m !== "advance" && m !== "celebrate" && m !== "check-optional") {
+    if (m !== "advance" && m !== "celebrate" && m !== "check-optional" && m !== "retry-optional") {
       return { reachedEnd: false, stuckAt: b.id, completes: false, pages: pub.length, required, optional };
     }
   }
@@ -117,7 +131,7 @@ describe("every lesson and every check is traversable on every route", () => {
     expect(MONTHS.filter((m) => m.units.some((u) => u.lessons.some((l) => l.blocks.length))).length).toBe(9);
   });
 
-  for (const mode of ["minimal", "maximal"] as const) {
+  for (const mode of ["minimal", "maximal", "tries-and-fails"] as const) {
     describe(`the ${mode} learner`, () => {
       for (const track of TRACKS) {
         it(`${track} — reaches the end of all ${ALL_UNITS.length} lessons and checks`, () => {

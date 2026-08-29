@@ -112,7 +112,13 @@ export function isSettled(v: LessonVerdict): boolean {
  * has nothing to retry against, so `unmeasured` advances — the alternative
  * would be a dead-end button.
  */
-export type FooterMode = "check" | "check-optional" | "advance" | "retry" | "celebrate";
+export type FooterMode =
+  | "check"
+  | "check-optional"
+  | "advance"
+  | "retry"
+  | "retry-optional"
+  | "celebrate";
 
 /**
  * @param optional  The curriculum marks this task as extra practice the
@@ -139,6 +145,16 @@ export function footerMode(v: LessonVerdict, isAttempt: boolean, optional = fals
     return optional ? "check-optional" : "check";
   }
   if (v === "correct") return "celebrate";
-  if (v === "wrong" || v === "partial") return "retry";
+  if (v === "wrong" || v === "partial") {
+    /* An optional task stays optional after a wrong answer.
+     *
+     * `optional` used to be consulted only on `unchecked`, so a learner who
+     * TRIED a bank task and got it wrong lost the way past it — the reward for
+     * attempting optional work was being trapped by it, and on the lessons
+     * whose last block is optional the finishing control disappeared too. It
+     * was escapable by pressing Try again to get back to `unchecked`, and
+     * nothing on screen said so. */
+    return optional ? "retry-optional" : "retry";
+  }
   return "advance";
 }

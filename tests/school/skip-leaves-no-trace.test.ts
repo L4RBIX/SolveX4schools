@@ -36,6 +36,8 @@ describe("skipping an optional task leaves no trace", () => {
        An unchecked optional block cannot reach it. */
     expect(footerMode(AFTER_SKIP.verdict, true, true)).toBe("check-optional");
     expect(footerMode(AFTER_SKIP.verdict, true, true)).not.toBe("celebrate");
+    /* And after a failed attempt at an optional task, still not a celebration. */
+    expect(footerMode("wrong", true, true)).toBe("retry-optional");
   });
 
   it("is not counted as solved", () => {

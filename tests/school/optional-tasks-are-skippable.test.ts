@@ -62,7 +62,8 @@ function walkDecliningOptional(lessonId: string, track: TrackLevel): Walk | null
     const mode = footerMode(v, attempt, b.optional === true);
     /* The modes that put a forward control on screen. `check` does not: its one
        button submits an answer the learner has declined to give. */
-    const canMoveOn = mode === "advance" || mode === "celebrate" || mode === "check-optional";
+    const canMoveOn =
+      mode === "advance" || mode === "celebrate" || mode === "check-optional" || mode === "retry-optional";
     if (!canMoveOn) return { lesson: lessonId, track, stuckAt: b.id, completes: false };
   }
 
@@ -115,11 +116,20 @@ describe("the footer offers a way past an optional task and only an optional tas
     expect(footerMode("unchecked", true, true)).toBe("check-optional");
   });
 
-  it("leaves every other verdict alone whether optional or not", () => {
+  it("keeps an optional task optional after a WRONG answer", () => {
+    /* This used to assert the opposite, deliberately and wrongly: `optional`
+       was consulted only on `unchecked`, so a learner who TRIED a bank task and
+       got it wrong lost the way past it. The reward for attempting optional
+       work was being trapped by it. */
+    expect(footerMode("wrong", true, true)).toBe("retry-optional");
+    expect(footerMode("partial", true, true)).toBe("retry-optional");
+    expect(footerMode("wrong", true, false)).toBe("retry");
+    expect(footerMode("partial", true, false)).toBe("retry");
+  });
+
+  it("leaves the settled verdicts alone whether optional or not", () => {
     for (const optional of [false, true]) {
       expect(footerMode("correct", true, optional)).toBe("celebrate");
-      expect(footerMode("wrong", true, optional)).toBe("retry");
-      expect(footerMode("partial", true, optional)).toBe("retry");
       expect(footerMode("unmeasured", true, optional)).toBe("advance");
       expect(footerMode("unchecked", false, optional)).toBe("advance");
     }
