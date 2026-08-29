@@ -501,6 +501,11 @@ export const M2_L8: LessonBlock[] = [
      * all-negative case is here for exactly the reason m2.l5.b2 gave.
      */
     id: "m2.l8.b8",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Carrying two accumulators through one pass is established by m2.l5.b7, which prints a sum and an average from a single traversal. Largest-and-second-largest is a harder instance of that pattern, not a new one, and its own boundary case (duplicate maxima) is covered by the cases rather than by a second task.",
+    },
     type: "challenge",
     skillRefs: ["lists.traverse", "loops.accumulator", "compare.operators"],
     sourceType: "product-authored",

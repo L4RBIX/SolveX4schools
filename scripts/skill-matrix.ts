@@ -75,6 +75,18 @@ function isIndependent(block: LessonBlock): boolean {
   return false;
 }
 
+/**
+ * Evidence only counts when every learner on the route actually produces it.
+ *
+ * A bank task is validated, addressable and optional — so a skill whose only
+ * independent evidence sits in the bank has no evidence for the learner who
+ * does the required path and stops, which is the learner this matrix is about.
+ * Counting it would let a month look covered because of work nobody has to do.
+ */
+function isCore(block: LessonBlock): boolean {
+  return !block.bank;
+}
+
 const ALL = MONTHS.flatMap(walk);
 
 interface Row {
@@ -86,12 +98,14 @@ interface Row {
   assessed: number[];
   taskCount: number;
   independentCount: number;
+  bankCount: number;
 }
 
 const rows: Row[] = SKILLS.map((skill) => {
   const touching = ALL.filter((e) => e.block.skillRefs.includes(skill.id));
   const tasks = touching.filter((e) => ATTEMPT_BLOCK_TYPES.has(e.block.type));
-  const independent = touching.filter((e) => isIndependent(e.block));
+  const independent = touching.filter((e) => isIndependent(e.block) && isCore(e.block));
+  const bankOnly = touching.filter((e) => !isCore(e.block));
   const assessed = touching.filter((e) => e.inAssessment && ATTEMPT_BLOCK_TYPES.has(e.block.type));
   const months = (xs: Located[]) => [...new Set(xs.map((e) => e.month))].sort((a, b) => a - b);
   return {
@@ -103,6 +117,7 @@ const rows: Row[] = SKILLS.map((skill) => {
     assessed: months(assessed),
     taskCount: tasks.length,
     independentCount: independent.length,
+    bankCount: bankOnly.length,
   };
 });
 
@@ -137,7 +152,9 @@ for (const r of rows) {
     problems.push({
       skill: r.id,
       kind: "no independent evidence",
-      detail: `${r.taskCount} task(s), none of them a whole program written from nothing`,
+      detail:
+        `${r.taskCount} task(s), none of them a whole program written from nothing on the ` +
+        `required path` + (r.bankCount ? ` (${r.bankCount} are in the optional bank)` : ""),
     });
   }
   if (r.assessed.length === 0) {

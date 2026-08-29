@@ -502,6 +502,11 @@ export const M2_L7: LessonBlock[] = [
      * off-by-one in either formula shows up at once.
      */
     id: "m2.l7.b9",
+    bank: {
+      role: "extension",
+      why:
+        "m2.l7.b8 already establishes the nested loop that draws a triangle, and it is the PDF's named «символдардан өрнек». A centred triangle adds leading-space arithmetic on top of the same two loops — real extension for the advanced route, and not something the month's outcomes need.",
+    },
     type: "write_code",
     skillRefs: ["loops.nested", "loops.for", "loops.accumulator", "arith.basic"],
     sourceType: "curriculum-derived",

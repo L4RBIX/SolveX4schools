@@ -327,6 +327,11 @@ export const M2_L6: LessonBlock[] = [
      * printed as `yes`.
      */
     id: "m2.l6.b8",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Reversing a word by walking indices backwards is the same move as m2.l8.b7, which reverses a LIST and is the PDF's own named family «тізімді кері аудару». One of the two belongs in the required path; the family keeps the one the programme names.",
+    },
     type: "write_code",
     skillRefs: ["strings.sequence", "loops.for", "loops.accumulator"],
     sourceType: "curriculum-derived",

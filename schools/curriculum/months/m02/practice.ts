@@ -55,6 +55,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        distinct from m2.l2.b5, which hands the learner the loop and asks for a
        modification — here there is nothing on the screen at all. */
     id: "m2.p1",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Counting with a condition over a list is established by m2.l1.b9, which counts the multiples of k in a range, and exercised again by m2.l5.b8. This adds a second counter to the same loop and no new decision.",
+    },
     type: "write_code",
     skillRefs: ["loops.for", "loops.counter", "lists.traverse"],
     sourceType: "product-authored",
@@ -117,6 +122,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        m2.l2 spends its concept block on. n = 1 is the case that decides
        whether the loop bounds were reasoned about or guessed. */
     id: "m2.p3",
+    bank: {
+      role: "extra_practice",
+      why:
+        "The divisor loop and its n // 2 + 1 bound are established at m2.l2.b6, which counts divisors, and again at m2.l8.b6, which finds the smallest. Summing them instead of counting them is the accumulator-versus-counter distinction m2.l2 spends its concept block on — worth practising, not worth requiring a third divisor task.",
+    },
     type: "write_code",
     skillRefs: ["loops.for", "loops.accumulator", "arith.remainder"],
     sourceType: "curriculum-derived",
@@ -179,6 +189,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        arrives on a second input line, which is a format the learner has to
        read rather than pattern-match. */
     id: "m2.p5",
+    bank: {
+      role: "extra_practice",
+      why:
+        "Walking a word and counting one character is m2.l6.b4, a fill_blank on the vowel count, and m2.l6.b6 asks for the last vowel's index. Counting an arbitrary given letter is the same traversal with the target read from input.",
+    },
     type: "write_code",
     skillRefs: ["strings.sequence", "loops.counter"],
     sourceType: "product-authored",
@@ -275,6 +290,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        found" answer is -1, and a list that could itself contain -1 would make
        two different situations print the same line. */
     id: "m2.p7",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m2.l9.b9 asks for the POSITION of the first element greater than x, including the -1 case. This asks for the smallest such VALUE. Same scan, same boundary, same -1 convention.",
+    },
     type: "write_code",
     skillRefs: ["lists.traverse", "compare.operators", "debug.boundary"],
     sourceType: "product-authored",
@@ -312,6 +332,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        attached to a task whose prompt does not state one — `s / len(a)` is a
        float, the answer is an integer, and the token checker is enough. */
     id: "m2.p8",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m2.l5.b8 counts the elements strictly above the average; this sums them. Identical two-pass structure and identical boundary decision (strictly greater), differing only in what the second pass accumulates.",
+    },
     type: "write_code",
     skillRefs: ["lists.traverse", "loops.accumulator", "compare.operators"],
     sourceType: "curriculum-derived",
@@ -350,6 +375,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        run of length 1, and the learner who wrote `>=` gets a longer answer on
        exactly the data that looks most innocent. */
     id: "m2.p9",
+    bank: {
+      role: "extra_practice",
+      why:
+        "m2.l5.b9 is the longest run of equal neighbours, on the advanced route. This is the longest strictly increasing run. The same neighbour comparison with the operator changed, and the core route already meets run-length reasoning at m2.l9.b6.",
+    },
     type: "write_code",
     skillRefs: ["lists.index", "lists.traverse", "loops.counter"],
     sourceType: "product-authored",
@@ -389,6 +419,11 @@ export const M2_PRACTICE: LessonBlock[] = [
        first mutant says 6 and the second says 9, so one hidden case fails
        both. */
     id: "m2.p10",
+    bank: {
+      role: "extension",
+      why:
+        "Counting pairs (i<j) whose sum is divisible by k needs a nested loop over pairs, which m2.l7 teaches and no core October task requires. Genuinely beyond the month rather than redundant with it — and October is already the year's heaviest month against the September calibration.",
+    },
     type: "write_code",
     skillRefs: ["loops.nested", "lists.index", "arith.remainder"],
     sourceType: "curriculum-derived",
