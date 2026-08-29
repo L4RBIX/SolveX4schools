@@ -1,24 +1,56 @@
 #!/usr/bin/env tsx
 /**
- * How long the authored year actually takes a learner.
+ * How long the authored year takes, under three learners rather than one.
  *
- * The programme states its own budget and states it twice, so this is a
- * checkable question rather than an opinion:
+ * The programme states its own budget twice, so this is a checkable question
+ * and not an opinion:
  *
- *   PDF p.2  «Аптасына екі онлайн-сабақ, әрқайсысы 45 минут» + «Аптасына
+ *   PDF p.2  «Аптасына екі онлайн-сабақ, әрқайсысы 45 минут» plus «Аптасына
  *            кемінде шамамен 40 минут» on the platform
  *   PDF p.5  a month is «шамамен 2,5 сағат» theory and «шамамен 6 сағат»
  *            practice — 150 + 360 = 510 minutes
  *
- * The 510 is what a month has. This script says what a month costs.
+ * 510 is what a month HAS. This script says what a month COSTS.
  *
- * ## The estimates, and why they are stated rather than hidden
+ * ## What this script does not do
  *
- * Every number in `MINUTES` below is a guess about a fourteen-year-old, and
- * every one of them is arguable. They are in one table, in the open, so that
- * arguing with them is easy and so that the total is reproducible. What is NOT
- * arguable is that somebody has to do the sum: a curriculum that quietly costs
- * twice its budget is not discovered by reading it.
+ * It does not validate the workload. Nobody has watched a fourteen-year-old in
+ * Kazakhstan work through any of these lessons, and until somebody has, every
+ * absolute number below is an estimate about a child made by people who have
+ * not met one. The three columns exist so that the uncertainty is visible in
+ * the output instead of buried in a single figure that reads like a
+ * measurement.
+ *
+ * An earlier version of this script reported one scenario and a September
+ * ratio, and I described that ratio as showing that October's workload had come
+ * down. It showed nothing of the kind — the bank field it depended on did not
+ * affect completion at all until `bank-is-optional.test.ts` made it, so the
+ * required path had not changed. That is the mistake these three columns are
+ * meant to make harder: a single number invites a verdict, and the verdict is
+ * not available yet.
+ *
+ * ## The three learners
+ *
+ * FAST — has understood the lesson, writes the loop correctly the first time,
+ * makes one submission per task. This is the top of the class, and a curriculum
+ * that overruns even here is broken.
+ *
+ * EXPECTED — understands after the worked example, gets a task wrong once or
+ * twice, re-reads the statement. The learner the programme is aimed at.
+ *
+ * SLOW — needs the concept twice, meets a real bug on most from-scratch tasks,
+ * and loses ten minutes to an off-by-one at least once a month. Not a struggling
+ * outlier: the bottom third of an ordinary class. A school assigning this
+ * curriculum is assigning it to these learners too.
+ *
+ * The spread is deliberately widest where production happens. Reading a concept
+ * twice costs a small multiple; being stuck on a from-scratch problem is
+ * unbounded, and 2.5x is already an optimistic way to model unbounded.
+ *
+ * Every number is in one table, in the open, so arguing with it is cheap and
+ * the total is reproducible. What is not arguable is that somebody has to do the
+ * sum: a curriculum that quietly costs twice its budget is not discovered by
+ * reading it.
  *
  * Two conventions worth naming:
  *
@@ -26,58 +58,54 @@
  *   sub-questions is four answers, and treating it as one block is exactly how
  *   September's monthly check came to cost thirty minutes against a stated
  *   twenty.
- * - Passive blocks are costed too. Reading a concept is not free, and the
- *   programme's 150 theory minutes are what they are for.
+ * - Passive blocks are costed. Reading a concept is not free, and the 150
+ *   theory minutes are what they are for.
+ * - Bank tasks are never counted. They are the one part of the corpus a learner
+ *   may skip, which `requirementFor` now enforces rather than merely documents.
  *
- * ## Calibration
- *
- * September is the calibration month: it was authored, forensically audited and
- * remediated by people before this workstream began, so it is the one month
- * whose size somebody has already judged acceptable. A model that says
- * September overruns is wrong about the model, not about September.
- *
- *   npx tsx scripts/workload.ts             # per month, per route
+ *   npx tsx scripts/workload.ts             # three scenarios, per month, per route
  *   npx tsx scripts/workload.ts --markdown  # the table for the audit doc
+ *   npx tsx scripts/workload.ts --relative  # the September-relative reading
  */
 import { MONTHS } from "../schools/curriculum/months";
 import { isTask, roleOf } from "../schools/curriculum/inventory";
 import type { LessonBlock, Month, TrackLevel } from "../schools/curriculum/types";
 
-/**
- * How pessimistic to be about a fourteen-year-old.
- *
- * `--slow` multiplies the two costs that carry the most uncertainty and the
- * most weight — writing a whole program from an empty editor, and the harder
- * standalone problems — by 1.5. A beginner in October is not the same learner
- * as one in March, and 12 minutes for a first from-scratch loop is the
- * optimistic end of plausible.
- *
- * The verdict this script gives is only worth something if it survives the
- * pessimistic run, so both are reported and the report states which one the
- * conclusion rests on.
- */
-const SLOW = process.argv.includes("--slow");
-const CODE_FACTOR = SLOW ? 1.5 : 1;
+type Scenario = "fast" | "expected" | "slow";
+const SCENARIOS: readonly Scenario[] = ["fast", "expected", "slow"];
 
-/** Minutes a block costs a learner who has been taught the topic. */
-const MINUTES: Record<LessonBlock["type"], number> = {
-  concept: 2,
-  worked_example: 3,
-  visual_simulation: 2,
-  reflection: 2,
-  prediction: 1.5,
-  multiple_choice: 1.5,
-  fill_blank: 3,
-  reorder_code: 3,
-  trace_code: 5,
-  find_bug: 6,
-  modify_code: 6,
-  test_case: 4,
-  explain: 2, // per question — see `costOf`
-  write_code: 12 * CODE_FACTOR,
-  challenge: 15 * CODE_FACTOR,
-  arena_problem: 15 * CODE_FACTOR,
-  verify: 12, // refined per mode in `costOf`
+/** Minutes a block costs, by learner. Argue with these; they are why. */
+const MINUTES: Record<LessonBlock["type"], Record<Scenario, number>> = {
+  /* Reading. A slow learner re-reads; nobody reads it in half the time. */
+  concept: { fast: 1.5, expected: 2, slow: 3.5 },
+  worked_example: { fast: 2, expected: 3, slow: 5 },
+  visual_simulation: { fast: 1.5, expected: 2, slow: 3.5 },
+  reflection: { fast: 1.5, expected: 2, slow: 3 },
+
+  /* Recognition. Fast is nearly instant; slow re-reads the code twice. */
+  prediction: { fast: 1, expected: 1.5, slow: 3 },
+  multiple_choice: { fast: 1, expected: 1.5, slow: 3 },
+
+  /* Filling in and assembling. Bounded above by how much is already on screen. */
+  fill_blank: { fast: 2, expected: 3, slow: 6 },
+  reorder_code: { fast: 2, expected: 3, slow: 6 },
+
+  /* Reading someone else's execution or someone else's mistake. Where a
+     struggling learner bogs down worst short of writing from nothing. */
+  trace_code: { fast: 3, expected: 5, slow: 11 },
+  find_bug: { fast: 3.5, expected: 6, slow: 13 },
+  modify_code: { fast: 3.5, expected: 6, slow: 13 },
+  test_case: { fast: 2.5, expected: 4, slow: 8 },
+
+  /* Writing. Per question — see `costOf`. */
+  explain: { fast: 1.5, expected: 2, slow: 3.5 },
+
+  /* From nothing. The widest spread, because being stuck has no ceiling and
+     2.5x is already a generous way to pretend that it does. */
+  write_code: { fast: 7, expected: 12, slow: 30 },
+  challenge: { fast: 9, expected: 15, slow: 37 },
+  arena_problem: { fast: 9, expected: 15, slow: 37 },
+  verify: { fast: 7, expected: 12, slow: 30 }, // refined per mode in `costOf`
 };
 
 /** The programme's own monthly budget, PDF p.5. */
@@ -90,23 +118,26 @@ function questionsIn(text: string): number {
   return Math.max(1, (text.match(/\(\d\)/g) ?? []).length, (text.match(/\?/g) ?? []).length);
 }
 
-function costOf(block: LessonBlock): number {
-  if (block.type === "explain") return MINUTES.explain * questionsIn(block.prompt.kk);
+function costOf(block: LessonBlock, s: Scenario): number {
+  if (block.type === "explain") return MINUTES.explain[s] * questionsIn(block.prompt.kk);
   if (block.type === "verify") {
     switch (block.mode) {
       case "unseen_problem":
-        return 12 * CODE_FACTOR;
+        return MINUTES.write_code[s];
       case "manual_trace":
-        return 6;
+        return MINUTES.trace_code[s];
       case "find_bug":
-        return 6;
+        return MINUTES.find_bug[s];
       case "delayed_resolve":
-        return 10 * CODE_FACTOR;
+        /* An unaided re-solve of something met weeks ago. Cheaper than a new
+           problem for a learner who remembers it and dearer for one who does
+           not, which is most of the spread. */
+        return { fast: 6, expected: 10, slow: 26 }[s];
       case "oral_explanation":
-        return 2 * questionsIn(block.prompt.kk);
+        return MINUTES.explain[s] * questionsIn(block.prompt.kk);
     }
   }
-  return MINUTES[block.type] ?? 5;
+  return MINUTES[block.type][s];
 }
 
 export interface Load {
@@ -115,11 +146,11 @@ export interface Load {
   bank: number;
   assessment: number;
   contest: number;
-  /** What a learner must do: theory + core + assessment + contest. Bank is not counted. */
+  /** What a learner MUST do. Bank is excluded — that is what the field means. */
   required: number;
 }
 
-export function loadOf(month: Month, track: TrackLevel): Load {
+export function loadOf(month: Month, track: TrackLevel, s: Scenario): Load {
   const out: Load = { theory: 0, core: 0, bank: 0, assessment: 0, contest: 0, required: 0 };
   const visible = (b: LessonBlock) => !b.tracks || (b.tracks as readonly string[]).includes(track);
 
@@ -127,7 +158,7 @@ export function loadOf(month: Month, track: TrackLevel): Load {
     for (const lesson of unit.lessons) {
       for (const block of lesson.blocks) {
         if (!visible(block)) continue;
-        const cost = costOf(block);
+        const cost = costOf(block, s);
         if (PASSIVE.has(block.type)) {
           out.theory += cost;
           continue;
@@ -143,84 +174,111 @@ export function loadOf(month: Month, track: TrackLevel): Load {
   for (const block of month.assessment?.blocks ?? []) {
     if (!visible(block)) continue;
     if (PASSIVE.has(block.type)) {
-      out.theory += costOf(block);
+      out.theory += costOf(block, s);
       continue;
     }
-    if (isTask(block)) out.assessment += costOf(block);
+    if (isTask(block)) out.assessment += costOf(block, s);
   }
   out.required = out.theory + out.core + out.assessment + out.contest;
   return out;
 }
 
+/* -------------------------------------------------------------------------- */
+
 const TRACKS: readonly TrackLevel[] = ["support", "core", "advanced"];
 const md = process.argv.includes("--markdown");
+const relativeOnly = process.argv.includes("--relative");
+const AUTHORED = MONTHS.filter((m) => m.units.some((u) => u.lessons.some((l) => l.blocks.length)));
 const h = (n: number) => (n / 60).toFixed(1);
 
-const rows: string[] = [];
-let worst = 0;
-
-for (const month of MONTHS) {
-  const any = month.units.some((u) => u.lessons.some((l) => l.blocks.length > 0));
-  if (!any) continue;
-  for (const track of TRACKS) {
-    const l = loadOf(month, track);
-    const over = l.required - BUDGET.total;
-    worst = Math.max(worst, over);
-    const verdict = over > 60 ? "OVER" : over > 0 ? "tight" : "fits";
-    rows.push(
-      md
-        ? `| ${month.index} ${month.monthName.kk} | ${track} | ${Math.round(l.theory)} | ${Math.round(l.core)} | ${Math.round(l.assessment)} | ${Math.round(l.contest)} | **${Math.round(l.required)}** (${h(l.required)} h) | ${over > 0 ? "+" : ""}${Math.round(over)} | ${verdict} | ${Math.round(l.bank)} |`
-        : `  ${String(month.index).padEnd(3)}${track.padEnd(10)}${String(Math.round(l.theory)).padStart(7)}${String(Math.round(l.core)).padStart(7)}${String(Math.round(l.assessment)).padStart(7)}${String(Math.round(l.contest)).padStart(8)}${String(Math.round(l.required)).padStart(10)}${(h(l.required) + " h").padStart(8)}${((over > 0 ? "+" : "") + Math.round(over)).padStart(7)}  ${verdict}`,
+if (!relativeOnly) {
+  if (md) {
+    console.log(
+      `Programme budget per month (PDF p.5): **${BUDGET.theory} min theory + ${BUDGET.practice} min practice = ${BUDGET.total} min**. ` +
+        `Bank tasks are excluded — a learner may skip them.\n`,
     );
+    console.log("| Month | Route | Fast | Expected | Slow | Expected vs budget | Slow vs budget |");
+    console.log("|---|---|---|---|---|---|---|");
+  } else {
+    console.log("");
+    console.log(`  Monthly budget (PDF p.5): ${BUDGET.theory} theory + ${BUDGET.practice} practice = ${BUDGET.total} min`);
+    console.log("  Required minutes. Bank excluded — a learner may skip it.");
+    console.log("  " + "─".repeat(78));
+    console.log("  m  route        fast  expected      slow    exp vs 510   slow vs 510");
+  }
+
+  for (const month of AUTHORED) {
+    for (const track of TRACKS) {
+      const v = Object.fromEntries(SCENARIOS.map((s) => [s, loadOf(month, track, s).required])) as Record<
+        Scenario,
+        number
+      >;
+      const de = v.expected - BUDGET.total;
+      const ds = v.slow - BUDGET.total;
+      const sign = (n: number) => `${n > 0 ? "+" : ""}${Math.round(n)}`;
+      if (md) {
+        console.log(
+          `| ${month.index} ${month.monthName.kk} | ${track} | ${Math.round(v.fast)} | **${Math.round(v.expected)}** | ${Math.round(v.slow)} | ${sign(de)} | ${sign(ds)} |`,
+        );
+      } else {
+        console.log(
+          `  ${String(month.index).padEnd(3)}${track.padEnd(10)}` +
+            `${String(Math.round(v.fast)).padStart(6)}${String(Math.round(v.expected)).padStart(10)}` +
+            `${String(Math.round(v.slow)).padStart(10)}` +
+            `${sign(de).padStart(14)}${sign(ds).padStart(14)}`,
+        );
+      }
+    }
+  }
+
+  if (!md) {
+    const overExpected = AUTHORED.flatMap((m) =>
+      TRACKS.filter((t) => loadOf(m, t, "expected").required > BUDGET.total).map((t) => `m${m.index}/${t}`),
+    );
+    const overSlow = AUTHORED.flatMap((m) =>
+      TRACKS.filter((t) => loadOf(m, t, "slow").required > BUDGET.total).map((t) => `m${m.index}/${t}`),
+    );
+    const overFast = AUTHORED.flatMap((m) =>
+      TRACKS.filter((t) => loadOf(m, t, "fast").required > BUDGET.total).map((t) => `m${m.index}/${t}`),
+    );
+    console.log("  " + "─".repeat(78));
+    console.log(`  over budget, FAST:     ${overFast.length}/${AUTHORED.length * 3}  ${overFast.join(" ") || "—"}`);
+    console.log(`  over budget, EXPECTED: ${overExpected.length}/${AUTHORED.length * 3}  ${overExpected.join(" ") || "—"}`);
+    console.log(`  over budget, SLOW:     ${overSlow.length}/${AUTHORED.length * 3}  ${overSlow.join(" ") || "—"}`);
+    console.log("");
+    console.log("  NOT VALIDATED. Every minute above is an estimate about a fourteen-year-old");
+    console.log("  made by people who have not watched one. The three columns are the honest");
+    console.log("  width of that uncertainty, not three measurements.");
+    console.log("");
   }
 }
 
-if (md) {
-  console.log(`Programme budget per month (PDF p.5): **${BUDGET.theory} min theory + ${BUDGET.practice} min practice = ${BUDGET.total} min**.\n`);
-  console.log("| Month | Route | Theory | Core | Assess | Contest | Required | vs budget | Verdict | Bank (not counted) |");
-  console.log("|---|---|---|---|---|---|---|---|---|---|");
-  rows.forEach((r) => console.log(r));
-} else {
-  console.log("");
-  console.log(`  Monthly budget (PDF p.5): ${BUDGET.theory} theory + ${BUDGET.practice} practice = ${BUDGET.total} min`);
-  console.log(`  coding cost factor: ${CODE_FACTOR}${SLOW ? "  (--slow: write_code 18 min, challenge 22.5)" : "  (baseline: write_code 12 min)"}`);
-  console.log("  " + "─".repeat(76));
-  console.log("  m  route      theory   core  assess contest  required          over");
-  rows.forEach((r) => console.log(r));
-  console.log("  " + "─".repeat(76));
-  console.log(`  worst overrun: ${Math.round(worst)} min (${h(worst)} h) over the monthly budget`);
-  console.log("");
-
+if (relativeOnly || !md) {
   /*
-   * The absolute verdict depends on minute estimates nobody has measured, and
-   * the pessimistic run shows how much: at 18 minutes per from-scratch program
-   * even SEPTEMBER overruns by 80-120, and September is the one month people
-   * audited and accepted. That does not tell us September is too big; it tells
-   * us the absolute numbers are not yet trustworthy in either direction.
+   * A second reading that does not depend on the absolute estimates at all.
    *
-   * So there is a second reading that does not depend on them. September is the
-   * calibration month. Whatever a fourteen-year-old really costs per block, a
-   * month that is 40% heavier than September is 40% heavier than the size a
-   * human already judged acceptable — and that ratio is stable under any
-   * consistent set of estimates, because the same table prices both.
+   * September is the only month a human has audited, remediated and accepted.
+   * Whatever a learner really costs per block, a month priced 40% above
+   * September by the same table is 40% heavier than the size somebody already
+   * judged acceptable — and that ratio is stable under any consistent cost
+   * table, because one table prices both.
+   *
+   * This is RELATIVE DENSITY. It says a month is heavier or lighter than
+   * September. It does not say September is the right size, it does not say any
+   * month fits in 510 minutes, and it cannot: September itself has never been
+   * timed. Treating it as workload validation is a mistake this workstream
+   * already made once.
    */
-  console.log("  Relative to September, the one month a human has judged:");
-  console.log("  " + "─".repeat(76));
-  const sept = MONTHS.find((m) => m.index === 1)!;
+  console.log("  Required practice relative to September — RELATIVE DENSITY ONLY.");
+  console.log("  September has never been timed either, so 100% is not a pass mark.");
+  console.log("  " + "─".repeat(78));
+  const sept = AUTHORED.find((m) => m.index === 1)!;
   for (const track of TRACKS) {
-    const base = loadOf(sept, track).core;
-    const parts: string[] = [];
-    for (const month of MONTHS) {
-      if (month.index === 1) continue;
-      if (!month.units.some((u) => u.lessons.some((l) => l.blocks.length > 0))) continue;
-      const ratio = loadOf(month, track).core / base;
-      parts.push(`m${month.index} ${(ratio * 100).toFixed(0)}%`);
-    }
+    const base = loadOf(sept, track, "expected").core;
+    const parts = AUTHORED.filter((m) => m.index !== 1).map(
+      (m) => `m${m.index} ${((loadOf(m, track, "expected").core / base) * 100).toFixed(0)}%`,
+    );
     console.log(`  ${track.padEnd(10)}${parts.join("  ")}`);
   }
-  console.log("");
-  console.log("  A month above ~110% of September carries more required practice than the");
-  console.log("  calibrated month does. That is the pruning signal, and it is the same");
-  console.log("  signal whichever cost table is used.");
   console.log("");
 }
