@@ -229,6 +229,19 @@ export const M7_ASSESSMENT: LessonBlock[] = [
       "                qc.append(nc)\n" +
       "print(answer)",
     cases: [
+      /* Two maps, and both are needed, because the first guard case was not
+         enough. It killed a depth-first fill that used the REFERENCE's
+         direction order and nothing else: the same wrong idea written with
+         `dr = [1, 0, -1, 0]` — clockwise from down, an ordinary choice — still
+         scored 10/10. A search over 32508 random maps found no single map that
+         defeats all 24 orderings, which is the real shape of the problem: for
+         any one map some ordering stumbles onto the short path first. These
+         two cover all 24 between them (22 and 16, overlapping). The month's
+         whole subject is that a wave measures distance and a walk does not,
+         and this is what it takes to hold a check to it. */
+      { input: "5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3", expectedOutput: "2", hidden: true },
+      { input: "6 6\n......\n#...#.\n.#..#.\n.#...#\n.#.#..\n.....#\n2 3", expectedOutput: "2", hidden: true },
+
       /* Kills a depth-first fill that reports its own recursion depth: it answers 2 here. Nine
          cases accepted that program, in the check for the month whose whole subject is that a
          wave measures distance and a walk does not. */

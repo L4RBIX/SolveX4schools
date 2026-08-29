@@ -166,6 +166,26 @@ export const M5_ASSESSMENT: LessonBlock[] = [
       "    best = a[left - 1]\n" +
       "print(best)",
     cases: [
+      /* Four guard cases against three wrong programs that scored 14/14.
+      
+         The prompt says that on a tie the SMALLER number wins, and the only
+         non-degenerate tie in the fourteen was `10 20` / `15` — a two-element
+         list, where `mid = (0+1)//2 = 0` necessarily lands on the smaller
+         candidate first. So "keep the first equally-good candidate" and "keep
+         the smaller" agreed there, and every program that breaks the tie
+         INSIDE the search loop passed for free. A tie needs a list of three or
+         more where `mid` reaches the larger candidate first.
+      
+         And nothing paired a negative x with a list straddling zero, so a
+         program comparing |value| against |x| instead of |value − x| was never
+         asked a question it could get wrong; the one negative case answered
+         correctly by luck. Nothing put x above every element of an
+         all-negative list either, which is where a `best = 0` sentinel shows. */
+      { input: "1 5 9\n3", expectedOutput: "1", hidden: true },
+      { input: "1 5 9 9\n7", expectedOutput: "5", hidden: true },
+      { input: "-5 1\n-2", expectedOutput: "-5", hidden: true },
+      { input: "-9 -5 -1\n100", expectedOutput: "-1", hidden: true },
+
       /* The only visible case. `x` sits between two numbers, nearer the right
          one — so «тек екі шетін салыстыру» answers 2 and an exact search that
          gives up on a miss answers -1. Both die in public, before a hidden case

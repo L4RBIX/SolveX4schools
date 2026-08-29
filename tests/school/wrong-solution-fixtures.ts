@@ -195,4 +195,103 @@ def cost(i):
     return best
 print(cost(n - 1))`,
   },
+  {
+    blockId: "m5.as.b1",
+    approach:
+      "Break the tie INSIDE the search loop: keep a running best and replace it only on a strictly smaller distance, so on a tie the candidate `mid` happened to reach first wins.",
+    pedagogy:
+      "The prompt says the smaller number wins a tie, and the only non-degenerate tie in the fourteen cases was on a TWO-element list, where `mid = (0+1)//2 = 0` necessarily lands on the smaller candidate first. First-wins and smaller-wins agreed there, so every program breaking the tie inside the loop passed for free. January's whole subject is that a halving search must not discard the answer, and this is the same mistake in the reporting rather than the searching.",
+    witness: "1 5 9\n3",
+    referenceOutput: "1",
+    wrongOutput: "5",
+    program: `a = list(map(int, input().split()))
+x = int(input())
+left = 0
+right = len(a) - 1
+best = None
+while left <= right:
+    mid = (left + right) // 2
+    if best is None or abs(a[mid] - x) < abs(best - x):
+        best = a[mid]
+    if a[mid] < x:
+        left = mid + 1
+    elif a[mid] > x:
+        right = mid - 1
+    else:
+        break
+print(best)`,
+  },
+  {
+    blockId: "m5.as.b1",
+    approach: "Compare |value| against |x| instead of |value − x|.",
+    pedagogy:
+      "Nothing in the case set paired a negative x with a list straddling zero, so this program was never asked a question it could get wrong — the one negative case, `-8 -3 2` with x = −5, it happens to answer correctly. September's `builtin.abs` work is about the distance between two numbers, and this is the standard confusion of that with the size of each.",
+    witness: "-5 1\n-2",
+    referenceOutput: "-5",
+    wrongOutput: "1",
+    program: `a = list(map(int, input().split()))
+x = int(input())
+best = a[0]
+for v in a:
+    if abs(abs(v) - abs(x)) < abs(abs(best) - abs(x)):
+        best = v
+print(best)`,
+  },
+  {
+    blockId: "m5.as.b1",
+    approach: "Initialise the answer to the sentinel `0` rather than to an element of the list.",
+    pedagogy:
+      "October's m2.l5.b3 is a whole block about this: a best-so-far initialised to zero prints a number that is not in the list. It only shows when the boundary runs off the end AND no element is near zero, and no case put x above every element of an all-negative list.",
+    witness: "-9 -5 -1\n100",
+    referenceOutput: "-1",
+    wrongOutput: "0",
+    program: `a = list(map(int, input().split()))
+x = int(input())
+left = 0
+right = len(a)
+while left < right:
+    mid = (left + right) // 2
+    if a[mid] < x:
+        left = mid + 1
+    else:
+        right = mid
+best = 0
+if left < len(a):
+    best = a[left]
+if left > 0 and abs(a[left - 1] - x) <= abs(best - x):
+    best = a[left - 1]
+print(best)`,
+  },
+  {
+    blockId: "m7.as.b1",
+    approach:
+      "The same depth-first fill, written with `dr = [1, 0, -1, 0]` — clockwise from down instead of the reference's order.",
+    pedagogy:
+      "The first guard case killed only the version that shared the reference's direction order; this one still scored 10/10. The wrong IDEA is one thing and its twenty-four spellings are another, and a case set that kills one spelling has not addressed the idea. No single map defeats all 24 orderings — for any map some ordering stumbles onto the short path first — so it takes two, covering 22 and 16.",
+    witness: "5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3",
+    referenceOutput: "2",
+    wrongOutput: "6",
+    program: `import sys
+sys.setrecursionlimit(100000)
+n, m = map(int, input().split())
+g = [input() for _ in range(n)]
+sr, sc = map(int, input().split())
+dist = [[-1] * m for _ in range(n)]
+dr = [1, 0, -1, 0]
+dc = [0, 1, 0, -1]
+def fill(r, c, d):
+    dist[r][c] = d
+    for k in range(4):
+        nr, nc = r + dr[k], c + dc[k]
+        if 0 <= nr < n and 0 <= nc < m and g[nr][nc] == "." and dist[nr][nc] == -1:
+            fill(nr, nc, d + 1)
+fill(sr, sc, 0)
+best = -1
+for r in range(n):
+    for c in range(m):
+        if dist[r][c] >= 0 and (r == 0 or r == n - 1 or c == 0 or c == m - 1):
+            if best < 0 or dist[r][c] < best:
+                best = dist[r][c]
+print(best)`,
+  },
 ];

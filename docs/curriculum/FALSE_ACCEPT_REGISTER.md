@@ -1,6 +1,6 @@
 # False accepts — the register
 
-Sixteen programs that were **wrong** and scored full marks. Each is preserved as an executable fixture in `tests/school/wrong-solution-fixtures.ts`, run on every test run by `tests/school/wrong-solutions-fail.test.ts`, and this table is generated from those fixtures by `npx tsx scripts/wrong-solution-report.ts --markdown`.
+Twenty programs that were **wrong** and scored full marks. Each is preserved as an executable fixture in `tests/school/wrong-solution-fixtures.ts`, run on every test run by `tests/school/wrong-solutions-fail.test.ts`, and this table is generated from those fixtures by `npx tsx scripts/wrong-solution-report.ts --markdown`.
 
 The register cannot drift from the guarantee: if a guard case is removed or weakened, the test goes red before this document goes stale.
 
@@ -10,7 +10,7 @@ A task tests **correct behaviour**. It does not test whether the learner wrote t
 
 So an alternative correct algorithm passing is the system working, not a defect. A program earns a place here only when one of these holds:
 
-1. **It is genuinely wrong** — it produces an incorrect answer on some input inside the task's stated constraints. Fourteen of the sixteen are this kind.
+1. **It is genuinely wrong** — it produces an incorrect answer on some input inside the task's stated constraints. Seventeen of the twenty are this kind.
 2. **The task explicitly requires a technique and the program passes without it.** Two are this kind, and both say so in their own prompt or their month's stated outcome.
 
 The second category is narrow on purpose, because it is the one that can be abused to reject good work. `m7.as.b1` is its clearest case: the prompt asks for the distance to the nearest exit, the month's entire subject is that a wave measures distance and a walk does not, and the same assessment asks the learner to *prove* their number is shortest. A depth-first fill labelling cells with recursion depth is not a different route to the right answer — it is the misconception March exists to remove, scoring full marks. `m8.as.b2` is the other: the prompt states n up to 100000 and warns in its own text that a solution recomputing each column will not fit the clock, so a method that dies at n = 1200 has not met the stated requirement however elegant it is.
@@ -21,7 +21,7 @@ Everything else in the table is simply wrong.
 
 | Task | Wrong approach | Witness | Reference | Wrong | Killed by |
 |---|---|---|---|---|---|
-| `m7.as.b1` **(monthly check)** | A depth-first flood fill that labels each cell with its own recursion depth, then takes the minimum over border cells. | `"4 4\n#..#\n....\n#...\n.#..\n2 2"` | `1` | `2` | `"4 4\n#..#\n....\n#...\n.#..\n2 2"` |
+| `m7.as.b1` **(monthly check)** | A depth-first flood fill that labels each cell with its own recursion depth, then takes the minimum over border cells. | `"4 4\n#..#\n....\n#...\n.#..\n2 2"` | `1` | `2` | `"5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3"` |
 | `m6.l5.b8` | Sort the weights descending and take greedily while they fit. | `"3 7\n5 4 3"` | `7` | `5` | `"3 7\n5 4 3"` |
 | `m7.p3` | A flood fill that never moves up. | `"2 3\n.#.\n..."` | `1` | `2` | `"2 3\n.#.\n..."` |
 | `m7.p5` | A flood fill that never moves up. | `"6 6\n.#....\n....#.\n..##..\n###.##\n.##...\n..#..#"` | `1` | `2` | `"6 6\n.#....\n....#.\n..##..\n###.##\n.##...\n..#..#"` |
@@ -37,17 +37,31 @@ Everything else in the table is simply wrong.
 | `m8.p2` | Drop the 10-tenge coin from the coin set. | `"10"` | `1` | `2` | `"10"` |
 | `m8.l2.b6` | Let each item be taken twice — `range(3)` in every loop instead of `range(2)`. | `"1 1 1 1\n5"` | `4` | `5` | `"1 1 1 1\n5"` |
 | `m8.as.b2` **(monthly check)** | A memoised recursion — correct in complexity, one call deep per column. | `"@bigCase"` | `2877` | `@crash` | `"1200\n0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0…"` |
+| `m5.as.b1` **(monthly check)** | Break the tie INSIDE the search loop: keep a running best and replace it only on a strictly smaller distance, so on a tie the candidate `mid` happened to reach first wins. | `"1 5 9\n3"` | `1` | `5` | `"1 5 9\n3"` |
+| `m5.as.b1` **(monthly check)** | Compare |value| against |x| instead of |value − x|. | `"-5 1\n-2"` | `-5` | `1` | `"-5 1\n-2"` |
+| `m5.as.b1` **(monthly check)** | Initialise the answer to the sentinel `0` rather than to an element of the list. | `"-9 -5 -1\n100"` | `-1` | `0` | `"-9 -5 -1\n100"` |
+| `m7.as.b1` **(monthly check)** | The same depth-first fill, written with `dr = [1, 0, -1, 0]` — clockwise from down instead of the reference's order. | `"5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3"` | `2` | `6` | `"5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3"` |
 
 ## Where they were
 
 | | |
 |---|---|
-| In a monthly check | 2 — `m7.as.b1` (March), `m8.as.b2` (April) |
+| In a monthly check | **6** — January ×3, March ×2, April ×1 |
 | In an ordinary lesson | 6 |
 | In a practice lesson (`mN.pK` ids) | 8 |
-| Months affected | February 1, March 10, April 5 |
+| Months affected | January 3, February 1, March 11, April 5 |
 
-March's ten are nine instances of one slip — a grid traversal missing a direction — plus the assessment. That concentration is itself the finding: the month's own case sets were built from maps where every region could be entered from above, so the same witness shape (`.#.` over `...`) breaks nine tasks at once.
+Six of the twenty were in the graded monthly check itself, which is where a false accept costs most.
+
+## One wrong idea has many spellings
+
+March is the lesson in this whole register. The first pass added a case that killed a depth-first fill labelling cells with recursion depth — and killed only the version written with the *reference's* direction order. The same wrong idea with `dr = [1, 0, -1, 0]`, clockwise from down, still scored 10 out of 10.
+
+A search over 32508 random maps found **no single map that defeats all 24 orderings**: for any one map, some ordering stumbles onto the short path first. Two maps were needed, covering 22 and 16 of the 24 between them. All 24 now fail.
+
+The general lesson, and it applies to every entry here: a case that kills one *spelling* of a wrong idea has not addressed the idea. Where a wrong approach has a family of equivalent forms, the case set has to be checked against the family.
+
+January's three are the same shape seen from another angle. The prompt says the smaller number wins a tie, and the only non-degenerate tie in fourteen cases sat on a two-element list — where `mid = (0+1)//2 = 0` lands on the smaller candidate anyway, so "keep the first equally-good candidate" and "keep the smaller" agreed. Every program breaking the tie inside the search loop passed for free.
 
 ## The pedagogy behind each
 
