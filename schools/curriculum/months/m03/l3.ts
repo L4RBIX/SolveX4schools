@@ -97,6 +97,18 @@ export const M3_L3: LessonBlock[] = [
      * decisions that are new: the result leaves through `return`, `return` is
      * the last thing the function does, and one expression may contain two
      * calls whose local variables never meet.
+     *
+     * Step 2's Russian introduced `s` as a «накопитель», called it a
+     * «переменная» in the very next clause, and then referred back to it as
+     * «он». Two nouns for one thing, of two different genders, and a pronoun
+     * that agrees with the one further away — so the reader of a sentence whose
+     * entire job is «this name belongs to the function and to nothing else»
+     * first has to work out which name is being talked about. The Kazakh could
+     * not have the fault and does not: it has no gender and simply drops the
+     * subject («жоғалады»). The Russian now names the variable where the
+     * pronoun stood, and the «она» that is left has «переменная» directly in
+     * front of it with no masculine noun in between, so there is nothing to
+     * resolve. Same claim, same two calls, same promise that l4 explains why.
      */
     id: "m3.l3.b2",
     type: "worked_example",
@@ -118,7 +130,7 @@ export const M3_L3: LessonBlock[] = [
       },
       {
         kk: "Функцияның ішінде `s` жинақтаушысы бар. Ол — функцияның өз айнымалысы: `digit_sum(a)` аяқталған соң жоғалады, ал `digit_sum(b)` шақырылғанда `s` қайтадан 0-ден басталады. Сондықтан екі шақыру бір-біріне кедергі жасамайды. Мұның НЕГЕ солай екенін келесі сабақта талдаймыз.",
-        ru: "Внутри функции есть накопитель `s`. Это её собственная переменная: после завершения `digit_sum(a)` он исчезает, а при вызове `digit_sum(b)` `s` снова начинается с 0. Поэтому два вызова не мешают друг другу. ПОЧЕМУ это так — разберём на следующем уроке.",
+        ru: "Внутри функции есть накопитель `s`. Это её собственная переменная: после завершения `digit_sum(a)` переменная `s` исчезает, а при вызове `digit_sum(b)` она снова начинается с 0. Поэтому два вызова не мешают друг другу. ПОЧЕМУ это так — разберём на следующем уроке.",
       },
       {
         kk: "Циклден кейін `print(s)` жазсақ, сан экранға кетеді де, қосатын ештеңе қалмайды. Сондықтан `return s` жазамыз: сан функцияны шақырған жерге барады.",

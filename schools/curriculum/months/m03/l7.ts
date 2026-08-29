@@ -491,6 +491,27 @@ export const M3_L7: LessonBlock[] = [
      *   1000000 1        the stated maximum against the shortest number
      *   11 22 33 12      three of four, so an answer that is right by counting
      *                    the list length is wrong here
+     *   1231 121 123421  the endpoint shortcut, and the next rung of it
+     *
+     * That last case is a repair, and the eight above it were the defect. Every
+     * non-palindrome they carried disagreed on its outermost digits — 45, 54,
+     * 100, 10, 1234, 1000000, 12 — so `s = str(n)` followed by the single
+     * comparison `s[0] == s[len(s) - 1]`, with no reversal anywhere in it and
+     * no `reverse_num` to call, counted correctly on all eight. The middle
+     * function then had nothing to delegate and the task's entire subject, the
+     * `% 10` / `// 10` loop, was optional. It is the hole m2.p6 had one month
+     * ago, in the same family.
+     *
+     * One number does not close it, because the shortcut has rungs: a learner
+     * who writes two comparisons out by hand instead of one is still not
+     * looping, and up to 1 000 000 two comparisons decide every input of five
+     * digits or fewer — 12321 and 12021 and 12921 are all palindromes, so the
+     * middle digit of a five-digit number never has to be looked at. So the
+     * case pairs 1231, whose ends agree and whose middle pair does not, with
+     * the six-digit 123421, whose outer TWO pairs agree and whose third does
+     * not. 121 is in there so that answering "all of them" or "none of them"
+     * is wrong too. Any program that stops after a fixed number of comparisons
+     * answers 2 or 3 where the reversal answers 1.
      */
     id: "m3.l7.b7",
     type: "challenge",
@@ -540,6 +561,7 @@ export const M3_L7: LessonBlock[] = [
       { input: "5 5 5", expectedOutput: "3", hidden: true },
       { input: "1000000 1", expectedOutput: "1", hidden: true },
       { input: "11 22 33 12", expectedOutput: "3", hidden: true },
+      { input: "1231 121 123421", expectedOutput: "1", hidden: true },
     ],
   },
   {

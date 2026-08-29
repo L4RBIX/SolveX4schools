@@ -25,12 +25,15 @@ import type { LessonBlock } from "../../types";
  *    read the syntax and missed the lesson.
  *
  * 2. **Every failure here is silent.** None of the three crashes: the no-return
- *    function prints `None` beside a correct-looking number, the shadowed
- *    parameter returns a plausible integer, and the shared counter returns a
+ *    function prints `None` beside a correct-looking number, the ignored
+ *    parameter returns a plausible count, and the shared counter returns a
  *    count that is right the first time. That is the whole difficulty and it is
  *    why the lesson is a lesson — a `SyntaxError` teaches itself. So each task
- *    states the symptom in numbers the learner can check («482 үшін 14 және
- *    None», «10 және 20») rather than saying "this program is broken".
+ *    states the symptom in numbers the learner can check («42, содан кейін
+ *    None», «3 пен 3, ал дұрысы 3 пен 0», «10 және 20») rather than saying
+ *    "this program is broken". m3.l4.b5 is the loud version of the middle one
+ *    and stops with `NameError`; the difference between the two is the reason
+ *    both exist.
  *
  * 3. **The repair is always the same move, and it is named every time:** make
  *    the hidden connection visible. The value the function needs comes in as a
@@ -202,20 +205,56 @@ export const M3_L5: LessonBlock[] = [
   {
     id: "m3.l5.b5",
     type: "find_bug",
-    skillRefs: ["func.return"],
-    sourceType: "product-authored",
-    /* The prompt fixes the function's contract before asking. Without that,
-       deleting the caller's `print` is an equally valid repair and line 9 stops
-       being wrong — a find_bug with two defensible answers is a trap, not a
-       task. */
+    skillRefs: ["scope.local_global", "func.parameters"],
+    sourceType: "curriculum-derived",
+    pdfPage: 8,
+    /*
+     * This card used to be m3.l3.b5 verbatim — the same `digit_sum`, the same
+     * `print(s)` on the same line 6, the same repair — and l3 is taught 29
+     * cards earlier in the same month. `checkBlock` grades a find_bug on the
+     * clicked line and nothing else, so the second sitting asked a learner to
+     * remember a number rather than to derive one. It was also leaking: the old
+     * fixedCode is the first half of m3.l5.b8's reference solution three cards
+     * below, so the block handed over part of the lesson's final task on its
+     * way past.
+     *
+     * What replaces it is the lesson's second stated objective — «параметр мен
+     * жаһандық айнымалыны шатастырмау» — which m3.l5.b1 describes in prose and
+     * which, until now, no task in the file actually asked for. It cannot
+     * repeat l3.b5: nothing here is missing a `return`, and no line of it
+     * appears anywhere else in November.
+     *
+     * It is the silent twin of m3.l4.b5. There the body reaches for a name that
+     * exists only inside another function, the lookup fails and the program
+     * stops with `NameError` — the bug announces itself. Here the name does
+     * exist, at module level, so the lookup succeeds and the program answers 3
+     * twice without complaint. The first of those two answers is even correct,
+     * which is what makes the card worth its minutes: the learner has to
+     * disbelieve a number that looks right.
+     *
+     * The prompt certifies the signature and the two calls before asking, and
+     * that is not generosity. Renaming the parameter `div` to `even_div` is
+     * also a repair, on line 3, and grading is one clicked line — so without
+     * that sentence the block would have two defensible answers and would mark
+     * one of them wrong. What the sentence does not give away is which of lines
+     * 4–8 reads the wrong name, and that is the whole of the work.
+     *
+     * No diagnosticMapping. Line 1 is reached by "the variable should not be
+     * outside" and equally by "the 2 belonged inside the function", line 3 by
+     * two more readings again; none of them names a single cause, so the engine
+     * asks rather than tells.
+     */
     prompt: {
-      kk: "`digit_sum` цифрлар қосындысын шақырушыға қайтаруы керек, себебі ол мән кейін басқа есептеуде қолданылады. 482 енгізгенде экранға екі жол шығады: `14`, содан кейін `None`. Қай жол кінәлі?",
-      ru: "`digit_sum` должна возвращать сумму цифр вызывающей стороне, потому что дальше это значение используется в других вычислениях. При вводе 482 на экран выходят две строки: `14`, а затем `None`. Какая строка виновата?",
+      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі. Бағдарлама бірінші жолға олардың нешеуі 2-ге бөлінетінін, екінші жолға нешеуі 5-ке бөлінетінін шығаруы керек. Функцияның аты да, екі параметрі де, екі шақыруы да дұрыс жазылған: `count_div` тізім мен бөлгішті қабылдайды. Сонда да `3 4 6 8` енгізгенде экранға 3 және 3 шығады, ал дұрысы — 3 және 0. Қате хабары мүлде шықпайды. Функцияның денесінде қай жол кінәлі?",
+      ru: "В одной строке через пробел даны целые числа. Программа должна вывести в первой строке, сколько из них делится на 2, а во второй — сколько делится на 5. И имя функции, и оба её параметра, и оба вызова написаны верно: `count_div` принимает список и делитель. Тем не менее при вводе `3 4 6 8` на экран выходят 3 и 3, хотя правильный ответ — 3 и 0. Сообщения об ошибке при этом нет вообще. Какая строка в теле функции виновата?",
     },
-    code: "def digit_sum(n):\n    s = 0\n    while n > 0:\n        s = s + n % 10\n        n = n // 10\n    print(s)\n\nx = int(input())\nprint(digit_sum(x))",
+    code: "even_div = 2\n\ndef count_div(nums, div):\n    c = 0\n    for x in nums:\n        if x % even_div == 0:\n            c = c + 1\n    return c\n\na = list(map(int, input().split()))\nprint(count_div(a, even_div))\nprint(count_div(a, 5))",
     buggyLine: 6,
-    fixedCode: "def digit_sum(n):\n    s = 0\n    while n > 0:\n        s = s + n % 10\n        n = n // 10\n    return s\n\nx = int(input())\nprint(digit_sum(x))",
-    symptomInput: "482",
+    fixedCode: "even_div = 2\n\ndef count_div(nums, div):\n    c = 0\n    for x in nums:\n        if x % div == 0:\n            c = c + 1\n    return c\n\na = list(map(int, input().split()))\nprint(count_div(a, even_div))\nprint(count_div(a, 5))",
+    /* `3 4 6 8` and not a rounder list: it is the shortest input on which the
+       first call is right and the second is not merely wrong but zero, so the
+       two printed lines cannot be read as one arithmetic slip. */
+    symptomInput: "3 4 6 8",
   },
   {
     id: "m3.l5.b6",

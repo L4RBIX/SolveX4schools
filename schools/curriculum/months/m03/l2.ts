@@ -251,11 +251,27 @@ export const M3_L2: LessonBlock[] = [
      * boundaries to get wrong and needs September's `and`.
      *
      * The cases are chosen against the mutants this task actually attracts:
-     * `x > 10` dies on 10, `x < 99` dies on 99, and a solution that counts
-     * characters or ignores the sign dies on -15. "9 42 1000" pins both ends
-     * from outside in one line, and "99 100 9" makes sure the three answers are
-     * not all the same in any visible case — a learner who prints one token
-     * three times passes nothing.
+     * `x > 10` dies on 10, `x < 99` dies on 99, `10 <= abs(x) <= 99` dies on
+     * -15, and "99 100 9" keeps the three answers from being identical in any
+     * visible case, so a program that prints one token three times passes
+     * nothing.
+     *
+     * One mutant used to walk straight through all of that: `len(str(x)) == 2`,
+     * which is the first thing a fourteen-year-old means by "two-digit". The
+     * note that stood here claimed -15 killed it. It does not — "-15" is three
+     * characters, so the mutant answers `no` there and is right by accident.
+     * Counting characters is only wrong on a negative with ONE digit, and the
+     * set had none of those. "-1000 -5 -99" supplies one: at -5 the count says
+     * `yes` where the definition says `no`. The other two numbers are not
+     * padding — -99 is the negative twin of the upper boundary, where throwing
+     * the sign away also says `yes`, and -1000 is the end of the range the
+     * prompt now declares.
+     *
+     * That range is part of the same repair. A hidden case was feeding a
+     * negative to a statement that said only «целые числа», which made the sign
+     * a trap rather than a case; m3.l1.b7 settled the convention already —
+     * declare the range, then feed both of its ends, which "9 42 1000" and this
+     * line now do.
      */
     id: "m3.l2.b7",
     type: "write_code",
@@ -269,8 +285,8 @@ export const M3_L2: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бір жолда үш бүтін сан бос орынмен беріледі. Бір санды қабылдайтын функция жаз: сан екі таңбалы болса «yes», болмаса «no» шығарсын. Екі таңбалы деп 10-нан 99-ға дейінгі сандарды айтамыз, 10 мен 99 да кіреді. Функцияны үш рет шақырып, әр сан үшін жауапты бөлек жолға шығар. Тексеруді бір-ақ рет жаз.",
-      ru: "В одной строке через пробел даны три целых числа. Напиши функцию, принимающую одно число: если оно двузначное — вывести «yes», иначе «no». Двузначными считаем числа от 10 до 99 включительно. Вызови функцию три раза и выведи ответ для каждого числа отдельной строкой. Саму проверку напиши только один раз.",
+      kk: "Бір жолда үш бүтін сан бос орынмен беріледі (−1000 ≤ әр сан ≤ 1000). Бір санды қабылдайтын функция жаз: сан екі таңбалы болса «yes», болмаса «no» шығарсын. Екі таңбалы деп 10-нан 99-ға дейінгі сандарды айтамыз, 10 мен 99 да кіреді. Функцияны үш рет шақырып, әр сан үшін жауапты бөлек жолға шығар. Тексеруді бір-ақ рет жаз.",
+      ru: "В одной строке через пробел даны три целых числа (−1000 ≤ каждое число ≤ 1000). Напиши функцию, принимающую одно число: если оно двузначное — вывести «yes», иначе «no». Двузначными считаем числа от 10 до 99 включительно. Вызови функцию три раза и выведи ответ для каждого числа отдельной строкой. Саму проверку напиши только один раз.",
     },
     referenceSolution:
       'def check(x):\n    if x >= 10 and x <= 99:\n        print("yes")\n    else:\n        print("no")\n\na, b, c = map(int, input().split())\ncheck(a)\ncheck(b)\ncheck(c)',
@@ -281,6 +297,7 @@ export const M3_L2: LessonBlock[] = [
       { input: "-15 0 5", expectedOutput: "no\nno\nno", hidden: true },
       { input: "11 10 55", expectedOutput: "yes\nyes\nyes", hidden: true },
       { input: "99 100 9", expectedOutput: "yes\nno\nno", hidden: true },
+      { input: "-1000 -5 -99", expectedOutput: "no\nno\nno", hidden: true },
     ],
   },
   {

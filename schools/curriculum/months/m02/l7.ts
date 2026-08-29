@@ -269,6 +269,16 @@ export const M2_L7: LessonBlock[] = [
      * immediately before the task rather than at the top of the lesson, because
      * the reason to want `.join()` is the trailing space, and the trailing space
      * is not a problem until the output format says it is.
+     *
+     * The second `print` in the sample wraps the joined row in pipes so that the
+     * absence of a trailing space is something a learner can SEE — `|2 4 6|` and
+     * not `|2 4 6 |` — instead of something the paragraph asserts. Its comment
+     * used to end in Kazakh, «сонда артық бос орын жоқ», and `code` is a single
+     * string served to both routes: the Russian learner met an unreadable
+     * sentence on the one card that introduces three constructs at once, which
+     * is the same reason this course never prints a Kazakh or Russian word out
+     * of a program. The pipes carry the point without a language, and both
+     * bodies already make it in words, each in its own.
      */
     id: "m2.l7.b10",
     type: "concept",
@@ -283,7 +293,7 @@ export const M2_L7: LessonBlock[] = [
       ru: "Чтобы присоединить число к тексту, его сначала нужно превратить в текст: `str(7)` даёт текст «7». Это обратное действие к сентябрьскому `int()`.\n\nЕсли выводить несколько чисел в одну строку отдельными `print`, они попадут на разные строки. Поэтому сначала создаём пустой список, собираем в него части через `.append()`, а затем `\" \".join(...)` соединяет части списка, ставя между ними по одному пробелу.\n\nПочему не просто складывать? Если написать `row = row + str(x) + \" \"`, в КОНЦЕ строки останется лишний пробел. `join` ставит разделитель только между частями, поэтому в конце ничего не остаётся.",
     },
     code:
-      'row = []\nrow.append(str(2))\nrow.append(str(4))\nrow.append(str(6))\nprint(" ".join(row))  # 2 4 6\nprint("|" + " ".join(row) + "|")  # |2 4 6| — сонда артық бос орын жоқ',
+      'row = []\nrow.append(str(2))\nrow.append(str(4))\nrow.append(str(6))\nprint(" ".join(row))  # 2 4 6\nprint("|" + " ".join(row) + "|")  # |2 4 6|',
   },
   {
     id: "m2.l7.b7",

@@ -64,9 +64,23 @@ export const M3_L1: LessonBlock[] = [
     /* The body has to say what `def` DOES, and the honest answer is "nothing
        yet". Saying only "it creates a function" leaves the learner with a line
        that looks like a command, and the very next block asks them to predict a
-       program where believing that is the only way to get the wrong answer. */
+       program where believing that is the only way to get the wrong answer.
+
+       The KK sentence used to read «`def` — жылдағы бірінші жол, ол өзі ешнәрсе
+       істемейді». The RU keeps the restriction inside the relative clause —
+       «первая строка в году, которая сама по себе не делает ничего» — so
+       «первая» ranges over lines that do nothing. The Kazakh comma split that
+       into two independent claims, and the first of them, "`def` is the first
+       line of the year", is flatly false: this learner has written three months
+       of lines, and the year's first one was a `print`. Kazakh puts a
+       restriction in front of its noun, not behind it in a second clause, so
+       the participle carries it now — «өзі ешнәрсе істемейтін алғашқы жол».
+       That is the same claim the RU makes, and it is the claim b3 goes on to
+       test: b3 catches a learner who thinks the body runs where the `def`
+       stands, which is only a question at all if the sentence above was about
+       what the line does and not about where it sits. */
     body: {
-      kk: "Осы кезге дейін бағдарлама жоғарыдан төменге қарай бір рет орындалып шығатын. `def` — жылдағы бірінші жол, ол өзі ешнәрсе істемейді: компьютер оны оқығанда ешқандай сан оқылмайды, экранға да ештеңе шықпайды. `def` тек «мына жолдардың аты — осы» деп есте сақтап қояды. Функцияға тиесілі жолдар шегініспен жазылады — дәл `if` пен `for`-дағыдай, ал шегініс біткен жерде функция да бітеді. Дене шақырғанда ғана жүреді: функцияның атын жазып, соңына жақша қоямыз — `hello()`. Атын неше рет жазсақ, дене сонша рет орындалады. Әзірге функция қажет деректі өзі оқиды; оған сырттан дерек беруді келесі сабақта үйренеміз.",
+      kk: "Осы кезге дейін бағдарлама жоғарыдан төменге қарай бір рет орындалып шығатын. `def` — осы оқу жылында өзі ешнәрсе істемейтін алғашқы жол: компьютер оны оқығанда ешқандай сан оқылмайды, экранға да ештеңе шықпайды. `def` тек «мына жолдардың аты — осы» деп есте сақтап қояды. Функцияға тиесілі жолдар шегініспен жазылады — дәл `if` пен `for`-дағыдай, ал шегініс біткен жерде функция да бітеді. Дене шақырғанда ғана жүреді: функцияның атын жазып, соңына жақша қоямыз — `hello()`. Атын неше рет жазсақ, дене сонша рет орындалады. Әзірге функция қажет деректі өзі оқиды; оған сырттан дерек беруді келесі сабақта үйренеміз.",
       ru: "До сих пор программа выполнялась сверху вниз ровно один раз. `def` — первая строка в году, которая сама по себе не делает ничего: когда компьютер её читает, ни одно число не читается и на экран ничего не выводится. `def` лишь запоминает, что у этих строк теперь есть имя. Строки, принадлежащие функции, пишутся с отступом — точно как у `if` и `for`, а где кончается отступ, там кончается и функция. Тело срабатывает только при вызове: пишем имя функции и ставим скобки — `hello()`. Сколько раз напишем имя, столько раз выполнится тело. Пока функция сама читает нужные ей данные; передавать данные снаружи научимся на следующем уроке.",
     },
     code: 'def hello():\n    print("hello")\n\nhello()\nhello()',
@@ -275,14 +289,25 @@ export const M3_L1: LessonBlock[] = [
        азырақ» (p.6). The three blanks are the three decisions the task is made
        of: the word that declares a function, how many repetitions the loop
        needs, and the name that is called inside it. The problem statement is
-       repeated in full because this route never sees b8. */
+       repeated in full because this route never sees b8.
+
+       That middle blank was named «цикл нешеу қайталанатыны». «Нешеу» is the
+       substantive form — it stands where the noun itself would, «олар нешеу?» —
+       and there is a noun right behind it here, so the clause counted nothing
+       and stopped parsing halfway. Repetitions are counted with a unit:
+       «неше рет», exactly as b1 writes «Атын неше рет жазсақ» and as this same
+       sentence already writes «неше сан келетінін» two lines above. The subject
+       of the -атыны clause takes the genitive with it, hence «циклдің». The RU
+       twin never lost the unit — «сколько раз повторяется цикл» — so this is
+       the support route finally being asked the question core is asked, and
+       `n` reads as a count of repetitions rather than a count of loops. */
     id: "m3.l1.b8s",
     type: "fill_blank",
     skillRefs: ["func.define", "func.reuse", "loops.for"],
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 20) — одан кейін неше сан келетінін көрсетеді. Келесі n жолда бір-бірден бүтін сан беріледі (0 ≤ сан ≤ 100). Әр санның квадратын жеке жолға шығару керек. Құрылымы дайын — үш орынды толтыр: функцияны жариялайтын сөз, цикл нешеу қайталанатыны және цикл ішінде шақырылатын функцияның аты.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 20) — одан кейін неше сан келетінін көрсетеді. Келесі n жолда бір-бірден бүтін сан беріледі (0 ≤ сан ≤ 100). Әр санның квадратын жеке жолға шығару керек. Құрылымы дайын — үш орынды толтыр: функцияны жариялайтын сөз, циклдің неше рет қайталанатыны және цикл ішінде шақырылатын функцияның аты.",
       ru: "В первой строке дано число n (1 ≤ n ≤ 20) — сколько чисел будет дальше. В следующих n строках дано по одному целому числу (0 ≤ число ≤ 100). Нужно вывести квадрат каждого числа на отдельной строке. Структура уже готова — заполни три места: слово, объявляющее функцию, сколько раз повторяется цикл и имя функции, которую вызываем внутри него.",
     },
     template:

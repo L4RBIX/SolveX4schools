@@ -193,13 +193,23 @@ export const M3_L6: LessonBlock[] = [
        learner cannot arrive at o1 by spotting a syntax error. The algorithm is
        deliberately the digit sum of m3.l3 and m3.l5: reusing a computation they
        have already written three times leaves the whole of the learner's
-       attention on the split, which is the only thing this block measures. */
+       attention on the split, which is the only thing this block measures.
+
+       The Kazakh question used to end «Қайсысы — дұрыс бөлу?», two clauses
+       after the same prompt promised that all four options «дұрыс жауап
+       шығарады». A fourteen-year-old does not read that as one word in two
+       senses; they read the card contradicting itself, and the honest answer
+       to «which one is correct» becomes «all four — you just said so». The
+       Russian never had the collision because it changed adjective on the way
+       («верный ответ» → «хорошее разбиение»), so the two prompts were not even
+       asking the same question. «Сәтті бөлген» names the quality being judged
+       and shares no word with the correctness claim above it. */
     id: "m3.l6.b3",
     type: "multiple_choice",
     skillRefs: ["func.define", "func.parameters", "func.return"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бұл бағдарлама бір бүтін сан оқиды, оның цифрларының қосындысын табады және сол қосынды 3-ке бөлінсе `yes`, бөлінбесе `no` деген ағылшын сөзін шығарады. Оны функцияларға бөлудің төрт нұсқасы берілген. Төртеуі де қатесіз жұмыс істейді және дұрыс жауап шығарады — айырмасы тек әр функцияның нені міндетіне алғанында. Қайсысы — дұрыс бөлу?",
+      kk: "Бұл бағдарлама бір бүтін сан оқиды, оның цифрларының қосындысын табады және сол қосынды 3-ке бөлінсе `yes`, бөлінбесе `no` деген ағылшын сөзін шығарады. Оны функцияларға бөлудің төрт нұсқасы берілген. Төртеуі де қатесіз жұмыс істейді және дұрыс жауап шығарады — айырмасы тек әр функцияның нені міндетіне алғанында. Қай нұсқа есепті сәтті бөлген?",
       ru: "Эта программа читает одно целое число, находит сумму его цифр и выводит английское слово `yes`, если сумма делится на 3, и `no`, если нет. Даны четыре варианта разбиения её на функции. Все четыре работают без ошибок и дают верный ответ — разница только в том, что каждая функция берёт на себя. Какое разбиение хорошее?",
     },
     code:
@@ -459,7 +469,15 @@ export const M3_L6: LessonBlock[] = [
        `m3.l8.b7` uses for a property-checking function.
 
        Two boundaries carry all the risk and both are named by the prompt: 80
-       itself is high, and «кемінде жартысы» includes exactly half. */
+       itself is high, and «кемінде жартысы» includes exactly half.
+
+       The Kazakh used to open «Есепті екі бөлікке жік.» — but «жік» is the
+       noun (a seam, a category); the verb is «жіктеу» and its command form is
+       «жікте». Every other instruction in the month is a bare verb stem — жаз,
+       шығар, толтыр, шеш, бөл — so the one broken form sat in the sentence
+       that tells the learner what the task even is. It now reads «бөл», which
+       is what the parallel instruction in `m3.l7.b6` already says for the same
+       demand, and it mirrors the Russian «раздели» word for word. */
     id: "m3.l6.b7",
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "lists.traverse", "loops.for"],
@@ -469,7 +487,7 @@ export const M3_L6: LessonBlock[] = [
     prompt: {
       kk:
         "Бірінші жолда n саны беріледі (1 ≤ n ≤ 30) — оқушылар саны. Екінші жолда бос орынмен бөлінген n баға беріледі, әр баға 0 мен 100 аралығында. Баға 80-нен кем болмаса, ол жоғары деп саналады.\n" +
-        "Есепті екі бөлікке жік. `is_high(x)` функциясы бір бағаны қабылдап, ол жоғары болса 1, болмаса 0 қайтарады; функцияның ішінде `print` болмайды. `report(c, n)` функциясы жоғары бағалар санын және барлық бағалар санын қабылдап, екі жол шығарады: бірінші жолда жоғары бағалар саны, екінші жолда `many` (жоғары бағалар барлық бағалардың кемінде жартысы болса) немесе `few`.\n" +
+        "Есепті екі бөлікке бөл. `is_high(x)` функциясы бір бағаны қабылдап, ол жоғары болса 1, болмаса 0 қайтарады; функцияның ішінде `print` болмайды. `report(c, n)` функциясы жоғары бағалар санын және барлық бағалар санын қабылдап, екі жол шығарады: бірінші жолда жоғары бағалар саны, екінші жолда `many` (жоғары бағалар барлық бағалардың кемінде жартысы болса) немесе `few`.\n" +
         "Негізгі бағдарлама бағаларды оқып, `is_high` арқылы санайды да, `report`-ты бір рет шақырады.\n" +
         "Мысалы, n = 4 және бағалар «90 70 85 60» болса, жауап: 2, содан кейін many.",
       ru:
