@@ -188,14 +188,46 @@ export const M2_L3: LessonBlock[] = [
     ],
   },
   {
+    /*
+     * The digits leave one per line, and the comparison now says so too.
+     *
+     * This block graded with the default `token` checker while its prompt
+     * demanded a line per digit — and `token` splits on every kind of
+     * whitespace, so a program that collected the digits and printed them side
+     * by side on ONE line was marked correct against a prompt that forbids
+     * exactly that. The learner who obeyed the prompt and the learner who
+     * ignored it were told the same thing, and the one requirement this task
+     * exists to produce — `print` INSIDE the loop, one call per peeled digit,
+     * which is the whole difference between it and b7's accumulator — was the
+     * requirement the judge could not see.
+     *
+     * So the layout is graded, and in exchange the prompt owes the learner
+     * every byte of it the way m2.l7.b7 does: the sample is printed as the
+     * three lines it actually is instead of listed inline behind commas, and
+     * the prompt says a line carries the digit and nothing else. Nothing gets
+     * stricter for an answer that was already right — trailing newlines are
+     * stripped before the comparison, and a line one digit long has no spacing
+     * left in it to lose a mark on.
+     */
     id: "m2.l3.b8",
     type: "write_code",
     skillRefs: ["loops.while", "arith.remainder", "arith.integer_division"],
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
+    checker: { kind: "exact" },
     prompt: {
-      kk: "1 ≤ n ≤ 1 000 000 000 бүтін саны беріледі. Оның цифрларын соңғысынан бастап біріншісіне қарай, әрқайсысын жаңа жолға шығар. Мысалы, 407 үшін үш жолда 7, 0, 4 шығуы керек.",
-      ru: "Дано целое число n (1 ≤ n ≤ 1 000 000 000). Выведи его цифры от последней к первой, каждую с новой строки. Например, для 407 в трёх строках должно получиться 7, 0, 4.",
+      kk:
+        "1 ≤ n ≤ 1 000 000 000 бүтін саны беріледі. Оның цифрларын соңғысынан бастап біріншісіне қарай шығар: әр цифр жеке жолда тұрады, жолда цифрдан басқа ештеңе болмайды.\n" +
+        "n = 407 болғанда дәл былай шығуы керек:\n" +
+        "7\n" +
+        "0\n" +
+        "4",
+      ru:
+        "Дано целое число n (1 ≤ n ≤ 1 000 000 000). Выведи его цифры от последней к первой: каждая цифра стоит на отдельной строке, и в строке нет ничего, кроме самой цифры.\n" +
+        "При n = 407 должно вывестись в точности так:\n" +
+        "7\n" +
+        "0\n" +
+        "4",
     },
     referenceSolution: "n = int(input())\nwhile n > 0:\n    print(n % 10)\n    n = n // 10",
     cases: [
@@ -210,17 +242,25 @@ export const M2_L3: LessonBlock[] = [
     ],
   },
   {
-    /* SUPPORT SUBSTITUTION for b8, same problem, same cases.
+    /* SUPPORT SUBSTITUTION for b8: same problem, same cases, same comparison.
        PDF p.6: «дайын кодты құрастыру мен толықтыру көбірек, нөлден жазу
        азырақ» — so the support route meets the identical task with the peeling
        loop already on screen and the edit that matters left to make: the digit
        goes to `print` instead of into an accumulator, and the accumulator
-       disappears. Not a shorter lesson, a different door into the same one. */
+       disappears. Not a shorter lesson, a different door into the same one.
+
+       Which is why `exact` and the upper-bound case arrive here too. The twin
+       had inherited neither: the same one-line output b8 was wrongly accepting
+       would have been accepted here as well, and the support learner would
+       have been graded by a looser rule than core on a task the two routes are
+       supposed to share. Support gets less writing from scratch, not a lower
+       bar. */
     id: "m2.l3.b8s",
     type: "modify_code",
     skillRefs: ["loops.while", "arith.remainder", "arith.integer_division"],
     sourceType: "product-authored",
     tracks: ["support"],
+    checker: { kind: "exact" },
     /*
      * The starting program is `m2.l3.b6`'s — the digit COUNTER the learner has
      * just completed themselves — and deliberately not `m2.l3.b7`'s.
@@ -237,8 +277,18 @@ export const M2_L3: LessonBlock[] = [
      * for them.
      */
     prompt: {
-      kk: "Бұл бағдарлама цифрлардың САНЫН есептейді — сен оны жаңа ғана толықтырдың. Енді оны цифрлардың өзін соңғысынан бастап әр жолға бөлек шығаратындай өзгерт. Санағыштың қажеті жоқ. 1 ≤ n ≤ 1 000 000 000.",
-      ru: "Эта программа считает КОЛИЧЕСТВО цифр — ты её только что дополнил. Теперь измени её так, чтобы она выводила сами цифры, начиная с последней, каждую с новой строки. Счётчик больше не нужен. 1 ≤ n ≤ 1 000 000 000.",
+      kk:
+        "Бұл бағдарлама цифрлардың САНЫН есептейді — сен оны жаңа ғана толықтырдың. Енді оны цифрлардың өзін соңғысынан бастап шығаратындай өзгерт: әр цифр жеке жолда тұрады, жолда цифрдан басқа ештеңе болмайды. Санағыштың қажеті жоқ. 1 ≤ n ≤ 1 000 000 000.\n" +
+        "n = 407 болғанда дәл былай шығуы керек:\n" +
+        "7\n" +
+        "0\n" +
+        "4",
+      ru:
+        "Эта программа считает КОЛИЧЕСТВО цифр — ты её только что дополнил. Теперь измени её так, чтобы она выводила сами цифры, начиная с последней: каждая цифра стоит на отдельной строке, и в строке нет ничего, кроме самой цифры. Счётчик больше не нужен. 1 ≤ n ≤ 1 000 000 000.\n" +
+        "При n = 407 должно вывестись в точности так:\n" +
+        "7\n" +
+        "0\n" +
+        "4",
     },
     code: "n = int(input())\nc = 0\nwhile n > 0:\n    c = c + 1\n    n = n // 10\nprint(c)",
     referenceSolution: "n = int(input())\nwhile n > 0:\n    print(n % 10)\n    n = n // 10",
@@ -248,6 +298,7 @@ export const M2_L3: LessonBlock[] = [
       { input: "10", expectedOutput: "0\n1", hidden: true },
       { input: "1000", expectedOutput: "0\n0\n0\n1", hidden: true },
       { input: "120034", expectedOutput: "4\n3\n0\n0\n2\n1", hidden: true },
+      { input: "1000000000", expectedOutput: "0\n0\n0\n0\n0\n0\n0\n0\n0\n1", hidden: true },
     ],
   },
 ];

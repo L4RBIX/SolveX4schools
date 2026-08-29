@@ -13,7 +13,7 @@ Loops and lists. PDF p.7.
 | Four typical errors | шексіз цикл · соңғы элементті өткізіп жіберу · индекстің шекарадан шығуы · жинақтаушыға қате бастапқы мән | one block each in `m2.l9`, plus `m2.l2.b4`, `m2.l3.b5`, `m2.l4.b5` |
 | Extra block | «Қосымша - цикл мен индекс қатесін табу және қолмен трассалау» | `m2.u4` / `m2.l9`, a unit the stub did not have |
 | Task count | «шамамен 38 тапсырма» | **86 authored** |
-| Monthly check | hand-step an unfamiliar loop and list; solve a loop-and-list problem alone; explain why the loop stops and why the indices stay in bounds | `m2.as.b1` `manual_trace`, `m2.as.b2` `unseen_problem`, `m2.as.b3` `explain`, `m2.as.b4` `oral_explanation` |
+| Monthly check | hand-step an unfamiliar loop and list; solve a loop-and-list problem alone; explain why the loop stops and why the indices stay in bounds | `m2.as.b1` `manual_trace`, `m2.as.b2` `unseen_problem`, `m2.as.b4` `oral_explanation` — three modes, three graded tasks, which is what the sentence names |
 
 ## Volume
 
@@ -107,6 +107,7 @@ construct October has not taught.
 | `m2.l5.b6s` | the reorder was solvable by sorting on indentation — three lines already in place under the deterministic shuffle, the rest ordered by indent | a seventh line: two `print`s at indent 0 whose order only the prompt gives. Zero of seven now land in place |
 | `tracks.test.ts` | bound to September, so October's nine twins were asserted about by no line of code | `tracks-every-month.test.ts`, id-free, over every authored month |
 | `practice.ts` | header comment miscounted the twins (ten, not nine) and named a task that had moved | corrected |
+| `m2.as.b3` | the written `explain` asked the learner's own program why it stopped and why `a[i]` stayed in range — the two questions `m2.as.b4` then asked out loud one screen later, and a fourth graded task in a check stated at 20 minutes | deleted; its one un-recitable idea, *reason about the program **you** wrote*, is now question (3) of `m2.as.b4`, in the mode the PDF names |
 
 ## Prerequisites
 

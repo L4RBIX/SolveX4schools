@@ -39,10 +39,20 @@ export const M2_L1: LessonBlock[] = [
     /* The body has to answer "why is b missing?" and not merely state it. The
        answer given here is the countable one — b − a is exactly the number of
        steps — because a rule a learner can check by counting survives longer
-       than a rule they were told to remember. */
+       than a rule they were told to remember.
+
+       That rule used to be stated with no condition on it, and b − a is simply
+       wrong when b is below a: `range(5, 2)` yields nothing, not −3 numbers.
+       The month cannot afford the sloppy version, because it later charges the
+       learner for exactly this case: `m2.l8.b3` asks which of n = 1, 2, 4, 9 a
+       primality check gets wrong, and the answer is n = 1 only because
+       `range(2, 1 // 2 + 1)` is `range(2, 1)` and the loop never starts —
+       reasoning `m2.l8.b1` step 2 spells out in words. So the condition is
+       named here, on the first card that makes the claim, rather than
+       contradicted seven lessons later. */
     body: {
-      kk: "`for` циклі бір әрекетті бірнеше рет орындайды: бірдей жолды қайта-қайта көшіріп жазудың қажеті жоқ. `range(3)` дегеніміз — 0, 1, 2 сандары: үшеу, ал 3-тің өзі олардың ішінде жоқ. Жалпы түрі — `range(a, b)`: цикл a-дан басталады да, b-ге ЖЕТПЕЙ тоқтайды. Неге солай? Себебі сонда сандардың саны дәл b − a болады: `range(2, 5)` — үш сан (2, 3, 4), `range(0, 5)` — бес сан. Циклге тиесілі жолдар шегініспен жазылады, `if`-тегідей.",
-      ru: "Цикл `for` выполняет одно действие несколько раз: не нужно копировать одну и ту же строку снова и снова. `range(3)` — это числа 0, 1, 2: их три, а самой тройки среди них нет. Общий вид — `range(a, b)`: цикл начинается с a и останавливается, НЕ ДОЙДЯ до b. Почему так? Потому что тогда чисел получается ровно b − a: `range(2, 5)` — три числа (2, 3, 4), `range(0, 5)` — пять. Строки, относящиеся к циклу, пишутся с отступом, как в `if`.",
+      kk: "`for` циклі бір әрекетті бірнеше рет орындайды: бірдей жолды қайта-қайта көшіріп жазудың қажеті жоқ. `range(3)` дегеніміз — 0, 1, 2 сандары: үшеу, ал 3-тің өзі олардың ішінде жоқ. Жалпы түрі — `range(a, b)`: цикл a-дан басталады да, b-ге ЖЕТПЕЙ тоқтайды. Неге солай? Себебі b ≥ a болғанда сандардың саны дәл b − a болады: `range(2, 5)` — үш сан (2, 3, 4), `range(0, 5)` — бес сан. Ал b ≤ a болса, сан мүлде шықпайды: `range(5, 2)` бірде-бір сан бермейді, сондықтан цикл денесі бір рет те орындалмайды. Циклге тиесілі жолдар шегініспен жазылады, `if`-тегідей.",
+      ru: "Цикл `for` выполняет одно действие несколько раз: не нужно копировать одну и ту же строку снова и снова. `range(3)` — это числа 0, 1, 2: их три, а самой тройки среди них нет. Общий вид — `range(a, b)`: цикл начинается с a и останавливается, НЕ ДОЙДЯ до b. Почему так? Потому что при b ≥ a чисел получается ровно b − a: `range(2, 5)` — три числа (2, 3, 4), `range(0, 5)` — пять. А если b ≤ a, чисел нет вообще: `range(5, 2)` не даёт ни одного числа, и тело цикла не выполнится ни разу. Строки, относящиеся к циклу, пишутся с отступом, как в `if`.",
     },
     code: "for i in range(3):\n    print(i)      # 0, 1, 2\n\nfor i in range(2, 5):\n    print(i)      # 2, 3, 4",
   },
@@ -231,14 +241,27 @@ export const M2_L1: LessonBlock[] = [
      * headline family was therefore transcription with the answers supplied.
      *
      * The third blank is the one that carries the work now: `i * i` cannot be
-     * read off b7, and a learner who writes `i` there fails the visible sample
-     * exactly as `b8` does. The first two remain the accumulator and the
-     * inclusive bound, which is the principle b7 exists to teach and which the
-     * learner is supposed to be able to apply.
+     * read off b7, and a learner who writes `i` there gets 15 where the example
+     * in this prompt says 55 — the same failure b8's first visible case shows
+     * core and advanced. The first two remain the accumulator and the inclusive
+     * bound, which is the principle b7 exists to teach and which the learner is
+     * supposed to be able to apply.
+     *
+     * The statement is spelled out here rather than pointed at. When the block
+     * moved onto b8's problem the opening clause did not move with it, and it
+     * said «алдыңғы есептің дәл өзі» / «та же задача, что и в предыдущем
+     * задании» — which was false for the only route that receives this card:
+     * `blocksForTrack` strips b8 from the support payload, so the card before
+     * this one on that route is b7, the plain 1 + 2 + … + n. A support learner
+     * was being told the problem they were about to solve was one they had
+     * already seen, and the one they had already seen was a different problem.
+     * A card that exists only on one route has to read correctly on that route
+     * without borrowing a neighbour it does not have, so it now carries its own
+     * statement and its own example and points at nothing.
      */
     prompt: {
-      kk: "Алдыңғы есептің дәл өзі: квадраттардың қосындысы. Құрылымы дайын — үш орынды толтыр. Циклге дейін қосынды неден басталады, `range` қай санға дейін жетуі керек және әр қадамда `s`-ке нені қосамыз? Есіңде болсын: санның өзін емес, квадратын.",
-      ru: "Та же задача, что и в предыдущем задании: сумма квадратов. Структура готова — заполни три места. С чего начинается сумма до цикла, до какого числа должен дойти `range` и что именно прибавляем к `s` на каждом шаге? Помни: не само число, а его квадрат.",
+      kk: "Квадраттардың қосындысы. n беріледі, 1² + 2² + … + n² мәнін шығару керек: мысалы n = 5 болғанда 1 + 4 + 9 + 16 + 25 = 55. Құрылымы дайын — үш орынды толтыр. Циклге дейін қосынды неден басталады, `range` қай санға дейін жетуі керек және әр қадамда `s`-ке нені қосамыз? Есіңде болсын: санның өзін емес, квадратын.",
+      ru: "Сумма квадратов. Дано n, нужно вывести 1² + 2² + … + n²: например, при n = 5 получится 1 + 4 + 9 + 16 + 25 = 55. Структура готова — заполни три места. С чего начинается сумма до цикла, до какого числа должен дойти `range` и что именно прибавляем к `s` на каждом шаге? Помни: не само число, а его квадрат.",
     },
     template:
       "n = int(input())\ns = ___\nfor i in range(1, ___):\n    s = s + ___\nprint(s)",

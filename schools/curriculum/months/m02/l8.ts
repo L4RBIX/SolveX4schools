@@ -23,8 +23,13 @@ import type { LessonBlock } from "../../types";
  *
  * So those four numbers are not decoration in the case lists — they are the
  * task. `m2.l8.b3` asks which of 1, 2, 4, 9 the shown program gets wrong,
- * `m2.l8.b6` hides all four, and `m2.l8.b9` makes the advanced track defend the
- * bound in writing.
+ * `m2.l8.b5` hides 0, 1 and 4, `m2.l8.b6` hides 2 and 4, and `m2.l8.b9` makes
+ * the advanced track defend the bound in writing.
+ *
+ * The from-scratch task at `m2.l8.b6` prints the smallest divisor rather than a
+ * verdict, and the comment on that block says why: by the time a learner
+ * reaches it the yes / no program has been on the screen four times, so asking
+ * for it is asking them to scroll up.
  *
  * The upper bound taught here is `n // 2`, not `i * i <= n`. The square-root
  * bound is faster and it is a genuinely harder argument; `n // 2` is provable
@@ -55,7 +60,8 @@ import type { LessonBlock } from "../../types";
  * must be updated in the right order, where writing `best` before `second`
  * loses the old maximum forever.
  *
- * Output tokens are English (`yes` / `no`) and both prompts name them.
+ * Where a program prints words the words are English (`yes` / `no`), and every
+ * prompt that mentions them names them in both languages.
  */
 export const M2_L8: LessonBlock[] = [
   {
@@ -322,62 +328,97 @@ export const M2_L8: LessonBlock[] = [
     id: "m2.l8.b6",
     type: "write_code",
     skillRefs: ["loops.for", "arith.remainder", "debug.boundary"],
-    sourceType: "curriculum-derived",
-    pdfPage: 7,
+    /*
+     * A sibling of «жай санды тексеру», not the family itself — hence
+     * product-authored, and the family loses nothing by it: b3 and b4 both
+     * interrogate a primality program, and b5 makes the learner build one
+     * inside a counting loop.
+     *
+     * This task WAS the plain `yes` / `no` check, and its reference solution
+     * was byte-identical to three programs the lesson had already put on the
+     * screen — `m2.l8.b4`'s `fixedCode`, which `revealFor` hands back the
+     * moment the repair is right; `m2.l8.b5`'s starting program; and the
+     * filled-in twin at `m2.l8.b6s` — and one line away from a fourth, the
+     * worked example at `m2.l8.b1`, which differs only in reading 91 instead of
+     * input. Scrolling up one card and pasting passed all ten cases. A lesson
+     * that prints a program four times cannot then ask for that program: the
+     * fourth showing is the answer key.
+     *
+     * The smallest divisor keeps every piece of the reasoning b1 models —
+     * start at 2, stop at `n // 2`, keep the `+ 1`, leave the loop the moment a
+     * divisor appears — and moves the thinking onto the one thing a verdict
+     * hides: what it MEANS that the loop found nothing. `d = n` is that meaning
+     * written down, and a learner who cannot say why the initial value is n has
+     * not understood the definition the loop is testing.
+     *
+     * It also makes `break` a graded requirement instead of a stated one. With
+     * a yes / no flag the program answers identically whether or not the loop
+     * stops early, so the old prompt demanded `break` and no case could see it.
+     * Here the first divisor found IS the answer, so a loop that keeps going
+     * prints 6 for 12 — on the visible sample, where the learner can see it.
+     */
+    sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бір жолда бүтін сан n беріледі, 0 ≤ n ≤ 100000. Егер n жай сан болса `yes`, болмаса `no` деп шығар — дәл осы екі ағылшын сөзін жаз. Есіңде болсын: 0 мен 1 жай сан емес, ал 2 — жай. Бөлгішті циклмен ізде және біріншісі табылған бойда `break` арқылы циклден шық.",
-      ru: "В одной строке дано целое число n, 0 ≤ n ≤ 100000. Если n простое, выведи `yes`, иначе `no` — именно эти два английских слова. Помни: 0 и 1 не простые, а 2 — простое. Делитель ищи циклом и выходи из него через `break`, как только найден первый.",
+      kk: "Бір жолда бүтін сан n беріледі, 2 ≤ n ≤ 100000. n-нің 1-ден үлкен ең кіші бөлгішін шығар. Мысалы, n = 12 үшін жауап 2, ал n = 91 үшін 7. Егер n жай сан болса, оны 1-ден басқа тек өзі бөледі, сондықтан жауап — n-нің өзі: n = 13 үшін 13. Бөлгішті 2-ден бастап циклмен ізде. Бірінші кездескен бөлгіш — ең кішісі, сондықтан дәл сол жерде `break` арқылы циклден шық: цикл жалғаса берсе, экранға ең кішісі емес, соңғы табылған бөлгіш шығып кетеді.",
+      ru: "В одной строке дано целое число n, 2 ≤ n ≤ 100000. Выведи наименьший делитель числа n, больший 1. Например, для n = 12 ответ 2, а для n = 91 — 7. Если n простое, то, кроме 1, его делит только оно само, поэтому ответ — само n: для n = 13 ответ 13. Делитель ищи циклом, начиная с 2. Первый встреченный делитель и есть наименьший, поэтому именно там выходи из цикла через `break`: если цикл продолжится, на экран попадёт последний найденный делитель, а не наименьший.",
     },
     referenceSolution:
       "n = int(input())\n" +
-      "prime = 1\n" +
-      "if n < 2:\n" +
-      "    prime = 0\n" +
+      "d = n\n" +
       "for i in range(2, n // 2 + 1):\n" +
       "    if n % i == 0:\n" +
-      "        prime = 0\n" +
+      "        d = i\n" +
       "        break\n" +
-      "if prime == 1:\n" +
-      '    print("yes")\n' +
-      "else:\n" +
-      '    print("no")',
+      "print(d)",
     /* Every hidden case kills a named wrong program:
-       "1", "0"  → the missing `n < 2` guard, which is invisible on every other
-                   input a learner would think to try;
-       "2"       → the special case written as `if n % 2 == 0: no`;
+       "2"       → `d` initialised to 0 instead of to n: at n = 2 the range is
+                   empty, so the starting value is the only thing that can be
+                   right and there is nowhere for a guess to hide;
        "4"       → `range(2, n // 2)` without the `+ 1`, the only n at which
                    that off-by-one changes the answer;
-       "9", "49" → a check that only tries the divisor 2, which is the shortcut
-                   a learner reaches for after «жұп сан жай емес»;
-       "97"      → a program that answers `no` whenever the loop runs to the
-                   end instead of only when a divisor was actually found;
-       "99991"   → the same, at the top of the stated range, where the loop has
-                   to complete fifty thousand steps and still say `yes`. */
+       "9", "25" → a search that only tries the divisor 2, which is the
+                   shortcut a learner reaches for after «жұп сан жай емес»;
+       "45"      → a loop with no `break`: it overwrites d along 3, 5, 9, 15
+                   and prints 15;
+       "97"      → a prime whose loop actually runs — 2 through 48 — and must
+                   still end with the initial value standing;
+       "99999"   → a large composite with a small divisor, so the answer has to
+                   arrive long before the bound;
+       "99991"   → prime, at the top of the stated range: fifty thousand steps
+                   that find nothing. */
     cases: [
-      { input: "7", expectedOutput: "yes" },
-      { input: "12", expectedOutput: "no" },
-      { input: "1", expectedOutput: "no", hidden: true },
-      { input: "0", expectedOutput: "no", hidden: true },
-      { input: "2", expectedOutput: "yes", hidden: true },
-      { input: "4", expectedOutput: "no", hidden: true },
-      { input: "9", expectedOutput: "no", hidden: true },
-      { input: "49", expectedOutput: "no", hidden: true },
-      { input: "97", expectedOutput: "yes", hidden: true },
-      { input: "99991", expectedOutput: "yes", hidden: true },
+      { input: "12", expectedOutput: "2" },
+      { input: "13", expectedOutput: "13" },
+      { input: "2", expectedOutput: "2", hidden: true },
+      { input: "4", expectedOutput: "2", hidden: true },
+      { input: "9", expectedOutput: "3", hidden: true },
+      { input: "25", expectedOutput: "5", hidden: true },
+      { input: "45", expectedOutput: "3", hidden: true },
+      { input: "97", expectedOutput: "97", hidden: true },
+      { input: "99999", expectedOutput: "3", hidden: true },
+      { input: "99991", expectedOutput: "99991", hidden: true },
     ],
   },
   {
     /*
-     * SUPPORT SUBSTITUTION for m2.l8.b6 — the same problem, the same tokens,
+     * SUPPORT SUBSTITUTION for m2.l8.b6 — the same problem, the same examples,
      * completed instead of written. PDF p.6: «дайын кодты құрастыру мен
      * толықтыру көбірек, нөлден жазу азырақ».
      *
-     * The three blanks are the three decisions the task actually contains, and
-     * nothing else is withheld: where the definition's boundary sits, what
-     * "divides evenly" is written as, and the statement that stops the search.
-     * A version with one blank would let a learner type a character and never
-     * meet the n < 2 case at all.
+     * The blanks moved with the problem, and they had to. The old template was
+     * the primality program with `<`, `==` and `break` taken out — and that
+     * program is printed in full by `m2.l8.b5` on the card immediately before
+     * this one, on this route as much as on the others, so support's one
+     * encounter with the family was three tokens copied off the previous
+     * screen.
+     *
+     * What is withheld now is the task's thinking and nothing else: the value
+     * that has to survive a loop which finds no divisor, the value worth
+     * keeping when it does, and the statement that keeps the FIRST one instead
+     * of the last. The bound and the divisibility test are given, because b1
+     * argues for both at length and support is meant to apply that argument
+     * rather than re-derive it.
      */
     id: "m2.l8.b6s",
     type: "fill_blank",
@@ -385,25 +426,20 @@ export const M2_L8: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Жай санды тексеретін бағдарламаны толықтыр. Үш бос орын бар: (1) 0 мен 1-ді бірден шығарып тастайтын салыстыру белгісі, (2) «i санына қалдықсыз бөлінеді» дегенді білдіретін салыстыру белгісі, (3) бөлгіш табылған соң циклден шығатын команда. Бағдарлама жай сан үшін `yes`, өзге жағдайда `no` шығарады.",
-      ru: "Дополни программу проверки на простоту. Пропусков три: (1) знак сравнения, который сразу отсеивает 0 и 1, (2) знак сравнения, означающий «делится на i без остатка», (3) команда, выходящая из цикла после того, как делитель найден. Программа выводит `yes` для простого числа и `no` во всех остальных случаях.",
+      kk: "Бағдарлама n-нің 1-ден үлкен ең кіші бөлгішін табуы керек: n = 12 үшін жауап 2, ал n = 13 жай сан болғандықтан жауап 13. Үш бос орынды толтыр: (1) бөлгіш мүлде табылмаса, `d`-да қандай мән қалуы керек — жай сан үшін дұрыс жауап дәл сол болады; (2) бөлгіш табылғанда `d`-ға нені жазамыз; (3) ең кішісі сақталып қалуы үшін циклден шығатын команда.",
+      ru: "Программа должна найти наименьший делитель числа n, больший 1: для n = 12 ответ 2, а для n = 13 ответ 13, потому что 13 простое. Заполни три пропуска: (1) какое значение должно остаться в `d`, если делитель вообще не найдётся — для простого числа это и есть верный ответ; (2) что записываем в `d`, когда делитель найден; (3) команда, выходящая из цикла, чтобы сохранился именно наименьший делитель.",
     },
     template:
       "n = int(input())\n" +
-      "prime = 1\n" +
-      "if n ___ 2:\n" +
-      "    prime = 0\n" +
+      "d = ___\n" +
       "for i in range(2, n // 2 + 1):\n" +
-      "    if n % i ___ 0:\n" +
-      "        prime = 0\n" +
+      "    if n % i == 0:\n" +
+      "        d = ___\n" +
       "        ___\n" +
-      "if prime == 1:\n" +
-      '    print("yes")\n' +
-      "else:\n" +
-      '    print("no")',
+      "print(d)",
     blanks: [
-      { id: "f1", answer: "<" },
-      { id: "f2", answer: "==" },
+      { id: "f1", answer: "n" },
+      { id: "f2", answer: "i" },
       { id: "f3", answer: "break" },
     ],
   },
@@ -503,6 +539,14 @@ export const M2_L8: LessonBlock[] = [
       { input: "1 1 9", expectedOutput: "9 1", hidden: true },
       { input: "5 4 3 2 1", expectedOutput: "5 4", hidden: true },
       { input: "2 2 2", expectedOutput: "2 2", hidden: true },
+      /* The repeated maximum arrives at index 2, where the initialisation has
+         NOT already seeded `second` with it. Without this case the prompt's own
+         rule — remove ONE copy of the maximum, which is why `7 7` answers
+         `7 7` — was stated and never checked: the reading it exists to forbid,
+         `elif a[i] > second and a[i] < best`, passed all eight of the other
+         cases, because `7 7` and `2 2 2` both put the repeat in the first two
+         positions. Here that program prints "5 1". */
+      { input: "1 5 5", expectedOutput: "5 5", hidden: true },
     ],
   },
   {

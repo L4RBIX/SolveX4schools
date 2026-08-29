@@ -34,7 +34,7 @@ import type { LessonBlock } from "../../types";
  * a fourteen-year-old has any reason to believe; a rule that visibly breaks the
  * second call is.
  *
- * The same discipline picks the text task. October's `m2.l6.b6` already counts
+ * The same discipline picks the text task. October's `m2.l6.b4` already counts
  * vowels and `m2.l6.b7` already prints `yes`/`no` for a palindrome, so
  * repeating either as a function would be a wrapper exercise. b7 instead splits
  * the decision from the printing: `is_palindrome(word)` RETURNS 1 or 0 and
@@ -326,7 +326,25 @@ export const M3_L8: LessonBlock[] = [
      *                          and kills "the minimum is the first";
      *   "5 5 5"              — all equal, where a `>` written as `>=` and a `<`
      *                          written as `<=` both still have to give 5;
-     *   "-1000 1000 0"       — both stated bounds in one line.
+     *   "-1000 1000 0"       — both stated bounds in one line;
+     *   "1 3 8"              — ascending: the maximum IS the last element.
+     *
+     * That last line was missing, and its absence let through the one mutant
+     * the programme names by hand — «соңғы элементті өткізіп жіберу». Written
+     * with an index loop, `for i in range(1, len(a) - 1)` stops one element
+     * short, and every other case in this set hides it: the maximum sat at
+     * position 0 in "10 8 6 4" and "8 1 6", at 1 in "4 9 9 2" and
+     * "-1000 1000 0", at 2 in "-4 -9 -2 -7 -6", and "5 5 5" and "7" cannot
+     * tell a short loop from a complete one at all. So a `largest` that never
+     * looks at the final number, paired with a correct `smallest`, passed all
+     * seven. The mirror was covered — "10 8 6 4" puts the MINIMUM last and
+     * kills the same truncation in `smallest` — which is what made the hole
+     * invisible: half the task was tested against it and half was not.
+     *
+     * "1 3 8" closes it from both ends at once: the maximum is last, so a loop
+     * that drops the tail returns 3; the minimum is first, so a loop that
+     * starts its search at index 1 with `best = a[1]` returns 3 as well. The
+     * truncated `largest` prints `3 1` where the answer is `8 1`.
      */
     id: "m3.l8.b6",
     type: "write_code",
@@ -370,6 +388,7 @@ export const M3_L8: LessonBlock[] = [
       { input: "10 8 6 4", expectedOutput: "10 4", hidden: true },
       { input: "8 1 6", expectedOutput: "8 1", hidden: true },
       { input: "-1000 1000 0", expectedOutput: "1000 -1000", hidden: true },
+      { input: "1 3 8", expectedOutput: "8 1", hidden: true },
     ],
   },
   {

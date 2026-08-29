@@ -16,9 +16,23 @@ import type { LessonBlock } from "../../types";
  * loop, the find_bug is the missing `- 1`, and slicing appears nowhere in the
  * lesson even though October has met it.
  *
- * Input contract, stated in every prompt in both languages: one line, one word,
- * lowercase Latin letters, no spaces. Every case honours it — no case smuggles
- * in a capital, a digit or a space that no prompt warned about.
+ * Input contract, stated in every prompt in both languages: one line of
+ * lowercase Latin letters. Every block here reads a single word with no
+ * spaces except `m2.l6.b7` and its support twin, which read a phrase whose
+ * words are separated by one space each — and both say so in the statement
+ * and again in the example inside it, because dropping those spaces IS the
+ * first half of that task. No case smuggles in a capital, a digit or a
+ * separator its own prompt did not name.
+ *
+ * The second thing the lesson refuses, and it took a review to see it: the
+ * same program twice. `revealFor` hands the repaired program to every learner
+ * who answers a `find_bug` correctly, so once `m2.l6.b5` is answered the
+ * finished palindrome loop is on screen — and it used to be, character for
+ * character, what `m2.l6.b7` then asked to be written and `m2.l6.b7s` asked to
+ * be filled in. `m2.l6.b4`'s template leaks the same way for a different
+ * reason: a scaffold has to ship its scaffold, so five of the six lines of a
+ * vowel count are public, and that used to be `m2.l6.b6`'s answer. Neither b6
+ * nor b7 can be assembled from anything the lesson prints now.
  *
  * Output tokens are English (`yes` / `no`) and both prompts name them, so a
  * Russian-track learner is reasoning about the comparison rather than matching
@@ -45,9 +59,9 @@ export const M2_L6: LessonBlock[] = [
     /*
      * The trailing dash is the whole point: the body runs once per character,
      * INCLUDING the last one, so the separator comes out four times for four
-     * characters. It is also the shape `m2.l6.b8` reuses — build a new string
-     * one character at a time — met here as a prediction before it is asked for
-     * as a task.
+     * characters. It is also the shape `m2.l6.b7` and `m2.l6.b8` both reuse —
+     * build a new string one character at a time — met here as a prediction
+     * before either asks for it as a task.
      *
      * No diagnosticMapping, deliberately. Two different misreadings land on
      * "a-b-c" (the loop stops one short; or the learner read the INTENT of a
@@ -152,94 +166,152 @@ export const M2_L6: LessonBlock[] = [
   },
   {
     /*
-     * PDF p.7: «сөздегі дауыстылар саны». The cases are chosen against the
-     * wrong solutions, not for a count:
-     *   `rhythm`  — zero vowels, so a counter that starts at 1 dies here;
-     *   `aeiou`   — every character counts, so a loop that misses the first or
-     *               the last element gives 4;
-     *   `a`       — one character, which is where `range(len(s) - 1)` gives 0;
-     *   `python`  — `y` is not in the vowel set, and a learner who adds it
-     *               gets 2;
-     *   `queue`   — repeated vowels, so «санағышты нөлдеу» inside the loop
-     *               (the accumulator reset the PDF names) gives 1 instead of 4.
+     * This block used to BE «сөздегі дауыстылар саны», and its reference
+     * solution was `m2.l6.b4` with the two blanks filled in — the same six
+     * lines, byte for byte. A fill_blank has to ship its template to the
+     * browser or there is no scaffold to complete, so five of those six lines
+     * were public two cards earlier, on every route, and the month counted the
+     * retyping as one of its independent solutions.
+     *
+     * The named family does not leave the lesson: b4 is the vowel count, and
+     * `m2.p5` counts a letter that is only known at run time. What is asked
+     * here is the POSITION of the last vowel — which b4's program cannot be
+     * edited into, because `for c in s` never learns where it is standing. The
+     * learner has to move to `for i in range(len(s))` and carry the index
+     * themselves, which is «жолды таңбалар тізбегі ретінде өңдеу» (p.7) doing
+     * actual work, and it makes b4 a model of the vowel test rather than the
+     * answer to this task. The task is a variant the programme does not name,
+     * so it is product-authored; the citation stays where the family is.
+     *
+     * The cases are aimed at named wrong programs:
+     *   `programming` — the first vowel is at 2 and the last at 8, so the
+     *                   solution that stops at the first one fails in the
+     *                   OPEN, where the learner can see why;
+     *   `sky`         — no vowel at all: the only case that separates the -1
+     *                   sentinel from an `ans` left at 0;
+     *   `abc`         — the vowel is at index 0, which a loop starting at 1
+     *                   reports as «жоқ»;
+     *   `aeiou`, `spa`— the answer sits on the LAST character, i.e. «соңғы
+     *                   элементті өткізіп жіберу», named on p.7 by hand;
+     *   `banana`      — three vowels, so the index has to be overwritten
+     *                   twice rather than kept;
+     *   `a`           — one character, and it is the answer.
      */
     id: "m2.l6.b6",
     type: "write_code",
-    skillRefs: ["strings.sequence", "loops.for", "loops.counter"],
-    sourceType: "curriculum-derived",
-    pdfPage: 7,
+    skillRefs: ["strings.sequence", "loops.for", "lists.index"],
+    sourceType: "product-authored",
     prompt: {
-      kk: "Бір жолда сөз беріледі: тек кіші латын әріптері, бос орын жоқ. Сол сөздегі дауысты әріптердің санын шығар. Дауыстылар — a, e, i, o, u; басқа әріптердің бәрі дауыссыз саналады.",
-      ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Выведи количество гласных букв в этом слове. Гласные — a, e, i, o, u; все остальные буквы считаются согласными.",
+      kk: "Бір жолда сөз беріледі: тек кіші латын әріптері, бос орын жоқ. Сол сөздегі ең соңғы дауысты әріптің индексін шығар. Индекстер нөлден басталады: `s[0]` — бірінші әріп. Дауыстылар — a, e, i, o, u. Мысалы, `code` сөзінде дауыстылар — o (индексі 1) және e (индексі 3), сондықтан жауап 3. Сөзде дауысты әріп мүлде болмаса, -1 шығар.",
+      ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Выведи индекс последней гласной буквы этого слова. Индексы начинаются с нуля: `s[0]` — первая буква. Гласные — a, e, i, o, u. Например, в слове `code` гласные — o (индекс 1) и e (индекс 3), поэтому ответ 3. Если гласных в слове нет совсем, выведи -1.",
     },
     referenceSolution:
-      's = input()\nn = 0\nfor c in s:\n    if c in "aeiou":\n        n += 1\nprint(n)',
+      's = input()\nans = -1\nfor i in range(len(s)):\n    if s[i] in "aeiou":\n        ans = i\nprint(ans)',
     cases: [
-      { input: "programming", expectedOutput: "3" },
-      { input: "python", expectedOutput: "1" },
-      { input: "rhythm", expectedOutput: "0", hidden: true },
-      { input: "aeiou", expectedOutput: "5", hidden: true },
-      { input: "a", expectedOutput: "1", hidden: true },
-      { input: "queue", expectedOutput: "4", hidden: true },
+      { input: "programming", expectedOutput: "8" },
+      { input: "sky", expectedOutput: "-1" },
+      { input: "abc", expectedOutput: "0", hidden: true },
+      { input: "aeiou", expectedOutput: "4", hidden: true },
+      { input: "spa", expectedOutput: "2", hidden: true },
+      { input: "rhythm", expectedOutput: "-1", hidden: true },
+      { input: "banana", expectedOutput: "5", hidden: true },
+      { input: "a", expectedOutput: "0", hidden: true },
     ],
   },
   {
     /*
-     * PDF p.7: «палиндромды тексеру». Core and advanced write it from the blank
-     * editor; support gets the same problem at `m2.l6.b7s` with the two
-     * decisions that matter left as blanks.
+     * PDF p.7: «палиндромды тексеру». The statement moved, and `m2.l6.b5` two
+     * cards up is the reason. `revealFor` returns `fixedCode` to every learner
+     * who answers a find_bug correctly, and that repaired program WAS this
+     * block's reference solution, character for character — so the platform
+     * showed the answer and then asked for it back. Support had it worse:
+     * `m2.l6.b7s` asked them to drop two tokens into the program they had just
+     * been handed finished. The pairing loop is what b5 exists to teach, and a
+     * task that asks for it again is asking for a copy of it.
      *
-     * `ab` is the case that earns its place: a loop written as
-     * `range(n // 2 - 1)` never runs on a two-letter word and prints `yes`.
-     * `abca` kills the solution that only compares the first and last
-     * characters and stops.
+     * The word became a phrase, and the spaces have to go first. The pairing
+     * itself is untouched — still `i` against `n - 1 - i` over half the string
+     * — but it now runs on a string the learner builds, one character at a
+     * time, which is the loop `m2.l6.b2` had them predict the output of. Two
+     * things the lesson showed separately, joined by the learner; not one
+     * thing the lesson showed whole.
+     *
+     * The cases:
+     *   `step on no pets` — the visible yes. Its spaces sit symmetrically, so
+     *                       it does NOT catch a program that forgets to drop
+     *                       them, and that is the point of the next two;
+     *   `abb a`, `no lemon no melon` — those do: leave the spaces in and both
+     *                       come out `no`;
+     *   `aba cba`         — the letters are `abacba`: first and last equal,
+     *                       middle not. That is the endpoints-only shortcut
+     *                       the first review found passing `m2.p6`;
+     *   `a b`             — two letters, where `range(n // 2 - 1)` never runs
+     *                       and prints `yes`;
+     *   `a`               — one letter and no space at all;
+     *   `level`           — a plain word, so the phrase framing never quietly
+     *                       requires a space to exist.
      */
     id: "m2.l6.b7",
     type: "write_code",
-    skillRefs: ["strings.sequence", "loops.for", "lists.index"],
+    skillRefs: ["strings.sequence", "loops.for", "lists.index", "loops.accumulator"],
     sourceType: "curriculum-derived",
     pdfPage: 7,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бір жолда сөз беріледі: тек кіші латын әріптері, бос орын жоқ. Ол палиндром ба, яғни алдынан оқығанда да, артынан оқығанда да бірдей ме? Палиндром болса `yes`, болмаса `no` деп шығар. Таңбаларды жұптап салыстыр: біріншісін соңғысымен, екіншісін соңынан екіншісімен, солай жалғастыра бер.",
-      ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Является ли оно палиндромом, то есть читается одинаково слева направо и справа налево? Выведи `yes`, если да, и `no`, если нет. Сравнивай символы парами: первый с последним, второй со вторым с конца, и так далее.",
+      kk: "Бір жолда бір немесе бірнеше сөз беріледі: тек кіші латын әріптері, сөздер бір бос орынмен бөлінген. Бос орындарды тастап жібергенде, қалған әріптер палиндром құрай ма — алдынан оқығанда да, артынан оқығанда да бірдей ме? Палиндром болса `yes`, болмаса `no` деп шығар. Мысалы, `abb a` жолынан `abba` жиналады, жауабы `yes`; ал `a bc` жолынан `abc` жиналады, жауабы `no`. Алдымен бос орынсыз жаңа жол жинақта, содан кейін таңбаларды жұптап салыстыр: біріншісін соңғысымен, екіншісін соңынан екіншісімен.",
+      ru: "В одной строке дано одно или несколько слов: только строчные латинские буквы, слова разделены одним пробелом. Если отбросить пробелы, образуют ли оставшиеся буквы палиндром — читаются ли они одинаково слева направо и справа налево? Выведи `yes`, если да, и `no`, если нет. Например, из строки `abb a` собирается `abba`, ответ `yes`, а из `a bc` собирается `abc`, ответ `no`. Сначала собери новую строку без пробелов, потом сравнивай символы парами: первый с последним, второй со вторым с конца.",
     },
     referenceSolution:
-      's = input()\nn = len(s)\nok = 1\nfor i in range(n // 2):\n    if s[i] != s[n - 1 - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
+      's = input()\nt = ""\nfor c in s:\n    if c != " ":\n        t = t + c\nn = len(t)\nok = 1\nfor i in range(n // 2):\n    if t[i] != t[n - 1 - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
     cases: [
-      { input: "level", expectedOutput: "yes" },
-      { input: "world", expectedOutput: "no" },
-      { input: "ab", expectedOutput: "no", hidden: true },
+      { input: "step on no pets", expectedOutput: "yes" },
+      { input: "a bc", expectedOutput: "no" },
+      { input: "abb a", expectedOutput: "yes", hidden: true },
+      { input: "no lemon no melon", expectedOutput: "yes", hidden: true },
+      { input: "aba cba", expectedOutput: "no", hidden: true },
+      { input: "a b", expectedOutput: "no", hidden: true },
       { input: "a", expectedOutput: "yes", hidden: true },
-      { input: "abba", expectedOutput: "yes", hidden: true },
-      { input: "abca", expectedOutput: "no", hidden: true },
-      { input: "racecar", expectedOutput: "yes", hidden: true },
+      { input: "level", expectedOutput: "yes", hidden: true },
     ],
   },
   {
     /*
      * Support substitution for `m2.l6.b7`, per PDF p.6: «дайын кодты құрастыру
-     * мен толықтыру көбірек, нөлден жазу азырақ». Same problem, same output
-     * tokens — what is withheld is the blank editor, not the palindrome.
+     * мен толықтыру көбірек, нөлден жазу азырақ». Same phrase, same `yes`/`no`,
+     * same two steps — what is withheld is the blank editor, not the problem.
      *
-     * The two blanks are exactly the two places the task can go wrong, and
-     * nowhere else: the loop bound (`//`, so the halves meet in the middle) and
-     * the `- 1` that `m2.l6.b5` has just shown crashing.
+     * It used to blank two tokens of the program `m2.l6.b5` prints in full the
+     * moment its bug is found, which on the one route that receives this card
+     * is copying with the source open beside it. The three blanks now are the
+     * three decisions the task is made of: the test that keeps a character out
+     * of the new string, the bound that stops the loop in the middle, and the
+     * `- 1` b5 showed crashing when it is missing. Only the last two can be
+     * read off b5 — and those are the ones b5 is there to teach.
+     *
+     * The prompt points at the blanks as `___` rather than calling them «бос
+     * орын» the way `m2.l6.b4` does, because in Kazakh «бос орын» is also the
+     * space character — and here the space character is the task. Russian
+     * keeps «пропуск», which does not collide with «пробел».
+     *
+     * The block points at no neighbour. Its route never receives `m2.l6.b7`,
+     * so «алдыңғы тапсырма» here would mean the vowel index, which is the
+     * defect `m2.l1.b8s` was rewritten for.
      */
     id: "m2.l6.b7s",
     type: "fill_blank",
-    skillRefs: ["strings.sequence", "loops.for", "lists.index"],
+    skillRefs: ["strings.sequence", "loops.for", "lists.index", "loops.accumulator"],
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Палиндромды тексеретін бағдарламаны толықтыр. Цикл жолдың жартысын ғана айналуы керек, ал `i`-ші таңбаны соңынан саналған `i`-ші таңбамен салыстыру керек. Сөз палиндром болса `yes`, болмаса `no` шығады.",
-      ru: "Дополни программу проверки палиндрома. Цикл должен пройти только половину строки, а символ с номером `i` нужно сравнить с `i`-м символом с конца. Если слово палиндром, выводится `yes`, иначе `no`.",
+      kk: "Жолдағы әріптер, бос орындарды есепке алмағанда, палиндром құрай ма — соны тексеретін бағдарламаны толықтыр. Бірінші `___` орнына салыстыру амалын қой: таңба бос орын БОЛМАҒАНДА ғана жаңа `t` жолына қосылады. Екінші `___` орнына цикл жолдың тек жартысын айналатындай амалды, үшінші `___` орнына `i`-ші таңба соңынан саналған дұрыс таңбамен салыстырылуы үшін жетпей тұрған санды қой. Мысалы, `abb a` үшін бағдарлама `yes`, ал `a bc` үшін `no` шығаруы керек.",
+      ru: "Дополни программу, которая проверяет, образуют ли буквы строки палиндром, если не считать пробелы. Вместо первого `___` поставь операцию сравнения: символ попадает в новую строку `t`, только если он НЕ пробел. Вместо второго `___` — операцию, из-за которой цикл проходит лишь половину строки, вместо третьего — число, которого не хватает, чтобы символ с номером `i` сравнивался с нужным символом с конца. Например, для `abb a` программа должна вывести `yes`, а для `a bc` — `no`.",
     },
     template:
-      's = input()\nn = len(s)\nok = 1\nfor i in range(n ___ 2):\n    if s[i] != s[n - ___ - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
+      's = input()\nt = ""\nfor c in s:\n    if c ___ " ":\n        t = t + c\nn = len(t)\nok = 1\nfor i in range(n ___ 2):\n    if t[i] != t[n - ___ - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
     blanks: [
-      { id: "f1", answer: "//" },
-      { id: "f2", answer: "1" },
+      { id: "f1", answer: "!=", alternatives: ["not in"] },
+      { id: "f2", answer: "//" },
+      { id: "f3", answer: "1" },
     ],
   },
   {

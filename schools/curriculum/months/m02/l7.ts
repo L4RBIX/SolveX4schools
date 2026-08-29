@@ -220,13 +220,22 @@ export const M2_L7: LessonBlock[] = [
      * The bounds here are independent of each other on purpose. The inner bound
      * that DEPENDS on the outer variable is the next step up and arrives at b8;
      * meeting both in one block would blur which of the two ideas failed.
+     *
+     * The Kazakh prompt asked «нешеу жол» and «нешеу жұлдызша». «Нешеу» is the
+     * substantive form — it stands where the noun would, «олар нешеу?», the way
+     * `m2.l2.b2` asks «10-нан үлкендері нешеу екенін шығар» with nothing after
+     * it. Put a noun behind it and the question stops parsing: the attributive
+     * form is «неше», as everywhere else in this course — «неше рет», «неше
+     * сан», «неше мән». The two blanks this sentence points at are counts OF
+     * something — lines and stars — so both are «неше», and the RU side already
+     * asked it that way («сколько строк», «сколько звёздочек»).
      */
     id: "m2.l7.b6",
     type: "fill_blank",
     skillRefs: ["loops.nested", "loops.for", "loops.accumulator"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген n мен m беріледі. Бағдарлама жұлдызшадан тіктөртбұрыш салуы керек: барлығы n жол, әр жолда дәл m жұлдызша. Үш орынды толтыр: сыртқы цикл нешеу жол жасайды, әр жол неден басталады және ішкі цикл нешеу жұлдызша қосады?",
+      kk: "Бір жолда бос орынмен бөлінген n мен m беріледі. Бағдарлама жұлдызшадан тіктөртбұрыш салуы керек: барлығы n жол, әр жолда дәл m жұлдызша. Үш орынды толтыр: сыртқы цикл неше жол жасайды, әр жол неден басталады және ішкі цикл неше жұлдызша қосады?",
       ru: "В одной строке через пробел даны n и m. Программа должна нарисовать прямоугольник из звёздочек: всего n строк, в каждой ровно m звёздочек. Заполни три места: сколько строк делает внешний цикл, с чего начинается каждая строка и сколько звёздочек добавляет внутренний цикл?",
     },
     template:
@@ -241,6 +250,40 @@ export const M2_L7: LessonBlock[] = [
       { id: "f2", answer: '""', alternatives: ["''"] },
       { id: "f3", answer: "m" },
     ],
+  },
+  {
+    /*
+     * Three constructs, introduced because the next block needs them and
+     * nothing in the year had ever shown them.
+     *
+     * `m2.l7.b7`'s reference solution was the FIRST appearance of `str()`,
+     * `.append()` and `.join()` anywhere in the programme — computed with
+     * `teachingOrder()` + `shownCode()`, which reports `str()` first shown two
+     * lessons LATER at `m2.l8.b2`, and `.append()` / `.join()` not until
+     * `m3.l8.b8` in November. So a learner reached a graded task needing three
+     * things they had never seen, and `check-blocks` waved it through because a
+     * construct BUDGET says what is allowed, not what has been taught.
+     *
+     * The budget was not wrong to allow them — they belong to October, and the
+     * table task genuinely needs them. What was missing is this card. It goes
+     * immediately before the task rather than at the top of the lesson, because
+     * the reason to want `.join()` is the trailing space, and the trailing space
+     * is not a problem until the output format says it is.
+     */
+    id: "m2.l7.b10",
+    type: "concept",
+    skillRefs: ["loops.nested", "strings.sequence"],
+    sourceType: "product-authored",
+    title: {
+      kk: "Жолды бөлшектеп жинау: str, append, join",
+      ru: "Собираем строку по частям: str, append, join",
+    },
+    body: {
+      kk: "Санды мәтінге қосу үшін алдымен оны мәтінге айналдыру керек: `str(7)` «7» деген мәтін береді. Бұл қыркүйектегі `int()`-тің кері әрекеті.\n\nБір жолға бірнеше санды шығарғанда әрқайсысын бөлек `print` етсек, олар әр жолға түсіп кетеді. Сондықтан алдымен бос тізім жасап, `.append()` арқылы бөліктерді жинаймыз, содан кейін `\" \".join(...)` тізімнің бөліктерін араларына бір бос орын қойып біріктіреді.\n\nНеге жай ғана қосып жазбаймыз? `row = row + str(x) + \" \"` десек, жолдың СОҢЫНДА артық бос орын қалады. `join` бөлгішті тек араларына қояды, сондықтан соңында ештеңе қалмайды.",
+      ru: "Чтобы присоединить число к тексту, его сначала нужно превратить в текст: `str(7)` даёт текст «7». Это обратное действие к сентябрьскому `int()`.\n\nЕсли выводить несколько чисел в одну строку отдельными `print`, они попадут на разные строки. Поэтому сначала создаём пустой список, собираем в него части через `.append()`, а затем `\" \".join(...)` соединяет части списка, ставя между ними по одному пробелу.\n\nПочему не просто складывать? Если написать `row = row + str(x) + \" \"`, в КОНЦЕ строки останется лишний пробел. `join` ставит разделитель только между частями, поэтому в конце ничего не остаётся.",
+    },
+    code:
+      'row = []\nrow.append(str(2))\nrow.append(str(4))\nrow.append(str(6))\nprint(" ".join(row))  # 2 4 6\nprint("|" + " ".join(row) + "|")  # |2 4 6| — сонда артық бос орын жоқ',
   },
   {
     id: "m2.l7.b7",
@@ -332,6 +375,16 @@ export const M2_L7: LessonBlock[] = [
      * and whether `print(line)` belongs to the outer loop or to the inner one.
      * The dependent bound `range(i)` is handed over ready-made, because for
      * this route it is the thing to be read rather than invented.
+     *
+     * The shape used to be called a «тік бұрышты үшбұрыш», in two words. Split
+     * like that it says "a triangle with an upright angle", which names no
+     * figure at all; the geometry term is the solid compound «тікбұрышты
+     * үшбұрыш», formed exactly like «теңбүйірлі» and like «тіктөртбұрыш» —
+     * which b6, earlier in this same lesson, already writes as one word. Not a
+     * typo a reader glides over: a learner who met the term in geometry does
+     * not recognise it in halves, and the RU side has been saying
+     * «прямоугольный треугольник» the whole time. Changed in b8 as well — one
+     * problem, one name, whichever route you are on.
      */
     id: "m2.l7.b8s",
     type: "reorder_code",
@@ -340,7 +393,7 @@ export const M2_L7: LessonBlock[] = [
     tracks: ["support"],
     prompt: {
       kk:
-        "Жолдарды дұрыс ретке қой. Бағдарлама n оқып, жұлдызшадан тік бұрышты үшбұрыш салуы керек: барлығы n жол, i-ші жолда дәл i жұлдызша.\n" +
+        "Жолдарды дұрыс ретке қой. Бағдарлама n оқып, жұлдызшадан тікбұрышты үшбұрыш салуы керек: барлығы n жол, i-ші жолда дәл i жұлдызша.\n" +
         "n = 3 болғанда былай шығады:\n" +
         "*\n" +
         "**\n" +
@@ -369,11 +422,14 @@ export const M2_L7: LessonBlock[] = [
     /* Named verbatim in October's practice paragraph: «символдардан өрнек». */
     sourceType: "curriculum-derived",
     pdfPage: 7,
+    /* «тікбұрышты» solid, for the reason argued at b8s: the compound adjective
+       is one word in Kazakh geometry, and this block and its support twin set
+       the same problem, so they may not call the shape two different things. */
     tracks: ["core", "advanced"],
     checker: { kind: "exact" },
     prompt: {
       kk:
-        "Бір бүтін сан n беріледі (1 ≤ n ≤ 20). Жұлдызшадан тік бұрышты үшбұрыш сал.\n" +
+        "Бір бүтін сан n беріледі (1 ≤ n ≤ 20). Жұлдызшадан тікбұрышты үшбұрыш сал.\n" +
         "Барлығы дәл n жол болады. i-ші жолда дәл i жұлдызша (`*`) тұрады, олардың арасында да, жолдың соңында да бос орын жоқ.\n" +
         "n = 3 болғанда дәл былай шығуы керек:\n" +
         "*\n" +

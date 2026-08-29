@@ -11,19 +11,30 @@ import type { LessonBlock } from "../../types";
  *
  * So: hand-step an unfamiliar program (`manual_trace`), solve one loop-and-list
  * problem alone (`unseen_problem`), and say why the loop stops and why the
- * indices stay inside the list (an `explain`, plus the p.6 `oral_explanation`).
- * Four blocks, in that order, and deliberately no fifth.
+ * indices stay inside the list (the p.6 `oral_explanation`). Three blocks, in
+ * that order, and deliberately no fourth.
  *
- * ## Why there is no find_bug block here
+ * ## Why there is no fourth graded task here
  *
  * September's assessment was audited at 32+ minutes against a stated 20,
  * because it carried two coding problems, a bug hunt and an oral question.
- * The arithmetic for October is the same and it does not have room: the paper
- * trace is ~5 minutes, the unseen problem ~10, the written answer ~4, and the
- * oral piece runs alongside. A fifth graded task would either push the check
- * past the period or quietly turn one of the others into a rush — and the
- * month already carries its bug-finding requirement where the PDF actually
- * puts it, in `m2.l9` («цикл мен индекс қатесін табу»).
+ * October's arithmetic is the same and it has no more room: the paper trace is
+ * ~5 minutes, the unseen problem ~10, and the oral piece runs alongside while
+ * the teacher circulates. That is the entire budget, and it has now turned two
+ * candidates away.
+ *
+ * The first was a `find_bug`. The month does have a bug-finding requirement and
+ * it is met where the PDF actually puts it, in `m2.l9` («цикл мен индекс
+ * қатесін табу»), not in a check that is already full.
+ *
+ * The second was written and shipped before it was caught: `m2.as.b3`, an
+ * `explain` with four numbered questions about the learner's own b2 solution.
+ * Two of those four were the questions `b4` then asked out loud one screen
+ * later, so the check spent four minutes buying a second copy of an answer it
+ * was about to hear. Its argument — that a question about your own program
+ * cannot be recited — was the right argument, and it now lives inside `b4`,
+ * which asks it in the mode the PDF names. Four numbered written answers plus
+ * three spoken ones was never twenty minutes of work either way.
  *
  * ## Why these two programs, and why they are the same idea twice
  *
@@ -51,8 +62,9 @@ import type { LessonBlock } from "../../types";
  *   · single element, both ways              → «5 / 5» and «5 / 7»
  *
  * Provenance follows September: `verify` blocks implement the five general
- * verification methods and cite p.6; the `explain` block asks October's own
- * two questions and cites p.7.
+ * verification methods and cite p.6. October's own explanation requirement is
+ * stated on p.7, but it is carried here by the p.6 oral block rather than by a
+ * block of its own — the same sentence answered, one fewer task on the clock.
  */
 export const M2_ASSESSMENT: LessonBlock[] = [
   {
@@ -109,8 +121,8 @@ export const M2_ASSESSMENT: LessonBlock[] = [
      * The reference is written with `while` and a two-part condition on purpose.
      * A `for` over `range(len(a))` with a guard is just as correct and passes
      * the same cases — but the `while` form is the one whose two stopping
-     * reasons `b3` and `b4` then ask about, and an author's reference should be
-     * the version they are prepared to defend out loud.
+     * reasons `b4` then asks about, and an author's reference should be the
+     * version they are prepared to defend out loud.
      *
      * Elements are ≥ 1, so the running total only grows. That is not decoration:
      * it is what makes "the first day" well defined, and it is the fact the
@@ -152,55 +164,36 @@ export const M2_ASSESSMENT: LessonBlock[] = [
   },
   {
     /*
-     * October's own explanation requirement, verbatim from p.7: «оқушы циклдің
-     * неге тоқтайтынын және индекстердің неге шекарадан шықпайтынын
-     * түсіндіреді». It is asked about the learner's OWN solution to b2, which
-     * is the only way the answer can be theirs rather than recalled.
+     * The p.6 oral check («ауызша түсіндіру»), and now the month's only
+     * explanation block. It used to have a written twin one screen earlier,
+     * `m2.as.b3`, an `explain` whose four numbered questions included «сенің
+     * циклің неге тоқтайды» and «i неге 0 мен len(a) - 1 аралығынан шықпайды» —
+     * which are questions (1) and (2) of this card in the other order. That was
+     * wrong twice over. On the clock, a paper trace plus a from-scratch program
+     * plus four written sub-answers plus three spoken ones is not twenty
+     * minutes. And in substance, a learner who has just written «`while`
+     * алдымен шартты тексереді» does not reason it out again for the teacher —
+     * they read their own sheet back. The oral block was checking handwriting.
      *
-     * Written, stored, read by a teacher, never machine-scored — `explain`
-     * settles as `unknown` by design, and the marking points below are written
-     * so that they fit both shapes a learner may have submitted, the `while`
-     * with a compound condition and the `for` over `range(len(a))`.
-     */
-    id: "m2.as.b3",
-    type: "explain",
-    skillRefs: ["loops.while", "loops.for", "lists.index", "debug.boundary"],
-    sourceType: "curriculum-derived",
-    pdfPage: 7,
-    prompt: {
-      kk: "Екінші есепте өзің жазған бағдарлама туралы жаз. (1) Сенің циклің неге бір кезде міндетті түрде тоқтайды — онда не өзгеріп отырады? (2) Кодтың қай жолын алып тастасаң, цикл шексіз болып қалар еді? (3) `a[i]` жазылған жерде i неге ешқашан 0 мен `len(a) - 1` аралығынан шығып кетпейді? (4) Тізімде бір ғана күн болса, бағдарламаң нені шығарады және неге?",
-      ru: "Напиши про свою программу из второй задачи. (1) Почему твой цикл обязательно когда-нибудь остановится — что именно в нём меняется? (2) Какую строку нужно убрать из кода, чтобы цикл стал бесконечным? (3) Почему там, где написано `a[i]`, значение i никогда не выходит за пределы от 0 до `len(a) - 1`? (4) Что выведет твоя программа, если день всего один, и почему?",
-    },
-    expectedPoints: [
-      {
-        kk: "Цикл әр қадамда индексті бірге өсіреді, ал шарт оны `len(a)`-мен салыстырады, сондықтан қадам саны тізім ұзындығынан аспайды. `for i in range(len(a))` жазылса да солай: сандар тізбегі шектеулі және таусылады. Бұған қоса қосынды k-дан кем болмай қалса, цикл одан ерте де тоқтауы мүмкін.",
-        ru: "На каждом шаге цикл увеличивает индекс на единицу, а условие сравнивает его с `len(a)`, поэтому шагов не больше, чем длина списка. Если написано `for i in range(len(a))` — то же самое: последовательность чисел конечна и заканчивается. Кроме того, цикл может остановиться и раньше — когда накопленная сумма станет не меньше k.",
-      },
-      {
-        kk: "Индексті өсіретін жол (`i += 1`) жоғалып кетсе, шарттағы мән өзгермей қалады да, цикл ешқашан тоқтамайды — бұл шексіз цикл. `for` циклінде мұндай жол жоқ, сондықтан оны шексіз ету мүлде қиын.",
-        ru: "Если убрать строку, увеличивающую индекс (`i += 1`), значение в условии перестанет меняться и цикл никогда не остановится — это бесконечный цикл. В цикле `for` такой строки нет, поэтому сделать его бесконечным гораздо труднее.",
-      },
-      {
-        kk: "`while` шартты дене орындалғанға ДЕЙІН тексереді, сондықтан `a[i]` тек i < len(a) ақиқат болғанда ғана оқылады. i мәнінің len(a)-ға тең болатын сәті бар, бірақ ол цикл тоқтағаннан кейін ғана келеді — ол кезде `a[i]` мүлде орындалмайды.",
-        ru: "`while` проверяет условие ДО выполнения тела, поэтому `a[i]` читается только тогда, когда i < len(a) истинно. Момент, когда i становится равным len(a), наступает уже после остановки цикла, и `a[i]` там просто не выполняется.",
-      },
-      {
-        kk: "Бір ғана күн болса, len(a) = 1 және дене ең көбі бір рет орындалады. Сол күнгі сан k-дан кем болмаса, жауап 1; кем болса, цикл индекс бойынша тоқтайды да, жауап 0 болады.",
-        ru: "Если день всего один, то len(a) = 1 и тело выполнится не больше одного раза. Если число за этот день не меньше k, ответ 1; если меньше — цикл остановится по индексу, и ответ будет 0.",
-      },
-    ],
-  },
-  {
-    /*
-     * The p.6 oral check («ауызша түсіндіру»), pointed at this month's content
-     * and at b1's program rather than at b2's — so it is a second, independent
-     * question and not the spoken half of b3.
+     * So the three questions are now one line of reasoning instead of three
+     * separate ones, and each answer is a different claim. (1) opens on a fact
+     * that looks like a crash and is not: the loop ends with i = 6 on a
+     * five-element list, and saying why `a[i]` never fired at 6 is the whole of
+     * «индекстердің неге шекарадан шықпайтыны». (2) then makes termination
+     * depend on the data rather than the shape, and it is not a yes/no — a 0 the
+     * walk lands on freezes the program, a 0 it never reads changes nothing, and
+     * `[2, 0, 1, 3, 4]` still stops at i = 6. (3) turns that same question on
+     * the program the learner wrote in b2, where the honest answer is the
+     * opposite: `i += 1` never consults the numbers, so no value can hang it.
      *
-     * The opening fact is deliberately uncomfortable: the loop ends with i = 6
-     * on a five-element list, which looks like the index error the month spends
-     * a lesson on. Explaining why it is not one requires the learner to say
-     * where the test happens relative to the access, and that sentence is the
-     * whole of «индекстердің неге шекарадан шықпайтыны».
+     * That third question is what b3 was for and it survives the deletion: it
+     * is the one question here nobody can recite, because nobody but the
+     * learner knows what they submitted, and it is now asked in the mode
+     * October's own sentence names. What did not survive is b3's «тізімде бір
+     * ғана күн болса, бағдарламаң нені шығарады?» — a fair question that b2
+     * already grades twice, with the hidden cases «5 / 5» and «5 / 7». Asking
+     * for it a fourth time out loud spends a minute the check does not have on
+     * something it already owns.
      *
      * Settles as `unknown`. A teacher hears it and reads these points; nothing
      * about it is graded 0/1.
@@ -208,12 +201,12 @@ export const M2_ASSESSMENT: LessonBlock[] = [
     id: "m2.as.b4",
     type: "verify",
     mode: "oral_explanation",
-    skillRefs: ["loops.while", "lists.index", "debug.boundary"],
+    skillRefs: ["loops.while", "loops.for", "lists.index", "debug.boundary"],
     sourceType: "curriculum-derived",
     pdfPage: 6,
     prompt: {
-      kk: "Мұғалімге ауызша түсіндір. Бірінші тапсырманың бағдарламасын есіңе түсір: цикл біткенде i = 6 болды, ал тізімде бар болғаны 5 элемент. (1) Неге бағдарлама индекс қатесімен құламады? (2) Бұл циклдің тоқтайтынына неге сенімдісің — оны не тоқтатады? (3) Тізімде 0 саны кездессе не болар еді?",
-      ru: "Объясни учителю устно. Вспомни программу из первого задания: когда цикл закончился, i = 6, а в списке всего 5 элементов. (1) Почему программа не упала с ошибкой индекса? (2) Почему ты уверен, что этот цикл вообще остановится — что его останавливает? (3) Что было бы, если бы в списке встретился 0?",
+      kk: "Мұғалімге ауызша түсіндір. Алдымен бірінші тапсырманың бағдарламасын есіңе түсір: цикл біткенде i = 6 болды, ал тізімде бар болғаны 5 элемент. (1) Неге бағдарлама индекс қатесімен құламады? (2) Сол тізімдегі сандардың біреуі 0 болса, цикл бәрібір тоқтай ма — нөлдің қай индексте тұрғанының маңызы бар ма? (3) Енді екінші тапсырмада өзің жазған бағдарламаны ал: оның тоқтайтынына неге сенімдісің және оның циклін нөл дәл солай шексіз ете ала ма?",
+      ru: "Объясни учителю устно. Сначала вспомни программу из первого задания: когда цикл закончился, i = 6, а в списке всего 5 элементов. (1) Почему программа не упала с ошибкой индекса? (2) Остановится ли этот цикл, если одно из чисел в списке окажется нулём, — важно ли, на каком индексе стоит этот ноль? (3) Теперь возьми программу, которую ты написал во втором задании: почему ты уверен, что она останавливается, и может ли ноль точно так же сделать её цикл бесконечным?",
     },
     expectedPoints: [
       {
@@ -221,12 +214,12 @@ export const M2_ASSESSMENT: LessonBlock[] = [
         ru: "При i = 6 `a[i]` не читается вовсе: `while` сначала проверяет условие, оно ложно — и тело не выполняется. Индекс выходит за пределы списка только после окончания цикла.",
       },
       {
-        kk: "Тізімдегі әр сан кемінде 1 болғандықтан, i әр қадамда міндетті түрде өседі. Үнемі өсіп отырған сан ерте ме, кеш пе 5-ке жетеді немесе одан асады, сондықтан цикл тоқтайды.",
-        ru: "Так как каждое число в списке не меньше 1, i на каждом шаге обязательно растёт. Постоянно растущее число рано или поздно достигнет 5 или превысит его, поэтому цикл остановится.",
+        kk: "Жауап нөлдің қай индексте тұрғанына байланысты. Жүріс шынымен баратын индексте 0 тұрса, i өзгермей қалады да, бағдарлама сол индексте мәңгі тұрып қалады — шексіз цикл шығады. Ал жүріс мүлде бармайтын индекстегі нөл ешнәрсені өзгертпейді: `[2, 0, 1, 3, 4]` тізімінде 1-индекстегі нөл оқылмайды, цикл бұрынғыдай i = 6-да тоқтайды. Демек бұл циклдің тоқтауы тізім ұзындығына емес, ішіндегі сандарға байланысты.",
+        ru: "Ответ зависит от того, на каком индексе стоит ноль. Если 0 стоит там, куда обход действительно попадает, i перестаёт меняться и программа зависает на этом индексе — получается бесконечный цикл. А ноль на индексе, куда обход вообще не заходит, ничего не меняет: в списке `[2, 0, 1, 3, 4]` ноль по индексу 1 не читается, и цикл всё так же останавливается при i = 6. Значит, остановка этого цикла зависит не от длины списка, а от самих чисел в нём.",
       },
       {
-        kk: "Егер кезекті орында 0 тұрса, i өзгермей қалады да, бағдарлама сол индексте мәңгі тұрып қалады — шексіз цикл шығады. Демек циклдің тоқтауы тізімдегі сандарға да байланысты.",
-        ru: "Если бы на очередном месте стоял 0, то i перестал бы меняться и программа зависла бы на этом индексе — получился бы бесконечный цикл. Значит, остановка цикла зависит ещё и от самих чисел в списке.",
+        kk: "Екінші тапсырманың циклі мүлде басқа себеппен тоқтайды: ондағы `i += 1` тізімдегі сандарға қарамайды, сондықтан дене ең көбі len(a) рет орындалады. Нөл тек қосындының өсуін баяулатар еді — бәрі нөл болса, жауап 0 шығады, бірақ цикл бәрібір тоқтайды. `for i in range(len(a))` жазылса да қорытынды сол: қадам саны алдын ала белгілі.",
+        ru: "Цикл из второго задания останавливается совсем по другой причине: `i += 1` в нём не смотрит на числа списка, поэтому тело выполнится не больше len(a) раз. Ноль только замедлил бы рост суммы — если бы все числа были нулями, ответ был бы 0, но цикл всё равно закончился бы. Если написано `for i in range(len(a))`, вывод тот же: число шагов известно заранее.",
       },
     ],
   },

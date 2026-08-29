@@ -18,7 +18,7 @@ import type { LessonBlock } from "../../types";
  *    example handed back),
  *    the divisor COUNT (m2.l2.b6), the digit sum (m2.l3.b7), the list maximum
  *    (m2.l5.b6), the count above the average (m2.l5.b8), the vowel count
- *    (m2.l6.b6), the word palindrome (m2.l6.b7). Setting the same statements
+ *    (m2.l6.b4), the palindrome (m2.l6.b7). Setting the same statements
  *    again here would test whether a learner remembers a lesson, not whether
  *    they can solve. So each block below stays inside a family the programme
  *    names and changes the question within it — count → sum, word → list,
@@ -173,7 +173,7 @@ export const M2_PRACTICE: LessonBlock[] = [
     ],
   },
   {
-    /* Rung 5, the string walk. m2.l6.b6 counts vowels against a fixed set, so
+    /* Rung 5, the string walk. m2.l6.b4 counts vowels against a fixed set, so
        this counts a letter that is only known at run time: the comparison
        moves from `ch in "aeiou"` to `ch == c`, and the letter to look for
        arrives on a second input line, which is a format the learner has to
@@ -211,7 +211,23 @@ export const M2_PRACTICE: LessonBlock[] = [
 
        Output is the English pair yes/no, named in both prompts: a program
        that printed «иә» would let a Russian-track learner match glyphs
-       instead of reasoning about the comparison. */
+       instead of reasoning about the comparison.
+
+       The case set below had a hole in it, and it was the hole this exact
+       family is known for. Every `no` it carried — `1 2 3 4`, `4 7`,
+       `1 2 3 2 9` — had unequal ends, so `a[0] == a[len(a) - 1]`, printed
+       with no loop at all, scored full marks on a task that is nothing but
+       the loop. m2.l6.b7 has never had that hole: its `aba cba` collapses to
+       the letters `abacba`, whose ends agree and whose middle does not, and
+       `1 2 3 4 1` is that case's numeric twin.
+
+       One such case is still not enough, because the shortcut has rungs.
+       Five numbers hold only two pairs, so a learner who writes out two
+       comparisons by hand and stops answers everything a five-element set can
+       ask. `1 2 3 4 5 2 1` is seven long and its outer two pairs agree, so
+       the only program that gets it right is one that keeps going until the
+       indices meet. Counting `no`s is not what makes a set cover a task —
+       three of these were the same `no`. */
     id: "m2.p6",
     type: "write_code",
     skillRefs: ["lists.index", "loops.while", "compare.operators"],
@@ -234,8 +250,18 @@ export const M2_PRACTICE: LessonBlock[] = [
       { input: "4 7", expectedOutput: "no", hidden: true },
       /* Even length, so the two indices cross without ever meeting. */
       { input: "1 2 2 1", expectedOutput: "yes", hidden: true },
-      /* The mismatch is at the very last position: a walk that stops one
-         step early reports yes. */
+      /* Ends equal, the pair one step inside them not: the input on which
+         `a[0] == a[len(a) - 1]` and the walk first disagree. */
+      { input: "1 2 3 4 1", expectedOutput: "no", hidden: true },
+      /* Seven long, and its outer two pairs agree. Five numbers hold only two
+         pairs, so every case above is answered by two comparisons written out
+         by hand; this one is not answered by any fixed number of them. */
+      { input: "1 2 3 4 5 2 1", expectedOutput: "no", hidden: true },
+      /* A near-palindrome that breaks on its outermost pair and then matches
+         on the next one in. `4 7` is what fails a walk that stops early; what
+         this input fails is `ok` re-assigned on every iteration instead of
+         only ever cleared — the flag forgets the mismatch it has already
+         found and prints yes. */
       { input: "1 2 3 2 9", expectedOutput: "no", hidden: true },
     ],
   },
