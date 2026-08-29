@@ -574,13 +574,28 @@ export function SchoolLesson({
       return;
     }
 
-    const values = Object.values(states);
+    /* The completion record describes the REQUIRED path, all four numbers alike.
+     *
+     * `attempts` was already required-only while `correct` counted every block
+     * the learner had settled, optional ones included — so a learner who did
+     * three required tasks and seven bank tasks was recorded as `correct: 10,
+     * attempts: 3`. Both numbers were defensible and the pair was not, and it
+     * is what a teacher reads back months later.
+     *
+     * Optional work is not lost by this: every submission is recorded per block
+     * in the ledger by `onSubmit`, which is the actual evidence. This row is
+     * the answer to "did they finish the lesson", and finishing a lesson is
+     * about the required path. */
+    const counted = blocks
+      .filter((b) => isAttemptBlock(b) && b.optional !== true)
+      .map((b) => states[b.id])
+      .filter(Boolean);
     setDone(true);
     onComplete?.({
       lessonId: lesson.id,
-      correct: values.filter((s) => s.verdict === "correct").length,
-      wrong: values.filter((s) => s.verdict === "wrong" || s.verdict === "partial").length,
-      unmeasured: values.filter((s) => s.verdict === "unmeasured").length,
+      correct: counted.filter((s) => s.verdict === "correct").length,
+      wrong: counted.filter((s) => s.verdict === "wrong" || s.verdict === "partial").length,
+      unmeasured: counted.filter((s) => s.verdict === "unmeasured").length,
       attempts: attemptCount,
     });
   }, [page, blocks, states, lesson.id, attemptCount, onComplete, decision]);

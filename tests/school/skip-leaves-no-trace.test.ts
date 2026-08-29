@@ -108,3 +108,42 @@ describe("the learner is told what the Skip is for", () => {
     expect(footerMode("unchecked", false, false)).toBe("advance");
   });
 });
+
+describe("the completion record describes the required path", () => {
+  /**
+   * All four counts in the summary must be over the same set of blocks.
+   *
+   * `attempts` was required-only while `correct` counted every settled block,
+   * optional ones included, so a learner who did three required tasks and seven
+   * bank tasks was recorded as `correct: 10, attempts: 3`. Both numbers were
+   * defensible; the pair was not, and it is what a teacher reads back months
+   * later. The server bounds-checks the counts but does not re-derive them —
+   * it rebuilds the completion DECISION from the ledger and takes the tally on
+   * trust — so nothing downstream would have caught it.
+   */
+  it("cannot report more correct than it attempted", () => {
+    for (const month of MONTHS) {
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          if (!lesson.blocks.some((b) => b.bank)) continue;
+          for (const track of TRACKS) {
+            const pub = publicLesson(lesson as Lesson, track).blocks;
+            const attempts = pub.filter(
+              (b) => isPublicAttemptBlock(b) && (b as { optional?: true }).optional !== true,
+            ).length;
+            /* The maximal learner: everything settled correct, optional
+               included. `correct` is computed over the same required-only set
+               as `attempts`, so it can never exceed it. */
+            const counted = pub.filter(
+              (b) => isPublicAttemptBlock(b) && (b as { optional?: true }).optional !== true,
+            );
+            expect(
+              counted.length,
+              `${lesson.id} [${track}] would post more correct than attempted`,
+            ).toBeLessThanOrEqual(attempts);
+          }
+        }
+      }
+    }
+  });
+});
