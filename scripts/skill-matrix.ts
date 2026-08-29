@@ -96,6 +96,8 @@ interface Row {
   practised: number[];
   independent: number[];
   assessed: number[];
+  monthlyAssessed: number[];
+  finalAssessed: boolean;
   taskCount: number;
   independentCount: number;
   bankCount: number;
@@ -107,6 +109,13 @@ const rows: Row[] = SKILLS.map((skill) => {
   const independent = touching.filter((e) => isIndependent(e.block) && isCore(e.block));
   const bankOnly = touching.filter((e) => !isCore(e.block));
   const assessed = touching.filter((e) => e.inAssessment && ATTEMPT_BLOCK_TYPES.has(e.block.type));
+  /* May's «қорытынды турнир» is not a monthly check. It is the year's final
+     assessment, it declares twenty skills where a monthly check declares five
+     or six, and a skill it covers is assessed even though no month's own check
+     named it. Collapsing the two is what turned three different findings into
+     one word. */
+  const monthlyAssessed = assessed.filter((e) => e.month !== 9);
+  const finalAssessed = assessed.filter((e) => e.month === 9);
   const months = (xs: Located[]) => [...new Set(xs.map((e) => e.month))].sort((a, b) => a - b);
   return {
     id: skill.id,
@@ -115,6 +124,8 @@ const rows: Row[] = SKILLS.map((skill) => {
     practised: months(tasks),
     independent: months(independent),
     assessed: months(assessed),
+    monthlyAssessed: months(monthlyAssessed),
+    finalAssessed: finalAssessed.length > 0,
     taskCount: tasks.length,
     independentCount: independent.length,
     bankCount: bankOnly.length,
@@ -157,11 +168,27 @@ for (const r of rows) {
         `required path` + (r.bankCount ? ` (${r.bankCount} are in the optional bank)` : ""),
     });
   }
+  /* Three different findings, which an earlier version of this script reported
+     as one. They have different severities and different remedies:
+
+     - NOT MONTHLY ASSESSED but covered by May's final tournament. The learner
+       does produce assessed evidence of it; no single month's check asked. A
+       real observation about the monthly checks, not a hole in the year.
+     - NEVER ASSESSED ANYWHERE. Nothing the learner is graded on, all year,
+       declares this skill. That is a hole.
+     - NO INDEPENDENT EVIDENCE. Practised, possibly assessed, but never in a
+       whole program written from nothing on the required path. */
   if (r.assessed.length === 0) {
     problems.push({
       skill: r.id,
-      kind: "never assessed",
-      detail: `practised in month(s) ${r.practised.join(", ")}; no monthly check references it`,
+      kind: "never assessed anywhere",
+      detail: `practised in month(s) ${r.practised.join(", ")}; no monthly check and not the final tournament`,
+    });
+  } else if (r.monthlyAssessed.length === 0) {
+    problems.push({
+      skill: r.id,
+      kind: "not monthly assessed",
+      detail: `practised in month(s) ${r.practised.join(", ")}; covered only by May's final tournament`,
     });
   }
   if (r.practised.length === 1 && r.practised[0] === r.introduced && r.taskCount < 3) {
@@ -212,10 +239,16 @@ if (md) {
     );
   }
   console.log("  " + "─".repeat(96));
+  /* Deliberately NOT compared against the programme's ~250 and ~100. These
+     totals sum all three routes and fold in assessment, contest and bank, so
+     they are not the same unit as the PDF's figures — see
+     docs/curriculum/TASK_COUNT_RECONCILIATION.md, which exists because that
+     comparison was made for months and was wrong every time.
+     `scripts/reconcile-counts.ts` is the script that may make it. */
   const totalIndependent = ALL.filter((e) => isIndependent(e.block)).length;
   const totalTasks = ALL.filter((e) => ATTEMPT_BLOCK_TYPES.has(e.block.type)).length;
-  console.log(`  ${SKILLS.length} skills · ${totalTasks} tasks · ${totalIndependent} independent solutions`);
-  console.log(`  (the programme promises ~250 tasks and ~100 independent solutions, PDF p.11)`);
+  console.log(`  ${SKILLS.length} skills · ${totalTasks} skill-bearing blocks · ${totalIndependent} from-nothing`);
+  console.log(`  (all routes summed, assessment and contest included — NOT the PDF-comparable figures)`);
   console.log("");
   if (problems.length) {
     console.log(`  ${problems.length} gap(s):`);
