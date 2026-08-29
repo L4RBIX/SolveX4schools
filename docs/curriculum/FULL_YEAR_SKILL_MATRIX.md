@@ -9,6 +9,36 @@
 | **Independent** | Every month with a **core** block referencing it where the learner writes a whole program from nothing. Bank tasks do not count: a skill whose only from-nothing evidence is optional has none for the learner who does the required path and stops. |
 | **Assessed** | Every month whose check or final tournament references it. |
 
+## The one finding that could block a release
+
+**Evidence and sampling are different questions, and only one of them can block.**
+
+A skill with no whole-program evidence anywhere on the required path is one the curriculum cannot show a learner can use unaided — which is the programme's own headline promise, «Бөтен шешімді көшірмей, бағдарламаны өз бетінше жазады». A skill missing from one 20-minute check is a question about what a check is for.
+
+Across 48 skills:
+
+| | |
+|---|---|
+| **Evidence findings** | **1** |
+| Sampling findings | 15 |
+
+The single evidence finding is `contest.verdict_reading`, and it is a defect in the metric rather than in the curriculum. "Independent evidence" is defined as a whole program written from nothing, which is the right definition for a technique and the wrong one for a judgement: there is no program that demonstrates you can read a verdict correctly. What demonstrates it is choosing the right response to one, which is what all eight of its tasks ask, and the matrix records them as guided evidence in month 9.
+
+**No skill has its only independent evidence in the optional bank.** That was checked separately, because a skill whose from-nothing task a learner may skip has no evidence for the learner who does the required path and stops.
+
+## The six categories
+
+Every column is computed from the authored content.
+
+| Category | What it means |
+|---|---|
+| **Taught** | The month `skills.ts` assigns it, from the PDF's own per-month paragraphs. The only declared column. |
+| **Guided** | The learner acts, but the program is not theirs to produce whole — a starter, a template, someone else's code to repair or reorder. Real evidence; not the «толық дербес шешім» the programme counts. |
+| **Core independent** | A whole program from nothing, on the required path. This is what backs the promised ~100. |
+| **Optional independent** | The same, in a bank task the learner may skip. |
+| **Monthly assessed** | Sampled by that month's own «Айлық сынақ». |
+| **Later assessed** | Sampled by a later check or by May's final tournament, but not by its own month's. |
+
 ## The three findings, kept apart
 
 An earlier version of this script reported "20 never assessed skills" as one number. That was three different findings wearing one word, and they have different severities and different remedies.
@@ -62,53 +92,53 @@ No skill is practised before the month `skills.ts` introduces it — the matrix 
 
 ## The matrix
 
-| Skill | Introduced | Practised | Independent evidence | Assessed | Tasks |
-|---|---|---|---|---|---|
-| `io.read` — Деректерді оқу | 1 | 1, 2, 3, 4, 5, 9 | 1, 2, 4, 9 | 1, 4 | 26 |
-| `io.print` — Жауапты шығару | 1 | 1, 4, 5 | 1, 4, 5 | 4 | 7 |
-| `types.int_float` — Бүтін және бөлшек сандар | 1 | 1 | 1 | 1 | 7 |
-| `arith.basic` — Арифметикалық амалдар | 1 | 1, 2, 4 | 1, 2, 4 | — | 11 |
-| `arith.integer_division` — Бүтін бөлу | 1 | 1, 2, 3, 4, 5, 6, 8, 9 | 1, 2, 3, 4, 5, 6, 8, 9 | 1, 9 | 38 |
-| `arith.remainder` — Қалдық | 1 | 1, 2, 3, 4, 6, 8, 9 | 1, 2, 3, 4, 6, 8, 9 | — | 43 |
-| `compare.operators` — Салыстыру амалдары | 1 | 1, 2, 3, 4, 5, 6, 7, 8, 9 | 1, 2, 3, 4, 5, 6, 7, 9 | — | 37 |
-| `cond.if_elif_else` — if / elif / else шарттары | 1 | 1, 2, 3, 4, 9 | 1, 2, 3, 4, 9 | 1, 9 | 36 |
-| `logic.and_or_not` — Логикалық амалдар (and, or, not) | 1 | 1, 3, 4, 5, 9 | 1, 3, 9 | 1 | 16 |
-| `debug.boundary` — Шарт шекарасы | 1 | 1, 2, 3, 4, 5, 6, 7, 8, 9 | 1, 2, 3, 4, 5, 6, 7, 8, 9 | 1, 2, 5, 6, 7, 8, 9 | 140 |
-| `loops.for` — for циклі | 2 | 2, 3, 4, 5, 7, 8, 9 | 2, 3, 4, 5, 8, 9 | 2, 3, 4 | 65 |
-| `loops.while` — while циклі | 2 | 2, 3, 5, 6, 7 | 2, 3, 5 | 2, 5 | 42 |
-| `loops.counter` — Цикл санағышы | 2 | 2, 3, 4, 5, 7, 9 | 2, 3, 4, 5, 7, 9 | 2, 9 | 45 |
-| `loops.accumulator` — Жинақтаушы айнымалы | 2 | 2, 3, 4, 5, 8, 9 | 2, 3, 4, 5, 8, 9 | 2, 9 | 54 |
-| `lists.index` — Тізім индексі | 2 | 2, 3, 4, 5, 6, 7, 8, 9 | 2, 3, 4, 5, 6, 9 | 2, 5, 9 | 106 |
-| `lists.traverse` — Тізімді толық қарап шығу | 2 | 2, 3, 4, 5, 6, 8, 9 | 2, 3, 4, 5, 8, 9 | 2, 3, 4, 8, 9 | 87 |
-| `strings.sequence` — Жолды таңбалар тізбегі ретінде өңдеу | 2 | 2, 3, 6, 9 | 2, 3, 6, 9 | — | 24 |
-| `loops.nested` — Ішкі циклдер | 2 | 2, 4, 6, 7, 8, 9 | 2, 4, 6, 7, 8, 9 | 9 | 49 |
-| `func.define` — Функция жазу | 3 | 3, 5, 6, 7, 9 | 3, 5, 6, 7, 9 | 3, 6 | 61 |
-| `func.parameters` — Параметр беру | 3 | 3, 5, 6 | 3, 6 | 3 | 56 |
-| `func.return` — return арқылы нәтиже қайтару | 3 | 3, 5, 6, 7, 9 | 3, 6, 7, 9 | 3, 6 | 77 |
-| `func.reuse` — Функцияны бірнеше рет шақыру | 3 | 3, 5, 7, 9 | 3, 5, 7, 9 | 3 | 39 |
-| `scope.local_global` — Жергілікті және жаһандық айнымалы | 3 | 3 | 3 | 3 | 15 |
-| `perf.time_estimate` — Уақытқа үлгеруді бағалау | 4 | 4, 5, 6, 8, 9 | 4, 6, 8, 9 | 4, 9 | 45 |
-| `sort.basic` — Сандарды реттеу | 4 | 4, 5, 8, 9 | 4, 5, 8, 9 | 4, 9 | 59 |
-| `precompute.prefix` — Алдын ала есептеу | 4 | 4, 8, 9 | 4, 9 | — | 26 |
-| `perf.compare_solutions` — Екі шешімді салыстыру | 4 | 4, 5, 7, 8 | 4, 5, 8 | 4, 7 | 26 |
-| `bsearch.core` — Екіге бөліп іздеу | 5 | 5, 9 | 5, 9 | 5, 9 | 33 |
-| `bsearch.boundary` — Іздеу шекаралары | 5 | 5, 9 | 5, 9 | 5, 9 | 31 |
-| `twopointers.core` — Екі шекара әдісі | 5 | 5, 7, 9 | 5, 9 | — | 33 |
-| `enumerate.all` — Барлық нұсқаны тексеру | 6 | 6, 8, 9 | 6, 8, 9 | — | 40 |
-| `recursion.core` — Өзін-өзі шақыратын функция | 6 | 6, 7, 8, 9 | 6, 7, 9 | 6 | 48 |
-| `recursion.base_case` — Тоқтату шарты | 6 | 6, 9 | 6, 9 | 6 | 25 |
-| `recursion.call_tree` — Шақырулар ағашы | 6 | 6 | 6 | 6 | 17 |
-| `grid.cells` — Ұяшық және көрші ұяшық | 7 | 7, 8, 9 | 7, 8, 9 | 7, 9 | 40 |
-| `graph.bfs` — Толқын әдісі (BFS) | 7 | 7, 9 | 7, 9 | 7, 9 | 37 |
-| `graph.dfs` — Тереңдікке өту (DFS) | 7 | 7, 9 | 7, 9 | — | 10 |
-| `graph.regions` — Байланысқан аймақтар | 7 | 7, 9 | 7, 9 | 9 | 17 |
-| `graph.shortest_path` — Ең қысқа жол | 7 | 7, 9 | 7, 9 | 7 | 16 |
-| `graph.path_restore` — Маршрутты қалпына келтіру | 7 | 7 | 7 | — | 8 |
-| `greedy.core` — Әр қадамда тиімді таңдау | 8 | 8, 9 | 8, 9 | 8, 9 | 22 |
-| `greedy.counterexample` — Қарсы мысал іздеу | 8 | 8, 9 | 8, 9 | 8, 9 | 18 |
-| `dp.core` — Алдыңғы жауаптар арқылы шешу | 8 | 8, 9 | 8, 9 | 8, 9 | 35 |
-| `dp.table` — Қадамдап толтырылатын кесте | 8 | 8, 9 | 8, 9 | 8, 9 | 34 |
-| `contest.time_split` — Есептер арасында уақыт бөлу | 9 | 9 | 9 | — | 10 |
-| `contest.verdict_reading` — Тексеру жүйесінің хабарламасын оқу | 9 | 9 | — | — | 8 |
-| `contest.upsolving` — Жарыстан кейін толық шешу | 9 | 9 | 9 | — | 8 |
-| `contest.defend` — Шешімді ауызша қорғау | 9 | 9 | 9 | 9 | 8 |
+| Skill | Taught | Guided | Core independent | Optional independent | Monthly assessed | Later assessed |
+|---|---|---|---|---|---|---|
+| `io.read` — Деректерді оқу | m1 | 1, 3, 4, 5, 9 | 1, 2, 4, 9 | — | 1, 4 | — |
+| `io.print` — Жауапты шығару | m1 | 1 | 1, 4, 5 | — | 4 | — |
+| `types.int_float` — Бүтін және бөлшек сандар | m1 | 1 | 1 | — | 1 | — |
+| `arith.basic` — Арифметикалық амалдар | m1 | 1 | 1, 2, 4 | 2 | — | — |
+| `arith.integer_division` — Бүтін бөлу | m1 | 1, 2, 3, 4, 5, 6 | 1, 2, 3, 4, 5, 6, 8, 9 | 3 | 1 | 9 |
+| `arith.remainder` — Қалдық | m1 | 1, 2, 3, 6 | 1, 2, 3, 4, 6, 8, 9 | 2, 3 | — | — |
+| `compare.operators` — Салыстыру амалдары | m1 | 1, 3, 5, 8, 9 | 1, 2, 3, 4, 5, 6, 7, 9 | 2, 3 | — | — |
+| `cond.if_elif_else` — if / elif / else шарттары | m1 | 1, 3 | 1, 2, 3, 4, 9 | — | 1 | 9 |
+| `logic.and_or_not` — Логикалық амалдар (and, or, not) | m1 | 1, 4, 5 | 1, 3, 9 | — | 1 | — |
+| `debug.boundary` — Шарт шекарасы | m1 | 1, 2, 3, 4, 5, 6, 7, 8, 9 | 1, 2, 3, 4, 5, 6, 7, 8, 9 | 2 | 1, 2, 5, 6, 7, 8 | 9 |
+| `loops.for` — for циклі | m2 | 2, 3, 4, 7, 8 | 2, 3, 4, 5, 8, 9 | 2 | 2, 3, 4 | — |
+| `loops.while` — while циклі | m2 | 2, 3, 5, 6, 7 | 2, 3, 5 | 3 | 2, 5 | — |
+| `loops.counter` — Цикл санағышы | m2 | 2, 4, 9 | 2, 3, 4, 5, 7, 9 | 2, 7 | 2 | 9 |
+| `loops.accumulator` — Жинақтаушы айнымалы | m2 | 2, 3, 4, 5, 9 | 2, 3, 4, 5, 8, 9 | 2, 4 | 2 | 9 |
+| `lists.index` — Тізім индексі | m2 | 2, 3, 4, 5, 6, 7, 8, 9 | 2, 3, 4, 5, 6, 9 | 2, 3, 4 | 2, 5 | 9 |
+| `lists.traverse` — Тізімді толық қарап шығу | m2 | 2, 3, 4, 5, 6, 8, 9 | 2, 3, 4, 5, 8, 9 | 2, 3 | 2, 3, 4, 8 | 9 |
+| `strings.sequence` — Жолды таңбалар тізбегі ретінде өңдеу | m2 | 2, 3, 6, 9 | 2, 3, 6, 9 | 2, 3 | — | — |
+| `loops.nested` — Ішкі циклдер | m2 | 2, 4, 6, 7, 8, 9 | 2, 4, 6, 7, 8, 9 | 2, 6, 7 | — | 9 |
+| `func.define` — Функция жазу | m3 | 3, 5 | 3, 5, 6, 7, 9 | 3, 7 | 3, 6 | — |
+| `func.parameters` — Параметр беру | m3 | 3, 5, 6 | 3, 6 | 3 | 3 | — |
+| `func.return` — return арқылы нәтиже қайтару | m3 | 3, 5, 6 | 3, 6, 7, 9 | 3, 7 | 3, 6 | — |
+| `func.reuse` — Функцияны бірнеше рет шақыру | m3 | 3 | 3, 5, 7, 9 | 3, 7 | 3 | — |
+| `scope.local_global` — Жергілікті және жаһандық айнымалы | m3 | 3 | 3 | — | 3 | — |
+| `perf.time_estimate` — Уақытқа үлгеруді бағалау | m4 | 4, 5, 6, 9 | 4, 6, 8, 9 | 4, 6 | 4 | 9 |
+| `sort.basic` — Сандарды реттеу | m4 | 4, 5, 8, 9 | 4, 5, 8, 9 | 4 | 4 | 9 |
+| `precompute.prefix` — Алдын ала есептеу | m4 | 4, 8, 9 | 4, 9 | — | — | — |
+| `perf.compare_solutions` — Екі шешімді салыстыру | m4 | 4, 5, 7 | 4, 5, 8 | — | 4, 7 | — |
+| `bsearch.core` — Екіге бөліп іздеу | m5 | 5 | 5, 9 | — | 5 | 9 |
+| `bsearch.boundary` — Іздеу шекаралары | m5 | 5 | 5, 9 | — | 5 | 9 |
+| `twopointers.core` — Екі шекара әдісі | m5 | 5, 7, 9 | 5, 9 | — | — | — |
+| `enumerate.all` — Барлық нұсқаны тексеру | m6 | 6, 8, 9 | 6, 8, 9 | 6 | — | — |
+| `recursion.core` — Өзін-өзі шақыратын функция | m6 | 6, 7, 8 | 6, 7, 9 | 7 | 6 | — |
+| `recursion.base_case` — Тоқтату шарты | m6 | 6 | 6, 9 | — | 6 | — |
+| `recursion.call_tree` — Шақырулар ағашы | m6 | 6 | 6 | — | 6 | — |
+| `grid.cells` — Ұяшық және көрші ұяшық | m7 | 7, 8 | 7, 8, 9 | 7 | 7 | 9 |
+| `graph.bfs` — Толқын әдісі (BFS) | m7 | 7 | 7, 9 | 7 | 7 | 9 |
+| `graph.dfs` — Тереңдікке өту (DFS) | m7 | 7 | 7, 9 | 7 | — | — |
+| `graph.regions` — Байланысқан аймақтар | m7 | 7 | 7, 9 | 7 | — | 9 |
+| `graph.shortest_path` — Ең қысқа жол | m7 | 7 | 7, 9 | 7 | 7 | — |
+| `graph.path_restore` — Маршрутты қалпына келтіру | m7 | 7 | 7 | — | — | — |
+| `greedy.core` — Әр қадамда тиімді таңдау | m8 | 8, 9 | 8, 9 | — | 8 | 9 |
+| `greedy.counterexample` — Қарсы мысал іздеу | m8 | 8, 9 | 8, 9 | — | 8 | 9 |
+| `dp.core` — Алдыңғы жауаптар арқылы шешу | m8 | 8 | 8, 9 | — | 8 | 9 |
+| `dp.table` — Қадамдап толтырылатын кесте | m8 | 8 | 8, 9 | — | 8 | 9 |
+| `contest.time_split` — Есептер арасында уақыт бөлу | m9 | 9 | 9 | — | — | — |
+| `contest.verdict_reading` — Тексеру жүйесінің хабарламасын оқу | m9 | 9 | — | — | — | — |
+| `contest.upsolving` — Жарыстан кейін толық шешу | m9 | 9 | 9 | — | — | — |
+| `contest.defend` — Шешімді ауызша қорғау | m9 | 9 | 9 | — | — | 9 |

@@ -96,6 +96,8 @@ interface Row {
   practised: number[];
   independent: number[];
   assessed: number[];
+  guided: number[];
+  optionalIndependent: number[];
   monthlyAssessed: number[];
   finalAssessed: boolean;
   taskCount: number;
@@ -109,6 +111,16 @@ const rows: Row[] = SKILLS.map((skill) => {
   const independent = touching.filter((e) => isIndependent(e.block) && isCore(e.block));
   const bankOnly = touching.filter((e) => !isCore(e.block));
   const assessed = touching.filter((e) => e.inAssessment && ATTEMPT_BLOCK_TYPES.has(e.block.type));
+  /* GUIDED: the learner acts, but the program is not theirs to produce whole —
+     a starter, a template, someone else's code to repair or reorder. Real
+     evidence of understanding, and not the «толық дербес шешім» the programme
+     counts separately. */
+  const guided = tasks.filter(
+    (e) => !isIndependent(e.block) && isCore(e.block) && !e.inAssessment,
+  );
+  /* Independent evidence that a learner may skip. It is evidence, and it is
+     not evidence the required path produces. */
+  const optionalIndependent = touching.filter((e) => isIndependent(e.block) && !isCore(e.block));
   /* May's «қорытынды турнир» is not a monthly check. It is the year's final
      assessment, it declares twenty skills where a monthly check declares five
      or six, and a skill it covers is assessed even though no month's own check
@@ -124,6 +136,8 @@ const rows: Row[] = SKILLS.map((skill) => {
     practised: months(tasks),
     independent: months(independent),
     assessed: months(assessed),
+    guided: months(guided),
+    optionalIndependent: months(optionalIndependent),
     monthlyAssessed: months(monthlyAssessed),
     finalAssessed: finalAssessed.length > 0,
     taskCount: tasks.length,
@@ -159,13 +173,24 @@ for (const r of rows) {
       detail: `first practised in month ${r.practised[0]}, taxonomy introduces it in month ${r.introduced}`,
     });
   }
+  /* THE BLOCKER, and it is a different thing from a check not sampling a skill.
+     A skill with no whole-program evidence anywhere on the required path is one
+     the curriculum cannot show a learner can use unaided — which is the
+     programme's own headline promise. A skill missing from one 20-minute check
+     is a sampling question. Reported separately, and in that order. */
   if (r.independentCount === 0) {
     problems.push({
       skill: r.id,
-      kind: "no independent evidence",
+      kind: r.optionalIndependent.length
+        ? "independent evidence ONLY in the optional bank"
+        : "no independent evidence anywhere",
       detail:
         `${r.taskCount} task(s), none of them a whole program written from nothing on the ` +
-        `required path` + (r.bankCount ? ` (${r.bankCount} are in the optional bank)` : ""),
+        `required path` +
+        (r.optionalIndependent.length
+          ? ` — month(s) ${r.optionalIndependent.join(", ")} have one, but a learner may skip it`
+          : "") +
+        (r.guided.length ? `. Guided evidence in month(s) ${r.guided.join(", ")}` : ""),
     });
   }
   /* Three different findings, which an earlier version of this script reported
@@ -206,11 +231,15 @@ const md = process.argv.includes("--markdown");
 const fmt = (xs: number[]) => (xs.length ? xs.join(", ") : "—");
 
 if (md) {
-  console.log("| Skill | Introduced | Practised | Independent evidence | Assessed | Tasks |");
-  console.log("|---|---|---|---|---|---|");
+  console.log(
+    "| Skill | Taught | Guided | Core independent | Optional independent | Monthly assessed | Later assessed |",
+  );
+  console.log("|---|---|---|---|---|---|---|");
   for (const r of rows) {
+    const later = r.assessed.filter((m) => !r.monthlyAssessed.includes(m));
     console.log(
-      `| \`${r.id}\` — ${r.titleKk} | ${r.introduced} | ${fmt(r.practised)} | ${fmt(r.independent)} | ${fmt(r.assessed)} | ${r.taskCount} |`,
+      `| \`${r.id}\` — ${r.titleKk} | m${r.introduced} | ${fmt(r.guided)} | ${fmt(r.independent)} | ` +
+        `${fmt(r.optionalIndependent)} | ${fmt(r.monthlyAssessed)} | ${fmt(later)} |`,
     );
   }
   console.log("");
@@ -250,11 +279,32 @@ if (md) {
   console.log(`  ${SKILLS.length} skills · ${totalTasks} skill-bearing blocks · ${totalIndependent} from-nothing`);
   console.log(`  (all routes summed, assessment and contest included — NOT the PDF-comparable figures)`);
   console.log("");
-  if (problems.length) {
-    console.log(`  ${problems.length} gap(s):`);
-    for (const p of problems) console.log(`    ! ${p.skill}: ${p.kind} — ${p.detail}`);
+  /* Two questions, and only one of them can block a release.
+   *
+   * A skill with no whole-program evidence anywhere on the required path is one
+   * the curriculum cannot show a learner can use unaided, which is the
+   * programme's own headline promise. A skill missing from one 20-minute check
+   * is a sampling question about what a check is for. Reporting them as one
+   * number — "20 never assessed skills" — is what this script used to do, and
+   * it made the second look like the first. */
+  const BLOCKING = new Set(["no independent evidence anywhere", "independent evidence ONLY in the optional bank", "never practised", "practised before introduced"]);
+  const blockers = problems.filter((p) => BLOCKING.has(p.kind));
+  const sampling = problems.filter((p) => !BLOCKING.has(p.kind));
+
+  console.log("  ── EVIDENCE (can block a release) ──");
+  if (blockers.length) {
+    for (const p of blockers) console.log(`    ! ${p.skill}: ${p.kind} — ${p.detail}`);
   } else {
-    console.log("  No gaps.");
+    console.log("    none — every skill has whole-program evidence on the required path");
   }
+  console.log("");
+  console.log("  ── SAMPLING (a question about what a monthly check is for) ──");
+  if (sampling.length) {
+    for (const p of sampling) console.log(`    · ${p.skill}: ${p.kind} — ${p.detail}`);
+  } else {
+    console.log("    none");
+  }
+  console.log("");
+  console.log(`  ${blockers.length} evidence finding(s), ${sampling.length} sampling finding(s).`);
   console.log("");
 }
