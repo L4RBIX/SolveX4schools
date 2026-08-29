@@ -58,48 +58,53 @@ the comparable figure rather than counted against the promise.
 | Month | PDF «тапсырма» | Practice (comparable) | · independent | · guided coding | · other interaction | Explanation | Assessment | Contest | Bank | All blocks |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 Қыркүйек | 36 | **44** (+8) | 25 | 1 | 18 | 18 | 4 | 0 | 0 | 66 |
-| 2 Қазан | 38 | **60** (+22) | 21 | 3 | 36 | 15 | 3 | 0 | 8 | 86 |
-| 3 Қараша | 34 | **59** (+25) | 22 | 4 | 33 | 14 | 3 | 0 | 0 | 76 |
-| 4 Желтоқсан | 32 | **51** (+19) | 22 | 2 | 27 | 12 | 4 | 0 | 0 | 67 |
-| 5 Қаңтар | 30 | **59** (+29) | 19 | 5 | 35 | 12 | 4 | 0 | 0 | 75 |
-| 6 Ақпан | 30 | **51** (+21) | 19 | 3 | 29 | 10 | 4 | 0 | 0 | 65 |
-| 7 Наурыз | 26 | **48** (+22) | 17 | 2 | 29 | 10 | 4 | 0 | 0 | 62 |
+| 2 Қазан | 38 | **60** (+22) | 22 | 3 | 35 | 15 | 3 | 0 | 8 | 86 |
+| 3 Қараша | 34 | **55** (+21) | 18 | 4 | 33 | 14 | 3 | 0 | 4 | 76 |
+| 4 Желтоқсан | 32 | **50** (+18) | 21 | 2 | 27 | 12 | 4 | 0 | 1 | 67 |
+| 5 Қаңтар | 30 | **58** (+28) | 19 | 5 | 34 | 12 | 3 | 0 | 1 | 74 |
+| 6 Ақпан | 30 | **50** (+20) | 18 | 3 | 29 | 10 | 4 | 0 | 1 | 65 |
+| 7 Наурыз | 26 | **45** (+19) | 15 | 2 | 28 | 10 | 4 | 0 | 3 | 62 |
 | 8 Сәуір | 28 | **43** (+15) | 17 | 1 | 25 | 13 | 4 | 0 | 0 | 60 |
 | 9 Мамыр | 25 | **42** (+17) | 4 | 2 | 16 | 9 | 7 | 20 | 0 | 58 |
-| **Year** | **279** | **457** | **166** | 23 | 248 | 113 | 37 | 20 | 8 | 615 |
+| **Year** | **279** | **447** | **159** | 23 | 245 | 113 | 36 | 20 | 18 | 614 |
 
 ## What it says
 
-**457 comparable practice tasks against a promised 279, and 166 independent
-solutions against a promised ~100.** Both are about 64% above the figure the
+**447 comparable practice tasks against a promised 279, and 159 independent
+solutions against a promised ~100.** Both are about 60% above the figure the
 programme states.
+
+(These are the figures after the core-vs-bank re-audit moved fourteen tasks off
+the required path. At the content freeze they were 457 and 166 — the freeze
+document records that state and is not updated, because it is a record of a
+commit.)
 
 Two things follow, and they point in opposite directions.
 
 The over-delivery is **real, not an artifact of the old bad comparison**.
 Correcting the units moved the number from 475 to 457; it did not move it to
-279. Every month carries 15 to 29 more comparable tasks than its own paragraph
-names.
+279, and the redundancy audit that followed moved it only to 447. Every month
+still carries 15 to 28 more comparable tasks than its own paragraph names.
 
 But over-delivery is **not by itself a defect**, because p.11 calls its own
 figures a minimum and anticipates additional problems. The question the counts
 cannot answer is whether the required path still fits the hours the programme
 allots — 2,5 сағат theory and 6 сағат practice a month (p.5). That is a question
 about minutes, not tasks, and it is answered in
-`docs/curriculum/FULL_YEAR_WORKLOAD_MODEL.md`.
+`docs/curriculum/FULL_YEAR_WORKLOAD.md`.
 
 ## Numbers that must not be collapsed again
 
 | Figure | Year total (core route) |
 |---|---|
-| Total blocks | 615 |
-| Attempt blocks | 502 |
-| **PDF-comparable practice tasks** | **457** |
-| — of which independent solutions | 166 |
+| Total blocks | 614 |
+| Attempt blocks | 501 |
+| **PDF-comparable practice tasks** | **447** |
+| — of which independent solutions | 159 |
 | — of which guided coding | 23 |
-| — of which other interaction | 248 |
+| — of which other interaction | 245 |
 | Explanation blocks (not tasks) | 113 |
-| Assessment tasks | 37 |
+| Assessment tasks | 36 |
 | Contest tasks | 20 |
 | Optional bank tasks | 8 |
 

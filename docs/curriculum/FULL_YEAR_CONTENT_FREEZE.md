@@ -23,6 +23,12 @@ All nine months carry lesson bodies. The figures below are the core route, and t
 
 Regenerate with `npx tsx scripts/reconcile-counts.ts`.
 
+**This table records the freeze commit and is deliberately not updated.** The
+core-vs-bank re-audit that followed moved fourteen tasks onto the optional path,
+so the current figures are 447 comparable practice tasks and 159 independent,
+with 18 in the bank. Reclassification is one of the amendments allowed below;
+`TASK_COUNT_RECONCILIATION.md` carries the live numbers.
+
 ## Amendments allowed after the freeze
 
 Only these, and each needs its reason stated in the commit:
