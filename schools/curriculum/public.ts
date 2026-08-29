@@ -468,6 +468,15 @@ export function publicAssessment(
 export interface BlockOutline {
   id: string;
   type: LessonBlock["type"];
+  /**
+   * Carried so the month board can quote a total the required path can reach.
+   *
+   * `monthTaskCount` counts attempt blocks, and with no field to filter on it
+   * counted the optional ones too: October advertised 85 tasks where 75 are
+   * required. Milder than the in-lesson readout, which had a numerator beside
+   * it, but the same lie.
+   */
+  optional?: true;
 }
 
 export interface LessonOutline extends Omit<Lesson, "blocks"> {
@@ -488,7 +497,7 @@ export interface MonthOutline extends Omit<Month, "units" | "assessment"> {
 }
 
 function outlineBlocks(blocks: readonly LessonBlock[]): BlockOutline[] {
-  return blocks.map((b) => ({ id: b.id, type: b.type }));
+  return blocks.map((b) => (b.bank ? { id: b.id, type: b.type, optional: true as const } : { id: b.id, type: b.type }));
 }
 
 export function monthOutline(month: Month): MonthOutline {
@@ -540,6 +549,14 @@ export function secretStringsOf(block: LessonBlock): string[] {
   if (block.type === "trace_code") {
     for (const s of block.steps) out.push(...Object.values(s.vars));
   }
+  /* Bank membership is editorial reasoning that names the sibling tasks already
+     carrying this one's evidence — a map to where an equivalent answer lives,
+     written for whoever maintains the curriculum. `publicBlock` sends only the
+     boolean, and this is the net that would notice if some future call site
+     stopped doing that. Adding it here rather than trusting the projection is
+     the lesson of the original leak: the defect was never the collector, it was
+     a call site that did not use it. */
+  if (block.bank) out.push(block.bank.why);
   if (block.diagnosticMapping) {
     for (const entry of Object.values(block.diagnosticMapping)) out.push(entry.justification);
   }

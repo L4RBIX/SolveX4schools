@@ -63,8 +63,22 @@ export function monthIsReady(month: Month): boolean {
   return month.units.some((u) => u.lessons.some(isLessonReady));
 }
 
+/**
+ * Tasks the learner is actually asked for.
+ *
+ * Optional ones are excluded, because this number is rendered to a learner as a
+ * description of the month. Counting the bank made October advertise 85 tasks
+ * where 75 are required — not as sharp as the in-lesson readout, which had a
+ * numerator beside it and so read as a goal, but the same overstatement.
+ *
+ * `bank` on an authored block and `optional` on a projected one are the same
+ * fact, and this is called with both.
+ */
+const isOptionalBlock = (b: { bank?: unknown; optional?: unknown }) =>
+  b.bank !== undefined || b.optional === true;
+
 export function countTasks(lesson: Lesson): number {
-  return lesson.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type)).length;
+  return lesson.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type) && !isOptionalBlock(b)).length;
 }
 
 export function monthTaskCount(month: Month): number {
@@ -73,7 +87,8 @@ export function monthTaskCount(month: Month): number {
     0,
   );
   const inAssessment =
-    month.assessment?.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type)).length ?? 0;
+    month.assessment?.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type) && !isOptionalBlock(b))
+      .length ?? 0;
   return inLessons + inAssessment;
 }
 

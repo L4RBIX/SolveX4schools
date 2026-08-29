@@ -799,6 +799,9 @@ export const M7_L4: LessonBlock[] = [
       "        print(pr[i], pc[i])",
     checker: { kind: "exact" },
     cases: [
+      /* The only route to (0,2) ends with an upward move. A traversal missing the up direction
+         prints -1. */
+      { input: "2 3\n.#.\n...\n0 0 0 2", expectedOutput: "0 0\n1 0\n1 1\n1 2\n0 2", hidden: true },
       { input: "3 3\n...\n...\n...\n0 0 2 2", expectedOutput: "0 0\n1 0\n2 0\n2 1\n2 2" },
       { input: "3 4\n....\n##.#\n....\n0 0 2 0", expectedOutput: "0 0\n0 1\n0 2\n1 2\n2 2\n2 1\n2 0" },
       { input: "3 3\n.#.\n.#.\n.#.\n0 0 2 2", expectedOutput: "-1", hidden: true },
@@ -896,6 +899,8 @@ export const M7_L4: LessonBlock[] = [
       "else:\n" +
       "    print(a[mr][mc] + b[mr][mc])",
     cases: [
+      /* Both legs need an upward step to reach (0,2); three directions answer -1. */
+      { input: "2 3\n.#.\n...\n0 0 1 0\n0 2", expectedOutput: "7", hidden: true },
       { input: "3 4\n....\n.##.\n....\n0 0 0 3\n2 0", expectedOutput: "7" },
       { input: "3 4\n....\n.##.\n....\n0 0 0 3\n1 3", expectedOutput: "5" },
       { input: "3 4\n....\n.##.\n....\n0 0 0 3\n0 0", expectedOutput: "3", hidden: true },

@@ -276,6 +276,9 @@ export const M8_L2: LessonBlock[] = [
     referenceSolution:
       "w = list(map(int, input().split()))\ncap = int(input())\nbest = 0\nfor a in range(2):\n    for b in range(2):\n        for c in range(2):\n            for d in range(2):\n                total = a * w[0] + b * w[1] + c * w[2] + d * w[3]\n                if total <= cap and total > best:\n                    best = total\nprint(best)",
     cases: [
+      /* The prompt says each item may be taken at most once — 16 subsets. A loop allowing each
+         item twice answers 5 here and passed every other case. */
+      { input: "1 1 1 1\n5", expectedOutput: "4", hidden: true },
       { input: "2 3 4 5\n9", expectedOutput: "9" },
       { input: "7 4 4 2\n8", expectedOutput: "8" },
       { input: "9 6 5 1\n11", expectedOutput: "11", hidden: true },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { MONTHS } from "@schools/curriculum/months";
-import { isTask, roleOf } from "@schools/curriculum/inventory";
+import { isTask, monthInventory, roleOf } from "@schools/curriculum/inventory";
 import type { LessonBlock, Month } from "@schools/curriculum/types";
 
 /**
@@ -125,5 +125,44 @@ describe("the audit documents report the corpus that exists", () => {
     const freeze = read("FULL_YEAR_CONTENT_FREEZE.md");
     expect(freeze).toMatch(/deliberately not updated/i);
     expect(freeze).toMatch(/^\*\*Frozen at `[0-9a-f]{40}`/m);
+  });
+});
+
+describe("the two things that count tasks agree", () => {
+  /**
+   * `monthInventory` (the validator's table) and `reconcile-counts.ts` (the
+   * reconciliation doc) both answer "how many tasks does this month have", and
+   * for most of this workstream they answered differently: the validator summed
+   * all three routes with the monthly check and the bank folded in, and printed
+   * the result against the PDF's figure as a progress bar. October read 85
+   * against 38; the year read 587 against 279 and drew a full bar.
+   *
+   * That is the comparison TASK_COUNT_RECONCILIATION.md exists to refute, being
+   * printed by a release gate the release audit reports as passing. Two code
+   * paths for one question is how it survived, so this asserts they cannot part
+   * again.
+   */
+  it("month by month, and for the year", () => {
+    const bank = new Set<string>();
+    for (const m of MONTHS) {
+      for (const u of m.units) for (const l of u.lessons) for (const b of l.blocks) if (b.bank) bank.add(b.id);
+    }
+    for (const month of MONTHS) {
+      const inv = monthInventory(month);
+      let comparable = 0;
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          for (const b of lesson.blocks) {
+            if (!isTask(b) || bank.has(b.id)) continue;
+            if (b.tracks && !(b.tracks as readonly string[]).includes("core")) continue;
+            comparable += 1;
+          }
+        }
+      }
+      expect(
+        inv.implemented,
+        `month ${month.index}: the validator says ${inv.implemented} where the PDF-comparable count is ${comparable}`,
+      ).toBe(comparable);
+    }
   });
 });

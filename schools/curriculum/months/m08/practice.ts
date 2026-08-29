@@ -176,6 +176,9 @@ export const M8_PRACTICE: LessonBlock[] = [
       "        best = now\n" +
       "print(best)",
     cases: [
+      /* An interval alive only at t = 0. A sweep starting at t = 1 answers 0 and passed every
+         other case. */
+      { input: "1\n0 1", expectedOutput: "1", hidden: true },
       { input: "4\n0 5\n1 6\n2 7\n8 9", expectedOutput: "3" },
       /* Three classes meeting end to end. A program that counts a class as
          still running at its own finishing time answers 2; the prompt says
@@ -241,6 +244,8 @@ export const M8_PRACTICE: LessonBlock[] = [
       "    n = n % coins[i]\n" +
       "print(count)",
     cases: [
+      /* The only case that needs the 10-tenge coin. Without it a program answers 2. */
+      { input: "10", expectedOutput: "1", hidden: true },
       { input: "99", expectedOutput: "6" },
       /* Zero: a `while True` that takes a coin before testing prints 1. */
       { input: "0", expectedOutput: "0", hidden: true },

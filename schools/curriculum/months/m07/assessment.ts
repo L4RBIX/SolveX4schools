@@ -229,6 +229,10 @@ export const M7_ASSESSMENT: LessonBlock[] = [
       "                qc.append(nc)\n" +
       "print(answer)",
     cases: [
+      /* Kills a depth-first fill that reports its own recursion depth: it answers 2 here. Nine
+         cases accepted that program, in the check for the month whose whole subject is that a
+         wave measures distance and a walk does not. */
+      { input: "4 4\n#..#\n....\n#...\n.#..\n2 2", expectedOutput: "1", hidden: true },
       /* Visible. The start is one step from the edge in a straight line and
          four steps from a way out through the maze, so `min(r, c, n - 1 - r,
          m - 1 - c)` answers 1 and fails in front of the learner. Diagonal

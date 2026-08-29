@@ -617,6 +617,10 @@ export const M6_L5: LessonBlock[] = [
       "w = list(map(int, input().split()))\n" +
       "print(fit(w, 0, limit))",
     cases: [
+      /* Kills the DESCENDING greedy, which answers 5. The prompt rules out the left-to-right
+         greedy by name and this is the next thing a learner tries; m8.l2.b5 exists in April to
+         break exactly this rule, and February never asked it. */
+      { input: "3 7\n5 4 3", expectedOutput: "7", hidden: true },
       { input: "4 10\n3 4 5 7", expectedOutput: "10" },
       { input: "3 5\n6 7 8", expectedOutput: "0" },
       { input: "1 5\n5", expectedOutput: "5", hidden: true },

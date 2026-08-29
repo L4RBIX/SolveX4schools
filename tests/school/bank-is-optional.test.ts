@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MONTHS } from "@schools/curriculum/months";
-import { publicBlock, publicLesson } from "@schools/curriculum/public";
+import { blocksForTrack, publicBlock, publicLesson } from "@schools/curriculum/public";
 import { findBlock } from "@schools/learning/grade";
 import {
   LESSON_COMPLETION_POLICY,
@@ -42,11 +42,22 @@ interface Located {
   month: Month;
 }
 
-const ALL: Located[] = MONTHS.flatMap((month) =>
-  month.units.flatMap((unit) =>
+/* Assessment blocks are walked too. None carries `bank` today, so the checks
+   over them pass vacuously — but the monthly check is the one place a leak
+   would matter most, and a set that silently excludes it reports success over
+   whatever happens to be left. The same argument payload-privacy makes. */
+const ALL: Located[] = MONTHS.flatMap((month) => [
+  ...month.units.flatMap((unit) =>
     unit.lessons.flatMap((lesson) => lesson.blocks.map((block) => ({ block, lesson, month }))),
   ),
-);
+  ...(month.assessment
+    ? month.assessment.blocks.map((block) => ({
+        block,
+        lesson: { ...month.assessment!, blocks: month.assessment!.blocks } as unknown as Lesson,
+        month,
+      }))
+    : []),
+]);
 
 const BANKED = ALL.filter((e) => e.block.bank);
 const REQUIRED = ALL.filter((e) => !e.block.bank && isTask(e.block));
@@ -125,12 +136,27 @@ describe("the bank is a real exemption", () => {
        server, one from the projection in the browser. A learner who is told the
        lesson is finished and then refused by the server is the worst outcome
        available here, so the two must not be able to disagree. */
-    for (const { lesson } of BANKED) {
-      const server = policyBlocksFromAuthored(lesson.blocks);
-      const browser = policyBlocksFromPublic(lesson.blocks.map(publicBlock));
-      expect(browser.map((b) => `${b.id}:${b.optional}`)).toEqual(
-        server.map((b) => `${b.id}:${b.optional}`),
-      );
+    /* Compared through `blocksForTrack`, because that is what both sides
+       actually run — the lesson page projects with the learner's route and
+       `/api/learning/complete` filters by the same cookie. Comparing the
+       unfiltered lists asserted a pairing neither caller performs.
+
+       And over EVERY lesson, not only those that already have a bank: a bug
+       marking core blocks optional in one adapter and not the other would have
+       been invisible to a loop that only visits lessons with bank tasks. */
+    const everyLesson = MONTHS.flatMap((m) => m.units.flatMap((u) => u.lessons));
+    expect(everyLesson.length).toBeGreaterThan(50);
+
+    for (const track of ["support", "core", "advanced"] as const) {
+      for (const lesson of everyLesson) {
+        const routed = blocksForTrack(lesson.blocks, track);
+        const server = policyBlocksFromAuthored(routed);
+        const browser = policyBlocksFromPublic(publicLesson(lesson, track).blocks);
+        expect(
+          browser.map((b) => `${b.id}:${b.optional}`),
+          `${lesson.id} [${track}] — the server and the browser disagree about what is optional`,
+        ).toEqual(server.map((b) => `${b.id}:${b.optional}`));
+      }
     }
   });
 });

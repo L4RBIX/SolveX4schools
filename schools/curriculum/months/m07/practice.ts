@@ -259,6 +259,9 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\ncoastal = 0\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            touches = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                if r == 0 or r == n - 1 or c == 0 or c == m - 1:\n                    touches = 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            if touches == 1:\n                coastal += 1\nprint(coastal)",
     cases: [
+      /* The hook grid. Reaching the top-right cell needs an upward move, so this kills any
+         traversal missing the up direction — which every earlier case in this block accepted. */
+      { input: "2 3\n.#.\n...", expectedOutput: "1", hidden: true },
       /* Three islands of one cell each, two of them on the edge: a program
          that counts every island prints 3. */
       { input: "5 5\n.####\n#####\n##.##\n#####\n####.", expectedOutput: "2" },
@@ -383,6 +386,9 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsizes = []\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            size = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                size += 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            sizes.append(size)\nbest = 0\nfor i in range(len(sizes)):\n    if sizes[i] > best:\n        best = sizes[i]\nsame = 0\nfor i in range(len(sizes)):\n    if sizes[i] == best:\n        same += 1\nprint(same)",
     cases: [
+      /* Kills a traversal that never moves up: without it the region splits and the answer
+         becomes 2. */
+      { input: "6 6\n.#....\n....#.\n..##..\n###.##\n.##...\n..#..#", expectedOutput: "1", hidden: true },
       /* Three islands sized 4, 5 and 5. Printing the largest size gives 5,
          printing the number of islands gives 3, and the one-pass `>=` count
          gives 3 as well — all three wrong on the sample the learner can see. */
@@ -441,6 +447,9 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc, ar, ac, br, bc = map(int, input().split())\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"o\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"o\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"o\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"o\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"o\"\n            qr.append(r)\n            qc.append(c + 1)\none = 0\ntwo = 0\nif g[ar][ac] == \"o\":\n    one = 1\nif g[br][bc] == \"o\":\n    two = 1\nif one == 1 and two == 1:\n    print(\"both\")\nelif one == 1:\n    print(\"first\")\nelif two == 1:\n    print(\"second\")\nelse:\n    print(\"none\")",
     cases: [
+      /* The hook grid: (0,2) is reachable only by moving up, so a three-direction wave answers
+         `second`. */
+      { input: "2 3\n.#.\n...\n0 0 0 2 1 1", expectedOutput: "both", hidden: true },
       /* The map is two corridors either side of a wall column. Both candidates
          are free; only the first is on the start's side. A program that
          answers `both` whenever the two cells are free fails here, on the
@@ -499,6 +508,8 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nout = -1\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0:\n            if i == 0 or i == n - 1 or j == 0 or j == m - 1:\n                if out == -1 or dist[i][j] < out:\n                    out = dist[i][j]\nprint(out)",
     cases: [
+      /* The exit above the start is reachable only upward; a three-direction wave answers -1. */
+      { input: "4 3\n...\n#.#\n###\n###\n1 1", expectedOutput: "1", hidden: true },
       /* A room with one door. The start is one row below the top edge, so the
          straight-line distance to the frame is 1; the only free cell ON the
          frame is the door at the bottom, five steps away. Counting the cells
@@ -554,6 +565,8 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc, k = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nnear = 0\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0 and dist[i][j] <= k:\n            near += 1\nprint(near)",
     cases: [
+      /* Counts all five free cells only if the wave can move up; three directions reach four. */
+      { input: "2 3\n.#.\n...\n0 0 100", expectedOutput: "5", hidden: true },
       /* Twelve cells are reachable in the end and only five are within two
          steps, so "count everything the wave touched" prints 12; `< k` where
          `<= k` was meant drops the second layer and prints 3. */
@@ -686,6 +699,9 @@ export const M7_PRACTICE: LessonBlock[] = [
     referenceSolution:
       "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\n\n\ndef spread(sr, sc):\n    d = []\n    for i in range(n):\n        line = []\n        for j in range(m):\n            line.append(-1)\n        d.append(line)\n    if g[sr][sc] == \"#\":\n        return d\n    d[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and d[r - 1][c] == -1:\n            d[r - 1][c] = d[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and d[r + 1][c] == -1:\n            d[r + 1][c] = d[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and d[r][c - 1] == -1:\n            d[r][c - 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and d[r][c + 1] == -1:\n            d[r][c + 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\n    return d\n\n\nsr, sc, wr, wc, fr, fc = map(int, input().split())\nfirst = spread(sr, sc)\nsecond = spread(wr, wc)\na = first[wr][wc]\nb = second[fr][fc]\nif a == -1 or b == -1:\n    print(-1)\nelse:\n    print(a + b)",
     cases: [
+      /* The route through (0,2) requires an upward step; without it there is no route and the
+         answer becomes -1. */
+      { input: "2 3\n.#.\n...\n0 0 0 2 1 0", expectedOutput: "7", hidden: true },
       /* The stop is in the opposite corner from the finish, so the detour
          costs 10 where the direct route costs 2. A submission that ignores the
          stop prints 2; one that measures both legs from the START rather than

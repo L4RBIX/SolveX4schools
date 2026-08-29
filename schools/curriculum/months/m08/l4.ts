@@ -659,6 +659,10 @@ export const M8_L4: LessonBlock[] = [
       "            dp[r][c] = up + left\n" +
       "print(dp[n - 1][m - 1])",
     cases: [
+      /* Nine of the earlier cases are unchanged by flipping the grid vertically, so the
+         UNMODIFIED program passed them. This one is not symmetric: the given program answers 0
+         where the required one answers 2. */
+      { input: "3 3\n...\n#..\n.#.", expectedOutput: "2", hidden: true },
       { input: "3 3\n...\n.#.\n...", expectedOutput: "2" },
       { input: "3 3\n...\n...\n...", expectedOutput: "6", hidden: true },
       { input: "1 1\n.", expectedOutput: "1", hidden: true },

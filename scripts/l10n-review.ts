@@ -97,8 +97,48 @@ function stringsOf(block: LessonBlock, month: number, lesson: string): Str[] {
   return out;
 }
 
-function walk(month: Month): Str[] {
+/**
+ * Strings that belong to the month, the unit or the lesson rather than a block.
+ *
+ * The first version of this script walked blocks only, and reported that it
+ * covered every learner-facing string pair in the programme. It covered 1441 of
+ * 1768. The 327 it missed were lesson titles, lesson objectives, unit titles,
+ * month names, the month's own title, its mastery and explanation lines, its
+ * end-of-month capability and practice outline, and both assessment titles and
+ * descriptions — several of which a learner reads before they reach a single
+ * block. A native reviewer working the published worklist would never have read
+ * one lesson title.
+ */
+function structuralStrings(month: Month): Str[] {
   const out: Str[] = [];
+  const at = (label: string, priority: 1 | 2 | 3 | 4, lesson: string, v: unknown) => {
+    if (!v || typeof v !== "object" || !("kk" in (v as object))) return;
+    const l = v as Localized;
+    out.push({ blockId: `${lesson}·${label}`, month: month.index, lesson, field: label, priority, kk: l.kk, ru: l.ru });
+  };
+  const m = month as unknown as Record<string, unknown>;
+  const id = `m${month.index}`;
+  /* Priority 3: a learner reads these, and a wrong one misdescribes the work
+     rather than making a task unanswerable. */
+  for (const key of ["monthName", "title", "mastery", "explanation", "endOfMonthCapability", "practiceOutline"]) {
+    at(key, 3, id, m[key]);
+  }
+  for (const unit of month.units) {
+    at("unit title", 3, unit.id, (unit as unknown as Record<string, unknown>).title);
+    for (const lesson of unit.lessons) {
+      at("lesson title", 3, lesson.id, lesson.title);
+      lesson.objectives.forEach((o, i) => at(`objective[${i}]`, 3, lesson.id, o));
+    }
+  }
+  if (month.assessment) {
+    at("assessment title", 3, month.assessment.id, month.assessment.title);
+    at("assessment description", 3, month.assessment.id, month.assessment.description);
+  }
+  return out;
+}
+
+function walk(month: Month): Str[] {
+  const out: Str[] = [...structuralStrings(month)];
   for (const unit of month.units) {
     for (const lesson of unit.lessons) {
       for (const b of lesson.blocks) out.push(...stringsOf(b, month.index, lesson.id));

@@ -26,23 +26,47 @@ function rank(status: PublicationStatus): number {
   return { draft: 0, implemented: 1, validated: 2, published: 3 }[status];
 }
 
-function lessonBlocks(month: Month): { block: LessonBlock; status: PublicationStatus }[] {
-  const out: { block: LessonBlock; status: PublicationStatus }[] = [];
+function lessonBlocks(
+  month: Month,
+): { block: LessonBlock; status: PublicationStatus; inAssessment: boolean }[] {
+  const out: { block: LessonBlock; status: PublicationStatus; inAssessment: boolean }[] = [];
   for (const unit of month.units) {
     for (const lesson of unit.lessons) {
-      for (const block of lesson.blocks) out.push({ block, status: lesson.status });
+      for (const block of lesson.blocks) out.push({ block, status: lesson.status, inAssessment: false });
     }
   }
   if (month.assessment) {
     for (const block of month.assessment.blocks) {
-      out.push({ block, status: month.assessment.status });
+      out.push({ block, status: month.assessment.status, inAssessment: true });
     }
   }
   return out;
 }
 
+/**
+ * What the month holds, counted in the PDF's own unit.
+ *
+ * `expected` is the month's «Практика: шамамен N тапсырма» figure, so anything
+ * put beside it has to be the same thing that paragraph counts: attempt blocks a
+ * single learner meets on the required path. That means ONE route rather than
+ * all three summed, and it excludes the monthly check — which the PDF states in
+ * a separate paragraph — and the optional bank, which p.11 anticipates as
+ * «қосымша есептер» beyond the minimum.
+ *
+ * This used to count every attempt block in the month across every route with
+ * the check folded in, and the report printed the result against `expected` as
+ * a progress bar. October read 85 against 38 and the year read 587 against 279,
+ * which is not over-delivery of 210% — it is two different quantities. That
+ * comparison is the subject of docs/curriculum/TASK_COUNT_RECONCILIATION.md.
+ */
 export function monthInventory(month: Month): ContentInventory {
-  const tasks = lessonBlocks(month).filter((e) => isTask(e.block));
+  const tasks = lessonBlocks(month).filter(
+    (e) =>
+      isTask(e.block) &&
+      !e.inAssessment &&
+      !e.block.bank &&
+      (!e.block.tracks || (e.block.tracks as readonly string[]).includes("core")),
+  );
   return {
     expected: month.expectedTaskCount,
     implemented: tasks.filter((e) => rank(e.status) >= 1).length,
@@ -173,8 +197,13 @@ const CODING: ReadonlySet<LessonBlock["type"]> = new Set(["write_code", "modify_
 
 export function roleOf(block: LessonBlock, lessonId: string, inAssessment: boolean): TaskRole {
   if (inAssessment) return "assessment";
+  /* `bank` is asked before position. A banked task in a contest lesson would
+     otherwise be counted as contest work while `requirementFor` went on
+     exempting it — the reporting-against-policy disagreement this field exists
+     to end, reintroduced by an ordering. No contest lesson carries one today. */
+  if (block.bank) return "bank";
   if (CONTEST_LESSON.test(lessonId)) return "contest";
-  return block.bank ? "bank" : "core";
+  return "core";
 }
 
 /**

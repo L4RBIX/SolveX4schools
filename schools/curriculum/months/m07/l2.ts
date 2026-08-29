@@ -571,6 +571,9 @@ export const M7_L2: LessonBlock[] = [
       "            fill(i, j)\n" +
       "print(count)",
     cases: [
+      /* Kills a fill that never moves LEFT: it counts the two halves of one region as two
+         islands. */
+      { input: "2 2\n#.\n..", expectedOutput: "1", hidden: true },
       { input: "4 5\n.#..#\n.#.#.\n...#.\n#..#.", expectedOutput: "2" },
       { input: "3 3\n...\n...\n...", expectedOutput: "1" },
       { input: "2 2\n.#\n#.", expectedOutput: "2", hidden: true },

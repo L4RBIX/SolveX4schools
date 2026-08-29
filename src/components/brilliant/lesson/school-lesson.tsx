@@ -348,8 +348,12 @@ export function SchoolLesson({
   const block: PublicBlock | undefined = blocks[page];
   const state = block ? (states[block.id] ?? FRESH) : FRESH;
 
+  /* Optional tasks are out of the denominator on purpose. A learner who does
+     everything October requires of them finishes m2.l10 and used to be
+     congratulated with "3 / 10" — a total the required path cannot reach, which
+     reads as failure for having done exactly what was asked. */
   const attemptCount = useMemo(
-    () => blocks.filter((b) => isAttemptBlock(b)).length,
+    () => blocks.filter((b) => isAttemptBlock(b) && b.optional !== true).length,
     [blocks],
   );
 
@@ -357,7 +361,10 @@ export function SchoolLesson({
      learner returns to and gets right on the second pass must not count twice,
      and a derived number cannot drift from what the cards show. */
   const solvedCount = useMemo(
-    () => blocks.filter((b) => isAttemptBlock(b) && states[b.id]?.verdict === "correct").length,
+    () =>
+      blocks.filter(
+        (b) => isAttemptBlock(b) && b.optional !== true && states[b.id]?.verdict === "correct",
+      ).length,
     [blocks, states],
   );
 
@@ -594,7 +601,8 @@ export function SchoolLesson({
 
   const verdict = state.verdict;
   const isAttempt = isAttemptBlock(block);
-  const mode = footerMode(verdict, isAttempt);
+  const isOptional = block.optional === true;
+  const mode = footerMode(verdict, isAttempt, isOptional);
 
   /* The finishing CTA, in one place because the footer renders it from two
      arms and they must never say different things.
@@ -720,12 +728,36 @@ export function SchoolLesson({
                 centred, so on a 375px screen the avatar sat on top of the
                 Continue button — the two controls a learner uses most, one
                 covering the other. */}
+            {/* Said once, above the buttons, on a task the required path does
+                not need. Without it "optional" is a fact about the schema that
+                no learner can observe: the Skip button appears and nothing on
+                screen says why this card has one and the last one did not. */}
+            {isOptional && verdict === "unchecked" ? (
+              <p className="mx-auto max-w-[367px] px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60">
+                {t(L.optionalNote, locale)}
+              </p>
+            ) : null}
+
             <div data-shake-stable="true" className="h-20 shrink-0">
               <div className="mx-auto flex h-full w-full max-w-[367px] items-center justify-center gap-2 bg-b-dark py-4 pl-[68px] sm:pl-0">
                 {mode === "check" && (
                   <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
                     {t(L.check, locale)}
                   </Button3D>
+                )}
+
+                {/* An optional task keeps its Check — a learner who wants the
+                    practice takes it — and gains the way past that every other
+                    footer mode already had. */}
+                {mode === "check-optional" && (
+                  <>
+                    <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
+                      {t(L.check, locale)}
+                    </Button3D>
+                    <Button3D variant="secondary" onClick={advance}>
+                      {t(L.skipOptional, locale)}
+                    </Button3D>
+                  </>
                 )}
 
                 {mode === "advance" && (
