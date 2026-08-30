@@ -209,18 +209,6 @@ interface Message {
   text: string;
   /** Why this turn has no answer, or no complete one. Absent means it is fine. */
   failure?: Failure;
-  /**
-   * A turn no model was involved in: the safety gate, or the daily budget
-   * ceiling. It is rendered as an ordinary Nova message with none of the
-   * hint-level chrome around it.
-   *
-   * Carried explicitly rather than inferred from `note` being empty. The route
-   * happens to send `explanation: null` on both of those paths today, and a
-   * panel that depends on that is a panel that starts putting a policy notice
-   * over a child's answer to "I don't want to be here any more" the day
-   * somebody adds an explanation string.
-   */
-  plain?: boolean;
 }
 
 /**
@@ -813,7 +801,12 @@ export function NovaChat({
                  The route sends one only when it changes what they do next, and
                  says how to show it. Anything else was the ladder describing
                  itself and is no longer on the wire. */
-              patch({ plain: noModelCalled });
+              /* A frame no model answered — the safety gate, the daily budget
+                 ceiling, the store-down sentence — IS the message, and the
+                 route sends it as the streamed text with no explanation
+                 alongside. The three carry no policy notice, so there is
+                 nothing to raise here and raising one would put a caption over
+                 a child's answer about being hurt. */
               if (!noModelCalled) {
                 setStatus((parsed.explanation as string | null) ?? null);
               }
@@ -1147,6 +1140,10 @@ export function NovaChat({
           deliver the less important of the two. */}
       {status ? (
         <p
+          /* Named so a test can tell this apart from a Nova turn. Scraping the
+             panel's paragraphs cannot: this is deliberately ON SCREEN, and the
+             property under test is that it is not IN THE TRANSCRIPT. */
+          data-nova-status="policy"
           aria-live="polite"
           className="px-4 pb-1 text-[13px] leading-5 text-b-fg/45"
         >
