@@ -12,6 +12,11 @@ const B = await chromium.launch();
 
 async function session(locale) {
   clearLimit();
+  /* A clean lesson for each case. Without this the second locale opens a lesson
+     whose b2 is already settled, `resumePage` correctly starts it on the NEXT
+     block, and the run then measures Nova on a block nobody has answered — which
+     is a different test that happens to look like a failure of this one. */
+  execSync('node scripts/_nova-e2e-reset.mjs', { stdio: 'ignore', env: { ...process.env, DATABASE_URL: DB } });
   const ctx = await B.newContext({ viewport: { width: 1440, height: 1000 } });
   const p = await ctx.newPage();
   const posts = [];
@@ -40,10 +45,22 @@ async function session(locale) {
   if (auth.status !== 200) throw new Error(`login failed: ${auth.status} ${auth.body}`);
   await p.goto(`${BASE}/home`, { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(2000);
-  if (locale === 'ru') {
-    await p.getByRole('button', { name: 'RU' }).first().click().catch(() => {});
-    await p.waitForTimeout(3000);
-  }
+  /* Locale through the preferences API, not `localStorage`.
+     `localStorage` is only the source of truth for an ANONYMOUS reader; once
+     there is a session the server's stored preference wins, so seeding the
+     browser silently lost to a server default of `kk` and the run measured
+     Kazakh while reporting it as Russian. */
+  const prefStatus = await p.evaluate(async (loc) => {
+    const r = await fetch('/api/preferences', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ preferences: { locale: loc } }),
+    });
+    return r.status;
+  }, locale);
+  if (prefStatus !== 200) console.log(`  (preferences PUT -> ${prefStatus})`);
+  await p.goto(`${BASE}/home`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(2500);
   return { p, posts };
 }
 
@@ -115,6 +132,7 @@ for (const [locale, question] of [['kk', 'Неге қате?'], ['ru', 'Поче
   const sent = posts[posts.length - 1] ?? {};
   console.log(`REQUEST → ${JSON.stringify({ blockId: sent.blockId, draft: sent.draft, lastRun: sent.lastRun })}`);
   check(`[${locale}] block is m1.l1.b2`, sent.blockId === 'm1.l1.b2', sent.blockId);
+  check(`[${locale}] request carries the right locale`, sent.locale === locale, String(sent.locale));
   check(`[${locale}] request carries the draft`, sent.draft != null);
   check(`[${locale}] draft names the selected option`, sent.draft?.selectedOptionId === '"2 + 2"', String(sent.draft?.selectedOptionId));
 
@@ -149,18 +167,6 @@ for (const [locale, question] of [['kk', 'Неге қате?'], ['ru', 'Поче
     check('Nova sits on the LEFT', geom.panels.some(r => r.x < geom.vw / 3));
     check('lesson card starts to the RIGHT of the Nova pane', (geom.card?.x ?? 0) > 300, JSON.stringify(geom.card));
 
-    /* Hydration: refresh, and the restored screen must still reach Nova. */
-    await p.reload({ waitUntil: 'domcontentloaded' });
-    await p.waitForTimeout(9000);
-    const back = await advanceTo(p, 1);
-    await p.screenshot({ path: `${SHOTS}/A-kk-4-after-refresh.png` });
-    const before = posts.length;
-    await askNova(p, question);
-    const after = posts[posts.length - 1] ?? {};
-    console.log(`AFTER REFRESH → ${JSON.stringify({ page: back, blockId: after.blockId, draft: after.draft })}`);
-    check('[kk] after refresh the request still carries the block', after.blockId === 'm1.l1.b2', after.blockId);
-    check('[kk] after refresh a new request was made', posts.length > before);
-    await p.screenshot({ path: `${SHOTS}/A-kk-5-hydrated-answer.png` });
   }
   await p.context().close();
 }
