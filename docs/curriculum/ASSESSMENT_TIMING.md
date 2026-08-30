@@ -8,7 +8,7 @@ Every monthly check, priced by `schools/curriculum/cost.ts` under the EXPECTED l
 
 | Month | Stated | Estimated | Over | Blocks |
 |---|---|---|---|---|
-| 1 Қыркүйек | 20 | **26** | +6 | unseen 12 · find_bug 6 · written ×2q 4 · oral ×2q 4 |
+| 1 Қыркүйек | 20 | **30** | +10 | unseen 12 · find_bug 6 · written ×4q 8 · oral ×2q 4 |
 | 2 Қазан | 20 | 23 | +3 | trace 5 · unseen 12 · oral ×3q 6 |
 | 3 Қараша | 20 | 20 | — | unseen 12 · written ×2q 4 · oral ×2q 4 |
 | 4 Желтоқсан | 20 | 22 | +2 | mcq 1.5 · written ×2q 4 · unseen 12 · oral ×2q 4 |
@@ -35,26 +35,23 @@ So:
 - **September — a real overrun against an explicit source figure.** 30 when this pass started.
 - **October, December, January, February, March — 1 to 3 minutes over a figure the source does not state**, on a model whose own error bar is 2.5×. Marked **HUMAN TIMING VALIDATION REQUIRED**. Nothing removed.
 
-## What was removed from September, and what it cost
+## September: what I removed, and why I put it back
 
-30 → 26, by cutting two of the four sub-questions in `m1.as.b3`, the written explanation. Both removals are justified on their own merits, not by arithmetic:
+September's check was cut from 30 to 26 in this pass, by removing two of the four sub-questions in `m1.as.b3`. **That cut has been reverted.** The reasoning behind it was wrong, and the way it was wrong is worth recording.
 
-| Removed | Why | Educational cost |
-|---|---|---|
-| (1) «уақытты неге бүтін санмен санадың, бөлшек сан керек пе еді?» | Substantially answered by (2), which asks what changes if `//` replaces `/`. The two expected points said the same thing from different ends: minutes and hours are whole quantities, and `/` produces a fraction where `//` does not. | Low. The surviving question now carries both halves — it asks what changes AND whether division is needed here at all. |
-| (4) «сағат саны өте үлкен болса не болар еді?» | An extension. Its expected point is that Python integers are unbounded, which is true, interesting, and not one of September's named skills. | Real but small. Nothing else in September asks it, and nothing in September depends on it. |
+The argument was that question (1) — «уақытты неге бүтін санмен санадың, бөлшек сан керек пе еді?» — duplicated question (2) about `//` versus `/`, and that question (4), about very large hour counts, was an extension beyond September's named skills. Both readings are defensible on the text of the block alone.
 
-The two that remain are the month's named skills: `arith.integer_division` and `debug.boundary` — the `/` versus `//` distinction, and where exactly the boundary falls between 17:30 answering yes and 17:31 answering no.
+Neither survives the comment sitting six lines above it, which quotes PDF p.7 verbatim:
 
-## What was NOT removed from September, and why
+> «бүтін немесе бөлшек типті неге таңдағанын **және** бөлу, шарт шекарасы **немесе өте үлкен сандар** қай жерде қате нәтиже беруі мүмкін екенін түсіндіреді»
 
-The obvious way to reach 20 is to drop `m1.as.b4`, the oral explanation, worth 4 minutes. It was not dropped.
+The source names four things: why an integer or fractional type was chosen, and where **division**, the **condition boundary**, or **very large numbers** could produce a wrong result. The block's four questions are those four things in order. Removing (1) and (4) removed the type-choice requirement and the large-numbers requirement — two of the four the source states — on a redundancy argument that never looked at the source.
 
-The argument for dropping it is that September's source sentence says «**жазбаша** түсіндіру» — explain in *writing* — so an oral block is an addition the sentence does not name.
+`m1.as.b3` also carries `types.int_float`, which no other assessment in the year declares. The cut would have left that skill sampled nowhere.
 
-The argument against, which wins: `m1.as.b4` asks why the repaired program needs `and` rather than `or`, and what breaks if the condition changes. It is the correctness defence of `m1.as.b2`, which the source **does** name. Removing it would delete the only place a learner argues for the repair they just made, to reach a round number, on an unvalidated model. That is exactly the trade this document exists to refuse.
+**September therefore stands at 30 against a source-stated 20, with every component named by p.7.** That is the largest overrun in the year and it cannot be reduced by removing anything the source asks for. The remaining candidate is `m1.as.b4`, the oral defence of the repair, which p.7 does not name — and which is the only place a learner argues for the correction they just made. Cutting it to reach a round number, on minute estimates nobody has validated, is the trade this document exists to refuse.
 
-**September therefore remains 6 minutes over an explicitly stated 20, and that is HUMAN TIMING VALIDATION REQUIRED like the rest.** The gap cannot be closed further without removing a source-named component or trusting minute estimates nobody has checked.
+**HUMAN TIMING VALIDATION REQUIRED**, and for September specifically it is a real question with real stakes: p.7 states twenty minutes and names four written sub-questions plus two graded programs. Either the estimates are too pessimistic, or the source's own check does not fit the source's own clock. A stopwatch settles it; nothing in this repository can.
 
 ## January, for the record
 
