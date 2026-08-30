@@ -34,62 +34,6 @@ Module._load = function patched(r: string, p: unknown, m: boolean) {
 
 const TEMPERATURES = [0.4, 0.7, 0.9, 1.1, 1.3];
 
-/**
- * The context the route would have built, without a database.
- *
- * `buildNovaContext` reads the ledger, and a benchmark does not have one. The
- * shape is the same object it returns, filled from the fixture — which is the
- * point: without it the prompt carries the task but not the learner's SCREEN,
- * so the model cannot mention the option they picked and "grounding" measures
- * a handicap this script invented rather than anything about temperature.
- */
-function contextFor(c: {
-  locale: "ru" | "kk"; prompt: string; code?: string; picked?: string; stderr?: string; level: number;
-}): unknown {
-  return {
-    learner: { subjectId: "bench", locale: c.locale },
-    curriculum: {
-      monthTitle: c.locale === "kk" ? "Қыркүйек" : "Сентябрь",
-      lessonTitle: c.locale === "kk" ? "Алғашқы қадамдар" : "Первые шаги",
-      blockId: "bench.b1",
-      blockType: c.picked ? "prediction" : "write_code",
-      prompt: c.prompt,
-      skillIds: [],
-      capability: null,
-      mode: "lesson",
-    },
-    interaction: {
-      visible: {
-        code: c.code,
-        options: c.picked ? [{ id: c.picked, text: c.picked }] : undefined,
-      },
-      settled: {
-        verdict: c.picked ? "incorrect" : c.stderr ? "incorrect" : "unchecked",
-        attemptCount: c.picked || c.stderr ? 1 : 0,
-        deliveredHintLevel: -1,
-        attemptSinceLastHelp: true,
-        stderr: c.stderr || undefined,
-      },
-      draft: c.picked
-        ? { selectedOptionId: c.picked }
-        : c.code
-          ? { code: c.code }
-          : undefined,
-    },
-    intelligence: { relevantSkills: [], recentEvidence: [], action: null, directive: null, directiveNote: null },
-    assistance: {
-      grant: {
-        requested: c.level, granted: c.level, capped: false,
-        reason: "granted_as_requested", explanation: null,
-        mayIncludeCode: c.level >= 3, mustNotSay: [],
-      },
-      assessmentCapped: false,
-    },
-  };
-}
-
-
-
 /** Letters Kazakh has and Russian does not. */
 const KK_ONLY = /[әғқңөұүһі]/i;
 
@@ -97,6 +41,7 @@ async function main() {
   const { buildNovaMessages } = await import("../../schools/nova/prompt");
   const { lintVoice } = await import("../../schools/nova/voice-linter");
   const { VOICE_CASES } = await import("../../tests/nova/fixtures/voice-cases");
+  const { contextFor } = await import("./nova-bench-context");
 
   const key = process.env.DEEPSEEK_API_KEY;
   if (!key) throw new Error("DEEPSEEK_API_KEY is not set");
