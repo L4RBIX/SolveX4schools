@@ -185,6 +185,22 @@ export function findCompletable(id: string): Completable | null {
  * a task that hands over most of the program is not a complete independent
  * solution, whatever else it is good for. `isGuided` is what they are.
  */
+/**
+ * The highest month index that actually has authored lessons.
+ *
+ * Derived, because it was a literal `1` in the `/you` payload with a comment
+ * explaining that later months had no content — true when written, false from
+ * the moment the year was finished, and nothing failed when it went stale. A
+ * learner in March saw ten September skills and none of the thirty-eight
+ * introduced since.
+ */
+export function lastAuthoredMonth(): number {
+  const authored = PROGRAM.months.filter((m) =>
+    m.units.some((u) => u.lessons.some((l) => l.blocks.length > 0)),
+  );
+  return authored.length ? Math.max(...authored.map((m) => m.index)) : 0;
+}
+
 export function isIndependent(block: LessonBlock): boolean {
   if (block.type === "challenge") return true;
   if (block.type === "write_code") return !block.starter?.trim();

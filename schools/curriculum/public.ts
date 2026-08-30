@@ -500,21 +500,34 @@ function outlineBlocks(blocks: readonly LessonBlock[]): BlockOutline[] {
   return blocks.map((b) => (b.bank ? { id: b.id, type: b.type, optional: true as const } : { id: b.id, type: b.type }));
 }
 
-export function monthOutline(month: Month): MonthOutline {
+/**
+ * The month, reduced for the board — on ONE route.
+ *
+ * `track` was optional here and every caller omitted it, so the board summed
+ * all three routes: October advertised 75 tasks to a support learner who meets
+ * 63. Excluding the bank fixed half of that overstatement and left the other
+ * half, which is the routes this learner will never see. `publicLesson` and
+ * `publicAssessment` have always filtered; this was the one projection that
+ * did not, and it feeds the only task count a learner is shown.
+ */
+export function monthOutline(month: Month, track = "core"): MonthOutline {
   return {
     ...month,
     units: month.units.map((unit) => ({
       ...unit,
-      lessons: unit.lessons.map((lesson) => ({ ...lesson, blocks: outlineBlocks(lesson.blocks) })),
+      lessons: unit.lessons.map((lesson) => ({
+        ...lesson,
+        blocks: outlineBlocks(blocksForTrack(lesson.blocks, track)),
+      })),
     })),
     assessment: month.assessment
-      ? { ...month.assessment, blocks: outlineBlocks(month.assessment.blocks) }
+      ? { ...month.assessment, blocks: outlineBlocks(blocksForTrack(month.assessment.blocks, track)) }
       : null,
   };
 }
 
-export function monthOutlines(months: readonly Month[]): MonthOutline[] {
-  return months.map(monthOutline);
+export function monthOutlines(months: readonly Month[], track = "core"): MonthOutline[] {
+  return months.map((m) => monthOutline(m, track));
 }
 
 /**

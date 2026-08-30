@@ -241,9 +241,18 @@ export function programmeToLearningPath(
   locale: Locale,
   labels: { title: string; eyebrow: string; sub: string; grade: string },
 ): LearningPathData {
+  /* The monthly check counts. It was outside the denominator, so a learner who
+     had finished all 72 lessons and not one of the nine checks was shown 100%
+     on /program and a full bar on every tile — the programme's own independence
+     check excluded from the measure of whether the programme was done. */
+  const requiredIds = (month: Month): string[] => [
+    ...monthLessons(month).filter((e) => isLessonReady(e.lesson)).map((e) => e.lesson.id),
+    ...(month.assessment && month.assessment.status !== "draft" ? [month.assessment.id] : []),
+  ];
+
   const tiles = months.map<PathTileData>((month) => {
-    const ready = monthLessons(month).filter((e) => isLessonReady(e.lesson));
-    const done = ready.filter((e) => progress.completedLessons.has(e.lesson.id));
+    const ready = requiredIds(month);
+    const done = ready.filter((id) => progress.completedLessons.has(id));
     return {
       title: `${month.index}. ${pick(month.monthName, locale)}`,
       href: `/course/${month.index}`,
@@ -252,10 +261,8 @@ export function programmeToLearningPath(
     };
   });
 
-  const allReady = months.flatMap((m) =>
-    monthLessons(m).filter((e) => isLessonReady(e.lesson)),
-  );
-  const allDone = allReady.filter((e) => progress.completedLessons.has(e.lesson.id));
+  const allReady = months.flatMap(requiredIds);
+  const allDone = allReady.filter((id) => progress.completedLessons.has(id));
 
   return {
     title: labels.title,
@@ -368,6 +375,12 @@ export function monthToGameboard(
         side: "center",
         review: true,
         kind: "assessment",
+        /* The check is marked complete under its own id by
+           `assessment-route.tsx`, and the board drew no tick because this node
+           was the one kind built without a `done` — so the programme's central
+           independence check was the only thing on the board that could never
+           show as finished. */
+        done: progress.completedLessons.has(month.assessment.id),
         locked: month.assessment.status === "draft",
         href:
           month.assessment.status === "draft"
