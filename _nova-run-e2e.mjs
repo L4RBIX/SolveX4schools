@@ -49,17 +49,49 @@ const curPage = async () => p.evaluate(() => {
 await p.goto(`${BASE}/lesson/m1.l1`, { waitUntil: 'domcontentloaded' });
 await p.waitForTimeout(8000);
 
-/* Walk to the block with an editor. */
+/* Walk to the block with an editor.
+ *
+ * The track renders every page but only advances when the current one is
+ * SETTLED, so getting to the coding block means genuinely answering the two
+ * graded blocks in front of it. The correct answers are curriculum facts, taken
+ * from `month-01-september.ts`: `m1.l1.b2` is the bare `2 + 2`, and
+ * `m1.l1.b4`'s bug is on line 1, where `input()` is never passed through
+ * `int()`. Answering wrongly leaves the page on "try again" and the walk stalls
+ * — which is correct product behaviour and a stuck test. */
+const CORRECT = {
+  1: async (page) => {
+    const opt = page.locator('button').filter({ hasText: /^\s*2 \+ 2\s*$/ }).first();
+    if (await opt.count()) await opt.click();
+  },
+  3: async (page) => {
+    const line = page.locator('button').filter({ hasText: /n = input\(\)/ }).first();
+    if (await line.count()) await line.click();
+  },
+};
+
 let editor = null, at = -1;
-for (let step = 0; step < 10; step++) {
+for (let step = 0; step < 14; step++) {
   at = await curPage(p);
   const active = p.locator('div[style*="translateX"] > *').nth(at);
   const ta = active.locator('textarea');
   if (await ta.count() > 0 && await ta.first().isVisible()) { editor = ta.first(); break; }
-  const adv = p.getByRole('button', { name: /Келесі|Далее|Жалғастыру|Продолжить|Түсіндім|Понятно/ }).first();
-  if (!(await adv.count())) break;
-  await adv.click().catch(() => {});
-  await p.waitForTimeout(2500);
+
+  const next = p.getByRole('button', { name: /Келесі|Далее|Жалғастыру|Продолжить|Түсіндім|Понятно/ }).first();
+  if (await next.count() && await next.isEnabled()) {
+    await next.click().catch(() => {});
+    await p.waitForTimeout(2200);
+    continue;
+  }
+
+  await CORRECT[at]?.(active);
+  await p.waitForTimeout(900);
+  const chk = p.getByRole('button', { name: /^(Тексеру|Проверить)$/ }).first();
+  if (await chk.count() && await chk.isEnabled()) {
+    await chk.click().catch(() => {});
+    await p.waitForTimeout(6000);
+  } else {
+    break;
+  }
 }
 check('reached a block with a code editor', editor !== null, `page ${at}`);
 await p.screenshot({ path: `${SHOTS}/B-1-code-block.png` });
