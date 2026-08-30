@@ -89,7 +89,15 @@ export function Section({
             <p className="mt-1.5 max-w-[68ch] text-[14px] leading-5 text-b-fg/55">{description}</p>
           ) : null}
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {/* `max-w-full` beside `shrink-0`.
+
+            `shrink-0` is right — on a wide row the action must not be squeezed
+            by a long heading. What it also did was let this slot size itself to
+            its content with nothing capping it, so the students band's export
+            note (a 38ch paragraph) made the slot 507px inside a 375px phone and
+            the whole document scrolled sideways. The row already wraps; the
+            slot just has to agree to be no wider than what it wrapped into. */}
+        {action ? <div className="max-w-full shrink-0">{action}</div> : null}
       </div>
       <div className="mt-5">{children}</div>
     </section>

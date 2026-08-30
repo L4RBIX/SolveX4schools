@@ -1153,7 +1153,13 @@ function FilterSegment({
 function ExportCsv({ href }: { href: string }) {
   const { t } = useLocale();
   return (
-    <div className="flex max-w-[38ch] flex-col items-start gap-1 sm:items-end">
+    /* `min(38ch, 100%)`, not `38ch`.
+       38ch is about 365px, and this block sits in a `shrink-0` slot beside the
+       band heading — so on a 375px phone it asked for more room than the page
+       had after its own padding and pushed the whole document sideways by ten
+       pixels. The measure is what the sentence wants; the viewport is what it
+       gets. */
+    <div className="flex min-w-0 max-w-[min(38ch,100%)] flex-col items-start gap-1 sm:items-end">
       <a
         href={href}
         download

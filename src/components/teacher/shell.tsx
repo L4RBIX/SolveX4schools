@@ -317,7 +317,20 @@ export function TeacherShell({
             </div>
 
             <div className="mt-2.5 flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
-              <nav aria-label={t(EXTRA.sections)}>
+              {/* `min-w-0`, and the whole tab bar depends on it.
+
+                  This nav is a flex item, and a flex item's `min-width` is
+                  `auto` — it refuses to shrink below its content. So the six
+                  tabs measured 520px wide inside a 375px phone, the `ul`'s
+                  `overflow-x-auto` never had a narrower box to scroll inside,
+                  and the nav pushed the whole document instead: every teacher
+                  page scrolled sideways at 375px, the header and the tables
+                  drifting off with it.
+
+                  `overflow-x-auto` on the child is not enough on its own and
+                  never was — it only clips once something upstream is allowed
+                  to be narrower than the content. */}
+              <nav aria-label={t(EXTRA.sections)} className="min-w-0 max-w-full">
                 <ul className="-mb-px flex gap-0.5 overflow-x-auto">
                   {TABS.map((tab) => {
                     const active =
