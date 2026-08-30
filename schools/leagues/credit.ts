@@ -38,29 +38,35 @@ import { weekIdForAward } from "./week";
  * `max_assistance_level < 0`, the teacher surface uses
  * `independence_weight >= 1`), so a third would not be a theoretical risk.
  *
- * ## The reveal, and a defect this deliberately does not inherit
+ * ## The reveal, and why this still counts it itself
  *
- * `reduceEpisode` takes `solutionRevealed` from a `solution_revealed` EVENT —
- * and nothing in `src/` or `schools/` ever emits one. The producer does not
- * exist. So `attempt_episodes.solution_revealed` is always false and
- * `independence_weight` never reaches 0 through the reveal path, despite the
- * teacher leaderboard's header stating that it does:
+ * `reduceEpisode` takes `solutionRevealed` from a `solution_revealed` EVENT.
+ * When this file was written nothing emitted one — the producer did not exist,
+ * `attempt_episodes.solution_revealed` was always false, and the teacher
+ * leaderboard's header made a claim the data could not support:
  *
  *     "independence_weight is 0 for a revealed solution, so it is assisted
- *      everywhere."  — schools/teacher/leaderboard.ts:46
+ *      everywhere."  — schools/teacher/leaderboard.ts
  *
- * It is not. A learner who fails three times, is shown the answer, and submits
- * it is currently recorded as an independent solve.
+ * That is TRUE NOW. `/api/learning/submit` emits `solution_revealed`,
+ * server-authored, on the attempt that crosses `ATTEMPTS_BEFORE_REVEAL`, and
+ * `tests/school/reveal-independence.test.ts` drives the real route and asserts
+ * the whole chain: one event, `source_trust` server, `independence_weight` 0
+ * through the reducer, and a later correct answer still `accepted` but no
+ * longer independent.
  *
- * Rather than depend on that signal, this function derives the reveal from the
- * thing that actually drives it: `revealFor` opens the answer at
- * `ATTEMPTS_BEFORE_REVEAL` failures, and the prior-failure count is a fact in
- * the ledger the submit route has already computed. So the bonus is withheld
- * from a learner who has seen the answer, on this path, today — without
- * silently fixing a Learning Intelligence input that is not this feature's to
- * change, and without silently inheriting a hole.
+ * This function is left deriving the reveal from `priorFailures` anyway, and
+ * that is deliberate rather than leftover. The two agree — both key off
+ * `ATTEMPTS_BEFORE_REVEAL` — but they agree at different TIMES. XP is credited
+ * inside the transaction that settles the verdict, and the reduced episode is
+ * written later by the sweep, so at the moment of the award the reducer has not
+ * run and `attempt_episodes` does not yet know. Waiting for it would mean
+ * either awarding on stale state or making the league's write depend on the
+ * reducer's schedule.
  *
- * The defect is written up in `docs/leagues/LEAGUE_ARCHITECTURE_DISCOVERY.md` §6.1.
+ * `docs/leagues/LEAGUE_ARCHITECTURE_DISCOVERY.md` §6.1 describes the gap as
+ * open. It was closed by the integration, and the file is a snapshot of what
+ * was true when the League workstream branched.
  */
 async function wasUnaided(
   t: SqlExecutor,

@@ -354,7 +354,8 @@ export async function POST(request: Request) {
      the answer key. A browser can post `verdict_received` into its own episode,
      and without this line three `fetch()` calls opened the answer to a task
      nobody had attempted. */
-  const priorFailures = (await store.eventsForEpisode(episodeId)).filter(
+  const priorEvents = await store.eventsForEpisode(episodeId);
+  const priorFailures = priorEvents.filter(
     (e) =>
       e.event_name === "verdict_received" &&
       e.sourceTrust !== "browser" &&
@@ -362,6 +363,23 @@ export async function POST(request: Request) {
       e.payload !== null &&
       (e.payload as { verdict?: unknown }).verdict !== "accepted",
   ).length;
+  /* Has this episode already had its answer opened?
+   *
+   * From the SAME read as the failure count, so this costs nothing. Once the
+   * key is open it stays open, and `revealFor` goes on returning it on every
+   * later wrong answer — correctly, because the learner can still see it. What
+   * must not repeat is the EVENT.
+   *
+   * `reduceEpisode` reads `solution_revealed` as a boolean, so a second row
+   * tells it nothing it does not already know. What a second row does change is
+   * everything the reducer derives from the SHAPE of the stream: `event_count`
+   * is `ordered.length`, and `struggle_class` comes from `classifyStruggle`
+   * over the same array. Migration 0023 refuses to put XP in `learning_events`
+   * for precisely this reason — "an extra row in an episode's stream therefore
+   * moves all three for a REAL episode, even though no branch anywhere reads
+   * the word xp". A learner who keeps trying after the reveal was accumulating
+   * one of these per attempt and drifting their own struggle classification. */
+  const alreadyRevealed = priorEvents.some((e) => e.event_name === "solution_revealed");
   const now = new Date().toISOString();
   const sessionId = randomUUID();
   const verdictName = toLearningVerdictName(outcome.result.verdict);
@@ -447,7 +465,9 @@ export async function POST(request: Request) {
   const answerKeyRevealed =
     reveal !== undefined &&
     verdictName === "wrong_answer" &&
-    failedAttempts >= ATTEMPTS_BEFORE_REVEAL;
+    failedAttempts >= ATTEMPTS_BEFORE_REVEAL &&
+    /* The transition, not the state. See `alreadyRevealed`. */
+    !alreadyRevealed;
 
   /* The event stream for one graded attempt. Deliberately minimal: three
      events, none of them passive. Reading the block, viewing it and opening the

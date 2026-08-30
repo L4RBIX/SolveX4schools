@@ -11,7 +11,26 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+
+    # A real Postgres, because `tests/store/postgres-driver.test.ts` skips
+    # itself without DATABASE_URL and its own header says "CI is where it must
+    # actually run, with DATABASE_URL set". It was skipping. Production is
+    # Postgres and development is PGlite, so the driver that ships is the one
+    # no gate was exercising.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: solvex_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Checkout
@@ -60,8 +79,24 @@ jobs:
       #
       # Before the build, not after: a build takes minutes and a failing test
       # is the answer either way.
+      # The curriculum is content, and content breaks differently from code.
+      # `npm run check` has run this locally since the day it existed; CI never
+      # did, so a block that fails its own validator could reach master with
+      # lint, typecheck and build all green.
+      - name: Curriculum validation
+        run: npm run curriculum:validate
+
       - name: Test
         run: npm test
+
+      # The Postgres-backed driver suite, against the service above. Separate
+      # from `npm test` on purpose: DATABASE_URL set for the whole run would
+      # point `getStore()` at Postgres for every suite, and the rest of them are
+      # written against the in-memory PGlite the fixtures open themselves.
+      - name: Test (Postgres driver)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/solvex_ci
+        run: npx vitest run tests/store/postgres-driver.test.ts
 
       # Python, for the archive's own Nova directive suite.
       #
@@ -84,3 +119,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Greps the built client chunks for the VALUES of server-only secrets.
+      # It reads `.next/static`, so it can only run after the build — which is
+      # why it is last and not beside the other static checks.
+      - name: Client bundle secret scan
+        run: npm run check:bundle
