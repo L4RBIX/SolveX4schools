@@ -106,6 +106,29 @@ export function NavYouIcon({ className, size = 16 }: AppIconProps) {
   );
 }
 
+/**
+ * Nav icon for the league.
+ *
+ * Drawn rather than borrowed: the reference's nav has three entries and none of
+ * them is a competition, so there is no measured original to match. Three
+ * ascending bars on the same 24x24 box and the same `currentcolor` fill as its
+ * neighbours, so it inherits the selected/unselected treatment without a
+ * special case.
+ *
+ * Bars rather than a trophy or a medal. A trophy says "you won something", which
+ * is the battle-pass register §23 and §45 rule out; ascending bars say "there is
+ * a ladder and you are on it", which is what the screen actually shows.
+ */
+export function NavLeagueIcon({ className, size = 16 }: AppIconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentcolor" aria-hidden="true" className={className}>
+      <rect x="1" y="14" width="6" height="9" rx="1.5" />
+      <rect x="9" y="8" width="6" height="15" rx="1.5" />
+      <rect x="17" y="1" width="6" height="22" rx="1.5" />
+    </svg>
+  );
+}
+
 /** Header hamburger. Three 2px bars on a 16x16 box. */
 export function MenuIcon({ className, size = 16 }: AppIconProps) {
   return (

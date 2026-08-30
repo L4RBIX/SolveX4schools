@@ -112,6 +112,17 @@ export interface Completable {
   /** Blocks in the authored object. The ceiling for any count a client reports. */
   blockCount: number;
   status: PublicationStatus;
+  /**
+   * Which of the two things this is.
+   *
+   * Both are completed through the same route and recorded in the same table
+   * under their own id, so the caller could only tell them apart by matching
+   * the id against a pattern — and `task_ref` already shows what an implicit
+   * string contract costs when the shape drifts. This is derived at the one
+   * place that actually knows, which is the lookup that just walked the
+   * curriculum to find it.
+   */
+  kind: "lesson" | "assessment";
 }
 
 /**
@@ -135,6 +146,7 @@ export function findCompletable(id: string): Completable | null {
             monthIndex: month.index,
             blockCount: lesson.blocks.length,
             status: lesson.status,
+            kind: "lesson",
           };
         }
       }
@@ -145,6 +157,7 @@ export function findCompletable(id: string): Completable | null {
         monthIndex: month.index,
         blockCount: month.assessment.blocks.length,
         status: month.assessment.status,
+        kind: "assessment",
       };
     }
   }

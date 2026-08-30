@@ -16,6 +16,9 @@ import { MAX_REQUEST_BYTES, checkPayloadSize, requestTooLarge } from "@schools/e
 import { bump, opsLog } from "@schools/ops/counters";
 import { maybeSweep } from "@schools/reducer/trigger";
 import { REVIEW_POLICY, scheduleFor } from "@schools/policies/review";
+import { creditSolve } from "@schools/leagues/credit";
+import { leagueScopeForCurrentUser } from "@schools/leagues/scope";
+import type { AwardResult } from "@schools/leagues/engine";
 
 /**
  * Submit — the trusted grading path.
@@ -729,6 +732,29 @@ export async function POST(request: Request) {
    * second time that nothing was recorded, for a submission that has never
    * been recorded at all.
    */
+  /*
+   * The learner's competition, resolved from ENROLMENT and from their session.
+   *
+   * Read here rather than inside the transaction: it is two reads that do not
+   * need to be atomic with the write, and holding a transaction open across
+   * them would serialise a class pressing Check at once for no gain. `null`
+   * means this learner has no league — not enrolled, not a student, or the
+   * feature is off for their school — and every one of those simply skips the
+   * award.
+   */
+  const leagueScope = await leagueScopeForCurrentUser();
+
+  /* Captured from inside the transaction below. The store returns an event
+     count and should keep doing so; the gamification result is not its
+     business.
+
+     A holder object rather than a bare `let`, because TypeScript's control-flow
+     analysis cannot see an assignment made inside a callback and narrows the
+     variable to `null` at every later read. The object makes the mutation
+     visible to the type system instead of requiring a cast that would also
+     silence a real mistake. */
+  const league: { award: AwardResult | null } = { award: null };
+
   let saved = true;
   try {
     if (submissionId) {
@@ -757,7 +783,45 @@ export async function POST(request: Request) {
          * hydration.
          */
         answer,
-      });
+      },
+      /*
+       * League XP, in the same transaction as the evidence.
+       *
+       * Here and nowhere else. This is the only point in the product at which
+       * "the server graded this, the server settled it, and this request owns
+       * that settlement" are all true at once — the settle guard has already
+       * thrown for a racing owner by the time this runs. Awarding anywhere
+       * later would credit a verdict that could still roll back; awarding
+       * earlier would credit one somebody else already owned.
+       *
+       * `leagueAward` is captured rather than returned because the store's
+       * contract is an event count and should stay that way — the transaction
+       * boundary is the store's business, the gamification result is not.
+       *
+       * A throw in here rolls the events back with it, which is deliberate and
+       * is the same trade `appendEventsAndSettle` already makes: the route
+       * turns it into `saved: false`, the learner presses Check again, and the
+       * retry re-grades and re-credits. The alternative — swallowing it — is a
+       * ledger holding a verdict whose XP silently never happened.
+       */
+      leagueScope
+        ? async (t) => {
+            league.award = await creditSolve(t, {
+              subjectId,
+              schoolId: leagueScope.schoolId,
+              classId: leagueScope.classId,
+              blockId,
+              blockType: target.block.type,
+              episodeId,
+              accepted: verdictName === "accepted",
+              priorFailures,
+              /* Our clock. `occurred_at` is the browser's and is forgeable, so
+                 a client cannot post work into a settled week. */
+              now: new Date(),
+            });
+          }
+        : undefined,
+      );
     } else {
       await store.appendEvents(events);
     }
@@ -864,7 +928,40 @@ export async function POST(request: Request) {
     await maybeSweep(subjectId);
   });
 
-  const res = NextResponse.json(saved ? graded : { ...graded, saved: false });
+  /*
+   * The XP feedback, and why it is NOT part of `graded`.
+   *
+   * `graded` is the object stored in `learning_submissions.response` and
+   * replayed verbatim to a duplicate submission. Putting the XP in it would
+   * make a retried request — a double click, a flaky connection, a refresh —
+   * announce «+15 XP» a second time for a credit that was granted once. The
+   * learner would be told they earned something they did not.
+   *
+   * So the delta rides the RESPONSE, not the record. A replay carries no
+   * `league` key at all, which is the truth about a replay: it earned nothing.
+   *
+   * `gained: 0` is also omitted rather than sent as a zero, for the reason the
+   * whole codebase repeats — a zero and an absence are different claims, and a
+   * lesson block that quietly renders «+0 XP» is worse than one that renders
+   * nothing.
+   */
+  const payload = saved ? graded : { ...graded, saved: false };
+  const withLeague =
+    league.award && league.award.gained > 0
+      ? {
+          ...payload,
+          league: {
+            gained: league.award.gained,
+            /* True only on the award that created this week's membership, so
+               the client can show the one-time onboarding line and never show
+               it twice. */
+            entered: league.award.entered,
+            tier: league.award.tier,
+          },
+        }
+      : payload;
+
+  const res = NextResponse.json(withLeague);
   if (isNew) res.cookies.set(anonCookie(anonId));
   return res;
 }

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { findCompletable, type Completable } from "@schools/curriculum/inventory";
-import { getStore } from "@schools/store";
+import { getStore, getStoreHandle } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { bump, opsLog } from "@schools/ops/counters";
 import { resolveTrack } from "@schools/learning/track";
 import { completionTarget } from "@schools/policies/lookup";
 import { evaluateCompletion, levelFromEvidence } from "@schools/policies/completion";
+import { creditCompletion } from "@schools/leagues/credit";
+import { leagueScopeForCurrentUser } from "@schools/leagues/scope";
 
 /**
  * A finished lesson, recorded on the server.
@@ -183,11 +185,58 @@ export async function POST(request: Request) {
     );
   }
 
+  /*
+   * League XP for the completion.
+   *
+   * Only on `first`, and only outside the store call because
+   * `recordLessonCompletion` owns its own transaction and this route has no way
+   * to join it. That is a genuine difference from the submit path, where the
+   * award rides the verdict's transaction — so here the award has to stand on
+   * its own idempotency, and it does: the key is the lesson id, so a completion
+   * replayed by `pending-writes` after a network failure credits nothing twice.
+   *
+   * Failure is swallowed on purpose and the shape of the swallow matters. A
+   * lesson that IS recorded must never be reported as not recorded because a
+   * game did not get its points — the learner would resend a completion the
+   * school already has. The XP is the thing that can be missing here; the
+   * record is not.
+   */
+  let leagueGained = 0;
+  if (first) {
+    const scope = await leagueScopeForCurrentUser();
+    if (scope) {
+      try {
+        const { sql } = await getStoreHandle();
+        const award = await sql.tx((t) =>
+          creditCompletion(t, {
+            subjectId,
+            schoolId: scope.schoolId,
+            classId: scope.classId,
+            entityId: lessonId,
+            kind: target.kind,
+            now: new Date(),
+          }),
+        );
+        leagueGained = award?.gained ?? 0;
+      } catch (err) {
+        opsLog("league.completion_award_failed", {
+          lesson_id: lessonId,
+          message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+        });
+      }
+    }
+  }
+
   /* `first: false` is a successful, correct outcome — the learner has finished
      this lesson before and the original record stands. It is reported rather
      than hidden so a caller can tell "already known" from "just recorded"
      without inferring it from a status code. */
-  const res = NextResponse.json({ lessonId, first, policyId: decision.policyId });
+  const res = NextResponse.json({
+    lessonId,
+    first,
+    policyId: decision.policyId,
+    ...(leagueGained > 0 ? { league: { gained: leagueGained } } : {}),
+  });
   if (isNew) res.cookies.set(anonCookie(anonId));
   return res;
 }

@@ -166,9 +166,15 @@ describe("findCompletable — what the route validates the id against", () => {
     /* Deliberately not the `Lesson` object. `public.ts` exists because handing
        a route the authored lesson once put every reference solution in the page
        source; this lookup cannot repeat that because it never holds one. */
+    /* `kind` joined this list with the league work. It is a two-value union —
+       "lesson" | "assessment" — derived by the lookup that just walked the
+       curriculum, and it carries no authored content of any kind. The list is
+       still pinned exactly, which is the point of the test: a field that DOES
+       carry content has to be added here by somebody, in a diff that says so. */
     expect(Object.keys(findCompletable("m1.l1")!).sort()).toEqual([
       "blockCount",
       "id",
+      "kind",
       "monthIndex",
       "status",
     ]);

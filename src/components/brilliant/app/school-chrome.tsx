@@ -94,3 +94,32 @@ export function SCHOOL_NAV(locale: Locale): AppNavLink[] {
     { id: "you", label: t(L.navYou, locale), href: "/you", aria: t(L.navYou, locale) },
   ];
 }
+
+/**
+ * The nav, with the league in it.
+ *
+ * A separate function rather than a flag on `SCHOOL_NAV`, because the league is
+ * feature-gated per school and the gate is a SERVER decision — `config` is
+ * `server-only` and cannot be read from a client component. The page resolves
+ * it and passes the right list down, so a school without leagues never renders
+ * a tab that 404s.
+ *
+ * Placed before «Прогресс»/«Сен», not after: the league is a weekly thing a
+ * learner checks in passing, and `/you` is the reflective page they arrive at
+ * last. Ordering it that way also keeps `/you` in the rightmost position it has
+ * always occupied, so the tab a learner's muscle memory reaches for has not
+ * moved.
+ */
+export function SCHOOL_NAV_WITH_LEAGUE(locale: Locale): AppNavLink[] {
+  const base = SCHOOL_NAV(locale);
+  return [
+    ...base.slice(0, 2),
+    {
+      id: "league",
+      label: t(L.navLeague, locale),
+      href: "/league",
+      aria: t(L.navLeague, locale),
+    },
+    ...base.slice(2),
+  ];
+}

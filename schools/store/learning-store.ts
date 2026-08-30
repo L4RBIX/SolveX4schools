@@ -418,6 +418,24 @@ export class LearningStore {
        */
       answer?: unknown;
     },
+    /**
+     * Work that must commit with the events, or not at all.
+     *
+     * A CALLBACK rather than another options field, so this file stays a store
+     * and learns nothing about whatever the caller needs to write. The league's
+     * XP award is the first user: it has to be inside this transaction — a
+     * learner graded but not credited, or credited for a verdict that rolled
+     * back, are both states the product must not be able to reach — but the
+     * store has no business importing a gamification module to achieve that.
+     *
+     * Runs AFTER the settle guard below, so it only ever sees a submission this
+     * transaction actually owns. A racing owner throws before this is reached.
+     *
+     * It receives `t`, never `this.sql`. Opening a second transaction inside
+     * this one would be silently wrong on PGlite, whose `tx` passes `this` and
+     * issues a bare `begin` — the inner commit would commit the outer work.
+     */
+    inTransaction?: (t: SqlExecutor) => Promise<void>,
   ): Promise<number> {
     return this.sql.tx(async (t) => {
       const inserted = await insertEvents(t, rows);
@@ -477,6 +495,13 @@ export class LearningStore {
       if (settled.rows.length === 0) {
         throw new SubmissionAlreadySettledError(submission.submissionId);
       }
+
+      /* Last, and inside. A throw here rolls the events and the settle back
+         with it, which is the correct direction: the learner's retry then
+         re-grades and re-credits, rather than the ledger holding a verdict
+         whose XP silently never happened. */
+      if (inTransaction) await inTransaction(t);
+
       return inserted;
     });
   }
@@ -2466,16 +2491,60 @@ export class LearningStore {
      */
     const subjectId = randomUUID();
     await this.sql.tx(async (t) => {
-      await t.query(
+      /*
+       * `returning` here, and the fallback below, close a hole the comment
+       * above did not cover.
+       *
+       * The race it describes is two requests both minting a subject; the
+       * re-read after this transaction settles that. But there is a second
+       * state that never reaches the re-read: a `learning_subjects` row that
+       * ALREADY EXISTS for this user with NO 'user_id' alias beside it. Then
+       * this insert conflicts and is swallowed, the alias insert below still
+       * carries the freshly-minted `subjectId` that was never written, and
+       * Postgres rejects it —
+       *
+       *   insert or update on table "learning_subject_aliases" violates
+       *   foreign key constraint "learning_subject_aliases_subject_id_fkey"
+       *
+       * — from inside the transaction, so the recovery below is never reached
+       * and the throw escapes as a 500 on the learner's page load.
+       *
+       * Nothing in the shipped product creates that state today: both writers
+       * of `learning_subjects` write their alias in the same transaction. It is
+       * reachable by a backfill, a restore, or any script that seeds subjects
+       * directly — which is how it was found — and the cost of not handling it
+       * is a fourteen-year-old who cannot open the app at all, with no way back
+       * because every retry takes the same path.
+       *
+       * Adopting the existing row's id is also the CORRECT outcome rather than
+       * merely the quiet one: that row already owns this account's history, and
+       * minting a second subject would scatter their evidence across both.
+       */
+      const inserted = await t.query<{ subject_id: string }>(
         `insert into learning_subjects (subject_id, user_id, cohort) values ($1,$2,$3)
-         on conflict (user_id) do nothing`,
+         on conflict (user_id) do nothing
+         returning subject_id`,
         [subjectId, userId, cohort],
       );
+
+      let bind: string = subjectId;
+      if (inserted.rows.length === 0) {
+        const owner = await t.query<{ subject_id: string }>(
+          `select subject_id from learning_subjects where user_id = $1`,
+          [userId],
+        );
+        /* Absent only if the conflict was on something other than `user_id`,
+           which the constraint list makes impossible — but falling back to the
+           minted id keeps the failure shape the same as before rather than
+           throwing on `rows[0]`. */
+        bind = owner.rows[0]?.subject_id ?? subjectId;
+      }
+
       await t.query(
         `insert into learning_subject_aliases (alias_kind, alias_value, subject_id)
          values ('user_id', $1, $2)
          on conflict (alias_kind, alias_value) do nothing`,
-        [userId, subjectId],
+        [userId, bind],
       );
     });
 

@@ -9,6 +9,7 @@ import {
   NavCoursesIcon,
   NavHomeIcon,
   NavYouIcon,
+  NavLeagueIcon,
   StreakBolt,
 } from "./app-icons";
 
@@ -36,7 +37,10 @@ import {
  * gradient only survives in the 2px border ring.
  */
 
-export type AppTab = "home" | "courses" | "you";
+/* A closed union, and `ICONS` below is a map over it. Adding a member here
+   without adding an icon is a runtime `Icon is not a function`, not a missing
+   glyph — which is why the two sit next to each other. */
+export type AppTab = "home" | "courses" | "you" | "league";
 
 export interface AppNavLink {
   id: AppTab;
@@ -60,7 +64,8 @@ const ICONS = {
   home: NavHomeIcon,
   courses: NavCoursesIcon,
   you: NavYouIcon,
-} as const;
+  league: NavLeagueIcon,
+} as const satisfies Record<AppTab, unknown>;
 
 export interface AppHeaderProps {
   active: AppTab;

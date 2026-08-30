@@ -260,6 +260,30 @@ export const config = {
     python: PYTHON_RUNTIME,
   },
 
+  /**
+   * SolveX Leagues — the weekly student competition.
+   *
+   * `=== "true"`, so it is OFF unless a deployment asks for it. The other
+   * convention in this file — `!== "false"` — would turn a competition on for
+   * every existing deployment at the next deploy, including schools that have
+   * not agreed to one. For a feature that shows children to each other, the
+   * safe direction is the closed one.
+   *
+   * `schools` is an allowlist of `school_id` values, empty meaning "every
+   * school, once enabled". It exists because there is no `schools` table to
+   * hang a column on, and because a school name hardcoded into gamification
+   * logic is a school name somebody has to find and remove later. The decision
+   * of whether a given school is in is made by `leaguesEnabledForSchool`, which
+   * takes these as arguments so it can be tested in the off state.
+   */
+  leagues: {
+    enabled: env("LEAGUES_ENABLED") === "true",
+    schools: (env("LEAGUES_SCHOOLS") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
+  },
+
   ops: {
     /**
      * Bearer token for the ADMIN health view.

@@ -30,4 +30,20 @@ export async function register() {
 
   const { startSweepInterval } = await import("@schools/reducer/trigger");
   startSweepInterval();
+
+  /*
+   * League settlement, on a slow interval.
+   *
+   * Only when the feature is on, so a deployment without leagues starts no
+   * timer at all. It is a SAFETY NET rather than the mechanism: the league page
+   * settles a due week on read, which is what makes the product work in a
+   * deployment that has no cron — and this one does not, since
+   * `LEARNING_CRON_SECRET` has no consumer anywhere.
+   */
+  const { config } = await import("@schools/config");
+  if (config.leagues.enabled) {
+    const { startSettlementInterval } = await import("@schools/leagues/settle");
+    const { getStoreHandle } = await import("@schools/store");
+    startSettlementInterval(async () => (await getStoreHandle()).sql);
+  }
 }

@@ -1154,6 +1154,161 @@ export const L = {
     kk: "Кіру уақытша істемей тұр. Құпиясөзің тексерілген жоқ — бір-екі минуттан кейін қайта көр. Қайталанса, мұғаліміңе айт.",
     ru: "Вход временно не работает. Пароль не проверялся — попробуй через пару минут. Если не пройдёт, скажи учителю.",
   },
+  /* ==========================================================================
+   * NEW · SolveX Leagues
+   * ==========================================================================
+   *
+   * ## Tier names are not in here, and that is deliberate
+   *
+   * `Pulse`, `Vector`, `Singularity` are proper nouns rendered in Latin in both
+   * languages, exactly like `Nova` two hundred lines above — «Nova — оқу
+   * көмекшісі» / «Nova — учебный помощник». They live in
+   * `schools/leagues/tiers.ts` as plain strings. Putting ten identical `kk`/`ru`
+   * pairs here would need ten entries on the shared-loanword allowlist in
+   * `product-surface.test.ts`, and that list exists to catch the NEXT
+   * untranslated label — burying ten deliberate ones in it would make the
+   * accidental eleventh invisible.
+   *
+   * ## Russian past tense is gendered, so none of these use it
+   *
+   * «Ты поднялся» is masculine and «поднялась» is feminine, and this product
+   * holds no gender for anybody — `school_accounts` has a name, a school, a role
+   * and a credential, and nothing else. A результат banner in the past tense
+   * would therefore misgender roughly half of every class, every Monday.
+   *
+   * Every result string below is present tense or nominal instead: «Твоя новая
+   * лига — Vector», «Ты остаёшься», «На этой неделе ты в лиге Circuit». Kazakh
+   * has no grammatical gender and needs no such care, but the two arms are kept
+   * parallel so a future editor does not "fix" the Russian back into the past.
+   *
+   * ## And none of them are unkind
+   *
+   * There is no «проиграл», no «последний», no «слабый». Relegation is stated as
+   * where the learner is competing next week, not as a failure — §24 of the
+   * brief, and the same instinct as `phrasing.ts`, which already refuses to tell
+   * a fourteen-year-old that they are wrong in those words.
+   */
+
+  navLeague: { kk: "Лига", ru: "Лига" },
+
+  /* «{name}» is substituted with a Latin tier name. Word order differs: Kazakh
+     puts the possessive on the noun, Russian puts the name after it. */
+  leagueOf: { kk: "{name} лигасы", ru: "Лига {name}" },
+  leagueTitle: { kk: "Апталық лига", ru: "Недельная лига" },
+
+  leagueXpThisWeek: { kk: "Осы аптадағы XP", ru: "XP на этой неделе" },
+  leagueYourRank: { kk: "Орның", ru: "Твоё место" },
+  leagueGroupSize: { kk: "қатысушы", ru: "участников" },
+  leagueYourZone: { kk: "Аптаның соңында", ru: "В конце недели" },
+
+  leagueEndsIn: { kk: "Аптаның аяқталуына", ru: "До конца недели" },
+  leagueEndsSoon: { kk: "Апта бүгін аяқталады", ru: "Неделя заканчивается сегодня" },
+
+  /* Zone labels. Verbs, not nouns: «Зона повышения» reads like a document
+     heading, «Поднимаются» reads like something that is about to happen to the
+     people in the rows underneath it. */
+  /* Third person plural — these label a BAND of the table, so they describe the
+     people in it: «Поднимаются» sits on a rule with four rows under it. */
+  leagueZoneUp: { kk: "Көтеріледі", ru: "Поднимаются" },
+  leagueZoneStay: { kk: "Қалады", ru: "Остаются" },
+  leagueZoneDown: { kk: "Төмендейді", ru: "Опускаются" },
+
+  /* Second person — these label the READER's own status in the hero, and using
+     the band labels there says «they are rising» above a number that is mine.
+     Present tense in Russian, so no gender is asserted: `school_accounts` holds
+     a name, a school, a role and a credential, and «поднялся» would misgender
+     roughly half of every class. */
+  leagueYouUp: { kk: "Көтерілесің", ru: "Поднимаешься" },
+  leagueYouStay: { kk: "Қаласың", ru: "Остаёшься" },
+  leagueYouDown: { kk: "Төмендейсің", ru: "Опускаешься" },
+
+  /* Screen-reader text for the movement of a single row. Colour never travels
+     alone here either — the visible row carries an arrow glyph AND this. */
+  leagueRowUp: { kk: "жоғары лигаға өтеді", ru: "переходит в лигу выше" },
+  leagueRowStay: { kk: "осы лигада қалады", ru: "остаётся в этой лиге" },
+  leagueRowDown: { kk: "төмендегі лигада жалғастырады", ru: "продолжит в лиге ниже" },
+  leagueRowYou: { kk: "сен", ru: "ты" },
+
+  /* --- the week's result, shown once --------------------------------------- */
+  leagueResultTitle: { kk: "Өткен апта", ru: "Прошлая неделя" },
+  leagueResultUp: { kk: "Жаңа лигаң — {name}", ru: "Твоя новая лига — {name}" },
+  leagueResultStay: { kk: "{name} лигасында қаласың", ru: "Ты остаёшься в лиге {name}" },
+  leagueResultDown: {
+    kk: "Бұл аптада {name} лигасында жарысасың",
+    ru: "На этой неделе ты соревнуешься в лиге {name}",
+  },
+  leagueResultRank: {
+    kk: "{n} қатысушының ішінде {rank}-орын",
+    ru: "{rank} место из {n}",
+  },
+  leagueResultDismiss: { kk: "Түсінікті", ru: "Понятно" },
+
+  /* --- first entry, at most three lines ------------------------------------ */
+  leagueWelcomeTitle: { kk: "Сен лигаға қосылдың", ru: "Ты в недельной лиге" },
+  leagueWelcomeBody: {
+    kk: "Нақты оқу нәтижелері үшін XP жинайсың. Жаңа апта дүйсенбіде басталады.",
+    ru: "XP начисляется за реальные учебные результаты. Новая неделя начинается в понедельник.",
+  },
+
+  /* --- empty states -------------------------------------------------------- */
+  leagueNotStarted: {
+    kk: "Бұл аптада әлі XP жоқ",
+    ru: "На этой неделе пока нет XP",
+  },
+  leagueNotStartedBody: {
+    kk: "Бір тапсырманы шеш — сол сені осы аптаның лигасына қосады.",
+    ru: "Реши одну задачу — она добавит тебя в лигу этой недели.",
+  },
+  leagueLoadFailed: {
+    kk: "Лига тізімі жүктелмеді.",
+    ru: "Не удалось загрузить таблицу лиги.",
+  },
+  /* The reassurance is the point of this string, not politeness.
+     A learner who spent a week earning XP and is shown a failure reasonably
+     concludes the week did not count. It did: the ledger is written on the
+     submit path and nothing here touches it. Saying so is the difference
+     between "the list is late" and "my work is gone". */
+  leagueLoadFailedSafe: {
+    kk: "Жинаған XP сақталған — бұл тек тізім.",
+    ru: "Твой XP сохранён — не загрузился только список.",
+  },
+  leagueRetry: { kk: "Қайталау", ru: "Повторить" },
+
+  /* --- the rules, stated in full ------------------------------------------- */
+  leagueRulesTitle: { kk: "XP қалай беріледі?", ru: "Как начисляется XP?" },
+  leagueRulesEarn: { kk: "XP беріледі", ru: "XP начисляется" },
+  leagueRulesNever: { kk: "XP берілмейді", ru: "XP не начисляется" },
+
+  xpBlockSolved: { kk: "Тапсырманы дұрыс шешкенде", ru: "За верно решённую задачу" },
+  xpBlockUnaided: { kk: "Көмексіз шешкенде — қосымша", ru: "Дополнительно, если решил без помощи" },
+  xpChallengeSolved: { kk: "Күрделі тапсырма үшін", ru: "За сложную задачу" },
+  xpExplanationSubmitted: { kk: "Жазбаша түсіндірме жібергенде", ru: "За письменное объяснение" },
+  xpLessonCompleted: { kk: "Сабақты аяқтағанда", ru: "За завершённый урок" },
+  xpAssessmentCompleted: { kk: "Айлық тексеруді аяқтағанда", ru: "За месячную проверку" },
+  xpReviewResolved: { kk: "Қайталауды көмексіз шешкенде", ru: "За повторение, решённое без помощи" },
+
+  /* The absences, said out loud. §27 — the rules are never hidden, and the
+     things that DO NOT earn XP are the half a learner will actually test. */
+  xpNotRun: { kk: "«Іске қосу» батырмасын басқанда", ru: "За нажатие «Запустить»" },
+  xpNotRepeat: {
+    kk: "Бұрын шешілген тапсырманы қайта шешкенде",
+    ru: "За повторное решение уже решённой задачи",
+  },
+  xpNotHints: { kk: "Nova-дан көмек сұрағанда", ru: "За обращение к Nova" },
+  xpNotTime: { kk: "Экранда өткізген уақыт үшін", ru: "За время, проведённое на экране" },
+  xpNotSpeed: { kk: "Жылдам шешкені үшін", ru: "За скорость решения" },
+
+  leagueXpNeverLost: {
+    kk: "XP ешқашан алынбайды. Қате жауап та, көмек сұрау да XP азайтпайды.",
+    ru: "XP никогда не отнимается. Ни ошибка, ни просьба о помощи не уменьшают XP.",
+  },
+
+  /* --- the ladder ---------------------------------------------------------- */
+  leagueLadderTitle: { kk: "Лигалар", ru: "Лиги" },
+  leagueLadderCurrent: { kk: "осындасың", ru: "ты здесь" },
+  leagueLadderLocked: { kk: "әлі ашылмаған", ru: "ещё не открыта" },
+
+  leagueBreakdownTitle: { kk: "Осы аптадағы XP", ru: "XP на этой неделе" },
 } as const;
 
 export function t(value: Localized, locale: Locale): string {

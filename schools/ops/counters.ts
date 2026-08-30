@@ -331,6 +331,63 @@ export const OPS_COUNTERS = [
    * hint ladder was spent.
    */
   "nova.store_unavailable",
+  /* ── SolveX Leagues ──────────────────────────────────────────────────────
+   *
+   * Five, not the eleven the brief lists, and the difference is this file's own
+   * rule: "If you cannot name the question, do not add the counter."
+   *
+   * The six that are missing — `league.group_created`, `league.group_joined`,
+   * `league.promoted`, `league.relegated`, `league.stayed`, `league.settled` —
+   * are all answerable from the ledger with a `select`, because every one of
+   * them leaves a row. `schools/ops/observability.ts` already derives that class
+   * of question and adds no writes at all. Counting them here would put a second
+   * number beside a durable one, and the in-process counter resets on every
+   * deploy — so the two would disagree and the wrong one would be believed.
+   *
+   * What is left is the four things that leave NO row, plus one that leaves a
+   * row nobody would think to look for.
+   *
+   * No PII in any of these. They are counts with no labels at all, which is the
+   * only shape that cannot accidentally carry a subject id. */
+
+  /**
+   * A duplicate credit the award key refused.
+   *
+   * The one number that proves the anti-farming design is load-bearing rather
+   * than decorative. A refused insert leaves nothing behind, so this cannot be
+   * recovered later. Expected to be NON-ZERO in normal use — every reload of a
+   * finished lesson produces one — and a sudden spike is a client re-submitting
+   * in a loop.
+   */
+  "league.duplicate_blocked",
+  /**
+   * An award that threw inside the submit transaction.
+   *
+   * Serious: it rolls the learner's events back with it, so the answer is
+   * reported `saved: false` and they are asked to press Check again. Any number
+   * here at all is worth waking up for.
+   */
+  "league.award_failed",
+  /** A settlement pass that threw. The week stays open and is retried. */
+  "league.settlement_failed",
+  /**
+   * A settlement that found the lease already held.
+   *
+   * Not a fault — it is two triggers doing their job. Counted because a number
+   * that is always high means the interval and the page reads are fighting, and
+   * the interval should be lengthened.
+   */
+  "league.settlement_skipped",
+  /**
+   * A week settled LAZILY, by a learner opening the page rather than by the
+   * interval.
+   *
+   * The question it answers is whether the scheduled trigger is actually
+   * running. There is no cron in this deployment — `LEARNING_CRON_SECRET` has no
+   * consumer — so if this is the only thing settling weeks, the product is
+   * working by luck and the first learner of the week is paying for it.
+   */
+  "league.settled_on_read",
 ] as const;
 
 export type OpsCounter = (typeof OPS_COUNTERS)[number];

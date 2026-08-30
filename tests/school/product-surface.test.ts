@@ -93,6 +93,17 @@ describe("every label ships in both languages", () => {
       "accountSession",
       "aboutFigPractice",
       "prefAuto",
+      /* «лига» is the ordinary Kazakh word as well as the Russian one — it is a
+         loanword both languages took whole, and a calque would be worse Kazakh
+         rather than more Kazakh, exactly like `аккаунт` above.
+
+         Note what it is NOT: the teacher console's `TL.navLeaderboard` is
+         «Рейтинг» in both languages, and the student league deliberately does
+         not share that word. They are different products — one is class
+         analytics a teacher reads, the other is a weekly game a child plays —
+         and a bilingual reader seeing «Рейтинг» on both would have no way to
+         tell them apart. */
+      "navLeague",
     ]);
     const copied = entries
       .filter(([k, v]) => !shared.has(k) && v.kk === v.ru)

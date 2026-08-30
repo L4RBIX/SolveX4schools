@@ -4,17 +4,17 @@ Produced by `npm run judge0:validate`. Every number below was measured against t
 
 The design decisions behind the adapter are `JUDGE0_RAPIDAPI_AUDIT.md`; the operator instructions and the *arithmetic* for capacity are `JUDGE0_RAPIDAPI_SETUP.md` §5. Where this document and §5 disagree, this one is the measurement and §5 is the model.
 
-> **This run did NOT talk to RapidAPI.** It talked to `http://127.0.0.1:57216`. Everything below describes that host and is not a claim about the rented judge, its plan, its sandbox or its Python.
+> **This run did NOT talk to RapidAPI.** It talked to `http://127.0.0.1:57882`. Everything below describes that host and is not a claim about the rented judge, its plan, its sandbox or its Python.
 
 ## The run
 
 | | |
 |---|---|
-| Started | 2026-08-30T19:49:37.574Z |
-| Finished | 2026-08-30T19:49:38.816Z |
+| Started | 2026-08-30T20:13:05.841Z |
+| Finished | 2026-08-30T20:13:07.045Z |
 | Command | `npm run judge0:validate -- --only=languages --max-submissions=25` |
 | Host | `judge0-ce.p.rapidapi.com` |
-| Base URL | `http://127.0.0.1:57216` |
+| Base URL | `http://127.0.0.1:57882` |
 | Phases selected | languages |
 | Submission ceiling | 25 (`--max-submissions`) |
 

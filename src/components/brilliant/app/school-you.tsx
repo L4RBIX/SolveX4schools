@@ -824,7 +824,6 @@ function niceCeiling(peak: number): number {
   return Math.ceil(peak / 4) * 4;
 }
 
-
 function windowLabel(data: ActivityPayload, loc: Locale): string {
   const from = new Date(data.fromIso);
   // `toIso` is exclusive; the label wants the last day inside the window.
