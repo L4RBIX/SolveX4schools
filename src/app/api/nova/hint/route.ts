@@ -735,6 +735,26 @@ export async function POST(request: Request) {
   return sse(async (controller) => {
     const send = (event: string, data: unknown) => controller.enqueue(frame(event, data));
 
+    /*
+     * The policy sentence, when there is one worth showing.
+     *
+     * Assessment first, because under it the ceiling is the exam's rather than
+     * the ladder's and the rung's wording would describe a situation the
+     * learner is not in. Then the two reasons that CLOSE help until the learner
+     * does something — those are the only ladder states they can act on. Then
+     * the override, which is not a refusal but a consequence: a solve taken
+     * this way does not count as their own, and they are entitled to know that
+     * before they read the answer.
+     *
+     * Everything else is the ladder describing itself, and is dropped.
+     */
+    const ACTIONABLE = new Set(["attempt_required", "no_attempt_since_last_hint", "learner_override"]);
+    const policyNotice = assessmentCapped
+      ? explainAssessmentCap(locale)
+      : ACTIONABLE.has(grant.reason)
+        ? explainPolicy(grant.reason, locale)
+        : null;
+
     // The learner sees the policy decision immediately, before any token.
     send("policy", {
       granted: grant.granted,
@@ -747,9 +767,32 @@ export async function POST(request: Request) {
          that is true: under assessment the ceiling is the exam's, not the
          rung's, and the ladder's wording would describe a situation the learner
          is not in. */
-      explanation: assessmentCapped
-        ? explainAssessmentCap(locale)
-        : explainPolicy(grant.reason, locale),
+      /*
+       * ...and it is sent ONLY when it says something the learner has to act on
+       * or accept.
+       *
+       * Every rung used to send one, and the panel pinned each above the
+       * answer, so a lesson read:
+       *
+       *   [notice] Начнём с вопроса. Как думаешь, что здесь происходит?
+       *   [Nova]   Посмотри внимательно на строку...
+       *
+       * Two openings, two registers, one turn — the state machine narrating
+       * itself over the tutor's shoulder. `opening_rung`, `one_rung_at_a_time`
+       * and `capped_by_directive` describe the LADDER's position, which is our
+       * bookkeeping and not news to a fourteen-year-old, so they are dropped
+       * here rather than hidden in the panel: a field that is never rendered
+       * should not be on the wire.
+       *
+       * What survives is what changes what the learner does next — help is
+       * closed until they try again, this is the monthly check, or this answer
+       * will not count as their own. Those are conditions, not conversation,
+       * and `explanationStyle` says so.
+       */
+      explanation: policyNotice,
+      /* `status` — a quiet line by the composer, outside the transcript and
+         outside the model's memory. Null when there is nothing to say. */
+      explanationStyle: policyNotice === null ? null : "status",
       action: directive?.mode ?? null,
       /* The model's identity comes from configuration, never from the model.
          Asking an LLM what it is produces confident fiction. */

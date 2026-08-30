@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
@@ -26,7 +26,7 @@ import { lessonArt } from "@schools/presentation/illustrations";
 import type { LearningPayload } from "@solvex/learning-contracts";
 
 import { Button3D } from "./button-3d";
-import { ChatIcon, SpeakerIcon } from "./icons";
+import { ChatIcon } from "./icons";
 import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
 import { NovaChat, type NovaDraft } from "@/components/nova/nova-chat";
 import { LessonTopBar } from "./lesson-chrome";
@@ -877,16 +877,6 @@ export function SchoolLesson({
         ? t(L.kojiPartial, locale)
         : null;
 
-  /* What read-aloud says: the block's own words, never the code inside it.
-     Reading `print("2 + 2")` character by character helps nobody, and reading a
-     heading plus its body is what a learner asked for. */
-  const spokenText = [
-    block.type === "concept" ? block.title[locale] : null,
-    block.type === "concept" ? block.body[locale] : null,
-    "prompt" in block ? block.prompt[locale] : null,
-  ]
-    .filter(Boolean)
-    .join(". ");
 
   /* Progress across the whole lesson rather than the original's per-section
      fraction — a curriculum lesson is one section, and the three trailing pills
@@ -1068,17 +1058,7 @@ export function SchoolLesson({
               button. Read-aloud stays because it can actually be done, and it
               only renders when the browser has a voice for the lesson's
               language. */}
-          <ReadAloud
-            /* Keyed on the block: moving to the next page remounts this, whose
-               effect cleanup cancels whatever was still being spoken. Resetting
-               the same instance from an effect does the same job one render
-               later and trips the cascading-render rule. */
-            key={block.id}
-            locale={locale}
-            text={spokenText}
-            label={t(L.readAloud, locale)}
-            stopLabel={t(L.close, locale)}
-          />
+
 
           {/* ---- Nova dock --------------------------------------------
               The placement is the cloned player's, measured and kept: bottom
@@ -1303,90 +1283,6 @@ function CheckReadoutIcon({ done }: { done: boolean }) {
   );
 }
 
-/**
- * Read the block aloud.
- *
- * `speechSynthesis` is the browser's, so this costs nothing and sends nothing
- * anywhere. It renders ONLY when a voice for the lesson's language is actually
- * installed: Russian is near-universal, Kazakh is not, and a speaker icon that
- * produces silence — or worse, reads Kazakh in a Russian accent — is the kind of
- * detail a classroom notices immediately.
- *
- * Voices arrive asynchronously in every browser, which is why this listens for
- * `voiceschanged` rather than reading the list once at mount.
- *
- * Mounted with `key={block.id}`, so a page turn remounts it and the effect
- * cleanup below stops the previous block mid-sentence.
- */
-function ReadAloud({
-  locale,
-  text,
-  label,
-  stopLabel,
-}: {
-  locale: Locale;
-  text: string;
-  label: string;
-  stopLabel: string;
-}) {
-  const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [speaking, setSpeaking] = useState(false);
-
-  const tag = locale === "kk" ? "kk" : "ru";
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-    const pick = () =>
-      setVoice(synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(tag)) ?? null);
-    pick();
-    synth.addEventListener("voiceschanged", pick);
-    return () => {
-      synth.removeEventListener("voiceschanged", pick);
-      synth.cancel();
-    };
-  }, [tag]);
-
-  if (!voice || !text) return null;
-
-  const toggle = () => {
-    const synth = window.speechSynthesis;
-    if (speaking) {
-      synth.cancel();
-      setSpeaking(false);
-      return;
-    }
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = voice;
-    utterance.lang = voice.lang;
-    utterance.rate = 0.95;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    synth.cancel();
-    synth.speak(utterance);
-    setSpeaking(true);
-  };
-
-  return (
-    <div
-      data-tutor-toolbar="true"
-      className="absolute top-0 left-0 z-[95] flex w-16 flex-col items-start gap-2 px-2 pt-5 pb-8"
-    >
-      <button
-        type="button"
-        aria-label={speaking ? stopLabel : label}
-        aria-pressed={speaking}
-        onClick={toggle}
-        className={cn(
-          "flex h-12 w-12 cursor-pointer items-center justify-center rounded-[54px] transition-colors",
-          speaking ? "text-b-green-2" : "text-b-fg/20 hover:text-b-fg/50",
-        )}
-      >
-        <SpeakerIcon />
-      </button>
-    </div>
-  );
-}
 
 /**
  * The dock avatar's size.

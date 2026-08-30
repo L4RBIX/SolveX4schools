@@ -207,8 +207,6 @@ interface Message {
   id: string;
   role: "learner" | "nova";
   text: string;
-  /** Set on a Nova turn that was capped, in the policy's own wording. */
-  note?: string | null;
   /** Why this turn has no answer, or no complete one. Absent means it is fine. */
   failure?: Failure;
   /**
@@ -531,6 +529,26 @@ export function NovaChat({
   const [probed, setProbed] = useState<boolean | null>(() => novaDegraded);
   /** The banner about the ledger, in both languages, or null while it is fine. */
   const [saving, setSaving] = useState<Localized | null>(() => savingDown ?? null);
+  /**
+   * The policy's own sentence about what the learner has to do next.
+   *
+   * Deliberately NOT a message. It is a condition — help is closed until you
+   * try again, this is the monthly check, this answer will not count as yours —
+   * and conditions do not belong in a transcript: pinned above each turn they
+   * read as Nova opening twice, and they accumulate, so scrolling back through
+   * a lesson shows the state machine talking to itself.
+   *
+   * Living outside `messages` also settles two things by construction rather
+   * than by care. It is never sent back to the model, because `history` is
+   * built from `messages`. And it cannot be mistaken for something Nova said,
+   * because Nova did not say it.
+   *
+   * Cleared the moment the learner sends anything, which is the "transient"
+   * part: the sentence exists to be acted on, and the act of asking again is
+   * the learner acting.
+   */
+  const [status, setStatus] = useState<string | null>(null);
+
   /** What the last `policy` frame said. Fresher than either of the above. */
   const [reported, setReported] = useState<boolean | null>(null);
   /**
@@ -652,6 +670,12 @@ export function NovaChat({
   const ask = useCallback(
     async (text: string, override = false) => {
       if (!text.trim() || streaming) return;
+
+      /* The condition from the previous turn stops applying the moment the
+         learner does something about it. Cleared here rather than when the next
+         `policy` frame arrives, so it does not linger over the seconds a
+         fourteen-year-old spends watching the reply stream in. */
+      setStatus(null);
 
       lastSent.current = { text, override };
       const controller = new AbortController();
@@ -785,9 +809,14 @@ export function NovaChat({
               }
 
               /* The learner sees the plain sentence the policy supplies — never
-                 the level, the reason code or the action name. */
-              const note = (parsed.explanation as string | null) ?? null;
-              patch({ note, plain: noModelCalled });
+                 the level, the reason code or the action name.
+                 The route sends one only when it changes what they do next, and
+                 says how to show it. Anything else was the ladder describing
+                 itself and is no longer on the wire. */
+              patch({ plain: noModelCalled });
+              if (!noModelCalled) {
+                setStatus((parsed.explanation as string | null) ?? null);
+              }
 
               if (!noModelCalled) {
                 /* Said out loud rather than left to be inferred from the prose.
@@ -1048,11 +1077,6 @@ export function NovaChat({
 
               return (
                 <div key={m.id} className={cn("flex flex-col gap-1.5", m.role === "learner" && "items-end")}>
-                  {m.note && !m.plain ? (
-                    <p className="max-w-[85%] rounded-[12px] border border-b-warn/30 bg-b-warn/10 px-3 py-2 text-[13px] leading-5 text-b-warn-icon">
-                      {m.note}
-                    </p>
-                  ) : null}
                   {/* The text first and the failure under it, never one instead
                       of the other. A mid-stream timeout used to ERASE the
                       sentences the learner had already read. */}
@@ -1115,6 +1139,19 @@ export function NovaChat({
             </button>
           ))}
         </div>
+      ) : null}
+
+      {/* The policy's condition, by the composer rather than in the transcript.
+          `polite` because it accompanies an answer the learner is already
+          reading — `assertive` would interrupt a screen reader mid-sentence to
+          deliver the less important of the two. */}
+      {status ? (
+        <p
+          aria-live="polite"
+          className="px-4 pb-1 text-[13px] leading-5 text-b-fg/45"
+        >
+          {status}
+        </p>
       ) : null}
 
       <form

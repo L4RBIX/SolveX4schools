@@ -15,6 +15,7 @@ import {
 import type { NovaMessage } from "./provider";
 import type { NovaContext } from "./context";
 import { draftBlock, groundingReminder, trustedContextLines } from "./render-context";
+import { voiceContract } from "./voice";
 import { failureWord } from "@schools/learning/phrasing";
 
 /**
@@ -377,10 +378,15 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
     "- Never claim you have remembered a preference, updated the learner's profile,",
     "  unlocked anything, or changed what help they get. You cannot. Only their work does.",
     "",
-    "STYLE",
-    "- At most 6 sentences unless walking through code at level 3 or 4.",
-    "- End by asking what they will try next — the point is that they try.",
   );
+
+  /* Voice, after the ladder and before the grounding reminder.
+   *
+   * The two lines that used to sit here — "at most 6 sentences" and "end by
+   * asking what they will try next" — were the loudest cause of the register
+   * this replaces. The second one in particular MANDATED the trailing question
+   * that made every reply read like a form. See `./voice.ts`. */
+  lines.push(...voiceContract(ctx.locale));
 
   if (ctx.context) lines.push(...groundingReminder(ctx.context, ctx.execution));
 
