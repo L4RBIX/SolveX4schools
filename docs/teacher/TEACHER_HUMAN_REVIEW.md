@@ -41,12 +41,20 @@ oral are two different facts — see §5.
    with the queue **«Ждут проверки — N»**.
 3. Each row: learner, task, submitted time, and whether text exists. Sorted
    **oldest submission first** — see §7 for why that and nothing else.
-4. Clicking the learner's name opens a side panel with the learner's name, the
-   task, the prompt they read, their words verbatim, the submission time, and
-   the marking criteria behind a disclosure.
-5. `/teacher/students/[subjectId]` reaches the same panel from the other
+4. Clicking **«Читать»** opens a side panel with the learner's name, the task,
+   the prompt they read, their words verbatim, the submission time, and the
+   marking criteria behind a disclosure. A row whose text was never stored
+   opens too, as **«Открыть»** — it explains why there is nothing to read and
+   can still be marked, because a row that could not be resolved would keep the
+   counter off zero forever.
+5. Under each answer, two small buttons: **«Прочитано»** / **«Нужно
+   обсудить»**. The decision persists server-side, the panel shows the stored
+   state with its timestamp, and the queue behind it refetches.
+6. The queue is three groups — waiting, needs discussion, read — and
+   **«Ждут проверки — N»** counts only the first.
+7. `/teacher/students/[subjectId]` reaches the same panel from the other
    direction: a **«Читать»** control on each human-marked block of the monthly
-   check, so the evidence is one click from the claim.
+   check, so the evidence — and the decision — is one click from the claim.
 
 ---
 
@@ -61,7 +69,18 @@ oral are two different facts — see §5.
 | Teacher A (school A) | the **same class id** in school B | **404** | `schoolId` comes from the session, never the URL |
 | Teacher A | a subject not on this class's roster | **404** | `memberBySubject(bundle, subjectId)` |
 | Teacher A | a block the curriculum does not mark by hand | **absent** | `isHumanReviewable` allowlist |
-| Anyone | a marking outcome (write) | **no route** | there is no POST — §6 |
+| Teacher A | **write** a review for their own class's learner | **200** | the POST's guard prologue is byte-identical to the GET's |
+| Teacher A | write against a block the curriculum does not mark by hand | **404** | `isHumanReviewable`, re-derived from the curriculum, never trusted from the body |
+| Teacher A | write a disposition outside `reviewed \| needs_followup` | **400** | closed vocabulary, checked before the write |
+| Teacher A | write with a malformed submission id | **400** | UUID shape check, so a `::uuid` cast cannot surface as a 500 |
+| Anyone | write a score or a note | **no column** | §6 |
+
+**One documented exception.** `requireClassAccess` admits `role === "admin"`
+for any class in their *own school* after checking it exists, without consulting
+`class_teachers`. That predates this route and applies to the write as well as
+the read, so `reviewed_by` can name an administrator — a head of department has
+to be able to act on a class they do not personally teach. Stated because "the
+write checks `class_teachers`" is true of teachers and not of admins.
 
 **404 and never 403** for a class not taught or a subject not enrolled. 403
 confirms the thing exists, which turns the endpoint into an oracle for
@@ -139,52 +158,91 @@ recorder ever ships, the sentence has to be rewritten in the same commit.
 
 ---
 
-## 6. The blocker: no marking outcome can be recorded
+## 6. Recording the review — migration 0022
 
-**A teacher can read the work. Nothing can record that they have.**
+**Closed.** For one release this section read *"A teacher can read the work.
+Nothing can record that they have."* Migration `0022_human_review.sql` adds the
+table, and «Ждут проверки» now falls to zero.
 
-No migration in `database/migrations` carries a `reviewed_at`, a reviewer, a
-result, or a grade for a human-marked answer. `post_help_explanations` — the
-one table that already routes work to a person, via
-`status = 'teacher_reviewable'` — deliberately has **no score column at all**,
-and migration 0016 argues that this is the mechanism rather than an omission:
+```sql
+create table if not exists human_reviews (
+  subject_id    uuid not null,
+  submission_id uuid not null,
+  reviewed_by   uuid not null references school_accounts(user_id),
+  reviewed_at   timestamptz not null default now(),
+  disposition   text not null check (disposition in ('reviewed', 'needs_followup')),
+  primary key (subject_id, submission_id),
+  foreign key (subject_id, submission_id)
+    references learning_submissions (subject_id, submission_id) on delete cascade
+);
+```
 
-> There is no score column. No grade, no percentage, no "quality", no boolean
-> called `correct`, and no column for anything a model said about the text.
-> That absence is the mechanism […] a rule that explanations are never
-> auto-graded is a rule someone eventually works around; a schema with nowhere
-> to write a grade is not.
+**Five columns, and the absences are the design.** No score, no percentage, no
+`correct` boolean, no rubric outcome, no note. Migration 0016's argument is
+answered directly rather than worked around: *"a rule that explanations are
+never auto-graded is a rule someone eventually works around; a schema with
+nowhere to write a grade is not."* 0016 itself is untouched — no column added,
+no status added.
 
-So there is **no Review button, no Mark as read, and no POST route.** A control
-that looked like it worked and changed nothing would be worse than its absence.
-Instead the panel states where the mark actually goes:
+**It records an operation, not a measurement.** Somebody read this artifact, on
+this date, and decided whether the class has to come back to it. Nothing
+downstream reads the table: not `buildLearnerState`, not `learner_skill_state`,
+not `independenceWeight`, not a NovaDirective, not the assessment verdict. A
+teacher's reading can never become evidence about a child.
 
-> «Платформа не хранит оценку: здесь вы только читаете написанное учеником.
-> Оценку вы ставите в школьном журнале.»
+**No teacher note.** A note would be adult-authored free text about a named
+minor — a category no existing table holds, with unanswered disclosure
+questions. The brief permitted one *only if a defensible storage path already
+existed*. It does not, so there is no column.
 
-Two consequences a teacher must be told, and is:
+### Why the key is `(subject_id, submission_id)`
 
-- **«Ждут проверки — N» counts submissions, not outstanding work.** It does not
-  go down when a teacher reads something, because nothing records the reading.
-- Reading the same answer twice is indistinguishable from reading it once.
+The reviewable unit is an **artifact**, not a task. A learner who reads
+feedback, rewrites their explanation and resubmits produces a new
+`submission_id` with no review — and returns to the queue, which is correct,
+because nobody has read the new words. Keying on `(subject_id, block_id)` would
+have left it silently marked as reviewed, and the rewrite the teacher asked for
+would be the one thing they never saw.
 
-**What closing this properly needs** — deliberately *not* done here, because it
-is a schema and pedagogy decision that has to be made on purpose by someone who
-has read migration 0016, not smuggled in behind a UI pass:
+### The idempotency contract, stated exactly
 
-1. A table — `human_review_marks` or a column set on the existing rows —
-   carrying `(subject_id, block_id, reviewer_user_id, reviewed_at, outcome)`.
-2. `outcome` restricted by CHECK to a closed vocabulary that is **not a score**:
-   the natural pair is `reviewed` / `needs_revision`, matching the language the
-   curriculum already uses. Any numeric column reopens exactly what 0016 shut.
-3. A POST route with the same guard chain as the GET, plus idempotency, plus a
-   decision about whether a learner sees the outcome.
-4. A decision about revision: `post_help_explanations` is written once, on
-   purpose, so *"a later pass cannot quietly rewrite what a teacher already
-   read"*. A `needs_revision` loop conflicts with that and the conflict has to
-   be resolved deliberately.
+One row per artifact; a re-review updates rather than appends.
 
----
+| Action | Result |
+|---|---|
+| Same disposition again | **Total no-op.** `disposition`, `reviewed_by` and `reviewed_at` all stay |
+| Different disposition | All three move to the person making the current call |
+| Six concurrent identical writes | One row, byte-identical whichever wins |
+| Learner resubmits | New artifact, no review, back to pending |
+
+Reviewer and timestamp move **together or not at all**. The first version froze
+the timestamp while still overwriting the reviewer, so a co-teacher pressing an
+already-lit «Прочитано» produced a row saying *they* read it at their
+colleague's moment — an adult attributed to a minute they did nothing, in the
+one table whose whole content is who read this and when. Pinned by
+`tests/teacher/review-write.test.ts`.
+
+**No history table.** Nothing in the product reports on how a teacher's mind
+changed, and an append-only log of staff decisions about named children is a
+surveillance surface nobody asked for.
+
+### `needs_followup` is not a fail
+
+Both dispositions mean **read**. One says nothing further is needed; the other
+is a teacher's note to come back to it with the learner or the class. A
+follow-up therefore leaves the pending count — a person read it and decided
+something — and stays visible in its own group with the sentence *«Эти работы
+учитель прочитал и отметил, что к ним нужно вернуться»*.
+
+**The learner never sees it.** Nothing in `src/components/brilliant` or any
+`/api/learning/*` route reads `human_reviews`; a test asserts the learner
+surface contains no reference to the vocabulary.
+
+### There is no «снять отметку»
+
+Once a teacher has read a child's answer, the platform has no honest way to
+un-know it. A teacher who pressed the wrong button presses the other one — both
+values are true statements about the same act.
 
 ## 6a. The second queue, and why it is deferred rather than surfaced
 
