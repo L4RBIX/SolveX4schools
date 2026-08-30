@@ -32,7 +32,8 @@ export type VoiceFindingCode =
   | "too_long"
   | "restates_task"
   | "stock_closer"
-  | "claims_blindness";
+  | "claims_blindness"
+  | "repeats_prior_question";
 
 export interface VoiceFinding {
   code: VoiceFindingCode;
@@ -91,9 +92,23 @@ const STOCK_CLOSER: Record<Locale, RegExp> = {
  */
 export function lintVoice(
   reply: string,
-  opts: { locale: Locale; prompt?: string; maxSentences?: number },
+  opts: {
+    locale: Locale;
+    prompt?: string;
+    maxSentences?: number;
+    /**
+     * What Nova asked last turn, when the learner has already answered it.
+     *
+     * The failure this catches is a conversation that walks in place: Nova asks
+     * what is inside the quotes, the learner says «2+2», and the next turn asks
+     * what is inside the quotes again in different words. Each reply is fine on
+     * its own, which is why it survives review, and the learner is the only one
+     * who can see that nothing moved.
+     */
+    priorQuestion?: string;
+  },
 ): VoiceFinding[] {
-  const { locale, prompt, maxSentences = 3 } = opts;
+  const { locale, prompt, maxSentences = 3, priorQuestion } = opts;
   const out: VoiceFinding[] = [];
   const text = reply.trim();
   if (!text) return out;
@@ -131,6 +146,41 @@ export function lintVoice(
       if (hay.includes(run)) {
         out.push({ code: "restates_task", evidence: run });
         break;
+      }
+    }
+  }
+
+  if (priorQuestion) {
+    /* Content-word overlap between the two questions, not string equality — a
+       re-ask is almost never a repeat of the same sentence, it is the same
+       question rephrased, which is exactly what makes it hard to notice. Short
+       words are dropped because «что», «на», «не» carry no topic. */
+    /* Compared on a five-character stem, because Russian and Kazakh inflect
+       everything: «кавычек» and «кавычки» are the same word being asked about
+       twice, and exact-form matching scores them as different topics — so the
+       detector would pass precisely the re-asks it exists to catch. Crude, and
+       crude is the right amount of machinery here: this flags a suspicion for a
+       human, it does not decide anything. */
+    const topic = (t: string) =>
+      new Set(
+        (t.match(/[\p{L}_][\p{L}\p{N}_]*/gu) ?? [])
+          .map((w) => w.toLowerCase())
+          .filter((w) => w.length > 3)
+          .map((w) => w.slice(0, 5)),
+      );
+    const asked = new Set([...topic(priorQuestion)]);
+    const nowQuestion = text.split(/(?<=[?])/).filter((s) => s.includes("?")).join(" ");
+    if (nowQuestion && asked.size) {
+      const now = topic(nowQuestion);
+      let shared = 0;
+      for (const w of now) if (asked.has(w)) shared += 1;
+      /* Half the new question's topic came from the old one. Measured against
+         a real re-ask («А что находится внутри этих кавычек в строке?» after
+         «Что именно находится внутри кавычек?») which scores 0.60, and against
+         a genuine step forward, which scores about 0.1 — the gap is wide, so
+         the exact cut matters less than being inside it. */
+      if (now.size > 0 && shared / now.size >= 0.5) {
+        out.push({ code: "repeats_prior_question", evidence: nowQuestion.trim().slice(0, 80) });
       }
     }
   }

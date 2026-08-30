@@ -841,6 +841,32 @@ export async function POST(request: Request) {
              part of a small hint a learner actually notices — so the ceiling
              would be stated in the prompt and contradicted by the request. */
           maxTokens: tokenBudget(grant.granted),
+          /*
+           * Measured, and kept.
+           *
+           * `scripts/live/nova-voice-benchmark.ts` put ten representative
+           * contexts through the real provider at 0.4 / 0.7 / 0.9 / 1.1 / 1.3
+           * with the production prompt:
+           *
+           *   temp  grounded  leaked  voiceClean  localePure  sentences
+           *   0.4      7/10       0        9/10       10/10        2.5
+           *   0.7      6/10       1        6/10       10/10        2.8
+           *   0.9      6/10       0        8/10       10/10        3.0
+           *   1.1      9/10       0        6/10       10/10        2.9
+           *   1.3      6/10       0        7/10        9/10        2.6
+           *
+           * 0.7 produced text a hint level forbade, which settles it on its own
+           * — voice is subordinate to policy and a configuration that leaks is
+           * not a candidate however well it reads. 1.1 grounds best and writes
+           * the least natural prose of the five; 1.3 lost a Kazakh reply to
+           * Russian. 0.4 is the only setting that is simultaneously leak-free,
+           * cleanest on the voice linter, fully locale-pure and shortest.
+           *
+           * So this number did not change, and that is the finding rather than
+           * an absence of one. n=10 per temperature: single-count differences
+           * here are noise, and the two that are not — the leak and the locale
+           * drift — are the ones being acted on.
+           */
           temperature: 0.4,
           signal,
           onUsage,

@@ -77,6 +77,33 @@ describe("the linter catches the tells it exists for", () => {
     expect(f, JSON.stringify(f)).toHaveLength(0);
   });
 
+  it("flags the same question asked again in new words", () => {
+    /* The learner has already answered this. Asking it again with different
+       nouns is the conversation walking in place, and it is invisible one reply
+       at a time — which is why it needs a check rather than a reviewer. */
+    const f = lintVoice("А что находится внутри этих кавычек в строке?", {
+      locale: "ru",
+      priorQuestion: "Что именно находится внутри кавычек?",
+    });
+    expect(f.map((x) => x.code)).toContain("repeats_prior_question");
+  });
+
+  it("does NOT flag a question that moves to the next idea", () => {
+    const f = lintVoice("Тогда сами кавычки появятся на экране или только текст между ними?", {
+      locale: "ru",
+      priorQuestion: "Что именно находится внутри кавычек?",
+    });
+    expect(f.map((x) => x.code)).not.toContain("repeats_prior_question");
+  });
+
+  it("does not flag forward movement in Kazakh either", () => {
+    const f = lintVoice("Онда тырнақшаның өзі экранға шыға ма?", {
+      locale: "kk",
+      priorQuestion: "Тырнақша ішінде не тұр?",
+    });
+    expect(f.map((x) => x.code)).not.toContain("repeats_prior_question");
+  });
+
   it("counts a batch rather than a single reply", () => {
     const r = voiceReport([
       { reply: "Начнём с вопроса.", locale: "ru" },
