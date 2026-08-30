@@ -178,6 +178,30 @@ function checkMonth(month: Month) {
         monthSkills.add(skill);
       }
 
+      /* A lesson that names a skill none of its blocks names.
+       *
+       * A warning rather than an error, because the two declarations answer
+       * different questions and are allowed to differ. A block's `skillRefs`
+       * says what the learner is graded on; a lesson's says what the lesson is
+       * ABOUT, and May's contest lessons legitimately declare
+       * `contest.time_split` — splitting your time is what a contest IS — while
+       * no single problem inside grades it.
+       *
+       * It is worth saying out loud all the same. Nothing derives coverage from
+       * the lesson-level list, so a stale entry inflates no reported figure; it
+       * misleads a READER, and it misled an audit into calling `m7.l6` a
+       * coverage gap because the lesson advertises route restoration that none
+       * of its ten blocks carries. */
+      const carried = new Set(lesson.blocks.flatMap((b) => b.skillRefs));
+      const unevidenced = lesson.skillRefs.filter((s) => !carried.has(s));
+      if (lesson.blocks.length > 0 && unevidenced.length > 0) {
+        warn(
+          lw,
+          `lesson declares ${unevidenced.map((s) => `"${s}"`).join(", ")} but no block in it does — ` +
+            `the lesson advertises coverage its blocks do not carry`,
+        );
+      }
+
       // PDF p.3: explanation is 5–8 minutes, one idea per lesson.
       if (lesson.estimatedMinutes > 12) {
         warn(
