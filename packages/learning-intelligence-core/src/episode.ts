@@ -63,6 +63,45 @@ export interface ReducibleEvent {
   received_at: string;
   seq: number;
   payload: Record<string, string | number | boolean>;
+  /**
+   * Who authored this row, straight from `learning_events.source_trust`.
+   *
+   * This field did not exist, and its absence made the header of this file
+   * false. It says outcomes are "derived from signed judge/verifier events;
+   * neither is computed from anything the browser said" — but the reducer had
+   * no way to tell the two apart, so it counted whatever the feed handed it.
+   * A `verdict_received` row forged through the ingest route therefore became
+   * an accepted episode, an `independence_weight` of 1, and a unaided solve in
+   * the teacher's console.
+   *
+   * Optional because two decades of fixtures construct these by hand and a
+   * required field would mean editing every one to say the same thing. The
+   * DEFAULT is the safe direction: see `isTrustedOutcome`.
+   */
+  source_trust?: string;
+}
+
+/**
+ * May this row settle an OUTCOME?
+ *
+ * Applied only to the events that make a claim about what the learner achieved
+ * — a verdict, an attribution. Everything else in the stream is context the
+ * browser is the rightful author of: it is the browser that knows the learner
+ * revisited the statement, went idle, or pressed Run, and there is nothing to
+ * gain by forging any of it.
+ *
+ * An absent `source_trust` counts as trusted, which is the one debatable line
+ * here. It is right for the reason the field is optional: every existing
+ * fixture and replay omits it while testing genuine judge-graded behaviour, so
+ * treating absent as untrusted would silently empty those suites of the thing
+ * they assert. Real rows always carry it — the column is `not null` with a
+ * check constraint (migration 0003) — so "absent" only ever means "constructed
+ * in a test", never "arrived from a browser".
+ */
+export function isTrustedOutcome(event: ReducibleEvent): boolean {
+  const t = event.source_trust;
+  if (t === undefined) return true;
+  return t === "judge" || t === "verifier" || t === "server";
 }
 
 export interface ReducedEpisode {
@@ -231,6 +270,12 @@ export function reduceEpisode(events: readonly ReducibleEvent[]): ReducedEpisode
         runs += 1;
         break;
       case "verdict_received": {
+        /* An untrusted verdict is not a weaker verdict; it is not a verdict.
+           Skipped entirely rather than recorded with a flag, because every
+           consumer downstream — `independence_weight`, the struggle classes,
+           the teacher's unaided-solve count — treats a verdict entry as a
+           statement this server made. See `isTrustedOutcome`. */
+        if (!isTrustedOutcome(event)) break;
         const verdict = str(p, "verdict");
         if (verdict) {
           submissions += 1;
@@ -257,6 +302,11 @@ export function reduceEpisode(events: readonly ReducibleEvent[]): ReducedEpisode
         break;
       }
       case "failure_attributed": {
+        /* Belt and braces. Ingest already refuses this one outright — it is
+           the single event the taxonomy has always said a browser cannot
+           create — but the attribution drives what Nova is told a learner
+           misunderstands, and that is worth checking where it is used. */
+        if (!isTrustedOutcome(event)) break;
         const failureClass = str(p, "failure_class");
         if (failureClass) {
           attributions.push({

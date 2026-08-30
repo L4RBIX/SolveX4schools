@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { config } from "@schools/config";
 import { getStore } from "@schools/store";
+import { currentUser } from "@schools/auth/session";
 
 /**
  * Who is this learner?
@@ -29,6 +30,30 @@ export interface Identity {
 }
 
 export async function resolveIdentity(): Promise<Identity> {
+  /*
+   * A signed-in learner is the identity. The anonymous cookie below is the
+   * fallback, and it is now genuinely a fallback rather than the mechanism.
+   *
+   * This is the single line that makes "student A cannot read student B" true
+   * across every learning route at once: the subject is derived from the
+   * session on the server, so there is no parameter for a browser to tamper
+   * with and no route that has to remember to check. A learner who signs in on
+   * a second device resolves to the same subject through the `user_id` alias,
+   * which is what stops a shared classroom machine from being one learner and
+   * one learner on two machines from being two.
+   */
+  const user = await currentUser();
+  if (user) {
+    const store = await getStore();
+    const classes = await store.classesForLearner(user.userId);
+    const enrolled = classes[0] ?? config.pilot;
+    const subjectId = await store.resolveSubjectForUser(user.userId, {
+      schoolId: "schoolId" in enrolled ? enrolled.schoolId : config.pilot.schoolId,
+      classId: "classId" in enrolled ? enrolled.classId : config.pilot.classId,
+    });
+    return { subjectId, anonId: user.userId, isNew: false };
+  }
+
   const jar = await cookies();
   const existing = jar.get(COOKIE)?.value;
 
@@ -43,6 +68,41 @@ export async function resolveIdentity(): Promise<Identity> {
   const subjectId = await store.resolveSubject(anonId, "public", config.pilot);
 
   return { subjectId, anonId, isNew: anonId !== existing };
+}
+
+/**
+ * The same question, asked without changing the answer.
+ *
+ * `resolveIdentity` above WRITES: it touches `last_seen_at`, upserts the class
+ * scope, and on the anonymous branch mints a whole subject and hands back
+ * `isNew` for the caller to turn into a cookie. All three are right for a route
+ * handler and all three are wrong for a page render.
+ *
+ * A Server Component cannot set a cookie — the comment on `anonCookie` below
+ * has said so since it was written — so a page that resolved identity the
+ * writing way would mint a subject on every render and immediately lose the
+ * only key that would ever find it again. That is not a hypothetical: it is
+ * verbatim the defect `proxy.ts` exists to prevent, where one learner produced
+ * five subjects and the dashboard showed zeros while nothing errored.
+ *
+ * And it would make viewing a lesson a write transaction, on the route a class
+ * of eighteen opens at the same moment on a database sized for exactly that.
+ *
+ * So a page asks this instead. `null` means "no subject yet, so no history",
+ * which is the truthful answer for a learner who has never submitted anything —
+ * and their first submission resolves identity through the route that is
+ * allowed to.
+ */
+export async function knownSubjectId(): Promise<string | null> {
+  const store = await getStore();
+
+  const user = await currentUser();
+  if (user) return store.subjectIdForAlias("user_id", user.userId);
+
+  const jar = await cookies();
+  const existing = jar.get(COOKIE)?.value;
+  if (!existing || !isUuid(existing)) return null;
+  return store.subjectIdForAlias("anon_id", existing);
 }
 
 /** Applied by a route handler, since a Server Component cannot set a cookie. */

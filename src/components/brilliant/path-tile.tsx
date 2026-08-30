@@ -327,7 +327,7 @@ export function PathTile({
       <span
         className={cn(
           "b-physical b-press relative flex size-[140px] items-center justify-center rounded-[20px] bg-b-dark text-b-edge sm:size-[176px]",
-          "group-hover:border-white/70 group-hover:text-white/70 group-hover:shadow-[0_4px_0_0_rgba(255,255,255,0.7)]",
+          "group-hover:border-b-fg/70 group-hover:text-b-fg/70 group-hover:shadow-[0_4px_0_0_rgba(255,255,255,0.7)]",
           "group-active:translate-y-[3px] group-active:shadow-[0_1px_0_0_currentColor]",
         )}
       >
@@ -335,13 +335,13 @@ export function PathTile({
           {grade}
         </span>
         {isNew ? (
-          <span className="absolute top-3 right-3 rounded-full bg-b-green-2 px-2 py-0.5 text-[11px] leading-4 font-bold text-white uppercase sm:top-4 sm:right-4">
+          <span className="absolute top-3 right-3 rounded-full bg-b-green-2 px-2 py-0.5 text-[11px] leading-4 font-bold text-b-fg uppercase sm:top-4 sm:right-4">
             New
           </span>
         ) : null}
         <TileArt kind={art} className="size-14 sm:size-[72px]" />
       </span>
-      <span className="mt-4 text-center text-[16px] leading-[22px] font-normal text-white">
+      <span className="mt-4 text-center text-[16px] leading-[22px] font-normal text-b-fg">
         {label}
       </span>
     </button>

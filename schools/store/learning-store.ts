@@ -10,6 +10,7 @@ import type {
   EpisodeInput,
 } from "@solvex/learning-intelligence-core";
 import type { LearningEventName, LearningPayload } from "@solvex/learning-contracts";
+import type { PostHelpStatus } from "@schools/learning/post-help";
 import type { SqlExecutor } from "./sql";
 
 /**
@@ -61,6 +62,212 @@ export interface EpisodeRow {
 export interface StaleEpisode {
   episodeId: string;
   subjectId: string;
+}
+
+export interface ActivityBucket {
+  /** 'YYYY-MM-DD' for a day grain, 'YYYY-MM' for a month grain. UTC. */
+  bucket: string;
+  attempted: number;
+  solvedSolo: number;
+  solvedAssisted: number;
+  activeSeconds: number;
+  helpRequests: number;
+}
+
+/**
+ * A lesson a learner finished.
+ *
+ * The four counts are the player's own tally and are deliberately not evidence
+ * — see the header of migration 0010. Nothing may build a level or a percentage
+ * out of them.
+ */
+export interface LessonCompletion {
+  lessonId: string;
+  correct: number;
+  wrong: number;
+  unmeasured: number;
+  attempts: number;
+  completedAt: string;
+  /**
+   * The completion policy that admitted this row — see migration 0015.
+   *
+   * Null on rows written before the policy existed, which were admitted by the
+   * old implicit "the learner reached the last block" rule. Backfilling them
+   * would assert that a check which never ran had passed.
+   */
+  policyId: string | null;
+}
+
+/**
+ * A wrong answer the ledger can prove this learner gave, carrying the failure
+ * class the curriculum author declared for it.
+ *
+ * Only attributions whose source is the author's own `diagnosticMapping` are
+ * counted. An `unattributed_failure` — the far commoner case — says "we graded
+ * this and could not tell why it was wrong", which is a fact about the pipeline
+ * and not something to hand back to a child.
+ */
+export interface AttributedMistake {
+  /** `sx-lesson:m1.l3.b2`, as written on the episode that produced it. */
+  taskRef: string;
+  failureClass: string;
+  /** How many times this learner hit this mistake. A count, not a diagnosis. */
+  occurrences: number;
+  lastAt: string;
+}
+
+/**
+ * What the ledger proves a learner did with one block.
+ *
+ * Three facts and no interpretation. `schools/policies/completion.ts` turns
+ * them into a rung on its ladder; nothing here decides what they mean.
+ */
+export interface BlockAttemptEvidence {
+  blockId: string;
+  /** Graded submissions on record. One per press of Check that reached the server. */
+  submissions: number;
+  /** `verdict_received` rows. Several per attempt is normal — one per credited skill. */
+  verdicts: number;
+  accepted: boolean;
+}
+
+/**
+ * How a delayed re-solve settled.
+ *
+ * `unresolved` is a real outcome and not a failure: it is what a written or
+ * oral re-solve settles as, because no machine scores one.
+ */
+export type ReviewOutcome =
+  | "resolved_independently"
+  | "resolved_with_assistance"
+  | "unresolved";
+
+/** One queued delayed re-solve. See migration 0014. */
+export interface ReviewRow {
+  reviewId: string;
+  blockId: string;
+  reason: "solved_with_assistance" | "independent_milestone";
+  /** Highest hint level DELIVERED on the original solve, or -1 for none. */
+  originLevel: number;
+  originEpisodeId: string;
+  originAt: string;
+  dueAt: string;
+  policyId: string;
+  /**
+   * The re-solve's own episode. Null until the learner opens it, and never
+   * equal to `originEpisodeId` — that inequality is what resets the hint
+   * ladder, the reveal counter and the independence measurement.
+   */
+  reviewEpisodeId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  outcome: ReviewOutcome | null;
+}
+
+/**
+ * The explanation a learner owes after substantial help — migration 0016.
+ *
+ * Carries the learner's own words and the assistance that made them owed. It
+ * carries no score, because the table has no column for one: see the migration
+ * header, and `schools/learning/post-help.ts` for the rule it enforces.
+ */
+export interface PostHelpExplanation {
+  episodeId: string;
+  blockId: string;
+  /** Highest hint level delivered on the episode when the gate fired. */
+  assistanceLevel: number;
+  interventionId: string | null;
+  /** The learner's own words, or null when the gate fired and they skipped it. */
+  response: string | null;
+  status: PostHelpStatus;
+  createdAt: string;
+}
+
+/**
+ * One row of `learning_submissions` — a submission claim and, once it has been
+ * graded, the response that was returned for it. See migration 0019.
+ *
+ * `verdict`, `settledAt` and `response` move together or not at all; a CHECK
+ * constraint holds that, so a half-written settle cannot be read back as a
+ * settled submission carrying no verdict.
+ */
+export interface SubmissionRecord {
+  submissionId: string;
+  blockId: string;
+  episodeId: string;
+  claimedAt: string;
+  /** Null while the owning request is still grading. */
+  settledAt: string | null;
+  verdict: "correct" | "wrong" | "partial" | "unknown" | null;
+  /** The submit response, replayed verbatim to a duplicate. Never learner text. */
+  response: unknown;
+}
+
+/**
+ * The latest settled submission on one block — what `settledBlocks` returns.
+ *
+ * A projection of `learning_submissions` and not a second interpretation of it:
+ * `response` is handed back as `unknown` because this class does not know what
+ * a submit response looks like and must not start deciding. See
+ * `schools/learning/hydration.ts`, which does.
+ */
+export interface SettledSubmission {
+  blockId: string;
+  submissionId: string;
+  episodeId: string;
+  /** Never null: the settled-together CHECK constraint guarantees it. */
+  verdict: NonNullable<SubmissionRecord["verdict"]>;
+  /** The exact JSON body this server returned to this learner for this answer. */
+  response: unknown;
+  /**
+   * What the learner submitted — a `BlockAnswer`, verbatim.
+   *
+   * `null` for rows settled before migration 0021. That is a real distinction
+   * and must survive to the UI: "this predates artifact storage" is not the
+   * same as "the learner submitted nothing", and only the first justifies an
+   * empty editor beside a settled verdict.
+   */
+  answer: unknown;
+  settledAt: string;
+  /**
+   * How many DISTINCT answers this learner has had graded on the block.
+   *
+   * Not the number of Check presses: an unchanged answer replays the first
+   * verdict and writes nothing, by design. "Three things tried" is the more
+   * honest number and it is the one the reveal ladder counts.
+   */
+  settledCount: number;
+  /**
+   * True when this row's episode belongs to a delayed re-solve.
+   *
+   * The verdict is still the learner's latest word on the block and is shown.
+   * The EPISODE must not be reused by the lesson page — see `settledBlocks`.
+   */
+  fromReview: boolean;
+}
+
+/**
+ * Raised when a settle finds the submission already settled by another owner.
+ *
+ * A distinct type rather than a bare `Error` so the submit route can tell "this
+ * answer is already recorded, by somebody else's write" from "the database is
+ * down". Both end as `saved: false` to the learner today, but they are
+ * different facts and only one of them is a fault.
+ */
+export class SubmissionAlreadySettledError extends Error {
+  constructor(readonly submissionId: string) {
+    super(`submission ${submissionId} was already settled`);
+    this.name = "SubmissionAlreadySettledError";
+  }
+}
+
+/** One row of the learner's error dictionary, exactly as stored. */
+export interface SavedErrorEntry {
+  blockId: string;
+  failureClass: string;
+  /** The learner's own words, or null. The only free text the table can hold. */
+  note: string | null;
+  createdAt: string;
 }
 
 export class LearningStore {
@@ -120,7 +327,22 @@ export class LearningStore {
         );
       }
     });
-    return subjectId;
+
+    /* The same re-read as `resolveSubjectForUser`, for the same race: two
+       concurrent first requests from one device both find no alias, and only
+       one of the two `insert … on conflict do nothing` alias rows lands. The
+       loser must return the WINNER's subject, not the id it minted and failed
+       to bind — otherwise it writes a learner's events against a subject no
+       later request will ever resolve to. `learning_subjects` has no unique
+       constraint on `primary_anon_id`, so the loser's row survives as an
+       orphan; harmless, and cheaper than a constraint that would turn the race
+       into an error. */
+    const settled = await this.sql.query<{ subject_id: string }>(
+      `select subject_id from learning_subject_aliases
+        where alias_kind = 'anon_id' and alias_value = $1`,
+      [anonId],
+    );
+    return settled.rows[0]?.subject_id ?? subjectId;
   }
 
   /* --- L1: ingest ------------------------------------------------------- */
@@ -132,37 +354,246 @@ export class LearningStore {
    * retried beacon, a duplicated batch or a double-fired effect collapses to
    * one row. Attempt counts are what the entire learner state is built from, so
    * double-counting here corrupts everything downstream silently.
+   *
+   * It guarantees nothing about a duplicated SUBMISSION, and that gap is worth
+   * naming here because it took a long time to find: a second call to
+   * `/api/learning/submit` builds the same three events with FRESH ids, so
+   * every one of them is new and every one of them is inserted. Deduplicating
+   * that needs a key the client carries across the retry — see
+   * `appendEventsAndSettle` and migration 0019.
    */
   async appendEvents(rows: readonly LearningEventRow[]): Promise<number> {
     if (rows.length === 0) return 0;
-    let inserted = 0;
-    await this.sql.tx(async (t) => {
-      for (const r of rows) {
-        const res = await t.query(
-          `insert into learning_events
-             (event_id, subject_id, episode_id, session_id, seq, event_name,
-              occurred_at, source_trust, environment, cohort, route, payload)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
-           on conflict (event_id) do nothing`,
-          [
-            r.eventId,
-            r.subjectId,
-            r.episodeId,
-            r.sessionId,
-            r.seq,
-            r.eventName,
-            r.occurredAt,
-            r.sourceTrust,
-            r.environment,
-            r.cohort,
-            r.route,
-            JSON.stringify(r.payload),
-          ],
-        );
-        if (res.rowCount > 0) inserted += 1;
+    return this.sql.tx((t) => insertEvents(t, rows));
+  }
+
+  /**
+   * Append the events AND record that this submission produced them, together.
+   *
+   * One transaction, and that is the whole point rather than a tidiness
+   * preference. Settling first would let a duplicate replay a response claiming
+   * `saved: true` for a write that then failed. Settling second would leave a
+   * window in which the events exist and nothing knows it, so a retry re-grades
+   * and writes them again — the exact defect the dedup table is for. Committing
+   * both or neither removes the window instead of narrowing it.
+   *
+   * The corollary is that a stored `response` always has `saved: true`, by
+   * construction: if the write did not commit, there is no stored response.
+   */
+  async appendEventsAndSettle(
+    rows: readonly LearningEventRow[],
+    submission: {
+      subjectId: string;
+      submissionId: string;
+      verdict: NonNullable<SubmissionRecord["verdict"]>;
+      response: unknown;
+      /**
+       * What the learner actually submitted — a `BlockAnswer`, verbatim.
+       *
+       * Rides this transaction rather than a write of its own, because the
+       * failure mode of a separate write is the one thing this must not
+       * produce: a verdict with no work behind it, or work the learner was
+       * never given a verdict for. Both or neither.
+       */
+      answer?: unknown;
+    },
+  ): Promise<number> {
+    return this.sql.tx(async (t) => {
+      const inserted = await insertEvents(t, rows);
+      /* `settled_at is null` so a settle can never overwrite a settle. The
+         replayed verdict must be the FIRST one, for the same reason
+         `lesson_completions` writes `do nothing` rather than `do update`: the
+         events written beside it cannot be rewritten to match a second one. */
+      /* `returning` rather than a bare `rowCount`, for the reason
+         `recordLessonCompletion` gives: the two drivers derive `rowCount`
+         differently, and a row that comes back is a row that came back on
+         both. */
+      const settled = await t.query<{ submission_id: string }>(
+        `update learning_submissions
+            set settled_at = now(), verdict = $3, response = $4::jsonb,
+                answer = $5::jsonb
+          where subject_id = $1 and submission_id = $2 and settled_at is null
+        returning submission_id`,
+        [
+          submission.subjectId,
+          submission.submissionId,
+          submission.verdict,
+          JSON.stringify(submission.response),
+          /* `null` when the caller passed nothing, so a row settled by a path
+             that does not carry an answer is indistinguishable from a legacy
+             row — which is the honest reading. `undefined` would stringify to
+             the literal string "undefined" and poison the column. */
+          submission.answer === undefined ? null : JSON.stringify(submission.answer),
+        ],
+      );
+
+      /*
+       * Zero rows updated means somebody else already settled this submission,
+       * and this transaction must not commit.
+       *
+       * The route's guard is `settled_at is null`, and until now the result of
+       * the UPDATE was discarded — the function returned the EVENT count, which
+       * is non-zero whether or not the settle landed. That left one path open,
+       * and `schools/learning/submission.ts` already describes the race that
+       * walks it: owner A claims, A outlives `STALE_CLAIM_SECONDS`, B takes the
+       * claim over, then A finishes and settles. B then finishes too — B's
+       * events are all fresh ids so every one of them inserts, B's UPDATE
+       * matches nothing, and B returns `saved: true`.
+       *
+       * The ledger ends up holding two complete sets of `verdict_received` and
+       * `failure_attributed` rows for one answer, behind a single settled row
+       * carrying A's verdict. The reducer folds both. So the learner's card, the
+       * teacher's console and the independence measurement disagree about how
+       * many times a child tried — which is the exact defect migration 0019 was
+       * written to close, arriving through the one door it left open.
+       *
+       * Throwing rolls the events back with it. That is the correct outcome and
+       * not merely the safe one: the work IS recorded, under A's write, and the
+       * route turns this into `saved: false`, so the learner presses Check
+       * again, hits the duplicate path, and is handed the verdict that was
+       * already stored for the answer they already gave.
+       */
+      if (settled.rows.length === 0) {
+        throw new SubmissionAlreadySettledError(submission.submissionId);
       }
+      return inserted;
     });
-    return inserted;
+  }
+
+  /**
+   * Give the claim back, because nothing was written under it.
+   *
+   * Called when the event write fails. Without it the learner's own retry —
+   * same answer, therefore same submission id — would find a claim that will
+   * never settle, wait out the duplicate window and be told a second time that
+   * nothing was recorded. Deleting the row lets the retry grade properly, which
+   * is correct precisely because the first attempt persisted nothing.
+   *
+   * `settled_at is null` guards it: a claim that DID settle is a record of
+   * events that exist, and deleting it would reopen the double-write.
+   */
+  async releaseSubmission(subjectId: string, submissionId: string): Promise<void> {
+    await this.sql.query(
+      `delete from learning_submissions
+        where subject_id = $1 and submission_id = $2 and settled_at is null`,
+      [subjectId, submissionId],
+    );
+  }
+
+  /* --- submission idempotency (migration 0019) ---------------------------
+     `appendEvents` is idempotent per EVENT id, which collapses a duplicated
+     batch. It cannot collapse a duplicated SUBMISSION, because a second call to
+     `/api/learning/submit` mints fresh event ids for the same answer — three
+     new rows the learner never earned, an inflated failure count, and a reveal
+     policy moved along by a retry nobody made. The key that stops that has to
+     come from the client, be recorded before the judge runs, and be scoped to
+     the learner. That is what these four methods are. */
+
+  /**
+   * Take the claim, or discover somebody already has it.
+   *
+   * ONE statement, and that is the whole concurrency design. `insert … on
+   * conflict do nothing` is atomic against a concurrent identical insert:
+   * exactly one caller sees `rowCount > 0` and owns the write, whatever the
+   * interleaving. Doing this as `select` then `insert` would leave the window
+   * this exists to close — two requests both find nothing, both grade, both
+   * append — which is precisely the double-click case.
+   *
+   * `on conflict (subject_id, submission_id)`, so a reused id belonging to a
+   * DIFFERENT learner is not a conflict at all: they get their own row, their
+   * own grading and their own events.
+   */
+  async claimSubmission(row: {
+    subjectId: string;
+    submissionId: string;
+    blockId: string;
+    episodeId: string;
+  }): Promise<boolean> {
+    const res = await this.sql.query(
+      `insert into learning_submissions
+         (subject_id, submission_id, block_id, episode_id)
+       values ($1, $2, $3, $4)
+       on conflict (subject_id, submission_id) do nothing`,
+      [row.subjectId, row.submissionId, row.blockId, row.episodeId],
+    );
+    return res.rowCount > 0;
+  }
+
+  /** The claim, if this learner has one. Never found by submission id alone. */
+  async submissionRecord(
+    subjectId: string,
+    submissionId: string,
+  ): Promise<SubmissionRecord | null> {
+    const r = await this.sql.query<{
+      submission_id: string;
+      block_id: string;
+      episode_id: string;
+      claimed_at: string | Date;
+      settled_at: string | Date | null;
+      verdict: SubmissionRecord["verdict"];
+      response: unknown;
+    }>(
+      `select submission_id, block_id, episode_id, claimed_at, settled_at, verdict, response
+         from learning_submissions
+        where subject_id = $1 and submission_id = $2`,
+      [subjectId, submissionId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    return {
+      submissionId: row.submission_id,
+      blockId: row.block_id,
+      episodeId: row.episode_id,
+      claimedAt: toIso(row.claimed_at),
+      settledAt: row.settled_at === null ? null : toIso(row.settled_at),
+      verdict: row.verdict,
+      response: row.response ?? null,
+    };
+  }
+
+  /**
+   * Take over a claim whose owner never came back.
+   *
+   * Without this, a process that dies between claiming and settling locks the
+   * learner out of that exact answer permanently — the id is stable while their
+   * text is unchanged, so every retry finds an in-flight claim that will never
+   * settle, and the only escape is to edit the answer. A crash must not cost a
+   * child the ability to submit what they wrote.
+   *
+   * Conditional, atomic and narrow: it only moves a claim that is still
+   * unsettled AND older than the threshold, so it can never race a live request
+   * that is merely slow. The threshold belongs well above the judge's own time
+   * limit — see `STALE_CLAIM_SECONDS` in `schools/learning/submission.ts`.
+   */
+  async reclaimSubmission(row: {
+    subjectId: string;
+    submissionId: string;
+    episodeId: string;
+    staleAfterSeconds: number;
+  }): Promise<boolean> {
+    /*
+     * `<=`, not `<`, on the age comparison below.
+     *
+     * With `staleAfterSeconds: 0` — "take this over regardless of age" — the
+     * strict form asks whether the claim was made strictly before the current
+     * transaction started, and two statements microseconds apart can land on
+     * the same `now()`. The takeover then failed for precisely the reason the
+     * caller had already said to ignore, intermittently, which is how it
+     * showed up: a test that passed and failed on alternate runs.
+     *
+     * At every non-zero value the operators differ by one microsecond at the
+     * boundary, and nothing depends on which side of it a claim falls.
+     */
+    const res = await this.sql.query(
+      `update learning_submissions
+          set claimed_at = now(), episode_id = $3
+        where subject_id = $1
+          and submission_id = $2
+          and settled_at is null
+          and claimed_at <= now() - (($4)::text || ' seconds')::interval`,
+      [row.subjectId, row.submissionId, row.episodeId, row.staleAfterSeconds],
+    );
+    return res.rowCount > 0;
   }
 
   /* --- L2: episodes ----------------------------------------------------- */
@@ -197,8 +628,13 @@ export class LearningStore {
       received_at: string;
       seq: number;
       payload: Record<string, string | number | boolean>;
+      source_trust: string;
     }>(
-      `select event_name, occurred_at, received_at, seq, payload
+      /* `source_trust` is selected because the reducer refuses to settle an
+         outcome without it. It used to be dropped here, which is what made the
+         reducer's own header comment — "derived from signed judge/verifier
+         events" — untrue: it had no way to tell. */
+      `select event_name, occurred_at, received_at, seq, payload, source_trust
          from learning_events
         where episode_id = $1
         order by received_at asc, seq asc`,
@@ -210,6 +646,7 @@ export class LearningStore {
       received_at: toIso(row.received_at),
       seq: Number(row.seq),
       payload: row.payload ?? {},
+      source_trust: row.source_trust,
     }));
   }
 
@@ -218,8 +655,9 @@ export class LearningStore {
     const r = await this.sql.query<{
       event_name: string; occurred_at: string; received_at: string;
       seq: number; payload: Record<string, string | number | boolean>;
+      source_trust: string;
     }>(
-      `select event_name, occurred_at, received_at, seq, payload
+      `select event_name, occurred_at, received_at, seq, payload, source_trust
          from learning_events where subject_id = $1
         order by received_at asc, seq asc`,
       [subjectId],
@@ -230,6 +668,7 @@ export class LearningStore {
       received_at: toIso(row.received_at),
       seq: Number(row.seq),
       payload: row.payload ?? {},
+      source_trust: row.source_trust,
     }));
   }
 
@@ -287,6 +726,20 @@ export class LearningStore {
 
   /* --- L3: assistance --------------------------------------------------- */
 
+  /**
+   * Write the reducer's view of an intervention.
+   *
+   * `do update` rather than `do nothing`, and the difference matters: the hint
+   * route writes a row the moment a hint is granted so the ladder can read
+   * `lastGrantedLevel` back on the next request, and that row necessarily has
+   * empty `pre_*` columns — it is written before the episode is reduced. With
+   * `do nothing`, that placeholder won permanently and the counterfactual
+   * anchor every intervention outcome is measured against stayed blank.
+   *
+   * The identity columns are deliberately not in the update list: an
+   * intervention cannot change subject, episode, level or trigger after the
+   * fact, and letting a later write move them would make the ledger editable.
+   */
   async upsertInterventions(rows: readonly InterventionRow[]): Promise<void> {
     if (rows.length === 0) return;
     await this.sql.tx(async (t) => {
@@ -298,7 +751,15 @@ export class LearningStore {
               pre_diff_class, pre_code_hash, evidence_type, contains_code,
               content_len, delivered_at)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-           on conflict (intervention_id) do nothing`,
+           on conflict (intervention_id) do update set
+             pre_attempts = excluded.pre_attempts,
+             pre_runs = excluded.pre_runs,
+             pre_active_seconds = excluded.pre_active_seconds,
+             pre_last_verdict = excluded.pre_last_verdict,
+             pre_diff_class = excluded.pre_diff_class,
+             pre_code_hash = excluded.pre_code_hash,
+             evidence_type = excluded.evidence_type,
+             content_len = excluded.content_len`,
           [
             r.intervention_id, r.subject_id, r.episode_id, r.kind, r.level, r.trigger,
             r.mode, r.pre_attempts, r.pre_runs, r.pre_active_seconds, r.pre_last_verdict,
@@ -553,6 +1014,822 @@ export class LearningStore {
     );
   }
 
+  /**
+   * Activity, bucketed. The only query behind every number a learner sees.
+   *
+   * `/you` reads it for the chart and the tiles; `/api/learning/state/me` reads
+   * the same window for the home rail. There used to be a second method that
+   * computed "this week" its own way with only a start bound — two functions
+   * both claiming to know when the week started, which is a disagreement
+   * waiting to happen. There is one now, and the window is half-open.
+   *
+   * One row per bucket that has episodes; buckets with none are simply absent
+   * and the caller fills the window's shape. Doing it that way round means an
+   * empty week produces an empty array rather than seven rows of invented
+   * zeroes that read like measurements.
+   *
+   * `solvedSolo` counts accepted episodes where assistance was never requested
+   * (`max_assistance_level < 0`), which is the same rule the independence
+   * weight uses. Level 0 is still assistance: a hint taken and then a correct
+   * answer is `solvedAssisted` — worth showing, never counted as solo.
+   */
+  async activityBuckets(
+    subjectId: string,
+    fromIso: string,
+    toIso: string,
+    grain: "day" | "month",
+  ): Promise<ActivityBucket[]> {
+    const fmt = grain === "day" ? "YYYY-MM-DD" : "YYYY-MM";
+    const r = await this.sql.query<{
+      bucket: string;
+      attempted: number;
+      solved_solo: number;
+      solved_assisted: number;
+      secs: number;
+      helped: number;
+    }>(
+      `select to_char(opened_at at time zone 'UTC', $4)                        as bucket,
+              count(*)::int                                                    as attempted,
+              count(*) filter (
+                where outcome = 'accepted' and max_assistance_level < 0
+              )::int                                                           as solved_solo,
+              count(*) filter (
+                where outcome = 'accepted' and max_assistance_level >= 0
+              )::int                                                           as solved_assisted,
+              coalesce(sum(active_seconds), 0)::int                            as secs,
+              coalesce(sum(intervention_count), 0)::int                        as helped
+         from attempt_episodes
+        where subject_id = $1
+          and opened_at >= $2
+          and opened_at <  $3
+        group by 1
+        order by 1`,
+      [subjectId, fromIso, toIso, fmt],
+    );
+
+    return r.rows.map((x) => ({
+      bucket: x.bucket,
+      attempted: Number(x.attempted),
+      solvedSolo: Number(x.solved_solo),
+      solvedAssisted: Number(x.solved_assisted),
+      activeSeconds: Number(x.secs),
+      helpRequests: Number(x.helped),
+    }));
+  }
+
+  /* --- lesson completions ------------------------------------------------
+     The one record here that is NOT recomputable from the ledger: reaching the
+     end of a lesson is not an event, so it is written when it happens or it is
+     never knowable. See migration 0010. */
+
+  /**
+   * Record a finished lesson. Returns true when this was the first time.
+   *
+   * `do nothing`, never `do update`: the first completion is the fact a school
+   * cares about, and a replay must not be able to rewrite the counts of the
+   * pass that actually happened. Every later attempt is still in
+   * `learning_events` in full, so nothing is lost by refusing.
+   *
+   * `returning` rather than `rowCount`, because what an INSERT with a swallowed
+   * conflict reports for affected rows differs between drivers, and this is the
+   * kind of value that silently becomes always-true.
+   */
+  async recordLessonCompletion(row: {
+    subjectId: string;
+    lessonId: string;
+    correct: number;
+    wrong: number;
+    unmeasured: number;
+    attempts: number;
+    /**
+     * Which rule admitted this row — see migration 0015. Optional only so a
+     * caller predating the policy still compiles; the route always supplies it,
+     * because it cannot reach the write without having evaluated one.
+     */
+    policyId?: string;
+  }): Promise<boolean> {
+    const r = await this.sql.query<{ lesson_id: string }>(
+      `insert into lesson_completions
+         (subject_id, lesson_id, correct, wrong, unmeasured, attempts, policy_id)
+       values ($1,$2,$3,$4,$5,$6,$7)
+       on conflict (subject_id, lesson_id) do nothing
+       returning lesson_id`,
+      [
+        row.subjectId, row.lessonId, row.correct, row.wrong, row.unmeasured,
+        row.attempts, row.policyId ?? null,
+      ],
+    );
+    return r.rows.length > 0;
+  }
+
+  /** Every lesson this learner has finished, most recent first. */
+  async completionsForSubject(subjectId: string): Promise<LessonCompletion[]> {
+    const r = await this.sql.query<{
+      lesson_id: string;
+      correct: number;
+      wrong: number;
+      unmeasured: number;
+      attempts: number;
+      completed_at: string;
+      policy_id: string | null;
+    }>(
+      `select lesson_id, correct, wrong, unmeasured, attempts, completed_at, policy_id
+         from lesson_completions
+        where subject_id = $1
+        order by completed_at desc`,
+      [subjectId],
+    );
+    return r.rows.map((row) => ({
+      lessonId: row.lesson_id,
+      correct: Number(row.correct),
+      wrong: Number(row.wrong),
+      unmeasured: Number(row.unmeasured),
+      attempts: Number(row.attempts),
+      completedAt: toIso(row.completed_at),
+      policyId: row.policy_id ?? null,
+    }));
+  }
+
+  /* --- post-help explanation ---------------------------------------------
+     «Кез келген көмектен соң оқушы шешімді өз сөзімен түсіндіруге міндетті».
+     The gate lives in `schools/learning/post-help.ts`; this is only storage,
+     and it is storage with nowhere to put a grade. See migration 0016. */
+
+  /**
+   * The assistance context for an episode: how far up the ladder it went, and
+   * which intervention took it there.
+   *
+   * `lastGrantedLevel` above answers the first half and is what the ladder
+   * reads back. This answers both, because the explanation row records WHICH
+   * intervention made the explanation owed — a level with no intervention id is
+   * a number a teacher cannot trace back to anything.
+   */
+  async lastIntervention(
+    episodeId: string,
+  ): Promise<{ interventionId: string; level: number } | null> {
+    const r = await this.sql.query<{ intervention_id: string; level: number | null }>(
+      `select intervention_id, level
+         from interventions
+        where episode_id = $1 and level is not null
+        order by level desc, delivered_at desc
+        limit 1`,
+      [episodeId],
+    );
+    const row = r.rows[0];
+    if (!row || row.level === null) return null;
+    return { interventionId: row.intervention_id, level: Number(row.level) };
+  }
+
+  /**
+   * Record one explanation. Returns true when this was the first.
+   *
+   * `do nothing`, never `do update` — the same rule as `recordLessonCompletion`
+   * and for a sharper reason: the first answer is the one given while the help
+   * was fresh, and a later pass silently rewriting it would change text a
+   * teacher may already have read.
+   */
+  async recordPostHelpExplanation(row: {
+    subjectId: string;
+    episodeId: string;
+    blockId: string;
+    assistanceLevel: number;
+    interventionId: string | null;
+    response: string | null;
+    status: PostHelpStatus;
+  }): Promise<boolean> {
+    const r = await this.sql.query<{ block_id: string }>(
+      `insert into post_help_explanations
+         (subject_id, episode_id, block_id, assistance_level, intervention_id, response, status)
+       values ($1,$2,$3,$4,$5,$6,$7)
+       on conflict (subject_id, episode_id, block_id) do nothing
+       returning block_id`,
+      [
+        row.subjectId, row.episodeId, row.blockId, row.assistanceLevel,
+        row.interventionId, row.response, row.status,
+      ],
+    );
+    return r.rows.length > 0;
+  }
+
+  /** The explanation for one task, or null if the learner has not given one. */
+  async postHelpExplanation(
+    subjectId: string,
+    episodeId: string,
+    blockId: string,
+  ): Promise<PostHelpExplanation | null> {
+    const r = await this.sql.query<PostHelpRow>(
+      `select episode_id, block_id, assistance_level, intervention_id, response, status, created_at
+         from post_help_explanations
+        where subject_id = $1 and episode_id = $2 and block_id = $3`,
+      [subjectId, episodeId, blockId],
+    );
+    const row = r.rows[0];
+    return row ? toPostHelp(row) : null;
+  }
+
+  /** Everything this learner has explained, most recent first. */
+  async postHelpExplanationsForSubject(subjectId: string): Promise<PostHelpExplanation[]> {
+    const r = await this.sql.query<PostHelpRow>(
+      `select episode_id, block_id, assistance_level, intervention_id, response, status, created_at
+         from post_help_explanations
+        where subject_id = $1
+        order by created_at desc`,
+      [subjectId],
+    );
+    return r.rows.map(toPostHelp);
+  }
+
+  /* --- error dictionary --------------------------------------------------
+     «Жеке қателер журналы» (PDF). The mistakes are read from the ledger; the
+     entries are what the learner chose to keep. See migration 0011. */
+
+  /**
+   * Wrong answers whose cause the curriculum author actually established.
+   *
+   * Read from `learning_events` rather than from `attempt_episodes`, because
+   * the ledger is the source of truth and the projection only exists once the
+   * reducer has swept. A learner who finished a lesson thirty seconds ago must
+   * see their own mistake, not wait for a sweep.
+   *
+   * The join exists because a `failure_attributed` payload carries the failure
+   * class and the skill but not the task — `task_ref` is written on
+   * `episode_opened`. The subquery collapses that to one row per episode first,
+   * and that is load-bearing: the submit route writes an `episode_opened` on
+   * EVERY attempt at the same episode id, so joining the two event streams
+   * directly multiplies three retries into nine and reports a mistake as having
+   * happened three times as often as it did.
+   *
+   * `attribution_source` is filtered, not `failure_class`. Every wrong answer
+   * produces an attribution — that is what keeps the unexplained-failure
+   * denominator honest — and only the ones the author explained may become an
+   * entry.
+   */
+  async attributedMistakes(subjectId: string): Promise<AttributedMistake[]> {
+    const r = await this.sql.query<{
+      task_ref: string;
+      failure_class: string;
+      occurrences: number;
+      last_at: string;
+    }>(
+      `with opened as (
+         select episode_id, min(payload ->> 'task_ref') as task_ref
+           from learning_events
+          where subject_id = $1
+            and event_name = 'episode_opened'
+            and episode_id is not null
+          group by episode_id
+       )
+       select o.task_ref                       as task_ref,
+              f.payload ->> 'failure_class'    as failure_class,
+              count(*)::int                    as occurrences,
+              max(f.received_at)               as last_at
+         from learning_events f
+         join opened o on o.episode_id = f.episode_id
+        where f.subject_id = $1
+          and f.event_name = 'failure_attributed'
+          and f.payload ->> 'attribution_source' = 'curriculum_diagnostic_mapping'
+          and o.task_ref is not null
+        group by 1, 2
+        order by count(*) desc, max(f.received_at) desc`,
+      [subjectId],
+    );
+    return r.rows.map((row) => ({
+      taskRef: row.task_ref,
+      failureClass: row.failure_class,
+      occurrences: Number(row.occurrences),
+      lastAt: toIso(row.last_at),
+    }));
+  }
+
+  async errorDictionary(subjectId: string): Promise<SavedErrorEntry[]> {
+    const r = await this.sql.query<{
+      block_id: string;
+      failure_class: string;
+      note: string | null;
+      created_at: string;
+    }>(
+      `select block_id, failure_class, note, created_at
+         from learner_error_dictionary
+        where subject_id = $1
+        order by created_at desc`,
+      [subjectId],
+    );
+    return r.rows.map((row) => ({
+      blockId: row.block_id,
+      failureClass: row.failure_class,
+      note: row.note,
+      createdAt: toIso(row.created_at),
+    }));
+  }
+
+  /**
+   * Save an entry, or add words to one that already exists.
+   *
+   * `coalesce(excluded.note, …)` rather than a plain overwrite: pressing save a
+   * second time without typing anything must not erase what the learner wrote
+   * the first time. `created_at` is left alone — the entry was made when it was
+   * made, and a re-save is not a new mistake.
+   *
+   * The caller is responsible for having proved that this subject actually made
+   * this mistake. `/api/learning/dictionary` does that structurally: an entry
+   * can only be named by a handle derived from that learner's own ledger.
+   */
+  async saveErrorEntry(row: {
+    subjectId: string;
+    blockId: string;
+    failureClass: string;
+    note: string | null;
+  }): Promise<void> {
+    await this.sql.query(
+      `insert into learner_error_dictionary (subject_id, block_id, failure_class, note)
+       values ($1,$2,$3,$4)
+       on conflict (subject_id, block_id, failure_class) do update set
+         note = coalesce(excluded.note, learner_error_dictionary.note)`,
+      [row.subjectId, row.blockId, row.failureClass, row.note],
+    );
+  }
+
+  /* --- completion evidence ----------------------------------------------
+     What the ledger can prove a learner did with a set of blocks. Read by
+     `/api/learning/complete` so the completion policy is evaluated against
+     recorded facts rather than against a summary the browser posted. See
+     `schools/policies/completion.ts`. */
+
+  /**
+   * Per-block attempt evidence, for the blocks named.
+   *
+   * Matched on the SUFFIX of `task_ref` rather than on the whole string,
+   * because the prefix is not one thing: `gradeBlock` writes
+   * `sx-assessment:…` while `taskRef()` writes `sx-assess:…`, and a completion
+   * check that silently missed every assessment block would look exactly like a
+   * learner who had not done the check. The block id is the part both agree on.
+   *
+   * `verdicts` is a count of `verdict_received` ROWS, and one attempt can write
+   * several of them — success credits every skill the task exercises, one event
+   * per skill. Nothing here divides by it. The only questions asked of it are
+   * "any?" and "any accepted?", both of which survive the multiplicity.
+   */
+  async blockAttempts(
+    subjectId: string,
+    blockIds: readonly string[],
+  ): Promise<Map<string, BlockAttemptEvidence>> {
+    const out = new Map<string, BlockAttemptEvidence>();
+    if (blockIds.length === 0) return out;
+
+    /* Placeholders rather than `= any($2)`. The array form depends on the
+       driver inferring a Postgres array type from a JavaScript array, and this
+       store runs against two drivers; a list of ids that is never longer than a
+       lesson does not need the cleverness. */
+    const holes = blockIds.map((_, i) => `$${i + 2}`).join(", ");
+    const r = await this.sql.query<{
+      block_id: string;
+      submissions: number;
+      verdicts: number;
+      accepted: boolean;
+    }>(
+      /* `source_trust = 'judge'` on the accepted predicate is load-bearing.
+         A verdict is a claim about what a learner can do, and only this server
+         may make it — the submit route stamps `judge` because IT graded the
+         code. A row stamped `browser` reached the ledger through ingest, and
+         ingest now refuses verdicts outright; the predicate stays because rows
+         forged before that fix may already exist in a pilot database, and
+         because a filter at the point of USE is the one that survives someone
+         adding a third write path later. */
+      `select split_part(payload ->> 'task_ref', ':', 2)                       as block_id,
+              count(*) filter (where event_name = 'episode_opened')::int       as submissions,
+              count(*) filter (where event_name = 'verdict_received')::int     as verdicts,
+              coalesce(bool_or(
+                event_name = 'verdict_received'
+                  and source_trust = 'judge'
+                  and payload ->> 'verdict' = 'accepted'
+              ), false)                                                        as accepted
+         from learning_events
+        where subject_id = $1
+          and event_name in ('episode_opened', 'verdict_received')
+          and split_part(payload ->> 'task_ref', ':', 2) in (${holes})
+        group by 1`,
+      [subjectId, ...blockIds],
+    );
+
+    for (const row of r.rows) {
+      out.set(row.block_id, {
+        blockId: row.block_id,
+        submissions: Number(row.submissions),
+        verdicts: Number(row.verdicts),
+        accepted: Boolean(row.accepted),
+      });
+    }
+    return out;
+  }
+
+  /* --- lesson rehydration -------------------------------------------------
+     What the learner was already shown, addressable by block. Read once when a
+     lesson page renders. See migration 0020 and `schools/learning/hydration.ts`
+     — this class returns rows, that module decides what they mean. */
+
+  /**
+   * The latest settled submission for each of the named blocks.
+   *
+   * ## Why this table and not the event stream
+   *
+   * `blockAttempts` above answers "did they try, and did it pass". That is the
+   * right question for the completion policy and the wrong one for a lesson
+   * page, which has to redraw the card the learner was looking at before they
+   * refreshed. Three things it cannot answer:
+   *
+   *   * `wrong` and `partial` are one value in the ledger —
+   *     `toLearningVerdictName` folds both to `wrong_answer`, so a half-traced
+   *     table would come back as a flat failure.
+   *   * A block that settled `unknown` — an ungraded explanation, an oral task,
+   *     a judge that did not answer — writes NO `verdict_received` row at all.
+   *     Hydrating from events alone renders every one of them as never
+   *     attempted, which is a smaller copy of the defect being fixed.
+   *   * The reveal and the author's justification are not in the ledger and
+   *     cannot be. `ALLOWED_PAYLOAD_KEYS` has no key for either, deliberately.
+   *
+   * All three live in `learning_submissions.response`, which is the exact JSON
+   * this server already sent to this learner's browser — so replaying it can
+   * leak nothing that was not already read by the person reading it now. It is
+   * written by `appendEventsAndSettle` inside the SAME transaction as the
+   * events, which is what makes it impossible for this and the teacher's view
+   * of the same attempt to disagree.
+   *
+   * ## The two predicates that are not decoration
+   *
+   * `subject_id = $1` is the whole privacy guarantee. The reveal in a stored
+   * response is an answer key that one learner earned by failing three times;
+   * a query keyed on `block_id` alone would hand it to their classmate on a
+   * first attempt. Same reasoning as the primary key — see migration 0019.
+   *
+   * `settled_at is not null` matches the partial index and is also the honest
+   * boundary: a claimed-but-unsettled row is a request that never came back,
+   * and a block whose answer was never graded must hydrate as unanswered
+   * rather than as a settled card.
+   */
+  async settledBlocks(
+    subjectId: string,
+    blockIds: readonly string[],
+  ): Promise<Map<string, SettledSubmission>> {
+    const out = new Map<string, SettledSubmission>();
+    if (blockIds.length === 0) return out;
+
+    /* Placeholders rather than `= any($2)`, for the reason `blockAttempts`
+       gives: the array form leans on the driver inferring a Postgres array type
+       and this store runs against two of them. */
+    const holes = blockIds.map((_, i) => `$${i + 2}`).join(", ");
+    const r = await this.sql.query<{
+      block_id: string;
+      submission_id: string;
+      episode_id: string;
+      verdict: SettledSubmission["verdict"];
+      response: unknown;
+      answer: unknown;
+      settled_at: string | Date;
+      settled_count: number;
+      is_review: boolean;
+    }>(
+      /* `distinct on` with a matching `order by` — the latest settled row per
+         block. `submission_id` breaks a tie: two rows can carry the same
+         `settled_at` when the clock's resolution is coarser than the gap
+         between two requests, and an ordering that is not total makes the
+         hydrated verdict depend on which row the planner reached first.
+         `reclaimSubmission` documents the same hazard from the other side.
+
+         `settled_count` rides along as a window function rather than a second
+         query. It is the number of DISTINCT ANSWERS this learner has had graded
+         on the block — not the number of times they pressed Check, because an
+         unchanged answer replays and writes nothing. That is the more honest
+         number to show anyway.
+
+         `is_review` marks a row whose episode belongs to a delayed re-solve.
+         The verdict from a re-solve is the learner's latest word on the block
+         and is shown; its EPISODE must never be handed back to the lesson page,
+         because folding new lesson work into a review episode is exactly the
+         join `review_schedule` exists to keep separate. See migration 0014. */
+      `select distinct on (s.block_id)
+              s.block_id,
+              s.submission_id,
+              s.episode_id,
+              s.verdict,
+              s.response,
+              /* The learner's own submitted work. Null for rows settled before
+                 migration 0021 — see that file for why it stays nullable. */
+              s.answer,
+              s.settled_at,
+              count(*) over (partition by s.block_id)                    as settled_count,
+              exists (
+                select 1 from review_schedule rv
+                 where rv.subject_id = s.subject_id
+                   and rv.review_episode_id = s.episode_id
+              )                                                          as is_review
+         from learning_submissions s
+        where s.subject_id = $1
+          and s.settled_at is not null
+          and s.block_id in (${holes})
+        order by s.block_id, s.settled_at desc, s.submission_id desc`,
+      [subjectId, ...blockIds],
+    );
+
+    for (const row of r.rows) {
+      out.set(row.block_id, {
+        blockId: row.block_id,
+        submissionId: row.submission_id,
+        episodeId: row.episode_id,
+        verdict: row.verdict,
+        response: row.response ?? null,
+        answer: row.answer ?? null,
+        settledAt: toIso(row.settled_at),
+        settledCount: Number(row.settled_count),
+        fromReview: Boolean(row.is_review),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Assistance actually delivered, per block, for the blocks named.
+   *
+   * The join is the awkward part and there is no way around it:
+   * `interventions` has no `block_id`, and it never will — a hint is delivered
+   * into an EPISODE, which is the unit the ladder is scoped to. The block is
+   * recoverable only through the `episode_opened` row the submit route writes,
+   * whose `task_ref` carries it.
+   *
+   * Both halves of the assistance record are read, and they mean different
+   * things — the same distinction `solveEvidence` documents. `delivered` comes
+   * from `learning_events`, because that event is written only once tokens have
+   * actually reached the learner and so proves the help ARRIVED. `level` comes
+   * from the `interventions.level` column, because that is a server-written
+   * smallint rather than a value cast out of jsonb.
+   *
+   * `-1` for a block with no delivered help, matching
+   * `attempt_episodes.max_assistance_level` so the two cannot be read as
+   * disagreeing.
+   *
+   * This exists so a refresh cannot turn an assisted solve into an independent
+   * one on the learner's own screen. The analytical half of that guarantee is
+   * elsewhere — it is the episode being reused rather than re-minted — but a UI
+   * that quietly dropped the assistance would be its own lie.
+   */
+  async assistanceByBlock(
+    subjectId: string,
+    blockIds: readonly string[],
+  ): Promise<Map<string, { delivered: boolean; level: number }>> {
+    const out = new Map<string, { delivered: boolean; level: number }>();
+    if (blockIds.length === 0) return out;
+
+    const holes = blockIds.map((_, i) => `$${i + 2}`).join(", ");
+    const r = await this.sql.query<{
+      block_id: string;
+      delivered: boolean;
+      level: number | null;
+    }>(
+      /* `opened` maps episode -> block. Same `split_part` suffix match
+         `blockAttempts` uses and for the same reason: `sx-lesson:` and
+         `sx-assess:` are both real prefixes and the block id is the part they
+         agree on.
+
+         `max(i.level)` is a left join, so a block whose hints were requested
+         but never delivered reports `delivered: false` with a level of -1
+         rather than claiming a rung the learner never reached. */
+      `with opened as (
+         select distinct
+                e.episode_id,
+                split_part(e.payload ->> 'task_ref', ':', 2) as block_id
+           from learning_events e
+          where e.subject_id = $1
+            and e.event_name = 'episode_opened'
+            and e.episode_id is not null
+            and split_part(e.payload ->> 'task_ref', ':', 2) in (${holes})
+       ),
+       given as (
+         select e.episode_id
+           from learning_events e
+          where e.subject_id = $1
+            and e.event_name = 'assistance_delivered'
+            and e.episode_id is not null
+       )
+       select o.block_id,
+              coalesce(bool_or(g.episode_id is not null), false) as delivered,
+              max(i.level)                                       as level
+         from opened o
+         left join given g on g.episode_id = o.episode_id
+         left join interventions i
+                on i.episode_id = o.episode_id
+               and i.subject_id = $1
+               and g.episode_id is not null
+        group by o.block_id`,
+      [subjectId, ...blockIds],
+    );
+
+    for (const row of r.rows) {
+      const delivered = Boolean(row.delivered);
+      out.set(row.block_id, {
+        delivered,
+        level: delivered && row.level !== null ? Number(row.level) : -1,
+      });
+    }
+    return out;
+  }
+
+  /** One lesson's completion row, or null. The list form is `completionsForSubject`. */
+  async lessonCompletion(subjectId: string, lessonId: string): Promise<LessonCompletion | null> {
+    const r = await this.sql.query<{
+      lesson_id: string;
+      correct: number;
+      wrong: number;
+      unmeasured: number;
+      attempts: number;
+      completed_at: string | Date;
+      policy_id: string | null;
+    }>(
+      `select lesson_id, correct, wrong, unmeasured, attempts, completed_at, policy_id
+         from lesson_completions
+        where subject_id = $1 and lesson_id = $2`,
+      [subjectId, lessonId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    return {
+      lessonId: row.lesson_id,
+      correct: Number(row.correct),
+      wrong: Number(row.wrong),
+      unmeasured: Number(row.unmeasured),
+      attempts: Number(row.attempts),
+      completedAt: toIso(row.completed_at),
+      policyId: row.policy_id,
+    };
+  }
+
+  /* --- delayed re-solve --------------------------------------------------
+     The programme's fifth independence check (PDF p.6). See migration 0014 and
+     `schools/policies/review.ts`. */
+
+  /**
+   * What one episode proves about how the task was solved.
+   *
+   * Both halves of the assistance record are used, and for different things:
+   *
+   *   * `assistance_delivered` in `learning_events` proves the help ARRIVED.
+   *     The hint route writes `assistance_requested` up front and
+   *     `assistance_delivered` only once tokens have actually reached the
+   *     learner, so a provider outage does not get recorded as help the learner
+   *     had.
+   *   * `interventions.level` carries HOW MUCH. It is a real smallint column
+   *     written server-side, which is why the level is read from there rather
+   *     than cast out of a jsonb payload.
+   *
+   * Level is reported as -1 when nothing was delivered — the same sentinel
+   * `attempt_episodes.max_assistance_level` uses, so the two cannot be read as
+   * disagreeing. Writing 0 would claim a level-0 hint was given.
+   */
+  async solveEvidence(
+    subjectId: string,
+    episodeId: string,
+  ): Promise<{ accepted: boolean; assistanceDelivered: boolean; assistanceLevel: number }> {
+    const r = await this.sql.query<{ accepted: boolean; delivered: boolean }>(
+      /* Same trust predicate as `blockAttempts`, and it matters more here:
+         this feeds the delayed re-solve, which is the programme's fifth
+         independence check. An unaided solve is exactly the thing worth
+         forging. `assistance_delivered` needs no predicate — ingest cannot
+         create it either, and a learner has no motive to invent help they
+         did not receive. */
+      `select coalesce(bool_or(
+                event_name = 'verdict_received'
+                  and source_trust = 'judge'
+                  and payload ->> 'verdict' = 'accepted'
+              ), false)                                        as accepted,
+              coalesce(bool_or(event_name = 'assistance_delivered'), false) as delivered
+         from learning_events
+        where subject_id = $1 and episode_id = $2`,
+      [subjectId, episodeId],
+    );
+    const accepted = Boolean(r.rows[0]?.accepted);
+    const delivered = Boolean(r.rows[0]?.delivered);
+    return {
+      accepted,
+      assistanceDelivered: delivered,
+      assistanceLevel: delivered ? await this.lastGrantedLevel(episodeId) : -1,
+    };
+  }
+
+  /**
+   * Queue a re-solve. True when this call created it.
+   *
+   * `do nothing` on the natural key, so the submit route may call it on every
+   * accepted verdict without a learner who re-runs a task collecting a review
+   * per run. False is a correct, ordinary outcome and not an error.
+   */
+  async scheduleReview(row: {
+    subjectId: string;
+    blockId: string;
+    reason: "solved_with_assistance" | "independent_milestone";
+    originEpisodeId: string;
+    originAt: string;
+    originLevel: number;
+    dueAt: string;
+    policyId: string;
+  }): Promise<boolean> {
+    const r = await this.sql.query<{ review_id: string }>(
+      `insert into review_schedule
+         (review_id, subject_id, block_id, reason, origin_level,
+          origin_episode_id, origin_at, due_at, policy_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       on conflict (subject_id, block_id, origin_episode_id) do nothing
+       returning review_id`,
+      [
+        randomUUID(), row.subjectId, row.blockId, row.reason, row.originLevel,
+        row.originEpisodeId, row.originAt, row.dueAt, row.policyId,
+      ],
+    );
+    return r.rows.length > 0;
+  }
+
+  /** Everything queued for this learner that has fallen due and is not finished. */
+  async dueReviews(subjectId: string, nowIso: string, limit = 50): Promise<ReviewRow[]> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select * from review_schedule
+        where subject_id = $1 and completed_at is null and due_at <= $2
+        order by due_at asc
+        limit $3`,
+      [subjectId, nowIso, limit],
+    );
+    return r.rows.map(rowToReview);
+  }
+
+  /** Queued but not yet due. Shown as "coming", never counted as work waiting. */
+  async pendingReviews(subjectId: string, nowIso: string, limit = 50): Promise<ReviewRow[]> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select * from review_schedule
+        where subject_id = $1 and completed_at is null and due_at > $2
+        order by due_at asc
+        limit $3`,
+      [subjectId, nowIso, limit],
+    );
+    return r.rows.map(rowToReview);
+  }
+
+  /** One review, scoped to its owner. There is no lookup by id alone. */
+  async reviewFor(subjectId: string, reviewId: string): Promise<ReviewRow | null> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select * from review_schedule where subject_id = $1 and review_id = $2`,
+      [subjectId, reviewId],
+    );
+    return r.rows[0] ? rowToReview(r.rows[0]) : null;
+  }
+
+  /**
+   * Open a review, binding it to a FRESH episode.
+   *
+   * `coalesce` rather than a plain assignment, and that is the important part:
+   * a learner who reloads the review page gets the SAME episode back instead of
+   * a second one. Minting a new episode per visit would fragment one re-solve
+   * into several, each with no attempt behind it — so the hint ladder would
+   * reset mid-task and the independence measurement would be taken over a
+   * fraction of the work.
+   *
+   * The episode id is generated by the CALLER on the server and never accepted
+   * from a browser. `review_schedule_fresh_episode` refuses one equal to the
+   * original, so the reset cannot be undone by a mistake in a route.
+   */
+  async startReview(
+    subjectId: string,
+    reviewId: string,
+    episodeId: string,
+  ): Promise<ReviewRow | null> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `update review_schedule
+          set review_episode_id = coalesce(review_episode_id, $3),
+              started_at        = coalesce(started_at, now())
+        where subject_id = $1 and review_id = $2 and completed_at is null
+        returning *`,
+      [subjectId, reviewId, episodeId],
+    );
+    return r.rows[0] ? rowToReview(r.rows[0]) : null;
+  }
+
+  /**
+   * Settle a review. True when this call closed it.
+   *
+   * The outcome is decided by the caller from the review episode's own ledger,
+   * never from anything the browser asserts — which is why there is no
+   * `resolved` boolean on the wire for this.
+   */
+  async completeReview(
+    subjectId: string,
+    reviewId: string,
+    outcome: ReviewOutcome,
+  ): Promise<boolean> {
+    const r = await this.sql.query<{ review_id: string }>(
+      `update review_schedule
+          set completed_at = now(), outcome = $3
+        where subject_id = $1 and review_id = $2 and completed_at is null
+        returning review_id`,
+      [subjectId, reviewId, outcome],
+    );
+    return r.rows.length > 0;
+  }
+
   /* --- school scoping ----------------------------------------------------
      Every teacher-facing read goes through here. There is deliberately no
      method that returns subjects without a class, because the shipped
@@ -671,15 +1948,612 @@ export class LearningStore {
     );
     return r.rows[0]?.at ? toIso(r.rows[0].at) : null;
   }
+
+  /* --- L5: accounts, classes, enrolment, sessions ----------------------- */
+  /*
+   * Identity, added in migration 0012.
+   *
+   * Everything here is keyed on (school_id, ...) rather than on a bare id, and
+   * that is not decoration: there is deliberately no query in this file that
+   * can read across schools, so a bug in a route cannot become a cross-school
+   * disclosure. The teacher-facing reads all join through `class_teachers`,
+   * so "which class is this" and "may this person see it" are one question.
+   */
+
+  async findAccountByUsername(
+    schoolId: string,
+    username: string,
+  ): Promise<(SchoolAccountRow & { passwordHash: string; passwordSalt: string }) | null> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select user_id, school_id, role, username, display_name, must_change_password,
+              password_hash, password_salt, disabled_at
+         from school_accounts
+        where school_id = $1 and lower(username) = lower($2)`,
+      [schoolId, username],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    return {
+      ...rowToAccount(row),
+      passwordHash: row.password_hash as string,
+      passwordSalt: row.password_salt as string,
+    };
+  }
+
+  async findAccountById(userId: string): Promise<SchoolAccountRow | null> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select user_id, school_id, role, username, display_name, must_change_password, disabled_at
+         from school_accounts where user_id = $1`,
+      [userId],
+    );
+    return r.rows[0] ? rowToAccount(r.rows[0]) : null;
+  }
+
+  async createAccount(input: {
+    schoolId: string;
+    role: "student" | "teacher" | "admin";
+    username: string;
+    displayName: string;
+    passwordHash: string;
+    passwordSalt: string;
+    mustChangePassword?: boolean;
+  }): Promise<string> {
+    const userId = randomUUID();
+    await this.sql.query(
+      `insert into school_accounts
+         (user_id, school_id, role, username, display_name,
+          password_hash, password_salt, must_change_password)
+       values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [
+        userId,
+        input.schoolId,
+        input.role,
+        input.username,
+        input.displayName,
+        input.passwordHash,
+        input.passwordSalt,
+        input.mustChangePassword ?? true,
+      ],
+    );
+    return userId;
+  }
+
+  async setPassword(userId: string, hash: string, salt: string): Promise<void> {
+    await this.sql.query(
+      `update school_accounts
+          set password_hash = $2, password_salt = $3, must_change_password = false
+        where user_id = $1`,
+      [userId, hash, salt],
+    );
+  }
+
+  async markLogin(userId: string): Promise<void> {
+    await this.sql.query(
+      `update school_accounts set last_login_at = now() where user_id = $1`,
+      [userId],
+    );
+  }
+
+  async upsertClass(schoolId: string, classId: string, name: string): Promise<void> {
+    await this.sql.query(
+      `insert into school_classes (school_id, class_id, name) values ($1,$2,$3)
+       on conflict (school_id, class_id) do update set name = excluded.name`,
+      [schoolId, classId, name],
+    );
+  }
+
+  async assignTeacher(schoolId: string, classId: string, userId: string): Promise<void> {
+    await this.sql.query(
+      `insert into class_teachers (school_id, class_id, user_id) values ($1,$2,$3)
+       on conflict do nothing`,
+      [schoolId, classId, userId],
+    );
+  }
+
+  async enrol(schoolId: string, classId: string, userId: string): Promise<void> {
+    await this.sql.query(
+      `insert into class_enrolments (school_id, class_id, user_id) values ($1,$2,$3)
+       on conflict (school_id, class_id, user_id) do update set withdrawn_at = null`,
+      [schoolId, classId, userId],
+    );
+  }
+
+  /** The classes this teacher actually teaches. The whole of their authority. */
+  async classesForTeacher(userId: string): Promise<{ schoolId: string; classId: string; name: string }[]> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select c.school_id, c.class_id, c.name
+         from class_teachers t
+         join school_classes c
+           on c.school_id = t.school_id and c.class_id = t.class_id
+        where t.user_id = $1 and c.archived_at is null
+        order by c.class_id`,
+      [userId],
+    );
+    return r.rows.map((row) => ({
+      schoolId: row.school_id as string,
+      classId: row.class_id as string,
+      name: row.name as string,
+    }));
+  }
+
+  /**
+   * Does this class exist in this school?
+   *
+   * Added for the admin branch of `requireClassAccess`, which used to accept
+   * any class id at all. Deliberately keyed on BOTH columns: `school_classes`
+   * has the composite primary key `(school_id, class_id)` precisely because a
+   * class id is only unique inside a school, and a lookup on `class_id` alone
+   * would reintroduce the cross-school hole one layer up.
+   *
+   * Archived classes are excluded, matching `classesForTeacher`: a class that
+   * has been archived is not one an admin should be reading a roll from.
+   */
+  /**
+   * The school's own name for a class («9А»), or null.
+   *
+   * The teacher panel used to render the raw `class_id` — `grade-9a`, in a mono
+   * font — because the name was only reachable through `classesForTeacher`,
+   * which the UI called and then discarded unless the teacher had more than one
+   * class. A class id is an internal handle; a teacher recognises the name.
+   */
+  async classNameFor(schoolId: string, classId: string): Promise<string | null> {
+    const r = await this.sql.query<{ name: string }>(
+      `select name from school_classes
+        where school_id = $1 and class_id = $2 and archived_at is null`,
+      [schoolId, classId],
+    );
+    return r.rows[0]?.name ?? null;
+  }
+
+  async classExists(schoolId: string, classId: string): Promise<boolean> {
+    const r = await this.sql.query<{ n: number }>(
+      `select count(*)::int as n from school_classes
+        where school_id = $1 and class_id = $2 and archived_at is null`,
+      [schoolId, classId],
+    );
+    return r.rows[0].n > 0;
+  }
+
+  async teachesClass(userId: string, schoolId: string, classId: string): Promise<boolean> {
+    const r = await this.sql.query<{ n: number }>(
+      `select count(*)::int as n from class_teachers
+        where user_id = $1 and school_id = $2 and class_id = $3`,
+      [userId, schoolId, classId],
+    );
+    return Number(r.rows[0]?.n ?? 0) > 0;
+  }
+
+  /* --- L6: curriculum publication (migration 0013) ---------------------- */
+
+  /** Live approvals, newest first. A withdrawn one is not an approval. */
+  async publications(): Promise<
+    {
+      monthIndex: number;
+      curriculumHash: string;
+      reviewerId: string;
+      reviewerName: string;
+      note: string | null;
+      publishedAt: string;
+    }[]
+  > {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select p.month_index, p.curriculum_hash, p.reviewer_id,
+              a.display_name as reviewer_name, p.note, p.published_at
+         from curriculum_publications p
+         join school_accounts a on a.user_id = p.reviewer_id
+        where p.withdrawn_at is null
+        order by p.published_at desc`,
+    );
+    return r.rows.map((row) => ({
+      monthIndex: Number(row.month_index),
+      curriculumHash: row.curriculum_hash as string,
+      reviewerId: row.reviewer_id as string,
+      reviewerName: row.reviewer_name as string,
+      note: (row.note as string | null) ?? null,
+      publishedAt: toIso(row.published_at),
+    }));
+  }
+
+  /**
+   * Record a human approval.
+   *
+   * The reviewer is a real account, checked by the caller to be a teacher or an
+   * admin. There is no system reviewer and no way to omit one — approving
+   * material for minors is not something a service account may do.
+   */
+  async publishCurriculum(input: {
+    monthIndex: number;
+    curriculumHash: string;
+    reviewerId: string;
+    note: string | null;
+  }): Promise<string> {
+    const id = randomUUID();
+    await this.sql.query(
+      `insert into curriculum_publications
+         (publication_id, month_index, curriculum_hash, reviewer_id, note)
+       values ($1,$2,$3,$4,$5)
+       on conflict (month_index, curriculum_hash) where withdrawn_at is null do nothing`,
+      [id, input.monthIndex, input.curriculumHash, input.reviewerId, input.note],
+    );
+    return id;
+  }
+
+  async withdrawCurriculum(monthIndex: number, byUserId: string): Promise<void> {
+    await this.sql.query(
+      `update curriculum_publications
+          set withdrawn_at = now(), withdrawn_by = $2
+        where month_index = $1 and withdrawn_at is null`,
+      [monthIndex, byUserId],
+    );
+  }
+
+  /** The classes a learner is enrolled in. One, for the pilot; the shape allows more. */
+  async classesForLearner(userId: string): Promise<{ schoolId: string; classId: string }[]> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select e.school_id, e.class_id
+         from class_enrolments e
+         join school_classes c
+           on c.school_id = e.school_id and c.class_id = e.class_id
+        where e.user_id = $1 and e.withdrawn_at is null and c.archived_at is null
+        order by e.enrolled_at`,
+      [userId],
+    );
+    return r.rows.map((row) => ({
+      schoolId: row.school_id as string,
+      classId: row.class_id as string,
+    }));
+  }
+
+  /** Enrolled learners, with the display name a teacher needs to read the list. */
+  async rosterForClass(
+    schoolId: string,
+    classId: string,
+  ): Promise<{ userId: string; displayName: string; username: string }[]> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select a.user_id, a.display_name, a.username
+         from class_enrolments e
+         join school_accounts a on a.user_id = e.user_id
+        where e.school_id = $1 and e.class_id = $2
+          and e.withdrawn_at is null and a.disabled_at is null
+        order by a.display_name`,
+      [schoolId, classId],
+    );
+    return r.rows.map((row) => ({
+      userId: row.user_id as string,
+      displayName: row.display_name as string,
+      username: row.username as string,
+    }));
+  }
+
+  /**
+   * The subject behind an alias, or null. Reads. Never writes, never mints.
+   *
+   * `resolveSubject` and `resolveSubjectForUser` below both create a subject
+   * when none exists and both touch `last_seen_at` when one does. That is right
+   * for a route handler — a learner submitting an answer must have somewhere to
+   * put it — and wrong for a page render, which is the caller this exists for.
+   *
+   * A Server Component that resolved identity the writing way would turn every
+   * lesson view into a write transaction on the hottest route in the product,
+   * and worse: the anonymous branch mints a subject and returns `isNew` for the
+   * CALLER to persist as a cookie, which a Server Component structurally cannot
+   * do. It would create an orphan subject per render, which is the precise
+   * defect `proxy.ts` was written to fix — "one learner produced five subjects,
+   * their evidence scattered across all of them".
+   *
+   * So hydration asks the read-only question instead: who is this, if we
+   * already know? A `null` means "no history to restore", which is exactly what
+   * a learner with no subject has, and the next real submission resolves their
+   * identity properly through the route that can.
+   */
+  async subjectIdForAlias(
+    kind: "anon_id" | "user_id",
+    value: string,
+  ): Promise<string | null> {
+    const r = await this.sql.query<{ subject_id: string }>(
+      `select subject_id from learning_subject_aliases
+        where alias_kind = $1 and alias_value = $2`,
+      [kind, value],
+    );
+    return r.rows[0]?.subject_id ?? null;
+  }
+
+  /**
+   * The learning subject behind an account.
+   *
+   * `learning_subjects.user_id` and the 'user_id' alias have existed since 0003
+   * for exactly this. Binding through the alias — rather than minting a subject
+   * per device — is what makes a learner who signs in on a second machine the
+   * same person with the same year of history.
+   */
+  async resolveSubjectForUser(
+    userId: string,
+    scope: { schoolId: string; classId: string },
+    cohort: Cohort = "public",
+  ): Promise<string> {
+    const existing = await this.sql.query<{ subject_id: string }>(
+      `select subject_id from learning_subject_aliases
+        where alias_kind = 'user_id' and alias_value = $1`,
+      [userId],
+    );
+    if (existing.rows.length > 0) {
+      const id = existing.rows[0].subject_id;
+      await this.sql.query(
+        `update learning_subjects set last_seen_at = now() where subject_id = $1`,
+        [id],
+      );
+      await this.setSubjectScope(id, scope);
+      return id;
+    }
+
+    /*
+     * Conflict-tolerant, then re-read. Both halves are load-bearing.
+     *
+     * The select above and this insert are two statements, and between them a
+     * second request can create the subject. That is not hypothetical: a
+     * learner's first Check fires `POST /api/learning/events` and
+     * `POST /api/learning/submit` at the same moment, both call
+     * `resolveIdentity`, and on a brand-new account both find no alias.
+     *
+     * Under PGlite the two serialise behind its single writer and the loser is
+     * harmless. Under Postgres — the production target — they run concurrently
+     * and the loser raises `duplicate key value violates unique constraint
+     * "learning_subjects_user_id_key"`, which reaches a fourteen-year-old as a
+     * 500 on the first answer they ever submit. It was invisible until this
+     * path was exercised against real Postgres rather than the development
+     * store.
+     *
+     * Re-reading the alias afterwards is what makes the outcome CORRECT rather
+     * than merely quiet: whoever won, every caller leaves with the same subject
+     * id. Two subjects for one account would scatter a learner's evidence
+     * across both and show their teacher zeros — the failure `proxy.ts` was
+     * written to prevent, arriving through a different door.
+     */
+    const subjectId = randomUUID();
+    await this.sql.tx(async (t) => {
+      await t.query(
+        `insert into learning_subjects (subject_id, user_id, cohort) values ($1,$2,$3)
+         on conflict (user_id) do nothing`,
+        [subjectId, userId, cohort],
+      );
+      await t.query(
+        `insert into learning_subject_aliases (alias_kind, alias_value, subject_id)
+         values ('user_id', $1, $2)
+         on conflict (alias_kind, alias_value) do nothing`,
+        [userId, subjectId],
+      );
+    });
+
+    const settled = await this.sql.query<{ subject_id: string }>(
+      `select subject_id from learning_subject_aliases
+        where alias_kind = 'user_id' and alias_value = $1`,
+      [userId],
+    );
+    const winner = settled.rows[0]?.subject_id ?? subjectId;
+    await this.setSubjectScope(winner, scope);
+    return winner;
+  }
+
+  async setSubjectScope(
+    subjectId: string,
+    scope: { schoolId: string; classId: string },
+  ): Promise<void> {
+    await this.sql.query(
+      `insert into school_subject_scope (subject_id, school_id, class_id)
+       values ($1,$2,$3)
+       on conflict (subject_id) do update
+         set school_id = excluded.school_id, class_id = excluded.class_id`,
+      [subjectId, scope.schoolId, scope.classId],
+    );
+  }
+
+  /* --- account preferences ------------------------------------------- */
+
+  /**
+   * The account's stored preference bag, or null if it has never been saved.
+   *
+   * `null` and `{}` are meaningfully different here: null means "this person
+   * has never expressed a preference, so keep following whatever the browser
+   * decided", and an empty object means "they saved, and everything is at its
+   * default". Collapsing the two would make a deliberate reset look like an
+   * absence and let a stale local value win over it.
+   */
+  async getPreferences(userId: string): Promise<Record<string, unknown> | null> {
+    const r = await this.sql.query<{ prefs: unknown }>(
+      `select prefs from account_preferences where user_id = $1`,
+      [userId],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    // PGlite hands back a parsed object; a wire driver may hand back text.
+    return typeof row.prefs === "string"
+      ? (JSON.parse(row.prefs) as Record<string, unknown>)
+      : (row.prefs as Record<string, unknown>);
+  }
+
+  async putPreferences(userId: string, prefs: unknown): Promise<void> {
+    await this.sql.query(
+      `insert into account_preferences (user_id, prefs, updated_at)
+       values ($1, $2::jsonb, now())
+       on conflict (user_id) do update
+         set prefs = excluded.prefs, updated_at = now()`,
+      [userId, JSON.stringify(prefs)],
+    );
+  }
+
+  async createSession(userId: string, tokenHash: string, expiresAt: string): Promise<string> {
+    const sessionId = randomUUID();
+    await this.sql.query(
+      `insert into school_sessions (session_id, token_hash, user_id, expires_at)
+       values ($1,$2,$3,$4)`,
+      [sessionId, tokenHash, userId, expiresAt],
+    );
+    return sessionId;
+  }
+
+  /**
+   * Look a session up by the hash of its cookie.
+   *
+   * Expiry and revocation are in the WHERE clause rather than checked by the
+   * caller, so there is no path where someone forgets. A revoked session reads
+   * as no session at all.
+   */
+  async sessionByTokenHash(tokenHash: string): Promise<{ sessionId: string; userId: string } | null> {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select session_id, user_id from school_sessions
+        where token_hash = $1 and revoked_at is null and expires_at > now()`,
+      [tokenHash],
+    );
+    const row = r.rows[0];
+    if (!row) return null;
+    await this.sql.query(
+      `update school_sessions set last_seen_at = now() where session_id = $1`,
+      [row.session_id as string],
+    );
+    return { sessionId: row.session_id as string, userId: row.user_id as string };
+  }
+
+  async revokeSession(tokenHash: string): Promise<void> {
+    await this.sql.query(
+      `update school_sessions set revoked_at = now()
+        where token_hash = $1 and revoked_at is null`,
+      [tokenHash],
+    );
+  }
+
+  /** Every session for a user. Used when a password changes. */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.sql.query(
+      `update school_sessions set revoked_at = now()
+        where user_id = $1 and revoked_at is null`,
+      [userId],
+    );
+  }
+
 }
 
 /* -------------------------------------------------------------------------- */
 
 /** Postgres returns timestamps as Date under some drivers and string under others. */
+export interface SchoolAccountRow {
+  userId: string;
+  schoolId: string;
+  role: "student" | "teacher" | "admin";
+  username: string;
+  displayName: string;
+  mustChangePassword: boolean;
+  disabledAt: string | null;
+}
+
+function rowToAccount(row: Record<string, unknown>): SchoolAccountRow {
+  return {
+    userId: row.user_id as string,
+    schoolId: row.school_id as string,
+    role: row.role as SchoolAccountRow["role"],
+    username: row.username as string,
+    displayName: row.display_name as string,
+    mustChangePassword: Boolean(row.must_change_password),
+    disabledAt: row.disabled_at ? toIso(row.disabled_at) : null,
+  };
+}
+
+interface PostHelpRow {
+  episode_id: string;
+  block_id: string;
+  assistance_level: number;
+  intervention_id: string | null;
+  response: string | null;
+  status: string;
+  created_at: string;
+}
+
+/**
+ * Row → domain object.
+ *
+ * `status` is cast rather than validated because the column carries a CHECK
+ * constraint naming the three legal values — the database is the validator, and
+ * a second one here would be a place for the two to disagree.
+ */
+function toPostHelp(row: PostHelpRow): PostHelpExplanation {
+  return {
+    episodeId: row.episode_id,
+    blockId: row.block_id,
+    assistanceLevel: Number(row.assistance_level),
+    interventionId: row.intervention_id,
+    response: row.response,
+    status: row.status as PostHelpStatus,
+    createdAt: toIso(row.created_at),
+  };
+}
+
+/**
+ * The event insert, shared by `appendEvents` and `appendEventsAndSettle`.
+ *
+ * Takes the executor rather than using `this.sql`, so the caller decides the
+ * transaction. Nesting `tx` inside `tx` would be a second `BEGIN` on the PGlite
+ * driver — a warning and a no-op, with the inner commit committing the outer
+ * work — so the two entry points open exactly one transaction each and share
+ * the body.
+ *
+ * `on conflict (event_id) do nothing` is the per-EVENT idempotency guarantee: a
+ * retried beacon or a duplicated batch collapses to one row. It cannot collapse
+ * a duplicated SUBMISSION, because a second call to the submit route mints
+ * fresh event ids for the same answer — that is what migration 0019 and
+ * `learning_submissions` are for.
+ */
+async function insertEvents(
+  t: SqlExecutor,
+  rows: readonly LearningEventRow[],
+): Promise<number> {
+  let inserted = 0;
+  for (const r of rows) {
+    const res = await t.query(
+      `insert into learning_events
+         (event_id, subject_id, episode_id, session_id, seq, event_name,
+          occurred_at, source_trust, environment, cohort, route, payload)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+       on conflict (event_id) do nothing`,
+      [
+        r.eventId,
+        r.subjectId,
+        r.episodeId,
+        r.sessionId,
+        r.seq,
+        r.eventName,
+        r.occurredAt,
+        r.sourceTrust,
+        r.environment,
+        r.cohort,
+        r.route,
+        JSON.stringify(r.payload),
+      ],
+    );
+    if (res.rowCount > 0) inserted += 1;
+  }
+  return inserted;
+}
+
 function toIso(v: unknown): string {
   if (v instanceof Date) return v.toISOString();
   if (typeof v === "string") return new Date(v).toISOString();
   return new Date(0).toISOString();
+}
+
+function rowToReview(row: Record<string, unknown>): ReviewRow {
+  return {
+    reviewId: row.review_id as string,
+    blockId: row.block_id as string,
+    reason: row.reason as ReviewRow["reason"],
+    originLevel: Number(row.origin_level),
+    originEpisodeId: row.origin_episode_id as string,
+    originAt: toIso(row.origin_at),
+    dueAt: toIso(row.due_at),
+    policyId: row.policy_id as string,
+    reviewEpisodeId: (row.review_episode_id as string) ?? null,
+    startedAt: row.started_at ? toIso(row.started_at) : null,
+    completedAt: row.completed_at ? toIso(row.completed_at) : null,
+    outcome: (row.outcome as ReviewOutcome) ?? null,
+  };
 }
 
 function rowToReducedEpisode(row: Record<string, unknown>): ReducedEpisode {

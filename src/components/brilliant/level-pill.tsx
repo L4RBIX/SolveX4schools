@@ -22,7 +22,7 @@ export function LevelPill({ index, title, active, className }: LevelPillProps) {
         "flex h-[72px] w-full max-w-[468px] flex-col items-center justify-center rounded-[16px] border-2 bg-b-dark px-6 py-3 text-center transition-colors duration-200",
         active
           ? "border-b-blue shadow-[0_4px_0_0_#4A5CD6]"
-          : "border-white/20 shadow-[0_4px_0_0_rgba(255,255,255,0.2)]",
+          : "border-b-fg/20 shadow-[0_4px_0_0_rgba(255,255,255,0.2)]",
         className,
       )}
     >
@@ -34,7 +34,7 @@ export function LevelPill({ index, title, active, className }: LevelPillProps) {
       <span
         className={cn(
           "mt-0.5 text-[16px] leading-6 font-normal",
-          active ? "text-white" : "text-b-dim",
+          active ? "text-b-fg" : "text-b-dim",
         )}
       >
         {title}

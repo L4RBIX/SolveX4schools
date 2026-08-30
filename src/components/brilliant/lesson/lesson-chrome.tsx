@@ -44,6 +44,19 @@ export interface LessonTopBarProps {
   onPrev?: () => void;
   onNext?: () => void;
   className?: string;
+  /**
+   * What sits in the right-hand group.
+   *
+   * Undefined keeps the reference's XP/streak readout, so /brilliant/lesson is
+   * untouched. `null` removes it — and removes the 66.22px spacer on the left
+   * with it, because that spacer exists only to balance this group and leaving
+   * it behind pushes the progress bar off centre.
+   *
+   * The school player passes its own: a count of answers it has actually
+   * checked. The reference's XP was 15 points per correct answer toward
+   * nothing — a currency with no economy behind it.
+   */
+  readout?: React.ReactNode | null;
 }
 
 const SEGMENTS = 3;
@@ -61,14 +74,21 @@ export function LessonTopBar({
   closeHref,
   closeLabel = "Close",
   className,
+  readout,
 }: LessonTopBarProps) {
+  const showReference = readout === undefined;
+  const hasRight = readout !== null;
   const closeClass =
-    "relative flex h-12 w-12 min-w-12 cursor-pointer items-center justify-center overflow-clip rounded-[6px] border-2 border-transparent text-white/50 transition-colors hover:text-white";
+    "relative flex h-12 w-12 min-w-12 cursor-pointer items-center justify-center overflow-clip rounded-[6px] border-2 border-transparent text-b-fg/50 transition-colors hover:text-b-fg";
   return (
     <div
       data-navbar="true"
       className={cn(
-        "sticky top-0 z-[855] flex min-h-16 shrink-0 items-center justify-between gap-12 px-[10.5px]",
+        /* The reference is measured at 1470 and its fixed parts — a 66px
+           spacer, two 52px arrows and a 48px gap — add up to more than a phone
+           has. Below 640 the spacer and the arrows go (the footer's Continue
+           already moves the lesson forward) and the gap collapses. */
+        "sticky top-0 z-[855] flex min-h-16 shrink-0 items-center justify-between gap-2 px-[10.5px] sm:gap-12",
         className,
       )}
     >
@@ -89,20 +109,22 @@ export function LessonTopBar({
           </button>
         )}
         {/* balances the right-hand group; intentionally empty */}
-        <div data-xp-placeholder="true" className="h-0 w-[66.22px]" />
+        {hasRight ? (
+          <div data-xp-placeholder="true" className="hidden h-0 w-[66.22px] sm:block" />
+        ) : null}
       </div>
 
       {/* ---- centre ---------------------------------------------------- */}
-      <div role="group" className="flex flex-1 items-center justify-center gap-3">
+      <div role="group" className="flex min-w-0 flex-1 items-center justify-center gap-3">
         <NavArrow direction="prev" enabled={canPrev} onClick={onPrev} />
 
-        <div className="h-3 w-full max-w-[592px]">
+        <div className="h-3 w-full min-w-0 max-w-[592px]">
           <div
             role="progressbar"
             aria-valuenow={Math.round(progress * 100)}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="h-3 w-full overflow-hidden rounded-full bg-white/20"
+            className="h-3 w-full overflow-hidden rounded-full bg-b-fg/20"
           >
             <div
               style={{ width: `${Math.min(Math.max(progress, 0), 1) * 100}%` }}
@@ -111,13 +133,13 @@ export function LessonTopBar({
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="hidden gap-3 sm:flex">
           {Array.from({ length: SEGMENTS }, (_, i) => (
             <span
               key={i}
               className={cn(
                 "h-3 w-4 rounded-full transition-all duration-200",
-                i < segmentsComplete ? "bg-b-ok-progress" : "bg-white/5",
+                i < segmentsComplete ? "bg-b-ok-progress" : "bg-b-fg/5",
               )}
             />
           ))}
@@ -127,30 +149,38 @@ export function LessonTopBar({
       </div>
 
       {/* ---- right ----------------------------------------------------- */}
-      <div className="flex h-8 items-center justify-center">
-        <div
-          className={cn(
-            "flex items-center justify-end",
-            xp > 0 ? "text-b-green" : "text-white/20",
+      {hasRight ? (
+        <div className="flex h-8 items-center justify-center">
+          {showReference ? (
+            <>
+              <div
+                className={cn(
+                  "flex items-center justify-end",
+                  xp > 0 ? "text-b-green" : "text-b-fg/20",
+                )}
+              >
+                <span className="relative block min-w-[35.18px] text-right text-[16px] leading-[22.4px] font-medium">
+                  {xp}
+                </span>
+                <SparkleIcon className="-mt-0.5 shrink-0" />
+              </div>
+              <button
+                type="button"
+                aria-label="Your current streak"
+                data-testid="streaks_button"
+                className={cn(
+                  "relative -mt-[2.5px] flex h-8 w-8 min-w-8 cursor-pointer items-center justify-center gap-2 rounded-[54px] border-2 border-transparent",
+                  streak > 0 ? "text-b-green-2" : "text-b-fg/20",
+                )}
+              >
+                <StreakBoltIcon completed={streak > 0} />
+              </button>
+            </>
+          ) : (
+            readout
           )}
-        >
-          <span className="relative block min-w-[35.18px] text-right text-[16px] leading-[22.4px] font-medium">
-            {xp}
-          </span>
-          <SparkleIcon className="-mt-0.5 shrink-0" />
         </div>
-        <button
-          type="button"
-          aria-label="Your current streak"
-          data-testid="streaks_button"
-          className={cn(
-            "relative -mt-[2.5px] flex h-8 w-8 min-w-8 cursor-pointer items-center justify-center gap-2 rounded-[54px] border-2 border-transparent",
-            streak > 0 ? "text-b-green-2" : "text-white/20",
-          )}
-        >
-          <StreakBoltIcon completed={streak > 0} />
-        </button>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -170,7 +200,7 @@ function NavArrow({
   onClick?: () => void;
 }) {
   return (
-    <div className="h-[52px] w-[52px] shrink-0">
+    <div className="hidden h-[52px] w-[52px] shrink-0 sm:block">
       <div
         className={cn(
           "flex h-full w-full items-center justify-center transition-opacity duration-300 ease-in-out",
@@ -185,7 +215,7 @@ function NavArrow({
           onClick={onClick}
           className={cn(
             "relative flex h-[52px] w-[52px] items-center justify-center overflow-clip rounded-full border-2 border-transparent p-4",
-            enabled ? "cursor-pointer text-white/60 hover:text-white" : "cursor-default text-white/20",
+            enabled ? "cursor-pointer text-b-fg/60 hover:text-b-fg" : "cursor-default text-b-fg/20",
           )}
         >
           <ArrowUpIcon

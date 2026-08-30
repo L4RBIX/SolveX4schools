@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { GameboardPedestal } from "./gameboard-pedestal";
+import { SxMilestone } from "./sx-milestone";
 import {
   COURSE,
   CURRENT_LEVEL,
@@ -54,18 +55,63 @@ export interface CourseGameboardProps {
     level: string;
     start: string;
     jumpHere: string;
+    /** Screen-reader name for the scroll-to-top control. */
+    scrollTop?: string;
+    /** Screen-reader name for the completion mark on a finished node. */
+    done?: string;
   };
+  /**
+   * Render the product's own milestone — our pedestal artwork and Nova —
+   * instead of the reference's Brilliant SVG and its Rive Koji.
+   *
+   * This is the only switch left. There used to be a second one, `evenRhythm`,
+   * which replaced the reference's negative-margin collapse with a flat
+   * `gap-14` on the product route. It was added on the belief that the
+   * reference's rows are "~230px tall because a Rive pedestal is much taller
+   * than our static one", so its margins could not apply to us.
+   *
+   * That belief was wrong. Re-measured on the live page, every row in every
+   * level of the reference is exactly 134px — the same as ours — and the
+   * collapse is `mb-50` / `-mt-30` on the first section and `-mt-50` after,
+   * with `mb-15` closing each stack and a 45px lead-in on the first row. Those
+   * numbers were always directly applicable, and running a second rhythm system
+   * on the product route was the single largest fidelity break on the board.
+   */
+  ownMascot?: boolean;
+  /**
+   * Rendered at the top of the node column, above the first level.
+   *
+   * A slot rather than a concrete component because this file is shared with
+   * the measurement baseline at /brilliant/app/course, which must keep
+   * rendering exactly as measured. It also has to be INSIDE this component:
+   * the scroller is `position: fixed`, so anything a caller renders next to
+   * `<CourseGameboard>` is painted underneath it rather than above the board.
+   */
+  beforeBoard?: ReactNode;
+  /**
+   * Rendered in the left column, under the course card.
+   *
+   * The reference has nothing above its first level header, so anything the
+   * product adds there (the track switch) reads immediately as "not the same
+   * layout" — it occupies the top of the board column and pushes every level
+   * down. The left column is where course-level meta belongs, and it is
+   * already sticky. Below `lg` the aside is hidden, so a caller should also
+   * pass the control through `beforeBoard` for narrow screens.
+   */
+  asideExtra?: ReactNode;
 }
 
 export function CourseGameboard({
   course = COURSE,
   levels = LEVELS,
   currentLevel = CURRENT_LEVEL,
-  labels = { level: "Level", start: "Start", jumpHere: "Jump here" },
+  labels = { level: "Level", start: "Start", jumpHere: "Jump here", scrollTop: "Scroll to top" },
+  ownMascot = false,
+  beforeBoard = null,
+  asideExtra = null,
 }: CourseGameboardProps = {}) {
   const [selected, setSelected] = useState<GameboardNode | null>(null);
   const [showTop, setShowTop] = useState(false);
-  const [nodeOnScreen, setNodeOnScreen] = useState(true);
   const scroller = useRef<HTMLDivElement>(null);
 
   const onScroll = useCallback(() => {
@@ -85,63 +131,114 @@ export function CourseGameboard({
   const footerNode = selected ?? activeNode;
   const isJump = Boolean(selected);
 
-  /* The original hides the CTA while its own node is on screen and slides it
-     back up once you scroll away from it. */
-  useEffect(() => {
+  /**
+   * Selecting a node centres it, the way the reference does.
+   *
+   * Its own handler calls `scrollIntoView({block:'center'})` and skips the
+   * scroll when the node is already within 140px of the viewport's centre, so
+   * tapping something you are already looking at does not jerk the board. Both
+   * halves are reproduced — the bail matters more than the scroll, because
+   * without it every tap on a centred node produces a pointless twitch.
+   */
+  /* Not wrapped in `useCallback` — the React Compiler memoizes it, and a manual
+     dependency list here only fights the inference. */
+  const select = (node: GameboardNode) => {
+    setSelected((cur) => (cur?.title === node.title ? null : node));
+
     const root = scroller.current;
-    if (!root || !footerNode) return;
-    /* The value sits inside quotes, so it must NOT be CSS.escape'd — escaping
-       a space there yields `"Writing\ Programs"`, which matches nothing. */
+    if (!root) return;
     const el = root.querySelector<HTMLElement>(
-      `[data-node="${footerNode.title.replace(/"/g, '\\"')}"]`,
+      `[data-node="${node.title.replace(/"/g, '\\"')}"]`,
     );
     if (!el) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setNodeOnScreen(entry.isIntersecting),
-      { root, threshold: 0.6 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [footerNode]);
+    const rootBox = root.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    const offset = box.top + box.height / 2 - (rootBox.top + rootBox.height / 2);
+    if (Math.abs(offset) <= 140) return;
+    root.scrollTo({ top: root.scrollTop + offset, behavior: "smooth" });
+  };
+
+  /*
+   * The card is ALWAYS on screen. Verified against the live reference at 1440
+   * with nothing selected and scrollTop 0: its "Filtering Images / Start" card
+   * sits at the bottom while that very node is visible at the top.
+   *
+   * Two earlier readings were both wrong. The first hid it whenever its node
+   * was visible, so tapping a milestone produced no "Jump here" at all. The
+   * second kept that rule for the default card, which still left the board
+   * with no call to action on load — the single most prominent thing in the
+   * reference's composition simply missing. The reference's own visibility
+   * observer (`-150px 0px -100px 0px`, threshold .5) drives its
+   * jump-back-to-current button, not this card.
+   */
 
   return (
     <div
       ref={scroller}
-      className="fixed inset-x-0 bottom-0 top-[65px] flex justify-start gap-8 overflow-y-auto overflow-x-hidden px-6 pt-5 xl:justify-center xl:px-28"
+      /* `min-w-0` on the board below: the reference pins it at 364px, which
+         with the container's own padding overflows a 375px phone and gives the
+         whole page a horizontal scrollbar. */
+      className="fixed inset-x-0 top-[65px] bottom-0 flex justify-start gap-8 overflow-x-hidden overflow-y-auto px-3 pt-5 sm:px-6 xl:justify-center xl:px-28"
     >
+      {/*
+        The scrim.
+
+        A 64px fixed gradient pinned to the top of the scroller, from the page
+        colour to transparent. It is the reference's first child and it is not
+        decoration: the level headers are `position: sticky`, so without it a
+        node scrolls out from under a pinned header with a hard edge. With it,
+        rows dissolve into the page as they pass behind. Its absence was the
+        most visible missing piece of the board's scroll behaviour.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-[65px] z-[2] h-16"
+        style={{
+          background:
+            "linear-gradient(180deg, var(--color-sx-page) 0%, color-mix(in oklab, var(--color-sx-page) 85%, transparent) 40%, transparent 100%)",
+        }}
+      />
       {/* ---- left: course summary, sticky ---------------------------- */}
-      <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] lg:block">
-        <div className="flex flex-col items-start gap-4 rounded-[20px] border-2 border-white/20 bg-b-bg p-8">
+      <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] flex-col gap-4 lg:flex">
+        <div className="flex flex-col items-start gap-4 rounded-[20px] sx-card border-2 border-b-fg/20 p-8">
           <Image
             src={course.art}
             alt=""
-            width={197}
-            height={154}
-            className="h-[154px] w-[197px] object-contain"
+            width={100}
+            height={100}
+            /* 100x100, measured off the live card at 1440. The previous
+               197x154 made the illustration half again too big, which pushed
+               the whole left card taller than the reference's and threw the
+               two columns out of balance on first sight. */
+            className="h-[100px] w-[100px] object-contain"
           />
           <div className="flex flex-col gap-6 text-left">
             <div className="flex flex-col gap-4">
               <h1 className="text-[24px] leading-[30px] font-bold">{course.title}</h1>
-              <p className="text-white/60">{course.blurb}</p>
+              <p className="text-b-fg/60">{course.blurb}</p>
             </div>
             <div className="flex items-center gap-4 text-[14px] leading-[21px]">
-              <span className="flex items-center gap-2 text-white/60">
+              <span className="flex items-center gap-2 text-b-fg/60">
                 <LessonsIcon />
                 {course.lessons}
               </span>
-              <span className="flex items-center gap-2 text-white/60">
+              <span className="flex items-center gap-2 text-b-fg/60">
                 <ExercisesIcon />
                 {course.exercises}
               </span>
             </div>
           </div>
         </div>
+        {asideExtra}
       </aside>
 
       {/* ---- right: the board ---------------------------------------- */}
-      <div className="relative z-[1] mt-5 w-full min-w-[364px] max-w-[488px] flex-[2_1_364px]">
+      <div className="relative z-[1] mt-5 w-full max-w-[488px] min-w-0 flex-[2_1_364px] sm:min-w-[364px]">
+        {/* Section gap is 30px, same as the gap between rows. */}
         <div className="flex flex-col items-center gap-[30px]">
+          {beforeBoard}
+
           {levels.map((level, li) => (
             <section key={level.index} className="w-full">
               <LevelHeader
@@ -151,21 +248,47 @@ export function CourseGameboard({
                 levelLabel={labels.level}
               />
 
+              {/*
+                The collapse, measured on the live reference:
+
+                  header  margin-bottom  200px      (mb-50)
+                  stack   margin-top     -120px     first section   (-mt-30)
+                                         -200px     every other     (-mt-50)
+                  stack   margin-bottom  60px       (mb-15)
+                  rows    gap            30px
+                  row 0   margin-top     45px
+
+                The two margins are adjacent siblings, so they sum rather than
+                collapse to the larger: 200 − 120 leaves 80px of air under the
+                first header and 200 − 200 leaves none under the rest. That
+                asymmetry is deliberate in the reference — the first header
+                never pins, every later one does — and it is why a single even
+                gap reads wrong no matter which value you pick for it.
+              */}
               <div
                 className={cn(
-                  "flex flex-col items-center gap-[30px] mb-15",
+                  "mb-15 flex flex-col items-center gap-[30px]",
                   li === 0 ? "-mt-30" : "-mt-50",
                 )}
               >
-                {level.nodes.map((node: GameboardNode) => (
-                  <NodeRow
-                    key={`${level.index}-${node.title}`}
-                    node={node}
-                    selected={selected?.title === node.title}
-                    onSelect={() =>
-                      setSelected((cur) => (cur?.title === node.title ? null : node))
-                    }
-                  />
+                {level.nodes.map((node: GameboardNode, ni) => (
+                  <div key={`${level.index}-${node.title}`} className={cn("flex w-full justify-center", ni === 0 && "mt-[45px]")}>
+                    {ownMascot ? (
+                      <SxMilestone
+                        node={node}
+                        selected={selected?.title === node.title}
+                        arrivalKey={activeNode?.title}
+                        labels={{ done: labels.done ?? "Done" }}
+                        onSelect={() => select(node)}
+                      />
+                    ) : (
+                      <NodeRow
+                        node={node}
+                        selected={selected?.title === node.title}
+                        onSelect={() => select(node)}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             </section>
@@ -176,7 +299,6 @@ export function CourseGameboard({
             <FooterCard
               node={footerNode}
               jump={isJump}
-              hidden={nodeOnScreen}
               startLabel={labels.start}
               jumpLabel={labels.jumpHere}
             />
@@ -186,6 +308,7 @@ export function CourseGameboard({
 
       <ScrollTopButton
         show={showTop}
+        label={labels.scrollTop}
         onClick={() => scroller.current?.scrollTo({ top: 0, behavior: "smooth" })}
       />
     </div>
@@ -229,44 +352,16 @@ function NodeRow({
           active={node.active}
           review={node.review}
         />
-        {/* The label column was 138px, measured against short English titles.
-            Kazakh lesson names run materially longer, so it grows rather than
-            clipping — the zig-zag rhythm comes from the row's justify-content,
-            not from this width. */}
-        <span className="flex min-w-[138px] flex-1 items-center pb-[29.5px]">
+        {/* Fixed 138x55 with a 3-line clamp, exactly as measured. */}
+        <span data-label className="flex h-[55px] w-[138px] items-center pb-[29.5px]">
           <span
             className={cn(
-              "transition-colors",
-              node.locked
-                ? "text-white/25"
-                : node.done
-                  ? "text-white/70"
-                  : node.active || selected
-                    ? "text-white"
-                    : "text-white/40",
+              "line-clamp-3",
+              selected || node.active ? "text-b-fg" : "text-b-fg/40",
             )}
           >
             {node.title}
           </span>
-          {node.done ? (
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-              className="ml-2 shrink-0 text-b-green"
-            >
-              <rect width="24" height="24" rx="12" fill="currentColor" />
-              <path
-                d="M7 12.5l3.2 3.2L17 9"
-                stroke="#141414"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          ) : null}
         </span>
       </button>
     </div>
@@ -290,12 +385,25 @@ function LevelHeader({
   levelLabel?: string;
 }) {
   return (
-    <div className="sticky top-[41px] z-[1] mb-50 h-16 bg-b-bg px-4">
-      <div className="relative">
+    <div className="sticky top-[41px] z-[1] mb-50 h-16 bg-sx-page px-4">
+      {/*
+        `group` so the button's own press can drive the slab behind it. The
+        reference does this with a sibling selector — `[&:active + [data-slot=
+        level-header-shadow]]` — which is the same idea expressed in Panda.
+      */}
+      <div className="group relative">
         <button
           type="button"
-          aria-label={`view details for level ${index}, ${title}`}
-          className="relative z-[1] flex h-16 w-full items-center justify-center rounded-[18px] bg-b-bg text-center"
+          aria-label={`${levelLabel} ${index}, ${title}`}
+          /*
+            The press is the reference's, measured: the button drops 4px while
+            the slab behind it shrinks from 72px to 68px and moves its top edge
+            from -2px to +2px, so the purple lip is swallowed and the header
+            reads as pushed into the page. It snaps — there is no transition on
+            any of it in the reference's stylesheet, and adding one here would
+            turn a crisp press into a mushy one.
+          */
+          className="relative z-[1] flex h-16 w-full items-center justify-center rounded-[18px] bg-b-bg text-center active:translate-y-1"
         >
           <h3 className="flex flex-col gap-1">
             <span
@@ -304,12 +412,24 @@ function LevelHeader({
             >
               {levelLabel} {index}
             </span>
-            <span className="leading-[22.4px]">{title}</span>
+            {/* body.base at medium weight, 1.4 line-height — 16px / 22.4px. */}
+            <span className="font-medium leading-[22.4px]">{title}</span>
           </h3>
         </button>
+        {/*
+          The slab is a sibling rectangle behind the button, not a border.
+
+          Measured live: 460x72 against a 456x64 button — 2px proud on the top
+          and BOTH sides, 6px proud at the bottom, radius 20px against the
+          button's 18px. The previous implementation used `left-0 right-0`,
+          making it 456 wide, on the reading that the reference's
+          `translateX(-230px)` made it asymmetric. It does not: the transform
+          cancels against an equal and opposite `inset`, and the live box is
+          symmetric.
+        */}
         <div
           aria-hidden="true"
-          className="absolute -top-0.5 -bottom-1.5 left-0 right-0 z-0 rounded-[20px] transition-colors"
+          className="absolute -inset-x-0.5 -top-0.5 -bottom-1.5 z-0 rounded-[20px] group-active:top-0.5"
           style={{ backgroundColor: current ? HEADER_SHADOW_ACTIVE : HEADER_SHADOW_IDLE }}
         />
       </div>
@@ -325,7 +445,6 @@ function LevelHeader({
 function FooterCard({
   node,
   jump,
-  hidden,
   startLabel = "Start",
   jumpLabel = "Jump here",
 }: {
@@ -333,14 +452,10 @@ function FooterCard({
   jumpLabel?: string;
   node: GameboardNode;
   jump: boolean;
-  hidden: boolean;
 }) {
   return (
     <div
-      className={cn(
-        "sticky bottom-10 z-10 mt-15 w-full max-w-[456px] transition-all duration-300 ease-out",
-        hidden ? "pointer-events-none translate-y-[100px] opacity-0" : "translate-y-0 opacity-100",
-      )}
+      className="sticky bottom-10 z-10 mt-15 w-full max-w-[456px] transition-all duration-300 ease-out"
     >
       <div className="relative">
         <div
@@ -350,21 +465,37 @@ function FooterCard({
         />
         <div className="relative z-[1] flex flex-col gap-4 rounded-[40px] border-2 border-b-edge bg-b-elevated px-4 pt-6 pb-4">
           <div className="flex w-full flex-col items-center gap-4 text-center">
-            <h3 className="text-[24px] leading-[44px] font-bold">{node.title}</h3>
+            {/* 20px, not 24px — measured off the live card. */}
+            <h3 className="text-[20px] leading-[44px] font-bold">{node.title}</h3>
             <Link
               href={node.href ?? COURSE.activeHref}
               role="link"
               data-slot="button3d"
               className="group relative flex w-full rounded-[56px]"
             >
+              {/*
+                Two variants, because the reference has two.
+
+                "Start" is the primary call — the learner's own next lesson —
+                and is purple on a purple lip. "Jump here" is offering to move
+                them somewhere they chose to inspect, which is a secondary
+                action, and the reference paints it `rgba(255,255,255,.2)` on a
+                `rgba(255,255,255,.05)` lip. Shipping the purple one for both
+                made every selection look like the primary path.
+              */}
               <span
                 data-slot="button3d-face"
                 className={cn(
                   "flex h-12 w-full items-center justify-center rounded-[60px] px-6 py-[14px]",
-                  "leading-5 font-medium text-white",
-                  "bg-b-purple shadow-[0_4px_0_0_var(--color-b-purple-2)]",
+                  "leading-5 font-medium text-b-fg",
+                  /* `b-fg`, not a literal white: the reference is pinned to
+                     dark, this product is not, and a hardcoded white pill is
+                     invisible on the light surface. The token inverts. */
+                  jump
+                    ? "bg-b-fg/20 shadow-[0_4px_0_0_color-mix(in_oklab,var(--color-b-fg)_8%,transparent)] group-active:shadow-[0_0_0_0_transparent]"
+                    : "bg-b-purple shadow-[0_4px_0_0_var(--color-b-purple-2)] group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",
                   "-translate-y-1 transition-[transform,box-shadow] duration-100 ease-out",
-                  "group-active:translate-y-0 group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",
+                  "group-active:translate-y-0",
                 )}
               >
                 {jump ? jumpLabel : startLabel}
@@ -377,15 +508,23 @@ function FooterCard({
   );
 }
 
-function ScrollTopButton({ show, onClick }: { show: boolean; onClick: () => void }) {
+function ScrollTopButton({
+  show,
+  onClick,
+  label = "Scroll to top",
+}: {
+  show: boolean;
+  onClick: () => void;
+  label?: string;
+}) {
   return (
     <button
       type="button"
-      aria-label="Scroll to top"
+      aria-label={label}
       onClick={onClick}
       className={cn(
         "fixed bottom-10 left-1/2 z-20 flex h-12 w-12 -translate-x-[420px] items-center justify-center",
-        "rounded-full border-2 border-b-edge bg-b-bg transition-opacity duration-300",
+        "rounded-full sx-card border-2 border-b-edge transition-opacity duration-300",
         show ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

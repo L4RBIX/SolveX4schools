@@ -21,6 +21,9 @@ export {
   LEARNING_EVENT_VERSION,
   EVENT_TRUST,
   isLearningEventName,
+  // Who may CREATE an event, as opposed to who may name one.
+  CLIENT_REPORTABLE_EVENTS,
+  isClientReportable,
   // Payload contract
   ALLOWED_PAYLOAD_KEYS,
   CODE_TRANSPORT_KEY,

@@ -1,12 +1,15 @@
 import { after, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import {
+  isClientReportable,
   isLearningEventName,
   sanitizePayload,
   type LearningEventName,
 } from "@solvex/learning-contracts";
 import { config } from "@schools/config";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
+import { ownedEpisodeId } from "@schools/learning/episode-scope";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { maybeSweep } from "@schools/reducer/trigger";
 
@@ -25,6 +28,17 @@ import { maybeSweep } from "@schools/reducer/trigger";
  * - **Trust.** `source_trust` is stamped server-side. A client claiming `judge`
  *   is recorded as `browser` — trust is earned by a valid attestation, which is
  *   checked on the submit route, not asserted in a request body.
+ * - **The OUTCOME events, entirely.** `isClientReportable` refuses them.
+ *   Stamping a forged verdict as `browser` is only a defence if something
+ *   downstream reads the stamp, and nothing did — so the fix is in both
+ *   places: ingest will not create the row, and the projections that count
+ *   solves now require judge trust.
+ * - **The episode.** `ownedEpisodeId` refuses one that belongs to another
+ *   learner, exactly as the submit and hint routes already do. This sentence
+ *   described an intention rather than the code until the Run button shipped:
+ *   the field was simply copied out of the body, and nothing on this route sent
+ *   an episode id, so the hole was unreachable rather than closed. It stopped
+ *   being unreachable the moment `run_executed` began carrying one.
  * - **Environment and cohort.** Stamped from server config, so a preview deploy
  *   cannot claim to be production.
  * - **The subject.** Read from an httpOnly cookie, never from the body.
@@ -50,6 +64,12 @@ interface IncomingEvent {
 const MAX_BATCH = 100;
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: { events?: IncomingEvent[] };
   try {
     body = (await request.json()) as { events?: IncomingEvent[] };
@@ -65,6 +85,30 @@ export async function POST(request: Request) {
   const { subjectId, anonId, isNew } = await resolveIdentity();
   const store = await getStore();
 
+  /*
+   * Episode ownership, resolved once per distinct id before any row is built.
+   *
+   * A batch is usually one episode and always a handful, so this is one indexed
+   * lookup rather than one per event — and it happens BEFORE the map because
+   * `ownedEpisodeId` is async and the row builder is not.
+   *
+   * A foreign id is replaced with a fresh one rather than refused, which is the
+   * rule `episode-scope.ts` argues for: the caller's own events still land, in
+   * an episode of their own, and the other learner's episode is neither read
+   * nor written. A 403 would drop a legitimate client's work over a stale id.
+   */
+  const requestedIds = [
+    ...new Set(
+      incoming
+        .map((e) => e.episodeId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  const resolvedEpisodes = new Map<string, string>();
+  for (const requested of requestedIds) {
+    resolvedEpisodes.set(requested, await ownedEpisodeId(subjectId, requested));
+  }
+
   const rows = incoming.flatMap((e) => {
     const name = e.eventName;
     // Not on the taxonomy: dropped, not coerced. A reducer that switches on a
@@ -72,11 +116,33 @@ export async function POST(request: Request) {
     // change the episode's event_count.
     if (typeof name !== "string" || !isLearningEventName(name)) return [];
 
+    /*
+     * Not a browser's to create, even though it is a real event name.
+     *
+     * This block is what the comment at the top of the file has always claimed
+     * and the code never did. Without it, any signed-in learner could POST
+     * `verdict_received` with `verdict: "accepted"` and have it counted: the
+     * row landed stamped `browser`, which was the correct stamp and no defence
+     * at all, because the read paths did not look at the stamp.
+     *
+     * Dropped silently, along with everything else that fails validation here.
+     * A 400 that names the refused event teaches whoever is probing exactly
+     * which name to try next, and an honest client never sends these — they
+     * have server-side writers.
+     */
+    if (!isClientReportable(name)) return [];
+
     return [
       {
         eventId: typeof e.eventId === "string" && e.eventId.length <= 64 ? e.eventId : randomUUID(),
         subjectId,
-        episodeId: typeof e.episodeId === "string" ? e.episodeId : null,
+        /* Never the browser's value. `resolvedEpisodes` holds either the id
+           they asked for — because it is theirs or brand new — or a fresh one
+           minted in its place. */
+        episodeId:
+          typeof e.episodeId === "string" && e.episodeId.length > 0
+            ? (resolvedEpisodes.get(e.episodeId) ?? null)
+            : null,
         sessionId: typeof e.sessionId === "string" ? e.sessionId : randomUUID(),
         seq: Number.isFinite(e.seq) ? Number(e.seq) : 0,
         eventName: name as LearningEventName,

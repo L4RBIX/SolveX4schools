@@ -3,6 +3,8 @@
  * bar with the copyright line and a row of small social glyphs.
  */
 
+import Link from "next/link";
+
 interface FooterColumn {
   title: string;
   links: readonly (string | { label: string; href: string })[];
@@ -93,12 +95,12 @@ export function Footer({
     <footer className="border-t border-b-line bg-b-white">
       <div className="b-shell py-14 lg:py-16">
         <div className="flex flex-col gap-10 lg:flex-row lg:justify-between lg:gap-16">
-          <a
+          <Link
             href="/"
             className="font-b-sans text-[26px] font-bold leading-none tracking-[-0.02em] text-b-ink"
           >
             {wordmark ?? "Brilliant"}
-          </a>
+          </Link>
 
           <nav
             aria-label="Footer"

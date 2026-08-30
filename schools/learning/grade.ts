@@ -70,6 +70,23 @@ export interface GradeOutcome {
    * the choice is reviewed rather than typed.
    */
   primarySkill: string | null;
+  /**
+   * Every skill this attempt is legitimate evidence about.
+   *
+   * Only `skillRefs[0]` used to be credited, and the consequence was concrete:
+   * across all 36 September blocks, `compare.operators` (declared on five
+   * tasks) and `types.int_float` were never first on a measured block, so a
+   * learner could do the whole month and both would still read `not_started`.
+   * Both are named mastery requirements in the approved programme.
+   *
+   * **Success only.** A correct answer is honest evidence for everything the
+   * task genuinely exercised. A WRONG answer is not evidence against all of
+   * them — a learner who nails the comparison and fumbles the remainder has not
+   * shown weakness in comparison. Crediting every tag on a failure is the
+   * "failed problem → all tags weak" bug, and this list is empty on failure so
+   * that it cannot come back.
+   */
+  creditedSkills: string[];
   taskRef: string;
   taskKind: "lesson" | "practice" | "assessment" | "contest";
 }
@@ -90,6 +107,11 @@ export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutco
 
   const measured = result.verdict !== "unknown";
   const primarySkill = measured ? (block.skillRefs[0] ?? null) : null;
+  /* Failure attribution keeps its existing, deliberately narrow rules: the
+     primary skill only, and a named cause only where the author established
+     one. Breadth is granted to success, never to failure. */
+  const creditedSkills =
+    measured && result.verdict === "correct" ? [...block.skillRefs] : primarySkill ? [primarySkill] : [];
 
   const kind = target.lesson.id.endsWith("assessment")
     ? ("assessment" as const)
@@ -100,6 +122,7 @@ export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutco
   return {
     result,
     primarySkill,
+    creditedSkills,
     taskRef: `sx-${kind}:${block.id}`,
     taskKind: kind,
   };

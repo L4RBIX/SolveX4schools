@@ -38,6 +38,13 @@ export default defineConfig({
          to say about a node test runner, where there is no client bundle to
          leak into, so it is stubbed here rather than removed from the sources. */
       { find: "server-only", replacement: r("./tests/stubs/server-only.ts") },
+
+      /* `next/font/*` is compiled away by Next's own loader; imported directly
+         it is not callable. Stubbed so a test can import a module that declares
+         a font — which is how the route tests check that the baseline layout
+         404s in production. */
+      { find: "next/font/local", replacement: r("./tests/stubs/next-font.ts") },
+      { find: "next/font/google", replacement: r("./tests/stubs/next-font.ts") },
     ],
   },
   test: {

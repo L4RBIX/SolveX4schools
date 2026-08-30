@@ -5,7 +5,18 @@ import { useRive } from "@rive-app/react-canvas";
 import { cn } from "@/lib/utils";
 
 /**
- * One stop on the course gameboard.
+ * One stop on the course gameboard — **reference baseline only.**
+ *
+ * This file renders Brilliant's own artwork and drives Brilliant's own
+ * `koji-gameboard.riv`. It exists so `/brilliant/app/course` keeps standing as
+ * the measured baseline this reconstruction was checked against, and it must
+ * never be reachable from a product route. The product's milestone is
+ * `sx-milestone.tsx`, which draws our own pedestal and puts Nova on it; the
+ * board picks between them on its `ownMascot` prop.
+ *
+ * `scripts/gameboard-measure.mjs` asserts the boundary at runtime: it records
+ * every request `/course/1` makes and fails if any of them touches
+ * `assets/original/brilliant` or a `.riv`.
  *
  * The original renders the same node two different ways, and copying that is
  * what keeps a 48-node page cheap: every locked node is a **static SVG**, and

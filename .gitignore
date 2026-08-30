@@ -48,3 +48,10 @@ next-env.d.ts
 # Local temp files
 temp/
 .data/
+
+# The Python runtime, copied out of node_modules by scripts/sync-pyodide-assets.mjs
+# on every build. 13 MB of WebAssembly that package.json already pins.
+public/pyodide/
+# The Python worker, compiled from src/lib/pyodide/worker.ts by
+# scripts/build-python-worker.mjs. Generated, never edited by hand.
+public/pyodide-worker.js
