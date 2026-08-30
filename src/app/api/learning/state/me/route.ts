@@ -3,6 +3,7 @@ import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { resolveIdentity } from "@schools/learning/identity";
 import { buildEvidence, evidenceSummary } from "@schools/presentation/evidence";
+import { lastAuthoredMonth } from "@schools/curriculum/inventory";
 import { windowFor, type ActivityWindow } from "@schools/lib/activity-window";
 import { opsLog } from "@schools/ops/counters";
 
@@ -156,9 +157,14 @@ export async function GET() {
       unmeasured: c.unmeasured,
       attempts: c.attempts,
     })),
-    // Through September only — later months have no authored content yet, and
-    // listing their skills as "not started" would misrepresent the product.
-    skills: buildEvidence(state, 1),
+    /* The whole year. This read `buildEvidence(state, 1)` with a comment saying
+       later months had no authored content — true when written, and false since
+       all nine months were authored. A learner in March saw evidence for ten
+       September skills and nothing for the thirty-eight introduced since, on the
+       page whose entire purpose is to show it. Derived from the curriculum
+       rather than written as a literal, so authoring another month cannot make
+       it stale again. */
+    skills: buildEvidence(state, lastAuthoredMonth()),
     /* The ACTION is returned; the misconception NAME is not. What the engine
        decided is the learner's business. Which failure class it matched is
        Nova's to act on, phrased as a question — never handed back as a label. */

@@ -1,0 +1,23 @@
+Baseline test failures on curriculum-months-2-9 @ fc88245, BEFORE any authoring.
+Captured with: npx vitest run --reporter=json
+Totals: 1318 tests, 1295 passed, 5 failed, 18 skipped, 67 files.
+
+ 1. tests/execution/pyodide-boundary.test.ts > the worker's inbound message can
+    carry only learner source and learner stdin > the runner sends exactly those
+    fields and nothing it was handed
+ 2. tests/execution/pyodide-boundary.test.ts > the worker's inbound message can
+    carry only learner source and learner stdin > nothing the worker sends BACK
+    can carry a verdict either
+ 3. tests/execution/pyodide-boundary.test.ts > nothing under src/lib/pyodide can
+    reach the server's half of the world > names the forbidden neighbours
+    explicitly
+ 4. tests/execution/pyodide-boundary.test.ts > nothing under src/lib/pyodide can
+    reach the server's half of the world > talks to no API and no CDN — the
+    runtime comes from our own origin
+ 5. tests/school/ops-health.test.ts > the teacher view > names five things a
+    teacher can act on, in both languages
+
+All five belong to the execution / ops workstreams. None reads curriculum
+content. Files touched by this workstream: schools/curriculum/**, docs/curriculum/**.
+
+Typecheck at baseline: 2 errors, both tests/exec/parity-september.test.ts:256,402.

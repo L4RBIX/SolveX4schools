@@ -112,11 +112,49 @@ export function isSettled(v: LessonVerdict): boolean {
  * has nothing to retry against, so `unmeasured` advances — the alternative
  * would be a dead-end button.
  */
-export type FooterMode = "check" | "advance" | "retry" | "celebrate";
+export type FooterMode =
+  | "check"
+  | "check-optional"
+  | "advance"
+  | "retry"
+  | "retry-optional"
+  | "celebrate";
 
-export function footerMode(v: LessonVerdict, isAttempt: boolean): FooterMode {
-  if (v === "unchecked") return isAttempt ? "check" : "advance";
+/**
+ * @param optional  The curriculum marks this task as extra practice the
+ *   required path does not need — `bank` on the authored block, `optional` on
+ *   the projection.
+ *
+ * `check-optional` exists because the completion policy and the interface used
+ * to disagree about what a learner must do, and the interface won.
+ * `requirementFor` exempts a bank task; the footer showed one button, Check,
+ * disabled until an answer was typed, and the top bar's forward arrow is
+ * permanently off. So the only way past any attempt block was to answer it, and
+ * 29 of the 29 lesson/route pairs holding an optional task could not be
+ * finished by a learner who declined it — nine of them stuck on the last page,
+ * where the policy considered the lesson complete and the Finish button was
+ * never rendered.
+ *
+ * It offers Check as well as Skip rather than advancing outright: a learner who
+ * wants the extra practice must still be able to take it. Optional means the
+ * choice exists, not that the task is withdrawn.
+ */
+export function footerMode(v: LessonVerdict, isAttempt: boolean, optional = false): FooterMode {
+  if (v === "unchecked") {
+    if (!isAttempt) return "advance";
+    return optional ? "check-optional" : "check";
+  }
   if (v === "correct") return "celebrate";
-  if (v === "wrong" || v === "partial") return "retry";
+  if (v === "wrong" || v === "partial") {
+    /* An optional task stays optional after a wrong answer.
+     *
+     * `optional` used to be consulted only on `unchecked`, so a learner who
+     * TRIED a bank task and got it wrong lost the way past it — the reward for
+     * attempting optional work was being trapped by it, and on the lessons
+     * whose last block is optional the finishing control disappeared too. It
+     * was escapable by pressing Try again to get back to `unchecked`, and
+     * nothing on screen said so. */
+    return optional ? "retry-optional" : "retry";
+  }
   return "advance";
 }

@@ -49,7 +49,7 @@ export default async function CoursePage({
   const gate = await gateFor(month);
   if (!gate.open) return <MonthNotOpen month={monthOutline(month)} />;
 
-  return <MonthBoard month={monthOutline(month)} track={track} />;
+  return <MonthBoard month={monthOutline(month, track)} track={track} />;
 }
 
 /* Per request, because the answer depends on a cookie. `generateStaticParams`

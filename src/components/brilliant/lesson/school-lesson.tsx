@@ -575,16 +575,31 @@ export function SchoolLesson({
   const block: PublicBlock | undefined = blocks[page];
   const state = block ? (states[block.id] ?? FRESH) : FRESH;
 
+  /* Optional tasks are out of the denominator on purpose. A learner who does
+     everything October requires of them finishes m2.l10 and used to be
+     congratulated with "3 / 10" — a total the required path cannot reach, which
+     reads as failure for having done exactly what was asked. */
   const attemptCount = useMemo(
-    () => blocks.filter((b) => isAttemptBlock(b)).length,
+    () => blocks.filter((b) => isAttemptBlock(b) && b.optional !== true).length,
     [blocks],
   );
 
   /* Counted from the block states, not accumulated in a counter. A block the
      learner returns to and gets right on the second pass must not count twice,
      and a derived number cannot drift from what the cards show. */
+  const requiredCorrectCount = useMemo(
+    () =>
+      blocks.filter(
+        (b) => isAttemptBlock(b) && b.optional !== true && states[b.id]?.verdict === "correct",
+      ).length,
+    [blocks, states],
+  );
+
   const solvedCount = useMemo(
-    () => blocks.filter((b) => isAttemptBlock(b) && states[b.id]?.verdict === "correct").length,
+    () =>
+      blocks.filter(
+        (b) => isAttemptBlock(b) && b.optional !== true && states[b.id]?.verdict === "correct",
+      ).length,
     [blocks, states],
   );
 
@@ -824,13 +839,28 @@ export function SchoolLesson({
       return;
     }
 
-    const values = Object.values(states);
+    /* The completion record describes the REQUIRED path, all four numbers alike.
+     *
+     * `attempts` was already required-only while `correct` counted every block
+     * the learner had settled, optional ones included — so a learner who did
+     * three required tasks and seven bank tasks was recorded as `correct: 10,
+     * attempts: 3`. Both numbers were defensible and the pair was not, and it
+     * is what a teacher reads back months later.
+     *
+     * Optional work is not lost by this: every submission is recorded per block
+     * in the ledger by `onSubmit`, which is the actual evidence. This row is
+     * the answer to "did they finish the lesson", and finishing a lesson is
+     * about the required path. */
+    const counted = blocks
+      .filter((b) => isAttemptBlock(b) && b.optional !== true)
+      .map((b) => states[b.id])
+      .filter(Boolean);
     setDone(true);
     onComplete?.({
       lessonId: lesson.id,
-      correct: values.filter((s) => s.verdict === "correct").length,
-      wrong: values.filter((s) => s.verdict === "wrong" || s.verdict === "partial").length,
-      unmeasured: values.filter((s) => s.verdict === "unmeasured").length,
+      correct: counted.filter((s) => s.verdict === "correct").length,
+      wrong: counted.filter((s) => s.verdict === "wrong" || s.verdict === "partial").length,
+      unmeasured: counted.filter((s) => s.verdict === "unmeasured").length,
       attempts: attemptCount,
     });
   }, [page, blocks, states, lesson.id, attemptCount, onComplete, decision]);
@@ -840,6 +870,12 @@ export function SchoolLesson({
       <LessonComplete
         lesson={lesson}
         states={states}
+        /* Required-only, like `attemptCount` beside it. Counting every settled
+           block against a required-only denominator produced "10 / 3" on the
+           congratulations screen for a learner who did the optional work — the
+           same defect the denominator was changed to fix, left in the
+           numerator. */
+        correctCount={requiredCorrectCount}
         attemptCount={attemptCount}
         locale={locale}
         backHref={backHref}
@@ -851,7 +887,8 @@ export function SchoolLesson({
 
   const verdict = state.verdict;
   const isAttempt = isAttemptBlock(block);
-  const mode = footerMode(verdict, isAttempt);
+  const isOptional = block.optional === true;
+  const mode = footerMode(verdict, isAttempt, isOptional);
 
   /* The finishing CTA, in one place because the footer renders it from two
      arms and they must never say different things.
@@ -1006,12 +1043,51 @@ export function SchoolLesson({
                 centred, so on a 375px screen the avatar sat on top of the
                 Continue button — the two controls a learner uses most, one
                 covering the other. */}
+            {/* Said once, above the buttons, on a task the required path does
+                not need. Without it "optional" is a fact about the schema that
+                no learner can observe: the Skip button appears and nothing on
+                screen says why this card has one and the last one did not. */}
+            {isOptional && (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
+              <p className="mx-auto max-w-[367px] px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60">
+                {t(L.optionalNote, locale)}
+              </p>
+            ) : null}
+
             <div data-shake-stable="true" className="h-20 shrink-0">
               <div className="mx-auto flex h-full w-full max-w-[367px] items-center justify-center gap-2 bg-b-dark py-4 pl-[68px] sm:pl-0">
                 {mode === "check" && (
                   <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
                     {t(L.check, locale)}
                   </Button3D>
+                )}
+
+                {/* An optional task keeps its Check — a learner who wants the
+                    practice takes it — and gains the way past that every other
+                    footer mode already had. */}
+                {mode === "check-optional" && (
+                  <>
+                    <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
+                      {t(L.check, locale)}
+                    </Button3D>
+                    {/* On the last page this control ends the lesson, so it says
+                        so. Labelling it «Өткізіп жіберу» there told the learner
+                        they were skipping ahead when they were finishing. */}
+                    <Button3D variant="secondary" onClick={advance}>
+                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
+                    </Button3D>
+                  </>
+                )}
+
+                {/* Wrong answer on an optional task: Try again, or move on. */}
+                {mode === "retry-optional" && (
+                  <>
+                    <Button3D variant="warn" onClick={retry}>
+                      {t(L.tryAgain, locale)}
+                    </Button3D>
+                    <Button3D variant="secondary" onClick={advance}>
+                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
+                    </Button3D>
+                  </>
                 )}
 
                 {mode === "advance" && (
@@ -1201,19 +1277,24 @@ function LessonPage({ children }: { children: React.ReactNode }) {
 function LessonComplete({
   lesson,
   states,
+  correctCount,
   attemptCount,
   locale,
   backHref,
 }: {
   lesson: PublicLesson;
   states: Record<string, BlockState>;
+  correctCount: number;
   attemptCount: number;
   locale: Locale;
   backHref: string;
 }) {
-  const values = Object.values(states);
-  const correct = values.filter((s) => s.verdict === "correct").length;
-  const unmeasured = values.filter((s) => s.verdict === "unmeasured").length;
+  const correct = correctCount;
+  /* Unmeasured is a property of the whole lesson rather than of the required
+     path: a block a teacher must read is a block a teacher must read whether or
+     not the learner had to do it. It carries no denominator, so it does not
+     produce the impossible fraction `correct` did. */
+  const unmeasured = Object.values(states).filter((s) => s.verdict === "unmeasured").length;
 
   return (
     <div className="flex h-[100dvh] flex-col items-center justify-center bg-b-dark px-8 font-b-sans text-b-fg">

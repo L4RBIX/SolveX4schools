@@ -1,5 +1,9 @@
 # Dependencies
 node_modules/
+# and the bare name, so a symlink called `node_modules` is ignored too — the
+# trailing slash above does not match one, which is how this branch's baseline
+# snapshot came to commit a symlink pointing at one machine's absolute path.
+node_modules
 .pnp
 .pnp.js
 
@@ -58,3 +62,6 @@ public/pyodide-worker.js
 # Python bytecode from the ported Nova directive suite.
 __pycache__/
 *.pyc
+
+# Atomic-write temporaries left behind by a crashed writer.
+*.ts.tmp.*

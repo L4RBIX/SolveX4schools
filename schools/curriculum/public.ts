@@ -102,6 +102,20 @@ function splitCases(
 interface PublicBase {
   id: string;
   type: LessonBlock["type"];
+  /**
+   * True when finishing the lesson does not require this block.
+   *
+   * This is the ONE thing that crosses from `bank`. The membership itself —
+   * which role it plays and the justification naming the sibling tasks that
+   * already carry the evidence — is editorial reasoning written for whoever
+   * maintains the curriculum, and it names other block ids, so it stays on the
+   * server with `skillRefs` and provenance.
+   *
+   * What crosses is the only part the learner is owed: whether they have to do
+   * it. Absent means required, so every block authored before the bank existed
+   * projects exactly as it did.
+   */
+  optional?: true;
 }
 
 export type PublicConcept = PublicBase & Pick<ConceptBlock, "title" | "body" | "code"> & { type: "concept" };
@@ -254,8 +268,21 @@ function seededShuffle<T>(items: readonly T[], seed: string): T[] {
   return out;
 }
 
-/** Project one block. Exhaustive: a new `BlockType` breaks the build here. */
+/**
+ * Project one block, and say whether the learner has to do it.
+ *
+ * The projection proper is `projectBlock`, which is exhaustive over the block
+ * types. `optional` is attached here rather than inside seventeen switch arms —
+ * one place to read, and no way for a new block type to acquire the field by
+ * being forgotten.
+ */
 export function publicBlock(block: LessonBlock): PublicBlock {
+  const projected = projectBlock(block);
+  return block.bank ? { ...projected, optional: true } : projected;
+}
+
+/** Project one block. Exhaustive: a new `BlockType` breaks the build here. */
+function projectBlock(block: LessonBlock): PublicBlock {
   switch (block.type) {
     case "concept":
       return { id: block.id, type: "concept", title: block.title, body: block.body, code: block.code };
@@ -441,6 +468,15 @@ export function publicAssessment(
 export interface BlockOutline {
   id: string;
   type: LessonBlock["type"];
+  /**
+   * Carried so the month board can quote a total the required path can reach.
+   *
+   * `monthTaskCount` counts attempt blocks, and with no field to filter on it
+   * counted the optional ones too: October advertised 85 tasks where 75 are
+   * required. Milder than the in-lesson readout, which had a numerator beside
+   * it, but the same lie.
+   */
+  optional?: true;
 }
 
 export interface LessonOutline extends Omit<Lesson, "blocks"> {
@@ -461,24 +497,37 @@ export interface MonthOutline extends Omit<Month, "units" | "assessment"> {
 }
 
 function outlineBlocks(blocks: readonly LessonBlock[]): BlockOutline[] {
-  return blocks.map((b) => ({ id: b.id, type: b.type }));
+  return blocks.map((b) => (b.bank ? { id: b.id, type: b.type, optional: true as const } : { id: b.id, type: b.type }));
 }
 
-export function monthOutline(month: Month): MonthOutline {
+/**
+ * The month, reduced for the board — on ONE route.
+ *
+ * `track` was optional here and every caller omitted it, so the board summed
+ * all three routes: October advertised 75 tasks to a support learner who meets
+ * 63. Excluding the bank fixed half of that overstatement and left the other
+ * half, which is the routes this learner will never see. `publicLesson` and
+ * `publicAssessment` have always filtered; this was the one projection that
+ * did not, and it feeds the only task count a learner is shown.
+ */
+export function monthOutline(month: Month, track = "core"): MonthOutline {
   return {
     ...month,
     units: month.units.map((unit) => ({
       ...unit,
-      lessons: unit.lessons.map((lesson) => ({ ...lesson, blocks: outlineBlocks(lesson.blocks) })),
+      lessons: unit.lessons.map((lesson) => ({
+        ...lesson,
+        blocks: outlineBlocks(blocksForTrack(lesson.blocks, track)),
+      })),
     })),
     assessment: month.assessment
-      ? { ...month.assessment, blocks: outlineBlocks(month.assessment.blocks) }
+      ? { ...month.assessment, blocks: outlineBlocks(blocksForTrack(month.assessment.blocks, track)) }
       : null,
   };
 }
 
-export function monthOutlines(months: readonly Month[]): MonthOutline[] {
-  return months.map(monthOutline);
+export function monthOutlines(months: readonly Month[], track = "core"): MonthOutline[] {
+  return months.map((m) => monthOutline(m, track));
 }
 
 /**
@@ -513,6 +562,14 @@ export function secretStringsOf(block: LessonBlock): string[] {
   if (block.type === "trace_code") {
     for (const s of block.steps) out.push(...Object.values(s.vars));
   }
+  /* Bank membership is editorial reasoning that names the sibling tasks already
+     carrying this one's evidence — a map to where an equivalent answer lives,
+     written for whoever maintains the curriculum. `publicBlock` sends only the
+     boolean, and this is the net that would notice if some future call site
+     stopped doing that. Adding it here rather than trusting the projection is
+     the lesson of the original leak: the defect was never the collector, it was
+     a call site that did not use it. */
+  if (block.bank) out.push(block.bank.why);
   if (block.diagnosticMapping) {
     for (const entry of Object.values(block.diagnosticMapping)) out.push(entry.justification);
   }

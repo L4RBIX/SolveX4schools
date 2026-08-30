@@ -187,6 +187,21 @@ export interface PolicyBlock {
   machineGradable: boolean;
   /** Does the learner act on this block? Concept and simulation blocks do not. */
   isAttempt: boolean;
+  /**
+   * Is this task in the optional bank?
+   *
+   * The curriculum separates a required core from a bank of extra practice,
+   * review and extension. Without this field the separation was a label: the
+   * reporting scripts subtracted bank tasks from their totals while the policy
+   * went on demanding every one of them, so a "task bank" was something every
+   * learner had to finish. A month's measured workload did not change when ten
+   * of its tasks were reclassified, because nothing about the month had.
+   *
+   * It is a plain boolean rather than the membership itself. Why a task is in
+   * the bank is editorial reasoning that names sibling block ids; the policy
+   * only needs to know that it is.
+   */
+  optional: boolean;
 }
 
 /**
@@ -239,6 +254,7 @@ export function policyBlocksFromAuthored(blocks: readonly LessonBlock[]): Policy
       mode: block.type === "verify" ? block.mode : undefined,
       machineGradable: machineGradable(block.type, caseCount),
       isAttempt: ATTEMPT_BLOCK_TYPES.has(block.type),
+      optional: Boolean(block.bank),
     };
   });
 }
@@ -261,6 +277,7 @@ export function policyBlocksFromPublic(blocks: readonly PublicBlock[]): PolicyBl
       mode: block.type === "verify" ? block.mode : undefined,
       machineGradable: machineGradable(block.type, caseCount),
       isAttempt: ATTEMPT_BLOCK_TYPES.has(block.type),
+      optional: block.optional === true,
     };
   });
 }
@@ -415,6 +432,13 @@ export interface CompletionDecision {
  * from becoming so.
  */
 export function requirementFor(policy: CompletionPolicy, block: PolicyBlock): AttemptLevel {
+  /* A bank task requires nothing, and it outranks `mandatoryByType` on purpose.
+     A school that makes every `verify` block mandatory is saying something about
+     the checks on the required path, not asking for extra practice to become
+     compulsory — and if the bank could be dragged back into the requirement by
+     a type rule, "optional" would depend on which policy happened to be loaded. */
+  if (block.optional && block.isAttempt) return "none";
+
   const mandatory = policy.mandatoryByType[block.type];
   if (!block.isAttempt) return mandatory ?? "none";
 

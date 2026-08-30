@@ -141,8 +141,23 @@ export function surfaceForBlock(input: {
   if (input.blockType === "verify") return "assessment";
   if (input.blockType === "arena_problem") return "contest";
 
-  /* `m1.p3` — the independent-practice ids. The programme counts these toward
-     its «~100 толық дербес шешім», so they are the evidence surface. */
+  /* `m1.p3` — the independent-practice lessons.
+   *
+   * This is a POSITIONAL rule and it is deliberately narrower than the
+   * curriculum's own `isIndependent`, which asks a different question. That
+   * predicate asks whether the learner produced a whole program from nothing —
+   * a measure of evidence. This asks how much a browser-reported pass can be
+   * trusted — a measure of integrity. They do not have to agree, and they do
+   * not: 100 blocks that `isIndependent` counts sit on `lesson_guided`, where
+   * a local Pyodide pass settles them.
+   *
+   * The comment here used to justify this rule BY that count — "the programme
+   * counts these toward its «~100 толық дербес шешім», so they are the evidence
+   * surface" — which reads as one concept implemented twice and is not. Whether
+   * the trust boundary SHOULD widen to match the count is a real question about
+   * what a school can defend, and it is on the release register rather than
+   * settled here: widening it would require a trusted provider for a hundred
+   * ordinary lesson tasks. */
   if (/^m\d+\.p\d+/.test(input.blockId)) return "independent_evidence";
 
   if (input.blockType === "challenge") return "independent_evidence";

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { findCompletable } from "@schools/curriculum/inventory";
 
 /* Static imports: Vite's resolver treats `[` in a *dynamic* specifier as a
    glob, so `await import("…/[monthIndex]/page")` never resolves. A literal

@@ -63,8 +63,22 @@ export function monthIsReady(month: Month): boolean {
   return month.units.some((u) => u.lessons.some(isLessonReady));
 }
 
+/**
+ * Tasks the learner is actually asked for.
+ *
+ * Optional ones are excluded, because this number is rendered to a learner as a
+ * description of the month. Counting the bank made October advertise 85 tasks
+ * where 75 are required — not as sharp as the in-lesson readout, which had a
+ * numerator beside it and so read as a goal, but the same overstatement.
+ *
+ * `bank` on an authored block and `optional` on a projected one are the same
+ * fact, and this is called with both.
+ */
+const isOptionalBlock = (b: { bank?: unknown; optional?: unknown }) =>
+  b.bank !== undefined || b.optional === true;
+
 export function countTasks(lesson: Lesson): number {
-  return lesson.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type)).length;
+  return lesson.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type) && !isOptionalBlock(b)).length;
 }
 
 export function monthTaskCount(month: Month): number {
@@ -73,7 +87,8 @@ export function monthTaskCount(month: Month): number {
     0,
   );
   const inAssessment =
-    month.assessment?.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type)).length ?? 0;
+    month.assessment?.blocks.filter((b) => ATTEMPT_BLOCK_TYPES.has(b.type) && !isOptionalBlock(b))
+      .length ?? 0;
   return inLessons + inAssessment;
 }
 
@@ -226,9 +241,18 @@ export function programmeToLearningPath(
   locale: Locale,
   labels: { title: string; eyebrow: string; sub: string; grade: string },
 ): LearningPathData {
+  /* The monthly check counts. It was outside the denominator, so a learner who
+     had finished all 72 lessons and not one of the nine checks was shown 100%
+     on /program and a full bar on every tile — the programme's own independence
+     check excluded from the measure of whether the programme was done. */
+  const requiredIds = (month: Month): string[] => [
+    ...monthLessons(month).filter((e) => isLessonReady(e.lesson)).map((e) => e.lesson.id),
+    ...(month.assessment && month.assessment.status !== "draft" ? [month.assessment.id] : []),
+  ];
+
   const tiles = months.map<PathTileData>((month) => {
-    const ready = monthLessons(month).filter((e) => isLessonReady(e.lesson));
-    const done = ready.filter((e) => progress.completedLessons.has(e.lesson.id));
+    const ready = requiredIds(month);
+    const done = ready.filter((id) => progress.completedLessons.has(id));
     return {
       title: `${month.index}. ${pick(month.monthName, locale)}`,
       href: `/course/${month.index}`,
@@ -237,10 +261,8 @@ export function programmeToLearningPath(
     };
   });
 
-  const allReady = months.flatMap((m) =>
-    monthLessons(m).filter((e) => isLessonReady(e.lesson)),
-  );
-  const allDone = allReady.filter((e) => progress.completedLessons.has(e.lesson.id));
+  const allReady = months.flatMap(requiredIds);
+  const allDone = allReady.filter((id) => progress.completedLessons.has(id));
 
   return {
     title: labels.title,
@@ -353,6 +375,12 @@ export function monthToGameboard(
         side: "center",
         review: true,
         kind: "assessment",
+        /* The check is marked complete under its own id by
+           `assessment-route.tsx`, and the board drew no tick because this node
+           was the one kind built without a `done` — so the programme's central
+           independence check was the only thing on the board that could never
+           show as finished. */
+        done: progress.completedLessons.has(month.assessment.id),
         locked: month.assessment.status === "draft",
         href:
           month.assessment.status === "draft"

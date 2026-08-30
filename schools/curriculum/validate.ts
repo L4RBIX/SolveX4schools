@@ -2,6 +2,7 @@ import { checkerProblem } from "../exec/checker";
 import type { LessonBlock, Month } from "./types";
 import { ATTEMPT_BLOCK_TYPES } from "./types";
 import { PROGRAM } from "./program";
+import { costOf } from "./cost";
 import { SKILL_BY_ID } from "./skills";
 import { monthInventory, programInventory, isTask } from "./inventory";
 import { TASK_TARGETS, PROGRAMME_FACTS } from "./source-of-truth";
@@ -62,6 +63,38 @@ function checkBlock(block: LessonBlock, where: string) {
 
   if (block.sourceType === "curriculum-derived" && block.pdfPage === undefined) {
     err(where, `block "${block.id}" claims curriculum provenance but cites no PDF page`);
+  }
+
+  /* Bank membership, enforced rather than merely documented.
+   *
+   * The field decides whether a fourteen-year-old has to do a piece of work, so
+   * the bar for putting a task in the bank is that somebody wrote down why. The
+   * two rules below are the ones that can be checked mechanically:
+   *
+   * A non-attempt block cannot be optional. A concept the learner reads is not
+   * practice, so marking it `bank` says nothing and hides that the author meant
+   * something else — usually that the lesson should not have contained it.
+   *
+   * A justification has to name the tasks that make this one spare. "Extra
+   * practice" is a category, not a reason, and a reason that names no sibling
+   * cannot be checked by the next person or falsified by anyone. `extension` is
+   * exempt: a task that goes beyond the month's outcomes is justified by what
+   * it needs rather than by what already covers it. */
+  if (block.bank) {
+    if (!isTask(block)) {
+      err(where, `block "${block.id}" is not an attempt block but claims bank membership`);
+    }
+    const why = block.bank.why.trim();
+    if (why.length < 40) {
+      err(where, `block "${block.id}" is in the bank on a ${why.length}-character justification`);
+    }
+    if (block.bank.role !== "extension" && !/\bm\d+\.[a-z]\d+/.test(why)) {
+      err(
+        where,
+        `block "${block.id}" is banked as "${block.bank.role}" but its justification names no ` +
+          `task that already carries the evidence`,
+      );
+    }
   }
 
   // The diagnostic rule from types.ts, enforced rather than merely documented.
@@ -145,6 +178,30 @@ function checkMonth(month: Month) {
         monthSkills.add(skill);
       }
 
+      /* A lesson that names a skill none of its blocks names.
+       *
+       * A warning rather than an error, because the two declarations answer
+       * different questions and are allowed to differ. A block's `skillRefs`
+       * says what the learner is graded on; a lesson's says what the lesson is
+       * ABOUT, and May's contest lessons legitimately declare
+       * `contest.time_split` — splitting your time is what a contest IS — while
+       * no single problem inside grades it.
+       *
+       * It is worth saying out loud all the same. Nothing derives coverage from
+       * the lesson-level list, so a stale entry inflates no reported figure; it
+       * misleads a READER, and it misled an audit into calling `m7.l6` a
+       * coverage gap because the lesson advertises route restoration that none
+       * of its ten blocks carries. */
+      const carried = new Set(lesson.blocks.flatMap((b) => b.skillRefs));
+      const unevidenced = lesson.skillRefs.filter((s) => !carried.has(s));
+      if (lesson.blocks.length > 0 && unevidenced.length > 0) {
+        warn(
+          lw,
+          `lesson declares ${unevidenced.map((s) => `"${s}"`).join(", ")} but no block in it does — ` +
+            `the lesson advertises coverage its blocks do not carry`,
+        );
+      }
+
       // PDF p.3: explanation is 5–8 minutes, one idea per lesson.
       if (lesson.estimatedMinutes > 12) {
         warn(
@@ -179,6 +236,41 @@ function checkMonth(month: Month) {
       }
       if (!modes.includes("oral_explanation")) {
         err(aw, "no oral explanation — required by the programme's verification set (PDF p.6)");
+      }
+
+      /*
+       * Does the check fit the minutes it claims?
+       *
+       * September's original monthly check carried four graded tasks against a
+       * stated twenty minutes and timed at over thirty. An adversarial review
+       * found the same shape in October and November: four graded blocks, and
+       * November's amounted to a from-scratch three-function program plus
+       * roughly eighteen separate written or spoken sub-answers.
+       *
+       * A learner cannot be told a check is twenty minutes and then handed
+       * forty, so this is arithmetic rather than judgement. Every number is
+       * arguable and meant to be argued with; what is not arguable is that
+       * somebody should have done the sum. An `explain` prompt is costed per
+       * QUESTION — four numbered questions is four answers — because that is
+       * where the September check quietly doubled.
+       *
+       * The table lives in `./cost`, and used to live here as well. Two copies
+       * disagreed by a minute or two throughout, so January read 21 minutes in
+       * `scripts/workload.ts` and 22 here and a reader could not tell which was
+       * the curriculum's answer. `expected` is the scenario a warning should
+       * fire on: a check sized for the fast learner is a check most of the
+       * class cannot finish.
+       */
+      let estimate = 0;
+      for (const block of month.assessment.blocks) estimate += costOf(block, "expected");
+
+      if (estimate > month.assessment.minutes) {
+        warn(
+          aw,
+          `estimated ${Math.round(estimate)} min against a stated ${month.assessment.minutes} — ` +
+            `${month.assessment.blocks.length} blocks. A check that overruns is one a learner ` +
+            `cannot finish, and the part they do not reach is recorded as the part they could not do`,
+        );
       }
     }
   }

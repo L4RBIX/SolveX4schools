@@ -2,6 +2,7 @@ import { isTrustedOutcome, type ReducibleEvent } from "@solvex/learning-intellig
 import {
   isLearnerOutcome,
   LOCAL_LIMITS,
+  type ExecutionTrust,
   type LocalExecutionStatus,
 } from "@schools/execution/trust";
 

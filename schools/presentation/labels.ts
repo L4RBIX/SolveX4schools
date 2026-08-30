@@ -318,6 +318,16 @@ export const L = {
   continue: { kk: "Жалғастыру", ru: "Продолжить" },
   tryAgain: { kk: "Қайта көр", ru: "Ещё раз" },
   getHelp: { kk: "Көмек", ru: "Помощь" },
+  /* Shown beside Check on a task the curriculum has marked optional. The word
+     is deliberately "skip" rather than "continue": the learner is declining
+     something, and a Continue beside a Check reads as though the answer has
+     already been accepted. See `optionalNote` for what sits above it. */
+  skipOptional: { kk: "Өткізіп жіберу", ru: "Пропустить" },
+  /** Said once, above the footer, on a block the required path does not need. */
+  optionalNote: {
+    kk: "Бұл тапсырма — қосымша жаттығу. Қаласаң шығар, қаламасаң өткізіп жібер.",
+    ru: "Это задание — дополнительная практика. Хочешь — реши, не хочешь — пропусти.",
+  },
   why: { kk: "Неге?", ru: "Почему?" },
   startOver: { kk: "Басынан", ru: "Сначала" },
   next: { kk: "Келесі", ru: "Далее" },

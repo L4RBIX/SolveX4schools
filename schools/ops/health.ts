@@ -186,21 +186,17 @@ export interface TeacherHealth {
 export type TeacherCapability =
   | "lessons"
   | "saving_progress"
-  /*
-   * MISSING, deliberately and temporarily: `running_code`.
+  /**
+   * Can a learner press Run and see output?
    *
-   * A learner pressing Run and seeing nothing is a different failure from a
-   * learner's answer not being checked — the first happens in the child's
-   * browser when a 13 MB download does not arrive, the second on our judge, and
-   * one sentence cannot say both. `hybrid.localRuntime.broken` now knows the
-   * answer and the ADMIN report states it; the teacher view does not, so a
-   * school-wide Pyodide failure currently shows a teacher a green light.
-   *
-   * Adding the id here is one line. What blocks it is that
-   * `tests/school/ops-health.test.ts` pins this union to exactly five members,
-   * and that file belongs to another unit. See the unit report: this is the
-   * change to make, together, rather than a gap to leave unnamed.
+   * Separate from `code_checking`, because to a teacher they fail differently
+   * and on different afternoons. Running happens in the child's browser and
+   * breaks when a 13 MB download does not arrive; checking happens on our
+   * judge and breaks when the judge does. A class that cannot run anything is
+   * stuck at the first line; a class that cannot be checked can keep working
+   * all lesson and be marked later. One sentence cannot say both.
    */
+  | "running_code"
   | "code_checking"
   | "nova"
   | "class_view";
@@ -1074,6 +1070,9 @@ export function teacherHealth(admin: AdminHealth): TeacherHealth {
   const judgeDown = admin.execution.status !== "ok";
   const noJudgeConfigured = !admin.hybrid.evidence.submitProducesEvidence;
   const codeChecking: CheckStatus = judgeDown ? admin.execution.status : "ok";
+  /* Running is the learner's own browser, and `hybrid.status` moves only when
+     that is actually failing across sessions — never for the judge's absence. */
+  const runningCode: CheckStatus = admin.hybrid.status;
   /* Saving is the database plus the write path. A degraded (ephemeral) store
      still saves for today, which is what a teacher is asking about. */
   const saving: CheckStatus = admin.database.status === "down" ? "down" : "ok";
@@ -1105,6 +1104,27 @@ export function teacherHealth(admin: AdminHealth): TeacherHealth {
               ru:
                 "Ответы сейчас не сохраняются. Урок можно продолжать, но сегодняшние " +
                 "результаты могут не попасть в журнал — сообщите администратору.",
+            },
+    },
+    {
+      id: "running_code",
+      status: runningCode,
+      message:
+        runningCode === "ok"
+          ? {
+              kk: "Оқушылар кодты браузерде жазып, іске қоса алады.",
+              ru: "Ученики могут писать и запускать код в браузере.",
+            }
+          : {
+              /* No blame, and one thing to try. The cause is almost always the
+                 connection or the machine, and neither is something a teacher
+                 can be asked to diagnose mid-lesson. */
+              kk:
+                "Кейбір компьютерлерде Python іске қосылмай тұр. Бетті қайта " +
+                "жүктеп көріңіздер; көмектеспесе — әкімшіге хабарлаңыз.",
+              ru:
+                "На части компьютеров Python не запускается. Попробуйте " +
+                "перезагрузить страницу; если не поможет — сообщите администратору.",
             },
     },
     {

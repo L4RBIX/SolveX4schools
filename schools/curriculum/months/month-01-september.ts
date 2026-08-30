@@ -122,6 +122,7 @@ const l1Blocks: LessonBlock[] = [
       },
     ],
     code: "age = int(input())\nprint(age + 10)",
+    stdin: "14",
     result: { kk: "14 енгізгенде: 24", ru: "При вводе 14: 24" },
   },
   {
@@ -631,6 +632,7 @@ const l5Blocks: LessonBlock[] = [
       },
     ],
     code: 't = int(input())\nif t > 25:\n    print("hot")\nelif t >= 10:\n    print("warm")\nelse:\n    print("cold")',
+    stdin: "25",
     result: { kk: "25 енгізгенде: warm", ru: "При вводе 25: warm" },
   },
   {
@@ -909,6 +911,7 @@ const l7Blocks: LessonBlock[] = [
       },
     ],
     code: 'h = int(input())\nif h >= 120:\n    print("yes")\nelse:\n    print("no")',
+    stdin: "120",
     result: { kk: "119 → no, 120 → yes, 121 → yes", ru: "119 → no, 120 → yes, 121 → yes" },
   },
   {
@@ -1001,6 +1004,56 @@ const l7Blocks: LessonBlock[] = [
 
 const l8Blocks: LessonBlock[] = [
   {
+    /* The support twin m1.l8 never had.
+     *
+     * Every other September lesson that scopes a block by track pairs it with
+     * one — l2.b3s, l5.b3s, l6.b3s, l7.b4s. This lesson scoped two blocks and
+     * paired neither, and the all-routes `b3` stood in for the missing path:
+     * the only thing a support learner could see here, and about work they
+     * could not reach. With `b3` scoped correctly, support would have had an
+     * empty lesson — the one lesson in the year that projects to nothing.
+     *
+     * A `write_code` with the reading and the printing already there, so what
+     * is left is the wrap-around itself. Support meets no `challenge` block in
+     * any ordinary lesson all year (0 of 19; the rest are May's contests, where
+     * every route gets the same problems), so a twin rather than widening b1.
+     *
+     * The shift-to-zero, wrap, shift-back idiom is m1.l8.b1's whole subject and
+     * this asks for exactly it: `(d - 1 + n) % 7 + 1`. The 0-day and the
+     * exact-week cases are what punish `d + n % 7`, which is the mistake this
+     * scaffolding is shaped to expose rather than hide. */
+    id: "m1.l8.b1s",
+    type: "write_code",
+    skillRefs: ["cond.if_elif_else", "arith.remainder"],
+    sourceType: "product-authored",
+    tracks: ["support"],
+    prompt: {
+      kk:
+        "Күн нөмірі беріледі (1 — дүйсенбі, 2 — сейсенбі, … 7 — жексенбі) және одан кейін " +
+        "N күн өтті. Қай күн болатынын шығар. Оқу мен шығару дайын тұр — саналатын жолды " +
+        "ғана жаз. Кеңес: алдымен нөмірді 0-ден бастап санауға көшір, 7-ге бөлгендегі " +
+        "қалдықты ал, содан кейін қайтадан 1-ден санауға қайт.",
+      ru:
+        "Дан номер дня (1 — понедельник, 2 — вторник, … 7 — воскресенье) и число N — " +
+        "сколько дней прошло. Выведи, какой это будет день. Чтение и вывод уже написаны — " +
+        "напиши только строку, которая считает. Подсказка: сначала переведи номер в счёт " +
+        "от нуля, возьми остаток от деления на 7, потом вернись к счёту от единицы.",
+    },
+    starter: "d, n = map(int, input().split())\nanswer = 0\nprint(answer)",
+    referenceSolution: "d, n = map(int, input().split())\nanswer = (d - 1 + n) % 7 + 1\nprint(answer)",
+    cases: [
+      { input: "1 3", expectedOutput: "4" },
+      { input: "7 1", expectedOutput: "1" },
+      /* Zero days: the answer is the day you started on. Kills `d + n % 7 + 1`. */
+      { input: "3 0", expectedOutput: "3", hidden: true },
+      /* A whole week: back where you began. Kills anything that forgets to wrap. */
+      { input: "7 7", expectedOutput: "7", hidden: true },
+      { input: "5 100", expectedOutput: "7", hidden: true },
+      /* Sunday plus one, the wrap point that a missing `- 1` gets wrong. */
+      { input: "6 2", expectedOutput: "1", hidden: true },
+    ],
+  },
+  {
     id: "m1.l8.b1",
     type: "challenge",
     skillRefs: ["cond.if_elif_else", "arith.remainder"],
@@ -1050,6 +1103,15 @@ const l8Blocks: LessonBlock[] = [
   },
   {
     id: "m1.l8.b3",
+    /* Advanced only, because the problem it asks about is.
+       «Соңғы есепте неге екі нұсқаны да тексеру керек болды?» — the last
+       problem, and the two orientations, are m1.l8.b2, the wardrobe, which
+       is `tracks: ["advanced"]`. Carrying no `tracks` itself, this block
+       rendered on all three routes: a core learner was asked why BOTH
+       orientations had to be checked in a day-of-week problem that has
+       none, and a support learner opened this lesson to find it contained
+       nothing else at all. */
+    tracks: ["advanced"],
     type: "explain",
     skillRefs: ["cond.if_elif_else"],
     sourceType: "curriculum-derived",
@@ -1154,6 +1216,7 @@ const l10Blocks: LessonBlock[] = [
       },
     ],
     code: "n, k = map(int, input().split())\nprint(n // k)",
+    stdin: "48 5",
     result: { kk: "48 5 енгізгенде: 9", ru: "При вводе 48 5: 9" },
   },
   {
