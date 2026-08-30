@@ -57,7 +57,7 @@ the comparable figure rather than counted against the promise.
 
 | Month | PDF «тапсырма» | Practice (comparable) | · independent | · guided coding | · other interaction | Explanation | Assessment | Contest | Bank | All blocks |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 Қыркүйек | 36 | **44** (+8) | 25 | 1 | 18 | 18 | 4 | 0 | 0 | 66 |
+| 1 Қыркүйек | 36 | **43** (+7) | 25 | 1 | 17 | 18 | 4 | 0 | 0 | 65 |
 | 2 Қазан | 38 | **60** (+22) | 22 | 3 | 35 | 15 | 3 | 0 | 8 | 86 |
 | 3 Қараша | 34 | **55** (+21) | 18 | 4 | 33 | 14 | 3 | 0 | 4 | 76 |
 | 4 Желтоқсан | 32 | **50** (+18) | 21 | 2 | 27 | 12 | 4 | 0 | 1 | 67 |
@@ -66,11 +66,11 @@ the comparable figure rather than counted against the promise.
 | 7 Наурыз | 26 | **45** (+19) | 15 | 2 | 28 | 10 | 4 | 0 | 3 | 62 |
 | 8 Сәуір | 28 | **43** (+15) | 17 | 1 | 25 | 13 | 4 | 0 | 0 | 60 |
 | 9 Мамыр | 25 | **42** (+17) | 4 | 2 | 16 | 9 | 7 | 20 | 0 | 58 |
-| **Year** | **279** | **447** | **159** | 23 | 245 | 113 | 36 | 20 | 18 | 614 |
+| **Year** | **279** | **446** | **159** | 23 | 244 | 113 | 36 | 20 | 18 | 613 |
 
 ## What it says
 
-**447 comparable practice tasks against a promised 279, and 159 independent
+**446 comparable practice tasks against a promised 279, and 159 independent
 solutions against a promised ~100.** Both are about 60% above the figure the
 programme states.
 
@@ -83,8 +83,8 @@ Two things follow, and they point in opposite directions.
 
 The over-delivery is **real, not an artifact of the old bad comparison**.
 Correcting the units moved the number from 475 to 457; it did not move it to
-279, and the redundancy audit that followed moved it only to 447. Every month
-still carries 15 to 28 more comparable tasks than its own paragraph names.
+279, and the redundancy audit that followed moved it only to 447, and one route fix to 446. Every month
+still carries 14 to 28 more comparable tasks than its own paragraph names.
 
 But over-delivery is **not by itself a defect**, because p.11 calls its own
 figures a minimum and anticipates additional problems. The question the counts
@@ -97,12 +97,12 @@ about minutes, not tasks, and it is answered in
 
 | Figure | Year total (core route) |
 |---|---|
-| Total blocks | 614 |
-| Attempt blocks | 501 |
-| **PDF-comparable practice tasks** | **447** |
+| Total blocks | 613 |
+| Attempt blocks | 500 |
+| **PDF-comparable practice tasks** | **446** |
 | — of which independent solutions | 159 |
 | — of which guided coding | 23 |
-| — of which other interaction | 245 |
+| — of which other interaction | 244 |
 | — of which May's contest problems | 20 |
 | Explanation blocks (not tasks) | 113 |
 | Assessment tasks | 36 |

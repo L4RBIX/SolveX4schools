@@ -38,65 +38,56 @@ All four are in a monthly check, all four are on every route, and all four sit i
 
 **`m1.as.b3`: A → D.** Every other survivor asks something whose answer depends on what the learner wrote. All four of its sub-questions have one fixed answer determined by the problem statement, and three are already measured by mapped diagnostics in `m1.l10`. September's sentence does promise «**жазбаша** түсіндіру», which is why it is D and not E — the promise is real, the block as authored does not discharge it.
 
-## The three workloads, core route
+## The three workloads — all routes vs core, kept apart
 
-Kept separate as asked. `A` is the only mandatory async queue.
+The earlier report mixed them. The figures below never do.
 
-### 1. MANDATORY WRITTEN REVIEW
-
-| | |
-|---|---|
-| Per learner / year | **4** |
-| Per learner / month | **0.44** |
-| Class of 18 / month | **8** |
-| Class of 18 / year | **72** |
-
-| | 30s | 1m | 2m | 5m |
-|---|---|---|---|---|
-| min / month | 4 | 8 | 16 | 40 |
-| h / year | 0.6 | 1.2 | 2.4 | 6.0 |
-
-### 2. OPTIONAL / SAMPLED WRITTEN EVIDENCE
-
-11 blocks across all routes; **4 of them reach a core learner**. Never a queue item — analytics, or a rotating sample.
+### All routes (the classification itself)
 
 | | |
 |---|---|
-| Per learner / year | **4** |
-| Class of 18 / month | **8** if every one were read |
-| Class of 18 / year | **72** |
+| `explain` blocks | **33** — A 4, D 11, E 18 |
+| `oral_explanation` + `manual_trace` | **15** |
 
-Same bands as above: 4 / 8 / 16 / 40 minutes a month. Sampling a third takes it to 3 / 5 minutes.
+### Core route
 
-### 3. ORAL IN CLASS
+An advanced learner sees all 33 written blocks; a core or support learner sees 16, because 17 of the `D` and `E` blocks are `tracks: ["advanced"]`. All 15 oral blocks are on every route.
 
-Unchanged from the earlier audit and reported separately because it is not a dashboard job at all.
+| | Per learner / year | Per learner / month | Class of 18 / month | Class of 18 / year |
+|---|---|---|---|---|
+| **MANDATORY WRITTEN** (A) | **4** | 0.44 | **8** | **72** |
+| **SAMPLED WRITTEN** (D) | **4** | 0.44 | 8 *if all read* | 72 |
+| No obligation (E) | 8 | — | **0** | **0** |
+| **ORAL IN CLASS** | **15** | 1.67 | **30** | **270** |
 
-| | |
-|---|---|
-| Per learner / year | **15** |
-| Class of 18 / month | **30** |
-| Class of 18 / year | **270** |
+### Resolving the reported inconsistency
+
+> "4 + 4 + 9 = 17 visible on Core, but the workload table used 15 oral interactions and reported 30/class/month."
+
+They count **different block types** and were never in competition. 16 is `explain` blocks on core; 15 is `verify` blocks with mode `oral_explanation` or `manual_trace`. A core learner meets **31 human-touched blocks** in the year: 16 written and 15 spoken.
+
+The 17 became 16 in this pass: `m1.l8.b3` was scoped to `advanced` by the P0 fix, so it no longer reaches a core learner. `4 + 4 + 8 = 16`.
+
+### Workload bands, core
 
 | | 30s | 1m | 2m | 5m |
 |---|---|---|---|---|
-| min / month | 15 | 30 | 60 | 150 |
-| h / year | 2.2 | 4.5 | 9.0 | 22.5 |
+| Mandatory written, min/month | 4 | **8** | 16 | 40 |
+| Mandatory written, h/year | 0.6 | 1.2 | 2.4 | 6.0 |
+| Oral, min/month | 15 | **30** | 60 | 150 |
+| Oral, h/year | 2.2 | 4.5 | 9.0 | 22.5 |
+| **Mandatory total, min/month** | **19** | **38** | **76** | 190 |
 
-14 of a learner's 15 happen inside a monthly check.
-
-### Mandatory total — A plus oral
-
-| | 30s | 1m | 2m | 5m |
-|---|---|---|---|---|
-| min / month | **19** | **38** | **76** | 190 |
-| h / year | 2.9 | 5.7 | 11.4 | 28.5 |
+Sampled written work adds nothing to these: it is never a queue item. Reading every one anyway would add 8 minutes a month at a minute apiece.
 
 ## Arithmetic, checked
 
 ```
 all routes    A 4 + B 0 + C 0 + D 11 + E 18 = 33   ✓
-core-visible  A 4 + D 4 + E 9               = 17   ✓
+core-visible  A 4 + D 4 + E  8              = 16   ✓   (17 before the P0 fix)
+core oral     15, all routes                = 15   ✓   (a different block type)
+core human-touched blocks  16 + 15          = 31   ✓
+class of 18   mandatory 4 x 18              = 72 / year, 8 / month   ✓
 ```
 
 **Correction to the previous report.** It said "17 written responses per learner per month on core, 306 for a class of 18, 10 hours a month". 17 is the year total; per month it is 1.89. 306 is per year. 10.2 hours at two minutes is per year. Inflated ninefold, and it was the figure the conclusion rested on.
@@ -107,14 +98,72 @@ core-visible  A 4 + D 4 + E 9               = 17   ✓
 
 That is a sparse, high-value shape, and it did not come from removing anything. It came from asking of each block: *if nobody ever read this, what would the curriculum fail to know?* For 18 of the 33 the answer is "nothing a graded task has not already established."
 
-## A defect found on the way
+## The integration contract
 
-`m1.l8.b3` has no `tracks` field, so it renders on all three routes. The problem it asks about — `m1.l8.b2`, the wardrobe — is `tracks: ["advanced"]`, and `m1.l8.b1` is `["core","advanced"]`.
+`schools/curriculum/review-policy.ts` exports the frozen classification and one entry point:
 
-- A **core** learner is asked to explain a problem they were never shown.
-- A **support** learner opens lesson `m1.l8` and finds it contains nothing but this explain block.
+```ts
+reviewObligationFor(block): ReviewObligation | null
+reviewObligations(track): ReviewObligation[]
+```
 
-Verified in `month-01-september.ts`. Not fixed — content is frozen pending this report — and it would matter far more if the block were mandatory, which it is not.
+`ReviewObligation` carries three booleans, and the teacher product should read them rather than infer anything from the block type or from `expectedPoints`:
+
+| Field | Meaning |
+|---|---|
+| `mandatoryQueue` | Put it in the pending queue and count it. **True for exactly 4 blocks.** |
+| `sampleEligible` | May appear in analytics or a rotating sample. **Must never increase the mandatory pending count.** True for 11 (4 on core). |
+| `oralInClass` | Live exchange. No queue, no sample, nothing to read later. True for 15. |
+
+A block that creates no obligation returns `null` — including every graded task, so a `write_code` can never reach a teacher's queue whatever else changes.
+
+`tests/school/review-policy.test.ts` holds nine assertions, and the load-bearing one is that no obligation is ever both `sampleEligible` and `mandatoryQueue`. Making a sample count as pending takes a class of 18 from 72 mandatory reads a year to 270, and nothing in the product would announce it; the mutation is tested.
+
+### Required of the integrated teacher workstream
+
+1. Read `reviewObligationFor`. Do not classify from block type.
+2. `SAMPLE_FOR_TEACHER` must not increment any pending-review counter.
+3. `ORAL_IN_CLASS` must not create an async item at all.
+4. `REDUNDANT_HUMAN_REVIEW` responses may still be stored and shown on request — they simply oblige nobody.
+5. The teacher dashboard is absent or stale in this worktree and was **not modified**. The contract is exposed; the wiring belongs to that workstream.
+
+## The route defect, fixed
+
+`m1.l8.b3` asked «Соңғы есепте неге **екі нұсқаны** да тексеру керек болды?» — why the last problem needed both orientations. The wardrobe, `m1.l8.b2`, is `tracks: ["advanced"]`. `b3` carried no `tracks` at all.
+
+Projection before:
+
+| Route | Blocks |
+|---|---|
+| support | `m1.l8.b3` — one block, about work it cannot reach |
+| core | `m1.l8.b1`, `m1.l8.b3` — asked about two orientations in a day-of-week problem that has none |
+| advanced | `b1`, `b2`, `b3` — correct |
+
+`m1.l8` was **the only lesson in the year** projecting fewer than two blocks on any route.
+
+**Root cause.** Every other September lesson that scopes blocks by track pairs them with a support twin — `l2.b3s`, `l5.b3s`, `l6.b3s`, `l7.b4s`. `m1.l8` scoped two blocks and paired neither, and the all-routes `b3` was standing in for the missing support path.
+
+**Fix, in two parts, both restoring the authored convention.**
+
+1. `b3` → `tracks: ["advanced"]`, matching its referent exactly.
+2. `m1.l8.b1s` — the support twin the lesson never had. A `write_code` with the reading and printing given, so what remains is the wrap-around itself. Not a widened `b1`: support meets **no `challenge` block in any ordinary lesson all year** — 0 of 19, the rest being May's contests where every route gets the same problems.
+
+Projection after:
+
+| Route | Blocks |
+|---|---|
+| support | `m1.l8.b1s` |
+| core | `m1.l8.b1` |
+| advanced | `b1`, `b2`, `b3` |
+
+**Proof.**
+
+| | |
+|---|---|
+| No route asks about unseen work | A scan of every backward-referring prompt on every route finds none without a preceding task |
+| All three routes traverse | 838 assertions green, no dead end, no blank lesson |
+| Skill coverage | Support **gained** `arith.remainder`; core and advanced unchanged |
+| Task id churn | None. 59 lines added, 0 removed, 0 modified. One new id, `m1.l8.b1s`, following the `<id>s` convention |
 
 ## Not decided here
 

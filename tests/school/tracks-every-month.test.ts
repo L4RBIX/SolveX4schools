@@ -80,15 +80,20 @@ const AUTHORED = MONTHS.filter((m) => lessonsOf(m).some((l) => l.blocks.length >
 /**
  * Months that predate the written-defence rule being enforced.
  *
- * September's three `explain` blocks all go to every route, so its
- * Тереңдетілген learners are asked for nothing in writing that Негізгі is not.
- * That contradicts PDF p.6 and it is real — but September is the frozen quality
- * baseline, and re-cutting a frozen month's differentiation because a new test
- * arrived is a curriculum decision for a person, not a silent edit. The
- * exemption is therefore asserted in reverse below, so the day someone closes
- * the gap the test fails and asks for this line to be deleted.
+ * **Now empty, and the way it emptied is the point.** September's three
+ * `explain` blocks all went to every route, so its Тереңдетілген learners were
+ * asked for nothing in writing that Негізгі was not — a real contradiction with
+ * PDF p.6, exempted here rather than silently edited, and asserted in REVERSE
+ * so that the day someone closed the gap this test would fail and ask for the
+ * line to be deleted.
+ *
+ * It failed. Closing the gap was not the goal of the change that closed it:
+ * `m1.l8.b3` was scoped to `advanced` because the problem it asks about is
+ * advanced-only, and September acquiring an advanced-only written defence was a
+ * consequence. The exemption is deleted, and September is now held to the same
+ * rule as every other month.
  */
-const WRITTEN_DEFENCE_GAP = new Set<number>([1]);
+const WRITTEN_DEFENCE_GAP = new Set<number>([]);
 
 describe("every authored month is differentiated, not labelled", () => {
   it("has authored months to check", () => {

@@ -95,7 +95,7 @@ binary search. See the comment on `TrackLevel`.
 
 | # | Month | Topic | Promised tasks | Built | File |
 |---|---|---|---|---|---|
-| 1 | Қыркүйек | Reading data, computing, conditions | 36 | **44** | `months/month-01-september.ts` |
+| 1 | Қыркүйек | Reading data, computing, conditions | 36 | **43** | `months/month-01-september.ts` |
 | 2 | Қазан | Loops and lists | 38 | **60** | `months/month-02-october.ts` |
 | 3 | Қараша | Functions | 34 | **55** | `months/month-03-november.ts` |
 | 4 | Желтоқсан | Speed, sorting, precomputation | 32 | **50** | `months/month-04-december.ts` |
@@ -105,7 +105,7 @@ binary search. See the comment on `TrackLevel`.
 | 8 | Сәуір | Greedy and dynamic programming | 28 | **43** | `months/month-08-april.ts` |
 | 9 | Мамыр | Contests and final tournament | 25 † | **42** | `months/month-09-may.ts` |
 
-**Year total: 447 comparable practice tasks against 279 promised.** The Built column is the validator's own output in the PDF's unit — one route, lessons only, bank excluded. See `TASK_COUNT_RECONCILIATION.md` for why that unit and not another.
+**Year total: 446 comparable practice tasks against 279 promised.** The Built column is the validator's own output in the PDF's unit — one route, lessons only, bank excluded. See `TASK_COUNT_RECONCILIATION.md` for why that unit and not another.
 
 † **Derived, not quoted.** The PDF gives no task total for May; it specifies
 four contests plus a final tournament. 4 × 5 + 5 = 25. This is the only figure

@@ -96,7 +96,17 @@ describe("September delivers three different sequences", () => {
     expect(supportOnly.length).toBeGreaterThan(0);
 
     // Everything withheld is either substituted, or a deliberately harder task.
-    const HARDER = new Set(["m1.l8.b1", "m1.l8.b2", "m1.p6", "m1.p7", "m1.p8"]);
+    /* `m1.l8.b1` is no longer here: it gained the support twin `m1.l8.b1s` that
+       the lesson should have had from the start, so it is substituted like
+       everything else and needs no exemption.
+
+       `m1.l8.b3` is here for a different reason from the rest. It is not a
+       harder TASK — it is an explanation whose subject is `m1.l8.b2`, and a
+       block cannot be offered to a route that cannot reach the thing it is
+       about. It was withheld from nobody before this, which is how a core
+       learner came to be asked why the wardrobe needed both orientations in a
+       lesson where they had only seen the day-of-week problem. */
+    const HARDER = new Set(["m1.l8.b2", "m1.l8.b3", "m1.p6", "m1.p7", "m1.p8"]);
     for (const id of withheldFromSupport) {
       const substituted = support.has(`${id}s`);
       expect(
@@ -175,8 +185,19 @@ describe("the specific exclusions the curriculum declares", () => {
     const restricted = new Set([
       "m1.l8.b1", "m1.l8.b2", "m1.p6", "m1.p7", "m1.p8",
       "m1.l2.b3", "m1.l5.b3", "m1.l6.b3", "m1.l7.b4",
+      /* `m1.l8.b3` asks about `m1.l8.b2`, which is advanced-only, so it is too.
+         It carried no `tracks` at all and therefore rendered everywhere — the
+         one block in September restricted by its SUBJECT rather than by its
+         difficulty. */
+      "m1.l8.b3",
     ]);
-    const substitutions = new Set(["m1.l2.b3s", "m1.l5.b3s", "m1.l6.b3s", "m1.l7.b4s"]);
+    const substitutions = new Set([
+      "m1.l2.b3s", "m1.l5.b3s", "m1.l6.b3s", "m1.l7.b4s",
+      /* The twin `m1.l8` never had. Every other September lesson that scopes a
+         block pairs it with one; this lesson scoped two and paired neither, and
+         the unscoped `b3` was standing in for the missing support path. */
+      "m1.l8.b1s",
+    ]);
     const shared = monthIds("advanced").filter((id) => !restricted.has(id));
     expect(monthIds("support").filter((id) => !substitutions.has(id))).toEqual(shared);
   });
