@@ -3,21 +3,23 @@ import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { resolveIdentity } from "@schools/learning/identity";
 import { enforceHintPolicy } from "@schools/nova/enforce";
-import { buildNovaMessages } from "@schools/nova/prompt";
+import { buildNovaMessages, type HistoryTurn } from "@schools/nova/prompt";
 import { executionContextFor } from "@schools/nova/execution-context";
 import { getNovaProvider, NovaProviderError } from "@schools/nova";
 import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
 import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
 import { guardedStream } from "@schools/nova/guard";
-import type { ValidationContext } from "@schools/nova/validate";
+import { inspectCode, type ValidationContext } from "@schools/nova/validate";
 import { checkAndConsumeBudget, recordSpend, type BudgetBlock } from "@schools/nova/budget";
-import { findBlock } from "@schools/learning/grade";
+import { findBlock, taskKindOf } from "@schools/learning/grade";
+import { buildNovaContext, type DraftInput } from "@schools/nova/build-context";
 import { takeToken } from "@schools/lib/rate-limit";
-import { explainPolicy } from "@schools/nova/explain";
+import { explainAssessmentCap, explainPolicy } from "@schools/nova/explain";
 import { capabilityFor } from "@schools/curriculum/capability";
 import { config } from "@schools/config";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
 import { bump, opsLog, type OpsCounter } from "@schools/ops/counters";
+import { L } from "@schools/presentation/labels";
 import { sanitizePayload } from "@solvex/learning-contracts";
 import type { LearningEventRow } from "@schools/store/learning-store";
 import type { Locale } from "@schools/curriculum/types";
@@ -58,6 +60,29 @@ interface HintBody {
   override?: boolean;
   locale?: Locale;
   /**
+   * The conversation so far, as the browser remembers it.
+   *
+   * Held by the client and never stored here — see `HistoryTurn` in
+   * `schools/nova/prompt.ts` for why that separation is the point rather than a
+   * shortcut. Every entry is forgeable, including the ones labelled
+   * `assistant`, so all of them are fenced as untrusted and all of them are
+   * bounded by the prompt builder rather than by anything the caller sends.
+   */
+  history?: { role?: unknown; text?: unknown }[];
+  /**
+   * What is on the learner's screen right now, unchecked.
+   *
+   * The option they have clicked, the code in the editor, the ordering they are
+   * halfway through. UNTRUSTED by construction — it is the browser describing
+   * itself — so it is shape-checked and clamped in `build-context.ts`, fenced
+   * when it reaches the model, and never written to the ledger.
+   *
+   * It exists because «Где ошибка?» is almost always asked about something not
+   * yet submitted, and a tutor that can only see what was already checked is
+   * always one step behind the learner.
+   */
+  draft?: DraftInput;
+  /**
    * The learner's most recent LOCAL run, as the browser reports it.
    *
    * Typed `unknown` on purpose. Everything about it is re-derived by
@@ -65,11 +90,30 @@ interface HintBody {
    * `string`, the length against a prompt budget — and the one field that
    * matters, `trust`, is not read at all. A body claiming `server_verified` is
    * claiming a field nothing in this process looks for.
+   *
+   * Sibling to `draft` and untrusted for the same reason: both describe a
+   * screen this server did not render. `draft` is what the learner typed or
+   * clicked; this is what their program printed when they pressed Run.
    */
   lastRun?: unknown;
 }
 
 const MAX_MESSAGE = 2000;
+
+/**
+ * Room to answer at this rung, and no more.
+ *
+ * The configured maximum is the ceiling for the top of the ladder; the lower
+ * rungs get a fraction of it. This is not a cost optimisation — it is the same
+ * rule as the hint level itself, expressed in the one unit the model actually
+ * obeys. A question that gives nothing away is one or two sentences, and a
+ * model given room for twelve will write twelve.
+ */
+function tokenBudget(granted: number): number {
+  const max = config.nova.maxOutputTokens;
+  const share = granted <= 0 ? 0.25 : granted === 1 ? 0.35 : granted === 2 ? 0.5 : granted === 3 ? 0.75 : 1;
+  return Math.max(80, Math.round(max * share));
+}
 
 /**
  * Blocked families, mapped to their counters.
@@ -104,7 +148,6 @@ const BUDGET_COUNTER = {
 function sse(
   write: (controller: ReadableStreamDefaultController<Uint8Array>) => Promise<void> | void,
 ): Response {
-  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -147,13 +190,86 @@ async function deterministic(
   controller.enqueue(frame("done", { interventionId: null }));
 }
 
-export async function POST(request: Request) {
-  /* Production and preview require a session; development may stay anonymous.
-     See `schools/auth/policy.ts` — one place decides, so two routes cannot
-     disagree about whether a stranger may accumulate learning evidence. */
-  const access = await checkLearningAccess();
-  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+/**
+ * The ledger will not answer, and the learner is owed a sentence anyway.
+ *
+ * Every store touch above the model call used to sit outside any try/catch. A
+ * PGlite data directory that had become unreadable therefore produced an
+ * unhandled rejection and a bare 500 with an EMPTY BODY — before a single byte
+ * of SSE framing existed. The panel's entire error protocol is frames, so with
+ * nothing to read it fell through to «Жауап алынбады. Қайта көріңіз.» beside a
+ * Retry button with no cap on it: a fourteen-year-old pressing retry against a
+ * database that will not come back this lesson, and not one sentence anywhere
+ * telling them or their teacher what had happened — while `/api/health` knew
+ * exactly, in both languages, the whole time.
+ *
+ * So the failure is answered the way the safety gate and the budget ceiling
+ * already answer: a normal 200 SSE stream, a policy frame, and text streamed in
+ * chunks so the panel's states behave as they do for any other reply. The frame
+ * carries `storeDown` so the panel can drop the hint chrome rather than infer
+ * anything from the prose.
+ *
+ * No model is called here and nothing is written, and both are structural
+ * rather than cautious. The hint ceiling is DERIVED from the ledger — the rung
+ * last granted, the effort since, the assessment cap — so a Nova that answered
+ * on this path would answer with no idea what the learner has already been
+ * given, which is the single thing the ladder exists to prevent. An unbounded
+ * hint is worse for the learner than no hint plus the truth.
+ */
+function storeDown(
+  locale: Locale,
+  phase: "identity" | "rate_limit" | "ladder",
+  err: unknown,
+): Response {
+  bump("nova.store_unavailable");
+  /* The phase, because "the directory is gone" and "one query failed" are two
+     different Tuesdays and the counter alone cannot tell them apart. The
+     message is trimmed and nothing else is logged: a driver error can carry a
+     connection string, and no learner is identified in an ops line. */
+  opsLog("nova.store_unavailable", {
+    phase,
+    message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+  });
+  return sse((c) =>
+    deterministic(c, L.novaStoreDown[locale], {
+      granted: 0,
+      requested: 0,
+      capped: false,
+      reason: "granted_as_requested",
+      /* Null for the same reason the safety and budget frames send null: the
+         whole explanation IS the streamed sentence, and a policy notice pinned
+         above it would say the same thing twice in two registers. */
+      explanation: null,
+      action: null,
+      provider: "policy",
+      /* Deliberately NOT degraded. `degraded` means "there is no model behind
+         Nova", and the panel raises a banner telling the class exactly that.
+         The model is fine here; the database is not. Telling eighteen children
+         the tutor is offline when it is answering normally would be a second
+         wrong sentence stacked on top of the outage. */
+      degraded: false,
+      /* The one flag that is true, and the one the panel keys on. */
+      storeDown: true,
+    }),
+  );
+}
 
+export async function POST(request: Request) {
+  /*
+   * The body first, ahead of the session check, and the reason is the locale.
+   *
+   * Everything below this line can now fail with a sentence instead of an empty
+   * 500, and a sentence has to be in a language the reader actually has. The
+   * locale arrives in the body and nowhere else — there is no session yet, and
+   * a store that will not open cannot be asked for a preference — so an access
+   * check that ran first would leave the store-down path guessing, and guessing
+   * means Kazakh copy on the screen of a child being taught in Russian.
+   *
+   * Nothing is given away by the move: parsing JSON reads no session, opens no
+   * database and writes nothing. The only thing an unauthenticated caller gains
+   * is being told its own body was malformed before being told it is not signed
+   * in.
+   */
   let body: HintBody;
   try {
     body = (await request.json()) as HintBody;
@@ -161,19 +277,82 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid json" }, { status: 400 });
   }
 
+  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
+
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence.
+
+     Guarded, because it reads the session table: with a cookie in hand and a
+     dead store this was the very first thing that threw, ~80 lines before the
+     route produced a byte. `access.ok === false` keeps its own 401 — "we do not
+     know who you are" and "we cannot reach the database" are different answers
+     and collapsing them would let an outage read as a sign-in problem. */
+  let access: Awaited<ReturnType<typeof checkLearningAccess>>;
+  try {
+    access = await checkLearningAccess();
+  } catch (err) {
+    return storeDown(locale, "identity", err);
+  }
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const target = body.blockId ? findBlock(body.blockId) : null;
   if (!target) return Response.json({ error: "unknown block" }, { status: 404 });
 
-  const { subjectId } = await resolveIdentity();
-  const store = await getStore();
-  const locale: Locale = body.locale === "ru" ? "ru" : "kk";
+  /*
+   * The identity and the store, under one guard.
+   *
+   * `resolveIdentity` opens the store to resolve the subject and `getStore`
+   * opens it outright, so on a broken data directory both reject — and neither
+   * had a catch, which is the incident this route was found in.
+   *
+   * Note what the guard unblocks further down. `checkAndConsumeBudget` is
+   * documented to fail OPEN precisely so that a database hiccup does not switch
+   * the tutor off for a whole class mid-lesson, and it is implemented that way,
+   * with a try/catch, a counter and a log line. None of that code could ever
+   * run: the store had already been opened here, unguarded, and the request was
+   * dead long before the budget had an opinion.
+   */
+  let subjectId: string;
+  let store: Awaited<ReturnType<typeof getStore>>;
+  try {
+    ({ subjectId } = await resolveIdentity());
+    store = await getStore();
+  } catch (err) {
+    return storeDown(locale, "identity", err);
+  }
+
   const message = typeof body.message === "string" ? body.message.slice(0, MAX_MESSAGE) : "";
+
+  /* Shape-checked here, length-bounded in the prompt builder. Anything that is
+     not one of the two known roles is dropped rather than coerced: a turn
+     labelled `system` would be a client choosing its own authority level. */
+  const history: HistoryTurn[] = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (t): t is { role: "user" | "assistant"; text: string } =>
+            !!t &&
+            (t.role === "user" || t.role === "assistant") &&
+            typeof t.text === "string",
+        )
+        .map((t) => ({ role: t.role, text: t.text.slice(0, MAX_MESSAGE) }))
+    : [];
 
   /* Keyed on the learner, never on the client IP. One school behind one NAT
      gateway is one address, so an IP bucket would let the most active student
      throttle the whole classroom — which reads to eighteen children as the
      platform being broken. */
-  const limit = await takeToken(`nova:${subjectId}`, { capacity: 20, refillPerMinute: 10 });
+  let limit: Awaited<ReturnType<typeof takeToken>>;
+  try {
+    limit = await takeToken(`nova:${subjectId}`, { capacity: 20, refillPerMinute: 10 });
+  } catch (err) {
+    /* The bucket is a row in the same database, and this is the first QUERY the
+       route runs — a store that opened and then refuses to answer fails here
+       rather than at the open above. It is the same outage with the same
+       consequence, so it gets the same sentence rather than being carried
+       another thirty lines into an await that has no catch either. */
+    return storeDown(locale, "rate_limit", err);
+  }
   if (!limit.ok) {
     return Response.json(
       { error: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds },
@@ -261,49 +440,97 @@ export async function POST(request: Request) {
     );
   }
 
-  /*
-   * The episode, scoped to the caller.
-   *
-   * This is the one input on this route that the browser chooses and the server
-   * used to accept. It matters more here than anywhere else: `enforceHintPolicy`
-   * derives the ENTIRE hint ceiling from the episode — `lastGrantedLevel`,
-   * `lastHintAt` and every effort event — and the resulting grant is echoed
-   * straight back to the caller in the `policy` frame below. A foreign episode
-   * id would therefore compute one learner's help budget from another's work
-   * and report the answer. See `schools/learning/episode-scope.ts`.
-   */
-  const episodeId = await ownedEpisodeId(subjectId, body.episodeId);
   const requested = Number.isFinite(body.requestedLevel) ? Number(body.requestedLevel) : 0;
 
-  const { grant, directive, events } = await enforceHintPolicy({
-    store,
-    subjectId,
-    episodeId,
-    requested,
-    learnerOverride: body.override === true,
-  });
+  /* What kind of work this is, resolved from the curriculum and never from the
+     request body. `taskKindOf` is the same function the grader uses, so the
+     assessment cap and the assessment's own task_ref cannot disagree about what
+     an assessment is. */
+  const taskKind = taskKindOf(target);
+
+  /*
+   * The episode, scoped to the caller — and the ladder derived from it.
+   *
+   * The episode is the one input on this route that the browser chooses and the
+   * server used to accept. It matters more here than anywhere else:
+   * `enforceHintPolicy` derives the ENTIRE hint ceiling from it —
+   * `lastGrantedLevel`, `lastHintAt` and every effort event — and the resulting
+   * grant is echoed straight back to the caller in the `policy` frame below. A
+   * foreign episode id would therefore compute one learner's help budget from
+   * another's work and report the answer. See
+   * `schools/learning/episode-scope.ts`.
+   *
+   * Both are guarded, and guarded together, because they are the same read from
+   * the same ledger and neither has an answer that is safe to invent. A grant
+   * computed without `lastGrantedLevel` is a ceiling computed from nothing,
+   * which for a learner mid-assessment is the difference between a question and
+   * the answer — so a ledger that will not answer ends the request with the
+   * honest sentence rather than a guessed ceiling.
+   *
+   * The catch also swallows a plain bug in the ladder, and that is a real cost:
+   * the learner would be told their work is not being saved on an afternoon
+   * when the database is fine. `phase` in the ops line is what separates the
+   * two for whoever is reading them, and the alternative — letting it escape —
+   * is the empty 500 this whole file exists to stop.
+   */
+  let episodeId: string;
+  let policy: Awaited<ReturnType<typeof enforceHintPolicy>>;
+  try {
+    episodeId = await ownedEpisodeId(subjectId, body.episodeId);
+    policy = await enforceHintPolicy({
+      store,
+      subjectId,
+      episodeId,
+      requested,
+      learnerOverride: body.override === true,
+      taskKind,
+    });
+  } catch (err) {
+    return storeDown(locale, "ladder", err);
+  }
+
+  const { grant, directive, assessmentCapped } = policy;
 
   const block = target.block;
 
   /*
-   * Where the learner's code actually ran.
+   * What Nova actually knows.
    *
-   * Two facts from two sources, and the asymmetry is the safety property. The
-   * local Run arrives in the request body and is worth `client_local` no matter
-   * what it says about itself — the literal is written in
-   * `execution-context.ts`, on this server. The judge's verdict is read out of
-   * the episode's own ledger rows, through the core's `isTrustedOutcome`, and
-   * has no path from a request body at all.
+   * Built AFTER the grant, and that ordering is load-bearing: the context
+   * carries the directive and the ceiling, so building it first would mean
+   * assembling a description of what Nova may do before anything had decided.
    *
-   * Without this, Nova met a learner staring at a `ZeroDivisionError` with no
-   * idea an error existed, and could not tell a green local run (which proves
-   * the program runs) from an accepted submission (which proves it is right).
-   * It congratulated learners for the former.
+   * Guarded because it reads the ledger. A store that will not answer is a
+   * reason for Nova to know less, never a reason to refuse a fourteen-year-old
+   * help — the prompt then degrades to exactly what it was before this phase,
+   * which is a worse tutor and a working one.
    */
+  let novaContext = null;
+  try {
+    novaContext = await buildNovaContext({
+      store,
+      subjectId,
+      episodeId,
+      locale,
+      target,
+      grant,
+      directive,
+      directiveNote: null,
+      action: directive?.mode ?? null,
+      assessmentCapped,
+      draft: body.draft,
+    });
+  } catch (err) {
+    bump("nova.context_failures");
+    opsLog("nova.context_failed", {
+      message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+    });
+  }
+
   /*
-   * Only for blocks that HAVE a Run button.
+   * Where the code the learner is staring at actually ran.
    *
-   * `body.lastRun` is the one input on this route that is taken on the
+   * Only for blocks that HAVE a Run button. `body.lastRun` is taken on the
    * browser's word rather than re-derived — trust, the hint ceiling, episode
    * ownership and the verdict are all recomputed server-side. Unguarded, a
    * `lastRun` posted alongside a multiple-choice block made the system prompt
@@ -312,20 +539,24 @@ export async function POST(request: Request) {
    * apologise for a runtime that block never loads.
    *
    * The condition is the same one `RunPanel` is mounted on: a block with
-   * `code` in it is a block with an editor. Anything else has no program to
-   * run, so a claim that one ran is discarded rather than narrated.
+   * `code` in it is a block with an editor.
+   *
+   * This is the second half of "Nova can see the screen". `draft` carries what
+   * the learner TYPED; this carries what Python SAID about it — the traceback
+   * in `stderr` is the whole answer to «Почему ошибка?», and without it the
+   * tutor is reduced to asking which error they got.
    */
   const runnable = "code" in block || "cases" in block;
-  const execution = runnable
-    ? executionContextFor({
-        reported: body.lastRun,
-        events,
-        blockId: block.id,
-      })
-    : executionContextFor({ reported: undefined, events, blockId: block.id });
+  const execution = executionContextFor({
+    reported: runnable ? body.lastRun : undefined,
+    events: policy.events,
+    blockId: block.id,
+  });
 
   const messages = buildNovaMessages(
     {
+      context: novaContext,
+      execution,
       locale,
       monthTitle: target.month.title[locale],
       lessonTitle: target.lesson.title[locale],
@@ -340,9 +571,9 @@ export async function POST(request: Request) {
       directive,
       grant,
       briefOffTopic: safety.verdict === "ALLOW_BRIEF_OFFTOPIC",
-      execution,
     },
     message,
+    history,
   );
 
   /*
@@ -352,26 +583,6 @@ export async function POST(request: Request) {
    * That is exactly why they are handed to the validator: the guarantee is
    * worth more when something checks it than when it rests on nobody having
    * added them to the context object yet.
-   *
-   * ## The learner's stderr is NOT exempted from this, deliberately
-   *
-   * Nova can now see the learner's own error output, and a plausible objection
-   * is that quoting it back could trip `HIDDEN_TEST_LEAK` — a traceback echoes
-   * the source line that raised, and a one-line reference program that a
-   * learner has independently written would then match. That is a real false
-   * positive and it is the right trade:
-   *
-   *   - The cost of a false positive is one fallback message. The learner is
-   *     told nothing went wrong on their side, and asks again.
-   *   - The cost of a false negative is the answer key.
-   *
-   * The tempting fix — pass the stderr in as an allowlist so anything the
-   * program printed may be repeated — is the one thing that must not be built.
-   * It would turn a stream the learner fully controls into a validator bypass:
-   * `print(anything)` then becomes `Nova may now say anything`. The literals
-   * stay absolute, and the mitigation lives upstream instead, where it costs
-   * nothing: the stderr is capped at ~1.2 KB and the prompt tells Nova to quote
-   * at most one line of it.
    */
   const cases = "cases" in block && Array.isArray(block.cases) ? block.cases : [];
   const forbiddenLiterals = [
@@ -412,7 +623,22 @@ export async function POST(request: Request) {
   const interventionId = randomUUID();
   const sessionId = randomUUID();
   const route = `/lesson/${target.lesson.id}`;
-  const containsCode = grant.mayIncludeCode && grant.granted >= 4;
+  /*
+   * What the hint was ALLOWED to contain. Not what it did.
+   *
+   * This is written to `interventions` before the model has produced a token,
+   * which is correct for a permission and wrong for an observation — and
+   * `contains_code` in the assistance ledger is read as an observation:
+   * `interventionOutcome.ts` opens its copy-detection branch with
+   * `if (!intervention.contains_code) return "resolved_independently"`. A
+   * level-2 hint that did contain a corrected line therefore made every
+   * subsequent solve unconditionally independent, and the copying threshold
+   * could never see it.
+   *
+   * So the permission is recorded here and the OBSERVATION is measured from the
+   * delivered text further down, where it exists.
+   */
+  const codeAllowed = grant.mayIncludeCode && grant.granted >= 4;
 
   /* Guarded, and it continues on failure.
    *
@@ -431,7 +657,7 @@ export async function POST(request: Request) {
       level: grant.granted,
       trigger: "learner_requested",
       mode: directive?.mode ?? null,
-      containsCode,
+      containsCode: codeAllowed,
       contentLen: 0,
     });
   } catch (err) {
@@ -517,7 +743,13 @@ export async function POST(request: Request) {
       reason: grant.reason,
       /* Translated from the reason code, not from the core's English
          sentence. A learner never sees the engine's own wording. */
-      explanation: explainPolicy(grant.reason, locale),
+      /* The assessment sentence outranks the ladder's, because it is the one
+         that is true: under assessment the ceiling is the exam's, not the
+         rung's, and the ladder's wording would describe a situation the learner
+         is not in. */
+      explanation: assessmentCapped
+        ? explainAssessmentCap(locale)
+        : explainPolicy(grant.reason, locale),
       action: directive?.mode ?? null,
       /* The model's identity comes from configuration, never from the model.
          Asking an LLM what it is produces confident fiction. */
@@ -525,6 +757,11 @@ export async function POST(request: Request) {
       /* Whether there is actually a model behind this. The panel shows a
          banner rather than letting the learner infer it from the prose. */
       degraded: provider.degraded,
+      /* The ceiling came from assessment policy rather than from the ladder.
+         Worth distinguishing in the panel: "you have not tried anything yet" and
+         "this is the monthly check" are different sentences, and a learner told
+         the wrong one concludes the tutor is broken. */
+      assessmentCapped,
     });
 
     /*
@@ -555,7 +792,12 @@ export async function POST(request: Request) {
       const stream = guardedStream(
         provider.stream({
           messages,
-          maxTokens: config.nova.maxOutputTokens,
+          /* Scaled to the GRANTED level, never the requested one.
+             A level-0 "ask ONE question, give nothing away" hint handed the
+             same budget as a level-4 worked fix will fill it, and length is the
+             part of a small hint a learner actually notices — so the ceiling
+             would be stated in the prompt and contradicted by the request. */
+          maxTokens: tokenBudget(grant.granted),
           temperature: 0.4,
           signal,
           onUsage,
@@ -569,11 +811,14 @@ export async function POST(request: Request) {
         },
       );
 
-      let released = "";
+      /* Iterated by hand rather than with `for await`, because the guard
+         reports WHY it stopped through the generator's RETURN value and
+         `for await` discards it. That value is the difference between "the
+         model finished" and "the validator cut it off", which is what decides
+         whether the stricter retry below runs. */
       let result = await stream.next();
       while (!result.done) {
         if (firstTokenAt === null) firstTokenAt = Date.now();
-        released += result.value;
         send("token", { text: result.value });
         result = await stream.next();
       }
@@ -628,15 +873,28 @@ export async function POST(request: Request) {
           level: grant.granted,
           mode: directive?.mode ?? undefined,
           evidence_type: "hint",
-          contains_code: containsCode,
+          contains_code: inspectCode(outcome.released).lines > 0,
           content_len: outcome.released.length,
         }),
       ]);
       send("done", { interventionId });
     } catch (err) {
-      const kind = err instanceof NovaProviderError ? err.kind : "unknown";
-      // Never leave the UI spinning. An error is a state, not a silence.
-      send("error", { kind, retryable: err instanceof NovaProviderError && err.retryable });
+      /*
+       * Never leave the UI spinning. An error is a state, not a silence.
+       *
+       * Both fields are read, and by design: `kind` chooses which sentence the
+       * panel shows, and `retryable` decides whether a Retry button appears at
+       * all. A refusal that will refuse again — a timeout the deployment cannot
+       * beat, a provider that is off — must not be offered a button, because a
+       * learner given one presses it until the lesson is over. Anything that is
+       * not a `NovaProviderError` is an unknown that has NOT been reasoned
+       * about, so it is not retryable either.
+       */
+      const providerError = err instanceof NovaProviderError ? err : null;
+      send("error", {
+        kind: providerError?.kind ?? "unknown",
+        retryable: providerError?.retryable ?? false,
+      });
     } finally {
       if (usageIn > 0 || usageOut > 0) {
         try {

@@ -58,6 +58,26 @@ const BY_REASON: Record<string, Record<Locale, string>> = {
 };
 
 /**
+ * The assessment ceiling, which is not a reason code.
+ *
+ * It arrives as a separate flag rather than through the table above because it
+ * is not a rung of the ladder — it is the conditions of the thing being marked,
+ * and it applies whatever the ladder would otherwise have said. Given as its
+ * own sentence for the same reason: a learner told «бір қадам жеткілікті» in
+ * the middle of the monthly check has been handed an explanation that does not
+ * describe their situation, and will simply ask again.
+ *
+ * It says what Nova WILL still do. Silence during an assessment reads to a
+ * fourteen-year-old as the tutor abandoning them at the hardest moment, and the
+ * programme does not promise silence — it promises no hints.
+ */
+export function explainAssessmentCap(locale: Locale): string {
+  return locale === "kk"
+    ? "Бұл — айлық тексеру, сондықтан дайын жауап та, код та бермеймін. Қай жерге қарау керегін ғана көрсете аламын."
+    : "Это месячная проверка, поэтому готовый ответ и код я не дам. Могу только показать, куда смотреть.";
+}
+
+/**
  * `null` when nothing needs saying — a grant that matched the request has no
  * explanation to give, and inventing one turns help into a lecture.
  */

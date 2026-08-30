@@ -94,7 +94,13 @@ export function teacherOutcome(status: ExecutionStatus, passedAllCases: boolean)
       return "memory_limit";
     case "provider_timeout":
     case "provider_error":
-    /* And a metered judge refusing us on quota.
+    /* `payload_too_large` belongs here and not with the learner's own failures.
+       It carries `infrastructureError: true` (schools/exec/limits.ts:35): the
+       submission was refused on size before it reached the judge, so nothing
+       was measured and the teacher must be told nothing was measured. Calling
+       it `wrong_answer` would be the one thing this whole function exists to
+       prevent — an outage rendered as a fact about a child. */
+/* And a metered judge refusing us on quota.
      *
      * `provider_rate_limited` exists so that an over-quota afternoon and a dead
      * judge are distinguishable to an operator — they want opposite actions.

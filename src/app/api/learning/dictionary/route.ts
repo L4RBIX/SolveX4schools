@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { buildDictionary, resolveRef } from "@schools/learning/error-dictionary";
 
@@ -14,6 +15,14 @@ import { buildDictionary, resolveRef } from "@schools/learning/error-dictionary"
  * There is no `subjectId` parameter on either verb, so no version of this route
  * can be pointed at another child — the same shape `/api/learning/state/me` and
  * `/api/learning/activity` already use.
+ *
+ * ## And gated, which is a different question
+ *
+ * Scoping decides WHOSE dictionary you get. `checkLearningAccess` decides
+ * whether you may have one at all. Without it `resolveIdentity` fell through to
+ * the anonymous cookie branch and minted a `learning_subjects` row for an
+ * unauthenticated caller — a subject with no enrolment, an empty dictionary,
+ * and a row in the table the class list is built from.
  *
  * ## The evidence check is the addressing scheme
  *
@@ -38,6 +47,12 @@ export const runtime = "nodejs";
 const NOTE_MAX = 500;
 
 export async function GET() {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const { subjectId } = await resolveIdentity();
   const store = await getStore();
 
@@ -55,6 +70,12 @@ interface SaveBody {
 }
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: SaveBody;
   try {
     body = (await request.json()) as SaveBody;

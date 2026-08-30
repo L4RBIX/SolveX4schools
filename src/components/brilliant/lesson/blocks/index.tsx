@@ -151,6 +151,8 @@ export interface BlockViewProps<T extends PublicBlock = PublicBlock> {
   trustedProviderConfigured?: boolean;
   /** A Run happened. Never what it printed — see `runEventPayload`. */
   onRun?: (payload: LearningPayload) => void;
+  /** The run's streams, for Nova. Never stored — see `RunPanelProps.onRunResult`. */
+  onRunResult?: (result: { status: string; stdout: string; stderr: string; truncated: boolean }) => void;
 }
 
 const locked = (v: LessonVerdict) => v !== "unchecked";
@@ -812,6 +814,7 @@ function VerifyView({
   active,
   trustedProviderConfigured = true,
   onRun,
+  onRunResult,
 }: BlockViewProps) {
   if (block.type !== "verify") return null;
   const oral = block.mode === "oral_explanation";
@@ -869,6 +872,7 @@ function VerifyView({
               active={active === true}
               trustedProviderConfigured={trustedProviderConfigured}
               onRun={onRun}
+              onRunResult={onRunResult}
             />
           ) : null}
         </>
@@ -973,6 +977,7 @@ function CodeTaskView({
   active,
   trustedProviderConfigured = true,
   onRun,
+  onRunResult,
 }: BlockViewProps) {
   if (
     block.type !== "write_code" &&
@@ -1013,6 +1018,7 @@ function CodeTaskView({
         active={active === true}
         trustedProviderConfigured={trustedProviderConfigured}
         onRun={onRun}
+        onRunResult={onRunResult}
       />
 
       <CaseTable

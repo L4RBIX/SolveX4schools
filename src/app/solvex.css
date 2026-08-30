@@ -67,12 +67,35 @@
    Honoured globally rather than per-component, so a component added later
    cannot forget. Transitions collapse to near-zero instead of 0 so state
    changes still read as changes rather than teleports.
+
+   The product's own setting comes FIRST, and it is authoritative in both
+   directions — the same model `globals.css` uses, because two stylesheets
+   disagreeing about whether a learner asked for motion is how a preference
+   ends up half-applied and looking broken:
+
+     data-motion="reduce"  the learner turned motion off in SolveX. It applies
+                           regardless of what the machine says — including the
+                           very common case of a school laptop with no OS
+                           preference set, where the media query alone would
+                           leave every animation running.
+     data-motion="full"    the learner turned it on, so the OS query below is
+                           scoped not to overrule them.
+     nothing stamped       no preference has been expressed; follow the OS.
    ------------------------------------------------------------------------ */
 
+:root[data-motion="reduce"] .sx-root *,
+:root[data-motion="reduce"] .sx-root *::before,
+:root[data-motion="reduce"] .sx-root *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .sx-root *,
-  .sx-root *::before,
-  .sx-root *::after {
+  :root:not([data-motion="full"]) .sx-root *,
+  :root:not([data-motion="full"]) .sx-root *::before,
+  :root:not([data-motion="full"]) .sx-root *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -169,8 +192,24 @@
 }
 .strobi-eyeshake { animation: strobi-eyeshake 320ms ease-in-out infinite; }
 
+/* Same rule, and it has to be here as well as in the component.
+   `StrobiAvatar` decides on the client, and its server snapshot deliberately
+   assumes motion is fine — so between first paint and hydration the drift and
+   shake classes ARE on the element for a learner who asked for neither. This is
+   what stops them running in that window, and it is why the two arms here
+   mirror the component's own precedence exactly. */
+:root[data-motion="reduce"] .strobi-drift,
+:root[data-motion="reduce"] .strobi-shake,
+:root[data-motion="reduce"] .strobi-saccade,
+:root[data-motion="reduce"] .strobi-eyeshake {
+  animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .strobi-drift, .strobi-shake, .strobi-saccade, .strobi-eyeshake {
+  :root:not([data-motion="full"]) .strobi-drift,
+  :root:not([data-motion="full"]) .strobi-shake,
+  :root:not([data-motion="full"]) .strobi-saccade,
+  :root:not([data-motion="full"]) .strobi-eyeshake {
     animation: none !important;
   }
 }

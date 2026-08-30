@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@schools/store";
+import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { findBlock } from "@schools/learning/grade";
 import { takeToken } from "@schools/lib/rate-limit";
@@ -26,6 +27,14 @@ import {
  * No `subjectId` parameter on either verb, so no version of this route can be
  * pointed at another child — the same shape `/api/learning/dictionary` and
  * `/api/learning/state/me` already use.
+ *
+ * ## And gated, which scoping does not do
+ *
+ * `checkLearningAccess` decides whether the caller may be here at all.
+ * Without it POST wrote a `post_help_explanations` row against a subject
+ * `resolveIdentity` had just minted for an unauthenticated caller — the
+ * programme's reflection obligation, recorded as satisfied, for a child who is
+ * not in the class.
  *
  * ## The assistance level is never accepted from the browser
  *
@@ -64,6 +73,12 @@ function parseTarget(
 }
 
 export async function GET(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   const url = new URL(request.url);
   const parsed = parseTarget(url.searchParams.get("episodeId"), url.searchParams.get("blockId"));
   if ("error" in parsed) return parsed.error;
@@ -104,6 +119,12 @@ interface PostBody {
 }
 
 export async function POST(request: Request) {
+  /* Production and preview require a session; development may stay anonymous.
+     See `schools/auth/policy.ts` — one place decides, so two routes cannot
+     disagree about whether a stranger may accumulate learning evidence. */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   let body: PostBody;
   try {
     body = (await request.json()) as PostBody;

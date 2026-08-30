@@ -252,6 +252,17 @@ export const OPS_COUNTERS = [
    * and it answers when the database is the thing that is down.
    */
   "submit.trusted",
+
+  /**
+   * The learner's situation could not be assembled, so Nova answered blind.
+   *
+   * Not fatal and not silent: the prompt degrades to curriculum-only, which is
+   * the tutor this product had before the context phase — worse, but working.
+   * A number here that leaves zero means learners are getting generic answers
+   * and nothing else would say so.
+   */
+  "nova.context_failures",
+
   /**
    * A submission id that had already been claimed. The stored verdict was
    * replayed and NO second set of learning events was written.
@@ -272,7 +283,20 @@ export const OPS_COUNTERS = [
    */
   "submit.duplicate_timeouts",
 
-  /** A graded attempt whose events could not be written. Progress was NOT saved. */
+  /**
+   * An event the ingest route refused: an outcome name arriving unattested, a
+   * foreign episode, or a malformed id.
+   *
+   * Expected to be ZERO. Every honest client writes observations only, and the
+   * five outcome events are written server-side on the paths that produce them.
+   * A number here that leaves zero means somebody found the browser console —
+   * which is a conversation for a teacher rather than an error for a browser,
+   * and is precisely the kind of thing a log line cannot surface because nobody
+   * reads logs on a Tuesday.
+   */
+  "ingest.refused",
+
+/** A graded attempt whose events could not be written. Progress was NOT saved. */
   "save.event_write_failures",
   /**
    * A settle that found its submission already settled by another owner.
@@ -291,6 +315,22 @@ export const OPS_COUNTERS = [
 
   /** A reducer sweep that threw outright. Projections are behind. */
   "sweep.failures",
+
+  /**
+   * A hint that never reached a model because the ledger could not be opened
+   * or read: no subject, no episode, no ladder, so no hint.
+   *
+   * The learner is told in their own language that their work is not being
+   * saved, which is the honest thing to say and the only thing they can act on.
+   * This is the number that says it to somebody who can fix it — otherwise a
+   * class losing its tutor for an afternoon surfaces as eighteen children
+   * saying "Nova is being weird today" and nothing an operator can see.
+   *
+   * NOT `nova.failures`, which means a provider was reached and refused. Here
+   * nothing was asked of a provider, nothing was written, and no rung of the
+   * hint ladder was spent.
+   */
+  "nova.store_unavailable",
 ] as const;
 
 export type OpsCounter = (typeof OPS_COUNTERS)[number];

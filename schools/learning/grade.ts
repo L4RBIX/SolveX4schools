@@ -102,7 +102,7 @@ export interface GradeOutcome {
  * they are struggling at work nobody marked.
  */
 export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutcome {
-  const { block, month } = target;
+  const { block } = target;
   const result = checkBlock(block, answer);
 
   const measured = result.verdict !== "unknown";
@@ -113,11 +113,7 @@ export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutco
   const creditedSkills =
     measured && result.verdict === "correct" ? [...block.skillRefs] : primarySkill ? [primarySkill] : [];
 
-  const kind = target.lesson.id.endsWith("assessment")
-    ? ("assessment" as const)
-    : block.id.startsWith(`m${month.index}.p`)
-      ? ("practice" as const)
-      : ("lesson" as const);
+  const kind = taskKindOf(target);
 
   return {
     result,
@@ -126,6 +122,30 @@ export function gradeBlock(target: GradeTarget, answer: BlockAnswer): GradeOutco
     taskRef: `sx-${kind}:${block.id}`,
     taskKind: kind,
   };
+}
+
+/**
+ * What kind of work a block is, from the curriculum alone.
+ *
+ * Extracted from `gradeBlock` so that exactly one definition exists. It used to
+ * be an expression inside the grader, which meant the hint route had no way to
+ * ask the question — and so Nova had no idea whether it was standing in a
+ * lesson or in the monthly check. The help centre promises learners in both
+ * languages that Nova gives no hints during the assessment; nothing enforced
+ * it, and one attempt plus the panel's override button produced a level-4 hint
+ * with working code on the programme's central independent measurement.
+ *
+ * `findBlock` synthesises a parent lesson for assessment blocks so callers have
+ * one shape to handle, which is convenient everywhere except here: it is why
+ * the test is on the lesson id rather than on the block. Keeping that in one
+ * function is the point — two copies of this rule would eventually disagree,
+ * and the one that disagreed would be the one deciding whether a child may be
+ * handed the answer to the thing being marked.
+ */
+export function taskKindOf(target: GradeTarget): "lesson" | "practice" | "assessment" {
+  if (target.lesson.id.endsWith("assessment")) return "assessment";
+  if (target.block.id.startsWith(`m${target.month.index}.p`)) return "practice";
+  return "lesson";
 }
 
 /** Maps a school verdict onto the contract's closed vocabulary. */

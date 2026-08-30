@@ -15,6 +15,7 @@ export default function DevLayout({ children }: { children: React.ReactNode }) {
   const tabs = [
     { href: "/dev/intelligence", label: "Intelligence" },
     { href: "/dev/nova", label: "Nova" },
+    { href: "/dev/nova-context", label: "Nova context" },
     { href: "/dev/execution", label: "Execution" },
   ];
 

@@ -28,7 +28,7 @@ import type { LearningPayload } from "@solvex/learning-contracts";
 import { Button3D } from "./button-3d";
 import { ChatIcon, SpeakerIcon } from "./icons";
 import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
-import { NovaChat } from "@/components/nova/nova-chat";
+import { NovaChat, type NovaDraft } from "@/components/nova/nova-chat";
 import { LessonTopBar } from "./lesson-chrome";
 import { BlockView } from "./blocks";
 import {
@@ -414,6 +414,46 @@ function answerKey(answer: BlockAnswer): string {
   return JSON.stringify(answer);
 }
 
+/**
+ * The learner's current answer, in the shape Nova's route accepts.
+ *
+ * One translation, in one place, from the union the lesson already keeps to the
+ * flat draft the API takes. It is deliberately total over `BlockAnswer.kind` —
+ * a new answer kind stops this compiling rather than silently reaching Nova as
+ * nothing, which is how the tutor quietly goes blind on the one block type
+ * somebody added last.
+ *
+ * Note what is NOT here: the verdict, the attempt count, whether it was right.
+ * Those are on the server, in the ledger, and Nova reads them from there. A
+ * browser that could name its own verdict could name `correct`.
+ */
+function draftFor(answer: BlockAnswer | undefined): NovaDraft | undefined {
+  if (!answer) return undefined;
+  switch (answer.kind) {
+    case "option":
+      return { selectedOptionId: answer.id };
+    case "text":
+      /* Both a prediction and an editor's contents arrive as text. The route
+         does not need to know which — it has the block type from the
+         curriculum, which is the trustworthy half of that question. */
+      return { text: answer.value, code: answer.value };
+    case "blanks":
+      return { blanks: [...answer.values] };
+    case "order":
+      return { order: [...answer.ids] };
+    case "line":
+      return { line: answer.line };
+    case "grid":
+      return { cells: { ...answer.cells } };
+    case "none":
+    case "acknowledged":
+      /* Nothing on screen yet. Sending an empty object would tell Nova the
+         learner had answered and left it blank, which is a different and
+         wronger thing than not having started. */
+      return undefined;
+  }
+}
+
 export function SchoolLesson({
   lesson,
   monthIndex,
@@ -720,6 +760,21 @@ export function SchoolLesson({
    * that minted its own would scatter one learner's afternoon across a dozen
    * episodes that Nova then reads as a dozen people who never tried anything.
    */
+  /**
+   * The last local Run per block, held in memory and never stored.
+   *
+   * A ref rather than state on purpose: nothing renders from it, so a run must
+   * not cost a re-render of the lesson. It is read at send time by the Nova
+   * panel, exactly like `states` is, and it is the other half of "Nova can see
+   * the screen" — `draftFor` carries what the learner TYPED, this carries what
+   * Python SAID about it.
+   *
+   * Cleared by nothing: the learner's last run IS the current screen until they
+   * run again. It leaves the browser only inside a Nova request, fenced as
+   * untrusted, and it is never written to the ledger.
+   */
+  const lastRuns = useRef<Record<string, unknown>>({});
+
   const runExecuted = useCallback(
     (blockId: string, payload: LearningPayload) => {
       onRunExecuted?.({
@@ -842,8 +897,32 @@ export function SchoolLesson({
     /* `lang` is what makes `hyphens: auto` work on the long compound words the
        Russian and Kazakh lesson text is full of, and it is what a screen reader
        reads the page with. */
-    <div lang={locale} className="flex h-[100dvh] flex-col bg-sx-page font-b-sans text-b-fg">
-      <div className="flex flex-1 flex-col px-3 pb-3 sm:px-8 sm:pb-8">
+    /* `lang` is what makes `hyphens: auto` work and what a screen reader reads
+       the page with.
+
+       `--sx-nova-w` is the width of the Nova pane, and it is the ONE number the
+       split workspace is built from. Zero when the panel is closed; a clamped
+       column when it is open. The lesson card's left inset and the top bar's
+       left padding both read it, so the lesson genuinely contracts and its
+       content re-centres inside what remains — rather than being covered by a
+       panel, or shoved sideways by a margin while its own centre stays where it
+       was. Below `lg` it stays 0 and Nova is a sheet; see `nova-chat.tsx`. */
+    <div
+      lang={locale}
+      style={{ "--sx-nova-w": chatOpen ? "clamp(340px, 26vw, 400px)" : "0px" } as React.CSSProperties}
+      className="flex h-[100dvh] flex-col bg-sx-page font-b-sans text-b-fg"
+    >
+      <div
+        className={cn(
+          "flex flex-1 flex-col px-3 pb-3 sm:px-8 sm:pb-8",
+          /* The progress bar and the close control belong to the lesson, so
+             they move with it. Left visually stranded over the Nova pane they
+             would read as chrome belonging to the chat. */
+          "lg:transition-[padding] lg:duration-500 lg:ease-b-spring",
+          "lg:pl-[calc(var(--sx-nova-w)+var(--sx-nova-gap,0px))]",
+        )}
+        style={{ "--sx-nova-gap": chatOpen ? "1rem" : "0px" } as React.CSSProperties}
+      >
         <LessonTopBar
           progress={progress}
           /* The reference's XP is gone: 15 points per correct answer, toward
@@ -876,6 +955,13 @@ export function SchoolLesson({
             data-panel="true"
             className={cn(
               "fixed top-16 right-3 bottom-3 left-3 z-[93] flex flex-col overflow-hidden sm:top-16 sm:right-8 sm:bottom-8 sm:left-8",
+              /* The lesson pane. Its LEFT edge is where the split happens.
+                 Everything inside is already centred with `mx-auto` and a flex
+                 column, so narrowing the pane re-centres the question, the code,
+                 the options and the Check button inside the remaining space
+                 without any of them being told the panel exists. */
+              "lg:left-[calc(2rem+var(--sx-nova-w)+var(--sx-nova-gap,0px))]",
+              "lg:transition-[left,border-color] lg:duration-500 lg:ease-b-spring",
               "rounded-[24px] border-2 bg-b-dark transition-colors duration-300",
               cardBorderClass(verdict),
             )}
@@ -910,6 +996,9 @@ export function SchoolLesson({
                       active={i === page}
                       trustedProviderConfigured={trustedProviderConfigured}
                       onRun={(payload) => runExecuted(b.id, payload)}
+                      onRunResult={(result) => {
+                        lastRuns.current[b.id] = result;
+                      }}
                       art={
                         b.type === "concept" && i === 0
                           ? lessonArt(lesson.id, monthIndex)
@@ -994,8 +1083,22 @@ export function SchoolLesson({
           {/* ---- Nova dock --------------------------------------------
               The placement is the cloned player's, measured and kept: bottom
               left, z-856 so it sits ABOVE the z-93 card, and a speech bubble
-              level with the avatar's head. Only the occupant changed. */}
-          <div className="pointer-events-none absolute bottom-0 left-0 z-[856] flex flex-col items-start">
+              level with the avatar's head. Only the occupant changed.
+
+              Hidden while the chat is open, and only on the split layout. Nova
+              is already in the panel header three centimetres away; leaving the
+              large floating one there too puts two of the same mascot on screen
+              at once and makes the learner work out which is which. On the
+              sheet layout the dock is behind the sheet anyway, so it stays —
+              closing the sheet must not reveal an empty corner. */}
+          <div
+            aria-hidden={chatOpen || undefined}
+            className={cn(
+              "pointer-events-none absolute bottom-0 left-0 z-[856] flex flex-col items-start",
+              "transition-opacity duration-200",
+              chatOpen && "lg:pointer-events-none lg:opacity-0",
+            )}
+          >
             {bubble ? (
               <div className="pointer-events-auto mb-6 ml-[76px] max-w-[262px]">
                 <div
@@ -1047,6 +1150,15 @@ export function SchoolLesson({
             blockId={block.id}
             episodeId={episodeFor(block.id)}
             onStateChange={(s) => requestNova(s, s === "error" ? 4000 : 0)}
+            /* Read at send time, not at mount. The learner types, then asks;
+               a value captured when the panel opened would describe a screen
+               from several minutes ago. `states` is the same map the card
+               renders from, so Nova sees exactly what the learner sees. */
+            currentDraft={() => draftFor(states[block.id]?.answer)}
+            /* What their program printed, read at send time for the same
+               reason. `undefined` when they have not pressed Run on this block,
+               which the route keeps distinct from "ran and printed nothing". */
+            currentRun={() => lastRuns.current[block.id]}
           />
         </div>
       </div>

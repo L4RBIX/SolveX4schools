@@ -28,7 +28,22 @@
 
 import type { NovaDirective } from "@solvex/learning-intelligence-core";
 
-export const NOVA_RUNTIME_VERSION = 1;
+/**
+ * 2 since the SolveX4Schools integration.
+ *
+ * `SOURCE_BASELINE.md` §5 makes these constants cache-invalidation keys: "a
+ * destination agent that changes reducer or engine semantics must bump the
+ * matching one, or it will serve a projection whose numbers no longer mean what
+ * they say." Two gates were added below — help does not open before a first
+ * attempt, and the opening rung is not skippable by override — and both change
+ * what `grantHintLevel` returns for inputs it has already been asked about.
+ * Leaving this at 1 would have meant a stored grant computed under the old
+ * rules being read back as if it had been computed under the new ones.
+ *
+ * The fork is deliberate, minimal and recorded in `docs/nova/CORE_MODIFICATIONS.md`.
+ * Everything else in this package is byte-identical to the archive.
+ */
+export const NOVA_RUNTIME_VERSION = 2;
 
 /** The ladder, as recorded in the learning stream. */
 export const MIN_HINT_LEVEL = 0;

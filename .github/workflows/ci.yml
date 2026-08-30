@@ -49,5 +49,38 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # The gate that had never gated anything.
+      #
+      # Until now this job ran lint, typecheck and build, and no tests at all.
+      # `tests/golden.test.ts` is designated by the imported archive as THE
+      # regression check to re-run after every integration step, and it had
+      # never run on a push or a pull request in the life of this repository.
+      # That is how fourteen typecheck errors and two failing tests sat in the
+      # tree unnoticed for an afternoon.
+      #
+      # Before the build, not after: a build takes minutes and a failing test
+      # is the answer either way.
+      - name: Test
+        run: npm test
+
+      # Python, for the archive's own Nova directive suite.
+      #
+      # Thirteen tests that ship in this repository, pass, and were wired to no
+      # script and no job — so the one part of the imported core with an
+      # independent implementation was going unchecked. Pinned to 3.12: the
+      # suite uses `int | None` annotations that pydantic cannot evaluate on
+      # 3.9, and "it passes on the machine that has the right Python" is not a
+      # gate.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependencies
+        run: python -m pip install --quiet pytest pydantic
+
+      - name: Python tests
+        run: npm run test:python
+
       - name: Build
         run: npm run build

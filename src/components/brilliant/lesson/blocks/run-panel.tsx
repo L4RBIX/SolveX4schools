@@ -85,6 +85,25 @@ export interface RunPanelProps {
    * stdout, stderr and source are compile errors rather than review comments.
    */
   onRun?: (payload: LearningPayload) => void;
+  /**
+   * The run's actual result — status, and the two streams verbatim.
+   *
+   * Separate from `onRun`, and it has to be. `onRun` carries a LEDGER payload,
+   * which is deliberately scrubbed: no stdout, no stderr, nothing a learner's
+   * program wrote. That is right for an event that is stored forever, and it is
+   * exactly why Nova could never answer «Почему ошибка?» — the traceback the
+   * learner is looking at existed only inside this component.
+   *
+   * This one is not stored anywhere. It is held in memory by the lesson and
+   * sent with the next Nova request as UNTRUSTED current-screen state, on the
+   * same footing as the draft answer. See `parseReportedRun`.
+   */
+  onRunResult?: (result: {
+    status: string;
+    stdout: string;
+    stderr: string;
+    truncated: boolean;
+  }) => void;
 }
 
 export function RunPanel({
@@ -99,6 +118,7 @@ export function RunPanel({
   active,
   trustedProviderConfigured,
   onRun,
+  onRunResult,
 }: RunPanelProps) {
   const python = usePython({ preload: active });
 
@@ -156,6 +176,17 @@ export function RunPanel({
     if (button.action !== "run") return;
 
     const outcome = await python.run({ source, stdin });
+
+    /* Reported BEFORE the `shouldRecordRun` gate below, and unconditionally.
+       That gate is about what earns a hint level and what enters the ledger; a
+       run that does not count as new effort is still the thing on screen, and
+       is still what a learner asking "why does this break" means. */
+    onRunResult?.({
+      status: outcome.status,
+      stdout: outcome.stdout,
+      stderr: outcome.stderr,
+      truncated: outcome.truncated,
+    });
     setRanSource(source);
 
     /* The rule lives in `run-state.ts` so a test can reach it — see

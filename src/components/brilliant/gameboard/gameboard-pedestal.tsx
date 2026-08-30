@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRive } from "@rive-app/react-canvas";
+import { useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { NovaAvatar } from "@/components/nova/nova-avatar";
 
 /**
  * One stop on the course gameboard — **reference baseline only.**
@@ -52,6 +54,19 @@ export interface GameboardPedestalProps {
   /** A level's closing node: a cog-shaped medal on its own 120x117 viewBox. */
   review?: boolean;
   className?: string;
+  /**
+   * Render the product's own active node instead of the reference's Rive one.
+   *
+   * Two reasons, and either alone would be enough:
+   *
+   * 1. The Rive scene puts **Koji** on the learner's current node. Koji is
+   *    Brilliant's character and this product has Nova.
+   * 2. `koji-gameboard.riv` is Brilliant's file. See docs/THIRD_PARTY_ASSETS.md.
+   *
+   * Default off, so /brilliant/app/course keeps the measured behaviour it was
+   * reverse-engineered against.
+   */
+  ownMascot?: boolean;
 }
 
 export function GameboardPedestal({
@@ -60,12 +75,176 @@ export function GameboardPedestal({
   active,
   review,
   className,
+  ownMascot,
 }: GameboardPedestalProps) {
+  if (animated && ownMascot) {
+    return <SolveXPedestal selected={selected} active={active} className={className} />;
+  }
   if (animated) {
     return <RivePedestal selected={selected} active={active} className={className} />;
   }
   if (review) return <ReviewPedestal className={className} />;
   return <LockedPedestal className={className} />;
+}
+
+/**
+ * The product's active node.
+ *
+ * The reference's own active pedestal is lit from beneath with a purple glow;
+ * that reading is kept, because it is what tells a learner at a glance where
+ * they are on a board of forty-eight identical discs. What changes is who
+ * stands on it. Nova is lazy-loaded by `NovaAvatar`, so a board that scrolls
+ * past thirty locked nodes still paints immediately.
+ */
+/**
+ * The product's milestone node.
+ *
+ * ## What the reference actually does, and what is reused
+ *
+ * The reference drives one Rive state machine (`node_all`) whose inputs are
+ * enumerated at the top of this file. Three of them are the whole interaction:
+ *
+ *   cursor_down   pointer held → the node compresses
+ *   select        chosen       → a glow appears and stays
+ *   completed     done         → a success state
+ *
+ * We cannot ship that file (it is Brilliant's, and it puts Koji on the node),
+ * so the mechanism is reproduced rather than approximated:
+ *
+ * - **The spring is the reference's own curve.** `--ease-b-spring` in
+ *   globals.css is a `linear()` sampled verbatim from the live player's
+ *   `transition` declaration — it overshoots to 1.027 at 54% and settles. An
+ *   ease-out substitute reads visibly wrong, which is why it was sampled in the
+ *   first place.
+ * - **The glow comes from BELOW.** The reference's own static active pedestal
+ *   paints `#9D62FF` as a linear gradient running from full opacity at the
+ *   bottom of the disc to transparent at the top — light from underneath, not a
+ *   ring around the outside. That reading is what `box-shadow: 0 0 20px purple`
+ *   gets wrong, so it is not what this does: there is a wide, soft elliptical
+ *   pool under the node and a tighter core just beneath its base.
+ *
+ * ## Press physics
+ *
+ * Pointer down compresses fast (90ms, ease-out) because a press must feel
+ * immediate. Release runs the spring over 520ms. `pointerleave` and
+ * `pointercancel` both release, so dragging off a node does not leave it stuck
+ * compressed — the single most common bug in hand-written press states.
+ *
+ * ## Reduced motion
+ *
+ * No compression and no spring. The glow still appears, at full strength and
+ * without a transition: the brief is explicit that a learner who reduces motion
+ * must still be able to see which node is selected.
+ */
+function SolveXPedestal({
+  selected,
+  active,
+  className,
+}: {
+  selected?: boolean;
+  active?: boolean;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  const [pressed, setPressed] = useState(false);
+
+  /* `active` is the learner's current node and is always lit. `selected` is a
+     node they tapped to inspect; it lights too, a little less, so the two are
+     distinguishable when they are different nodes. */
+  const strength = active ? 1 : selected ? 0.72 : 0;
+
+  const release = () => setPressed(false);
+
+  return (
+    <div
+      className={cn("relative h-[134px] w-32 shrink-0", className)}
+      onPointerDown={reduce ? undefined : () => setPressed(true)}
+      onPointerUp={reduce ? undefined : release}
+      onPointerLeave={reduce ? undefined : release}
+      onPointerCancel={reduce ? undefined : release}
+    >
+      {/* ---- the pool: wide, soft, and under the node -------------------- */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-2 left-1/2 h-16 w-[150px] -translate-x-1/2 rounded-[50%] blur-2xl transition-opacity duration-300 ease-out motion-reduce:transition-none"
+        style={{
+          opacity: strength * 0.55,
+          background:
+            "radial-gradient(closest-side, var(--color-b-purple), transparent 72%)",
+        }}
+      />
+      {/* ---- the core: tight, just beneath the disc's base ---------------- */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-5 left-1/2 h-8 w-[92px] -translate-x-1/2 rounded-[50%] blur-md transition-opacity duration-300 ease-out motion-reduce:transition-none"
+        style={{
+          opacity: strength * 0.75,
+          background:
+            "radial-gradient(closest-side, var(--color-b-purple), transparent 78%)",
+        }}
+      />
+
+      {/* ---- the node ---------------------------------------------------- */}
+      <div
+        className="relative origin-bottom will-change-transform"
+        style={{
+          transform: pressed ? "scale(0.94)" : "scale(1)",
+          transition: reduce
+            ? "none"
+            : pressed
+              ? "transform 90ms cubic-bezier(0.4, 0, 1, 1)"
+              : "transform 520ms var(--ease-b-spring)",
+        }}
+      >
+        <LockedPedestal />
+
+        {/*
+          The disc itself, tinted from below.
+
+          This is the reference's own device: its active pedestal paints
+          `#9D62FF` as a gradient running from full at the bottom edge of the
+          disc to transparent above it, so the stone reads as lit from
+          underneath rather than outlined. `mix-blend-mode: color` keeps the
+          disc's own shading and moves only its hue, which is why the highlight
+          and the rim shadow survive instead of being flooded over.
+
+          Clipped to the disc's ellipse — `LockedPedestal` draws a 128×134 SVG
+          whose stone occupies roughly the lower half of the box.
+        */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 transition-opacity duration-300 ease-out motion-reduce:transition-none"
+          style={{
+            opacity: strength,
+            mixBlendMode: "color",
+            /*
+              Clipped to the stone, not to the element box.
+
+              `mix-blend-mode: color` keeps the BACKDROP's luminosity and takes
+              the source's hue — so wherever this layer overlaps the near-black
+              page instead of the grey disc, it produces dark violet and the
+              element's own rectangle becomes visible. Fading the gradient out
+              before the edge is not enough; the fix is to make the layer the
+              shape of the thing it is tinting.
+
+              The ellipse is the disc's outer rim measured off `LockedPedestal`:
+              its stone spans roughly x 25…160 and y 95…175 of the 186×195
+              viewBox, which is `38% 21% at 50% 69%` of the rendered 128×134 box.
+            */
+            clipPath: "ellipse(38% 21% at 50% 69%)",
+            background:
+              "radial-gradient(70% 80% at 50% 95%, var(--color-b-purple) 0%, var(--color-b-purple) 35%, transparent 100%)",
+          }}
+        />
+
+        {active ? (
+          <span className="absolute inset-x-0 top-1 flex justify-center">
+            <NovaAvatar state="idle" size={46} />
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 /**

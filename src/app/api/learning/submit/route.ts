@@ -7,7 +7,7 @@ import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { findBlock, gradeBlock, toLearningVerdictName } from "@schools/learning/grade";
-import { justificationFor, revealFor } from "@schools/learning/reveal";
+import { ATTEMPTS_BEFORE_REVEAL, justificationFor, revealFor } from "@schools/learning/reveal";
 import { signAttestation } from "@schools/learning/sign";
 import type { BlockAnswer } from "@schools/learning/checking";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
@@ -343,10 +343,18 @@ export async function POST(request: Request) {
 
   /* How many times this block has already been graded wrong, read from the
      ledger. Counted BEFORE this attempt's events are appended, so the number
-     describes history rather than including the present. */
+     describes history rather than including the present.
+
+     And counted only from rows THIS SERVER wrote. The filter on `sourceTrust`
+     is what makes the number mean anything: this count is the input to
+     `revealFor`, so three verdicts decide whether a fourteen-year-old is handed
+     the answer key. A browser can post `verdict_received` into its own episode,
+     and without this line three `fetch()` calls opened the answer to a task
+     nobody had attempted. */
   const priorFailures = (await store.eventsForEpisode(episodeId)).filter(
     (e) =>
       e.event_name === "verdict_received" &&
+      e.sourceTrust !== "browser" &&
       typeof e.payload === "object" &&
       e.payload !== null &&
       (e.payload as { verdict?: unknown }).verdict !== "accepted",
@@ -354,6 +362,89 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const sessionId = randomUUID();
   const verdictName = toLearningVerdictName(outcome.result.verdict);
+
+  /*
+   * Per-test counts for the LEDGER, including for the blocks nothing executes.
+   *
+   * `caseSummary` exists only when the judge ran something, which is 35 of the
+   * curriculum's 54 attempt blocks. The other 19 — prediction, multiple choice,
+   * find the bug, fill in the blank, reorder, test case, trace — are graded by
+   * comparison and reached the ledger with no counts at all, and that absence
+   * is load-bearing in a way it does not look:
+   *
+   *   * `computeInterventionOutcome` derives `progressed` and `regressed` by
+   *     comparing `tests_passed` across two attempts. They are the only two of
+   *     seven outcomes that can say whether a hint HELPED, and with no counts
+   *     on either attempt neither can ever fire. Nova's own effectiveness was
+   *     unmeasurable on more than a third of the tasks it hints on.
+   *   * `isStagnant` keys each verdict as `verdict#tests_passed` and falls back
+   *     to the verdict alone without counts, which collapses `thrash` into
+   *     `stuck` — and `thrash` versus `stuck` is the split that lifts the hint
+   *     cap for a learner who is drowning rather than fiddling.
+   *
+   * A binary item has exactly one thing to check, so it reports one: 1 of 1 on
+   * an accepted answer, 0 of 1 otherwise. That is coarse and it is true. Two
+   * successive 0/1s are now stagnation the core can see; 0/1 then 1/1 is
+   * progress it can attribute to the hint in between.
+   *
+   * Deliberately NOT emitted where nothing measured the answer. An explanation
+   * block settles `unknown`, `verdictName` is null, and no counts are written —
+   * inventing 0/1 there would file a failure against a child for prose a human
+   * has not read yet.
+   *
+   * Kept separate from `caseSummary` rather than folded into it, because the
+   * two answer different questions. `cases` in the response means "the judge
+   * ran N test cases" and the player renders it as such; the attestation signs
+   * it as a statement about a sandbox run. Neither is true of a multiple-choice
+   * question, and saying so would be a small lie told in two more places.
+   */
+  const ledgerCounts: { passed: number; total: number } | null =
+    caseSummary ?? (verdictName ? { passed: verdictName === "accepted" ? 1 : 0, total: 1 } : null);
+
+  /*
+   * What the learner has earned the right to see — computed HERE, before the
+   * events are built, because handing the answer over is itself an event.
+   *
+   * The answer keys are no longer in the browser, so this is the only route by
+   * which a reveal can happen, which is what makes the policy enforceable
+   * rather than advisory. `revealFor` withholds everything on a first wrong
+   * answer; the programme requires it (PDF p.4: «шешім идеясы бірнеше
+   * әрекеттен соң ғана ашылады. Дайын жауап берілмейді»).
+   *
+   * Failed attempts are counted from the ledger rather than trusted from the
+   * request, for the same reason the verdict is — and `priorFailures` is now a
+   * count of attempts that genuinely happened, because a retried submission no
+   * longer adds a row to it. That is the concrete thing idempotency buys the
+   * learner: the reveal opens on the third answer they actually gave, not on
+   * the third time a flaky connection delivered the first one.
+   */
+  const failedAttempts = priorFailures + (verdictName && verdictName !== "accepted" ? 1 : 0);
+  const reveal = revealFor({
+    block: target.block,
+    verdict: outcome.result.verdict,
+    failedAttempts,
+  });
+
+  /*
+   * Which reveals are the ANSWER, and which are not.
+   *
+   * `revealFor` returns three different things and only one of them is the
+   * answer key opening after repeated failure. It also returns the marking
+   * points for a written block the moment the learner commits their own words,
+   * and the repaired program beside a find-the-bug answer the learner got
+   * RIGHT. Emitting `solution_revealed` for either of those would be a
+   * catastrophe of exactly the kind this file exists to prevent:
+   * `independenceWeight` returns 0 the instant `solution_revealed` is true, so
+   * a learner who found the bug unaided would be recorded as having been shown
+   * it — the ledger asserting a child cheated when they did not.
+   *
+   * So all three conditions, not one: the answer was wrong, the attempt count
+   * has crossed the threshold, and something was actually handed over.
+   */
+  const answerKeyRevealed =
+    reveal !== undefined &&
+    verdictName === "wrong_answer" &&
+    failedAttempts >= ATTEMPTS_BEFORE_REVEAL;
 
   /* The event stream for one graded attempt. Deliberately minimal: three
      events, none of them passive. Reading the block, viewing it and opening the
@@ -413,9 +504,15 @@ export async function POST(request: Request) {
           /* Per-test counts. Without them on two successive attempts the core
              can never reach `progressed` or `regressed`, and `thrash` collapses
              into `stuck` — two of seven intervention outcomes and one of five
-             struggle classes become unreachable, silently. */
-          ...(caseSummary
-            ? { tests_passed: caseSummary.passed, tests_total: caseSummary.total }
+             struggle classes become unreachable, silently. `ledgerCounts` is
+             the judge's tally where a judge ran and the binary 1/1 or 0/1 of a
+             compared answer where none did; see its declaration. Reading
+             `caseSummary` directly here emitted nothing at all for a
+             multiple-choice block, so the core could never see a learner
+             progress or thrash on the block types most of September is made
+             of. */
+          ...(ledgerCounts
+            ? { tests_passed: ledgerCounts.passed, tests_total: ledgerCounts.total }
             : {}),
         }),
       });
@@ -466,6 +563,53 @@ export async function POST(request: Request) {
     }
   }
 
+  /*
+   * The answer was handed over, and the ledger now says so.
+   *
+   * `revealFor` has returned answer keys since the day it was written and
+   * NOTHING recorded that it had. The consequence ran all the way through the
+   * model: `reduceEpisode`'s `solutionRevealed` stayed false forever,
+   * `independenceWeight` never once took its return-0 branch, and the episode
+   * outcome `solution_revealed` — a value the reducer, the store schema and the
+   * teacher projection all carry a column for — could not occur. A learner who
+   * failed three times, was shown the answer, typed it back and was marked
+   * correct was recorded, in the table the school reads at the end of the term,
+   * as having solved it alone. That is the single worst thing this product can
+   * assert about a child, and it was the default.
+   *
+   * Emitted from the route that performs the reveal rather than from the client
+   * that displays it, for the reason every outcome event is: the browser cannot
+   * author one, so the only way this row exists is that the server actually
+   * opened the answer.
+   *
+   * `reveal_scope: "answer_key"` rather than the archive's `editorial` — an
+   * editorial is a competitive-programming write-up, and what opens here is the
+   * key itself. Code tasks are never revealed at all (`revealFor` returns
+   * nothing for them; the hint ladder does that job properly), so this event
+   * can only ever describe one of the compared blocks.
+   */
+  if (answerKeyRevealed) {
+    events.push({
+      eventId: randomUUID(),
+      subjectId,
+      episodeId,
+      sessionId,
+      seq: seq++,
+      eventName: "solution_revealed",
+      occurredAt: now,
+      // This server decided the policy had been met and this server opened it.
+      sourceTrust: "server",
+      environment: config.environment,
+      cohort: "public",
+      route: `/lesson/${target.lesson.id}`,
+      payload: sanitizePayload({
+        reveal_scope: "answer_key",
+        task_ref: outcome.taskRef,
+        ...(outcome.primarySkill ? { skill_id: outcome.primarySkill } : {}),
+      }),
+    });
+  }
+
   events.push({
     eventId: randomUUID(),
     subjectId,
@@ -483,29 +627,6 @@ export async function POST(request: Request) {
       task_ref: outcome.taskRef,
     }),
   });
-  /*
-   * What the learner has earned the right to see.
-   *
-   * The answer keys are no longer in the browser, so this is the only route by
-   * which a reveal can happen — which is what makes the policy enforceable
-   * rather than advisory. `revealFor` withholds everything on a first wrong
-   * answer; the programme requires it (PDF p.4: «шешім идеясы бірнеше
-   * әрекеттен соң ғана ашылады. Дайын жауап берілмейді»).
-   *
-   * Failed attempts are counted from the ledger rather than trusted from the
-   * request, for the same reason the verdict is — and `priorFailures` is now a
-   * count of attempts that genuinely happened, because a retried submission no
-   * longer adds a row to it. That is the concrete thing idempotency buys the
-   * learner: the reveal opens on the third answer they actually gave, not on
-   * the third time a flaky connection delivered the first one.
-   */
-  const failedAttempts = priorFailures + (verdictName && verdictName !== "accepted" ? 1 : 0);
-  const reveal = revealFor({
-    block: target.block,
-    verdict: outcome.result.verdict,
-    failedAttempts,
-  });
-
   /* The author's explanation of THIS wrong answer, where they established one.
      Eight were written for September and none had ever been rendered: a wrong
      answer produced a colour and a generic "not quite". This is the WHY. */

@@ -387,7 +387,7 @@ describe("an episode belongs to one learner", () => {
 
 describe("the Nova prompt cannot carry another learner's context", () => {
   it("is a pure function of a context with no roster, no class and no subject", async () => {
-    const { buildSystemPrompt, buildNovaMessages } = await import("@schools/nova/prompt");
+    const { buildSystemPrompt } = await import("@schools/nova/prompt");
 
     const ctx = {
       locale: "kk" as const,

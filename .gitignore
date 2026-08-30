@@ -55,3 +55,6 @@ public/pyodide/
 # The Python worker, compiled from src/lib/pyodide/worker.ts by
 # scripts/build-python-worker.mjs. Generated, never edited by hand.
 public/pyodide-worker.js
+# Python bytecode from the ported Nova directive suite.
+__pycache__/
+*.pyc

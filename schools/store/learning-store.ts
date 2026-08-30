@@ -51,6 +51,27 @@ export interface LearningEventRow {
   payload: LearningPayload;
 }
 
+/**
+ * A stored event in the shape the reducer wants, plus the trust it was written
+ * with.
+ *
+ * `ReducibleEvent` is the core's shape and is deliberately left alone: the
+ * episode reducer folds a taxonomy and nothing else, so a replay produces the
+ * same episode whoever runs it. Trust is a fact about the ROW, not about the
+ * learning, so it rides alongside — every existing consumer of
+ * `ReducibleEvent` keeps working unchanged, and the consumers that need to ask
+ * "did this server write this, or did a browser?" can finally ask.
+ *
+ * The one that most needed to ask is the reveal policy. A learner is shown the
+ * answer from the third failed attempt on a block, and that count came out of
+ * the ledger with no way to separate a graded wrong answer from a
+ * `verdict_received` posted by hand — three fetch() calls and the answer key
+ * opened.
+ */
+export interface TrustedEvent extends ReducibleEvent {
+  sourceTrust: SourceTrust;
+}
+
 export interface EpisodeRow {
   episodeId: string;
   subjectId: string;
@@ -620,56 +641,72 @@ export class LearningStore {
     return r.rows.map((row) => ({ episodeId: row.episode_id, subjectId: row.subject_id }));
   }
 
-  /** One episode's events, in the order the reducer expects. */
-  async eventsForEpisode(episodeId: string): Promise<ReducibleEvent[]> {
+  /**
+   * One episode's events, in the order the reducer expects, each carrying the
+   * trust the row was written with.
+   *
+   * `source_trust` was stamped on every row from the first migration and read
+   * back by NOTHING. A stamp nobody reads is a comment, not a control: the
+   * ingest route could refuse a browser the right to claim `judge` and it
+   * changed no decision anywhere, because every consumer selected four columns
+   * and a payload and could not tell a verdict this server computed from one a
+   * fetch() typed in. Selecting it is what turns the refusal into a defence.
+   *
+   * The core still does not see it. `ReducibleEvent` has no such field and the
+   * episode reducer must stay replayable from the taxonomy alone — a reducer
+   * that weighted rows by trust would produce a different episode depending on
+   * which columns happened to survive a future migration. `TrustedEvent`
+   * therefore EXTENDS the core's shape rather than altering it, so
+   * `reduceEpisode` takes this array unchanged.
+   *
+   * Who reads it: the callers deciding something about a child. `priorFailures`
+   * on the submit route decides whether a fourteen-year-old is shown the
+   * answer, and it now counts only rows this server wrote. They read it as a
+   * filter — in or out — never as a weight, because "half-believe a browser"
+   * is how a forged row gets to matter a little.
+   */
+  async eventsForEpisode(episodeId: string): Promise<TrustedEvent[]> {
     const r = await this.sql.query<{
       event_name: string;
       occurred_at: string;
       received_at: string;
       seq: number;
+      source_trust: SourceTrust;
       payload: Record<string, string | number | boolean>;
-      source_trust: string;
     }>(
       /* `source_trust` is selected because the reducer refuses to settle an
          outcome without it. It used to be dropped here, which is what made the
          reducer's own header comment — "derived from signed judge/verifier
          events" — untrue: it had no way to tell. */
-      `select event_name, occurred_at, received_at, seq, payload, source_trust
+      `select event_name, occurred_at, received_at, seq, source_trust, payload
          from learning_events
         where episode_id = $1
         order by received_at asc, seq asc`,
       [episodeId],
     );
-    return r.rows.map((row) => ({
-      event_name: row.event_name,
-      occurred_at: toIso(row.occurred_at),
-      received_at: toIso(row.received_at),
-      seq: Number(row.seq),
-      payload: row.payload ?? {},
-      source_trust: row.source_trust,
-    }));
+    return r.rows.map(toTrustedEvent);
   }
 
-  /** Every event for one subject, ordered. Used by a full replay and the dev lab. */
-  async eventsForSubject(subjectId: string): Promise<ReducibleEvent[]> {
+  /**
+   * Every event for one subject, ordered. Used by a full replay and the dev lab.
+   *
+   * Carries `source_trust` for the same reason its per-episode sibling does: a
+   * full replay is the path that rebuilds a learner's entire state after a
+   * reducer bump, and it must not be the one read that cannot tell a forged
+   * row from a graded one.
+   */
+  async eventsForSubject(subjectId: string): Promise<TrustedEvent[]> {
     const r = await this.sql.query<{
       event_name: string; occurred_at: string; received_at: string;
-      seq: number; payload: Record<string, string | number | boolean>;
-      source_trust: string;
+      seq: number; source_trust: SourceTrust;
+      payload: Record<string, string | number | boolean>;
     }>(
-      `select event_name, occurred_at, received_at, seq, payload, source_trust
+      `select event_name, occurred_at, received_at, seq, source_trust, payload
          from learning_events where subject_id = $1
         order by received_at asc, seq asc`,
       [subjectId],
     );
-    return r.rows.map((row) => ({
-      event_name: row.event_name,
-      occurred_at: toIso(row.occurred_at),
-      received_at: toIso(row.received_at),
-      seq: Number(row.seq),
-      payload: row.payload ?? {},
-      source_trust: row.source_trust,
-    }));
+    return r.rows.map(toTrustedEvent);
   }
 
   async upsertEpisode(row: EpisodeRow): Promise<void> {
@@ -988,6 +1025,124 @@ export class LearningStore {
     );
     const v = r.rows[0]?.at;
     return v ? toIso(v) : null;
+  }
+
+  /**
+   * Record what the engine decided, so the decision can be argued with later.
+   *
+   * Migration 0006 creates `learning_actions` and says exactly why: *"the
+   * decision engine is unfalsifiable without this. It would issue DIAGNOSE
+   * forever to a learner it never learns anything about and nothing would
+   * notice."* Nothing wrote the table. `runSweep` computed a decision per
+   * subject and every caller discarded it.
+   *
+   * ## Why one row per decision would be wrong
+   *
+   * The sweep runs every twenty seconds. Writing a row each time would put
+   * thousands of identical DIAGNOSE rows against one learner in an afternoon,
+   * and the table's actual question — *what did the system decide, and what
+   * happened next?* — would be unanswerable under the noise.
+   *
+   * So a decision is recorded only when it CHANGES. `issued_at` then means what
+   * it says: the moment the system started believing this, which is the only
+   * timestamp an outcome can sensibly be measured from.
+   *
+   * ## What this is not
+   *
+   * Not a source of truth. Events remain the evidence; this is a log of
+   * conclusions drawn from them, and `buildLearnerState` never reads it back.
+   * If the two ever disagree, the events are right.
+   */
+  async recordDecision(row: {
+    actionId: string;
+    subjectId: string;
+    actionType: string;
+    skillId: string | null;
+    expectedOutcome: string;
+    namedMisconception: string | null;
+    reason: string;
+    confidence: number;
+    novaMode: string | null;
+    maxHintLevel: number | null;
+    engineVersion: number;
+  }): Promise<boolean> {
+    /* The most recent decision for this subject. Compared on the fields that
+       change what Nova is allowed to do — not on `reason`, whose prose can be
+       reworded by a core update without the decision itself having moved. */
+    const prev = await this.sql.query<{
+      action_type: string;
+      skill_id: string | null;
+      named_misconception: string | null;
+      max_hint_level: number | null;
+    }>(
+      `select action_type, skill_id, named_misconception, max_hint_level
+         from learning_actions
+        where subject_id = $1
+        order by issued_at desc
+        limit 1`,
+      [row.subjectId],
+    );
+
+    const last = prev.rows[0];
+    if (
+      last &&
+      last.action_type === row.actionType &&
+      (last.skill_id ?? null) === row.skillId &&
+      (last.named_misconception ?? null) === row.namedMisconception &&
+      (last.max_hint_level ?? null) === row.maxHintLevel
+    ) {
+      return false;
+    }
+
+    await this.sql.query(
+      `insert into learning_actions
+         (action_id, subject_id, action_type, skill_id, expected_outcome,
+          named_misconception, reason, confidence, nova_mode, max_hint_level,
+          engine_version)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       on conflict (action_id) do nothing`,
+      [
+        row.actionId, row.subjectId, row.actionType, row.skillId,
+        row.expectedOutcome, row.namedMisconception, row.reason,
+        /* The column is `check (confidence between 0 and 1)`. A core that ever
+           returned something outside that would fail the whole sweep for one
+           learner rather than record a slightly wrong number, so it is clamped
+           here — the decision is what matters, not its second decimal. */
+        Math.min(1, Math.max(0, row.confidence)),
+        row.novaMode, row.maxHintLevel, row.engineVersion,
+      ],
+    );
+    return true;
+  }
+
+  /** The decisions on record for one learner, newest first. For the dev lab. */
+  async decisionsFor(subjectId: string, limit = 20): Promise<
+    {
+      actionId: string;
+      actionType: string;
+      skillId: string | null;
+      namedMisconception: string | null;
+      confidence: number;
+      issuedAt: string;
+    }[]
+  > {
+    const r = await this.sql.query<Record<string, unknown>>(
+      `select action_id, action_type, skill_id, named_misconception,
+              confidence, issued_at
+         from learning_actions
+        where subject_id = $1
+        order by issued_at desc
+        limit $2`,
+      [subjectId, limit],
+    );
+    return r.rows.map((x) => ({
+      actionId: x.action_id as string,
+      actionType: x.action_type as string,
+      skillId: (x.skill_id as string) ?? null,
+      namedMisconception: (x.named_misconception as string) ?? null,
+      confidence: Number(x.confidence),
+      issuedAt: toIso(x.issued_at),
+    }));
   }
 
   async recordIntervention(row: {
@@ -2531,6 +2686,41 @@ async function insertEvents(
     if (res.rowCount > 0) inserted += 1;
   }
   return inserted;
+}
+
+/**
+ * One row, mapped once.
+ *
+ * Shared by the per-episode and per-subject reads so the two cannot drift. A
+ * replay that carried trust and a sweep that did not would eventually disagree
+ * about the same child's history, and nothing would surface the disagreement —
+ * both would look like a working query returning rows.
+ *
+ * The cast on `source_trust` is reading a closed vocabulary the database
+ * already enforces (`check (source_trust in (...))`, migration 0003), not
+ * trusting a string that arrived from somewhere.
+ */
+function toTrustedEvent(row: {
+  event_name: string;
+  occurred_at: unknown;
+  received_at: unknown;
+  seq: number;
+  source_trust: SourceTrust;
+  payload: Record<string, string | number | boolean> | null;
+}): TrustedEvent {
+  return {
+    event_name: row.event_name,
+    occurred_at: toIso(row.occurred_at),
+    received_at: toIso(row.received_at),
+    seq: Number(row.seq),
+    /* Both spellings, deliberately. `source_trust` is `ReducibleEvent`'s
+       field and the episode reducer folds on it; `sourceTrust` is what
+       `TrustedEvent` adds for the callers that ask about provenance. Emitting
+       one and not the other silently blinds half the consumers. */
+    source_trust: row.source_trust,
+    sourceTrust: row.source_trust,
+    payload: row.payload ?? {},
+  };
 }
 
 function toIso(v: unknown): string {
