@@ -12,8 +12,14 @@ import {
   reviewQueue,
   storedResponses,
   writtenness,
+  type HumanReviewableBlock,
 } from "../../schools/teacher/review";
-import { assessmentBlocks, humanMarkedAssessmentBlocks, writeSubmissions } from "./simulated-class";
+import {
+  REVIEW_MONTH,
+  assessmentBlocks,
+  humanMarkedAssessmentBlocks,
+  writeSubmissions,
+} from "./simulated-class";
 
 /**
  * Who may read a child's own words.
@@ -335,16 +341,19 @@ describe("the read path cannot return answer-key material", () => {
   });
 
   it("only blocks the curriculum declares a human marks are reachable", () => {
-    const blocks = assessmentBlocks();
-    const reviewable = blocks.filter(isHumanReviewable);
+    /* Positive from the month that HAS an obligation. September has none —
+       `m1.as.b3` is sampled and `m1.as.b4` is an oral defence — so asserting a
+       non-empty queue there would only be asserting the old, wrong predicate.
+       See `REVIEW_MONTH`. */
+    const reviewable = [...(REVIEW_MONTH.assessment?.blocks ?? [])].filter(isHumanReviewable);
+    expect(reviewable.map((b) => b.id)).toEqual(["m3.as.b2"]);
 
-    /* Positive: September's written explanation and its oral note qualify. */
-    expect(reviewable.length).toBeGreaterThan(0);
-    /* Negative: the two coding blocks do not. A learner's SOURCE is not
-       something this route may hand to anyone. */
-    for (const block of blocks) {
-      if (block.type === "verify" && block.mode !== "oral_explanation") {
-        expect(isHumanReviewable(block)).toBe(false);
+    /* Negative: no `verify` block is reachable in ANY mode. A coding defence
+       would hand over a learner's source; an oral one is a live exchange whose
+       evidence was given in the room. */
+    for (const block of [...assessmentBlocks(), ...(REVIEW_MONTH.assessment?.blocks ?? [])]) {
+      if (block.type === "verify") {
+        expect(isHumanReviewable(block), `${block.id}`).toBe(false);
       }
     }
   });
@@ -390,15 +399,18 @@ describe("Nova conversations are unreachable rather than filtered", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("the oral block is never presented as a recording", () => {
-  it("classifies September's oral check as a written note, not an answer", () => {
-    /* Found through the predicate the console itself uses, so this narrows
-       rather than casting — a cast here would be the one construct that could
-       let a block with no prompt reach the panel. */
-    const oral = humanMarkedAssessmentBlocks().find(
+  it("keeps September's oral check out of the queue, and still calls it a written note", () => {
+    /* Two separate claims that used to be one, and collapsing them was the bug.
+       `writtenness` classifies what the platform HOLDS for a block; the review
+       queue decides what a teacher is OBLIGED to read later. An oral defence is
+       a `spoken_note` either way, and it belongs to the room — so it is not
+       queued, and this is where that is asserted. */
+    const oral = assessmentBlocks().find(
       (b) => b.type === "verify" && b.mode === "oral_explanation",
     );
     expect(oral).toBeDefined();
-    expect(writtenness(oral!)).toBe("spoken_note");
+    expect(isHumanReviewable(oral!)).toBe(false);
+    expect(writtenness(oral as HumanReviewableBlock)).toBe("spoken_note");
   });
 
   it("no audio is captured anywhere in the product", () => {

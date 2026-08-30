@@ -1,6 +1,7 @@
 import "server-only";
 import type { SqlExecutor } from "@schools/store/sql";
 import type { ExplainBlock, LessonBlock, VerifyBlock } from "@schools/curriculum/types";
+import { reviewObligationFor } from "@schools/curriculum/review-policy";
 import { readArtifact, type SubmittedArtifact } from "@schools/learning/hydration";
 
 /**
@@ -98,27 +99,46 @@ import { readArtifact, type SubmittedArtifact } from "@schools/learning/hydratio
 /* -------------------------------------------------------------------------- */
 
 /**
- * Does the curriculum ask a human to read this block?
+ * Does the curriculum ask a human to read this block, ASYNCHRONOUSLY, later?
  *
- * Two shapes qualify, and both are declared by the author rather than inferred:
+ * One question, one owner. `reviewObligationFor` in
+ * `schools/curriculum/review-policy.ts` is the curriculum's own answer and this
+ * module does not get a second one — its header says, in as many words, "ask
+ * this, do not infer from the block type, and do not infer from
+ * `expectedPoints`".
  *
- * - `explain` — prose in the learner's own words. `checking.ts` settles it as
- *   `unknown` because it cannot be machine-graded, and says so.
- * - `verify` in `oral_explanation` mode — the learner defends the solution to
- *   the teacher in person. The platform captures the short note they write
- *   before speaking, and nothing else. See `writtenness()` below.
+ * ## What this used to be, and what it cost
  *
- * Both must also carry `expectedPoints`. That is the same gate
- * `classifyExplanation()` applies in `post-help.ts`, and it is the difference
- * between "a human has a standard to read this against" and "a human is being
- * asked to invent one".
+ * It used to be `expectedPoints.length > 0` over `explain` and over `verify` in
+ * `oral_explanation` mode. Both halves were wrong, and the second was worse
+ * than the first.
+ *
+ * `expectedPoints` means an author wrote down what a marker looks for. It does
+ * NOT mean a marker has to sit down later and read every one: the curriculum
+ * audit classified all thirty-three `explain` blocks and found four that
+ * genuinely need an asynchronous written read, eleven worth SAMPLING, and
+ * eighteen where the machine already knows the answer and a human read adds
+ * nothing. A sample that counts as pending is not a sample; it is a queue with
+ * a softer name.
+ *
+ * And an `oral_explanation` is a live exchange in the room. The platform keeps
+ * the short note the learner types before they speak, and that note is not the
+ * evidence — the defence is. Queueing it asked a teacher to mark, on Tuesday,
+ * something they had already heard on Monday.
+ *
+ * Measured over the nine assessments, the old predicate queued SIXTEEN blocks
+ * per learner per year — the four real ones, one sample, one redundant, and ten
+ * oral defences. For a class of eighteen that is 288 reads a year instead of
+ * 72, and the difference is not a workload estimate: it is 216 rows a teacher
+ * would have had to dismiss to find the ones that mattered.
+ *
+ * ## The narrowing is deliberate and is tested
+ *
+ * `tests/teacher/review-contract.test.ts` fails if this queue ever grows past
+ * the four, or admits an oral block, a sample or a redundant one.
  */
 export function isHumanReviewable(block: LessonBlock): block is HumanReviewableBlock {
-  if (block.type === "explain") return block.expectedPoints.length > 0;
-  if (block.type === "verify" && block.mode === "oral_explanation") {
-    return (block.expectedPoints?.length ?? 0) > 0;
-  }
-  return false;
+  return reviewObligationFor(block)?.mandatoryQueue === true;
 }
 
 /**

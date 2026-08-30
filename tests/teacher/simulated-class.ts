@@ -6,6 +6,7 @@ import { hashPassword } from "../../schools/auth/password";
 import { runSweep } from "../../schools/reducer/sweep";
 import type { SqlExecutor } from "../../schools/store/sql";
 import { MONTH_01_SEPTEMBER } from "../../schools/curriculum/months/month-01-september";
+import { MONTH_03_NOVEMBER } from "../../schools/curriculum/months/month-03-november";
 import { ATTEMPT_BLOCK_TYPES } from "../../schools/curriculum/types";
 import type { LessonBlock } from "../../schools/curriculum/types";
 import {
@@ -92,15 +93,31 @@ export function assessmentBlocks(): LessonBlock[] {
 }
 
 /**
- * The blocks of September's check that a human has to read.
+ * The month whose check actually obliges a teacher to read something.
+ *
+ * NOT September, and that is the point. `review-policy.ts` classifies all
+ * thirty-three `explain` blocks in the programme and makes exactly four
+ * mandatory — `m3.as.b2`, `m6.as.b3`, `m7.as.b3`, `m8.as.b1` — none of them in
+ * September. September's `m1.as.b3` is a SAMPLE and `m1.as.b4` is an oral
+ * defence, and neither creates an asynchronous obligation.
+ *
+ * The rest of the fixture stays on September because that is where the
+ * simulated class does its work. Only the review queue moves, because a review
+ * test built on a month with nothing to review proves nothing — and, until the
+ * teacher queue was made to obey the curriculum contract, it silently did.
+ */
+export const REVIEW_MONTH = MONTH_03_NOVEMBER;
+
+/**
+ * The blocks of the review month's check that a human has to read.
  *
  * Filtered through the SAME predicate the teacher console uses rather than a
- * hard-coded `["m1.as.b3", "m1.as.b4"]`. A fixture that names block ids would
- * keep producing a queue after the curriculum changed shape, and the test built
- * on it would go on passing against work nobody is asked to mark.
+ * hard-coded `["m3.as.b2"]`. A fixture that names block ids would keep
+ * producing a queue after the curriculum changed shape, and the test built on
+ * it would go on passing against work nobody is asked to mark.
  */
 export function humanMarkedAssessmentBlocks(): HumanReviewableBlock[] {
-  return assessmentBlocks().filter(isHumanReviewable);
+  return [...(REVIEW_MONTH.assessment?.blocks ?? [])].filter(isHumanReviewable);
 }
 
 /**
