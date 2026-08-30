@@ -249,6 +249,11 @@ export const M3_L1: LessonBlock[] = [
        are English and both prompts name them, so a Russian-track learner is
        reading the same problem and not matching glyphs. */
     id: "m3.l1.b7",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["func.define", "func.reuse", "arith.remainder", "cond.if_elif_else"],
     sourceType: "curriculum-derived",
@@ -327,6 +332,11 @@ export const M3_L1: LessonBlock[] = [
   },
   {
     id: "m3.l1.b8",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["func.define", "func.reuse", "loops.for"],
     sourceType: "product-authored",

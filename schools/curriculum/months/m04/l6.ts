@@ -378,6 +378,11 @@ export const M4_L6: LessonBlock[] = [
      * with a loop of their own.
      */
     id: "m4.l6.b6",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["sort.basic", "precompute.prefix", "loops.accumulator", "io.read"],
     sourceType: "curriculum-derived",
@@ -429,6 +434,11 @@ export const M4_L6: LessonBlock[] = [
      * where a missing leading zero shows up.
      */
     id: "m4.l6.b7",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["sort.basic", "precompute.prefix", "lists.index", "debug.boundary"],
     sourceType: "curriculum-derived",
@@ -541,6 +551,11 @@ export const M4_L6: LessonBlock[] = [
      * `overlap` is an English token and both prompts name it.
      */
     id: "m4.l6.b8",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "challenge",
     skillRefs: ["sort.basic", "precompute.prefix", "debug.boundary", "cond.if_elif_else"],
     sourceType: "product-authored",

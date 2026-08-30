@@ -352,6 +352,11 @@ export const M3_L5: LessonBlock[] = [
   },
   {
     id: "m3.l5.b8",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["func.define", "func.parameters", "func.return", "scope.local_global"],
     sourceType: "curriculum-derived",

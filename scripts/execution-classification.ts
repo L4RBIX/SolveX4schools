@@ -19,8 +19,14 @@
  *                                evidence.
  *   C SERVER_VERIFIED_ASSESSMENT Always the trusted judge. A browser-local pass
  *                                is never assessment evidence.
- *   D HUMAN_REVIEW               Not a runnable program-verdict task at all.
- *                                Never sent to a judge.
+ *   D NO_JUDGE                   Not a runnable program-verdict task. Never
+ *                                sent to a judge — which is NOT the same as
+ *                                "read by a human": 263 of these are graded
+ *                                automatically by string comparison and only 62
+ *                                reach a teacher. Calling the whole class
+ *                                HUMAN_REVIEW, as the first version of this
+ *                                script did, put four out of five
+ *                                machine-graded tasks under a human's name.
  *
  *   npx tsx scripts/execution-classification.ts             # summary
  *   npx tsx scripts/execution-classification.ts --markdown  # the full table
@@ -34,7 +40,7 @@ export type Klass =
   | "A LOCAL_PRACTICE_ONLY"
   | "B SERVER_VERIFIED_PROGRESS"
   | "C SERVER_VERIFIED_ASSESSMENT"
-  | "D HUMAN_REVIEW";
+  | "D NO_JUDGE";
 
 /** A task whose answer is a program a judge must run. */
 export function isProgramTask(b: LessonBlock): boolean {
@@ -52,7 +58,7 @@ export function classify(
 ): { klass: Klass; reason: string } {
   if (!isProgramTask(b)) {
     return {
-      klass: "D HUMAN_REVIEW",
+      klass: "D NO_JUDGE",
       reason:
         b.type === "explain" || (b.type === "verify" && b.mode === "oral_explanation")
           ? "the answer is prose or speech; there is no program to run"
@@ -130,7 +136,7 @@ export function rows(): Row[] {
         lesson,
         klass,
         surface: surfaceForBlock({ blockType: b.type, blockId: b.id, lessonId: lesson }),
-        localRun: klass !== "D HUMAN_REVIEW",
+        localRun: klass !== "D NO_JUDGE",
         serverRequired: klass === "B SERVER_VERIFIED_PROGRESS" || klass === "C SERVER_VERIFIED_ASSESSMENT",
         trustedEvidence: klass === "B SERVER_VERIFIED_PROGRESS" || klass === "C SERVER_VERIFIED_ASSESSMENT",
         assessment: inAssessment || CONTEST_LESSON.test(lesson),
@@ -162,10 +168,10 @@ if (md) {
   const by = new Map<string, number>();
   for (const r of R) by.set(r.klass, (by.get(r.klass) ?? 0) + 1);
   console.log("");
-  for (const k of ["A LOCAL_PRACTICE_ONLY", "B SERVER_VERIFIED_PROGRESS", "C SERVER_VERIFIED_ASSESSMENT", "D HUMAN_REVIEW"]) {
+  for (const k of ["A LOCAL_PRACTICE_ONLY", "B SERVER_VERIFIED_PROGRESS", "C SERVER_VERIFIED_ASSESSMENT", "D NO_JUDGE"]) {
     console.log(`  ${k.padEnd(30)}${by.get(k) ?? 0}`);
   }
-  const program = R.filter((r) => r.klass !== "D HUMAN_REVIEW");
+  const program = R.filter((r) => r.klass !== "D NO_JUDGE");
   console.log(`\n  program tasks: ${program.length}`);
   console.log(`  with cases:    ${program.filter((r) => r.cases > 0).length}`);
   console.log(`  with a reference solution: ${program.filter((r) => r.reference).length}`);

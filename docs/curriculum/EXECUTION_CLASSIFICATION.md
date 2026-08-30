@@ -13,7 +13,7 @@ Derived from curriculum intent — block type, assessment role, independence rol
 | **A** `LOCAL_PRACTICE_ONLY` | Pyodide may give immediate feedback. The result must not create trusted mastery or independence evidence. |
 | **B** `SERVER_VERIFIED_PROGRESS` | Must reach the trusted server judge before it can create trusted Learning Intelligence evidence. |
 | **C** `SERVER_VERIFIED_ASSESSMENT` | Always the trusted judge. A browser-local pass is never assessment evidence. |
-| **D** `HUMAN_REVIEW` | Not a runnable program-verdict task. Never sent to a judge. |
+| **D** `NO_JUDGE` | Not a runnable program-verdict task. Never sent to a judge — which is **not** the same as read by a human. |
 
 ## Counts
 
@@ -24,7 +24,7 @@ Across all three routes — the union, not one learner's path.
 | A LOCAL_PRACTICE_ONLY | **18** |
 | B SERVER_VERIFIED_PROGRESS | **210** |
 | C SERVER_VERIFIED_ASSESSMENT | **33** |
-| D HUMAN_REVIEW | **326** |
+| D NO_JUDGE | **326** |
 | **Total graded tasks** | **587** |
 
 **261 are program tasks** (A + B + C). All 261 have cases, all 261 have a reference or fixed solution, and all 261 resolve through the canonical submission contract.
@@ -63,6 +63,22 @@ Layer 4's own doc comment records that this was once a real bug: a forged `verdi
 
 Not "the browser settles it". `trustSatisfies`, `policyFor` and `capabilityFor` are consumed by exactly three places — `presentation/labels.ts`, `execution/release-mode.ts` and `ops/health.ts`. **The trust policy is a reporting and messaging subsystem. It is not in the grading path at all.** Enforcement lives in the four layers above.
 
+## How each graded task is actually checked
+
+`NO_JUDGE` is not `HUMAN_REVIEW`, and the first version of this document called it that — putting four out of five machine-graded tasks under a human's name. The real split:
+
+| | Count |
+|---|---|
+| Runs a program — needs the judge | **261** |
+| String-compared automatically, nothing executed | **263** |
+| Read by a teacher | **62** |
+| `verify:find_bug` — graded from its own cases | 1 |
+| **Total graded tasks** | **587** |
+
+**524 of 587 — 89% — are graded automatically.** The 62 a teacher reads are `explain`, `oral_explanation` and `manual_trace`, plus `test_case` and `arena_problem`: an oral defence has no program, and a hand trace would be answered for the learner by running it.
+
+The 263 string-compared ones — `prediction`, `multiple_choice`, `fill_blank`, `reorder_code`, `find_bug`, `trace_code` — are checked against a declared answer with no execution at all. They need no provider and are unaffected by anything about Judge0.
+
 ## The classification rules, and why
 
 **C — assessment.** Everything in a monthly check or in a contest lesson. A contest exists to produce a verdict the learner did not produce themselves; a check exists to be independent of the learner's own machine.
@@ -71,7 +87,21 @@ Not "the browser settles it". `trustSatisfies`, `policyFor` and `capabilityFor` 
 
 **B — everything else on the required path.** Both from-nothing programs and guided ones. The distinction the curriculum draws between them is about *independence*, which `independence_weight` already measures from assistance rather than from block type — it is not a reason to trust one less than the other.
 
-**D — not a program.** `explain` and `oral_explanation` have no program. `manual_trace` makes the learner the computer, so running it would answer the question for them. `test_case` asks for an INPUT and settles correct-or-unknown, never wrong. `arena_problem` is marked by a human. The string-compared types — `prediction`, `multiple_choice`, `fill_blank`, `reorder_code`, `find_bug` — execute nothing.
+**D — no program to run.** `explain` and `oral_explanation` have no program. `manual_trace` makes the learner the computer, so running it would answer the question for them. `test_case` asks for an INPUT and settles correct-or-unknown, never wrong. `arena_problem` is marked by a human. The string-compared types — `prediction`, `multiple_choice`, `fill_blank`, `reorder_code`, `find_bug` — execute nothing.
+
+## Is the checking correct?
+
+A separate question from "does a judge run", and one the classification cannot answer on its own.
+
+**Eleven tasks promised a layout their checker did not enforce.** Their prompts say «әр жауап жеке жолда» — each answer on its own line — and the default `token` checker tokenises on whitespace, so a program printing everything on one line passed. Verified by flattening every expected output and re-checking: all eleven accepted it.
+
+`check-blocks` has always warned about a multi-line expectation under a token checker. What it could not know is whether the PROMPT claimed a layout, which is what turns a forgiving checker into a broken promise.
+
+All eleven now declare `{ kind: "exact" }`, and every reference solution passes every case unchanged under it — checked before the change, not after. `tests/school/stated-layout-is-enforced.test.ts` fails if a prompt ever promises a line layout again while its checker accepts the output flattened; removing one of the eleven declarations trips it.
+
+Eight more tasks have multi-line expectations under `token` and say nothing about layout in their prompts. Those are left alone: whitespace forgiveness is the right default, and a task that does not promise a shape has not broken a promise.
+
+**Checkers now in use across the 261:** 229 `token`, 31 `exact`, 1 `numeric`.
 
 ## Where the pedagogy and the shipped surface disagree
 

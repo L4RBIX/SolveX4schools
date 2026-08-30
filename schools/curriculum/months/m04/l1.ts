@@ -403,6 +403,11 @@ export const M4_L1: LessonBlock[] = [
      * fails everything from 100000 upward by printing a float.
      */
     id: "m4.l1.b7",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: [
       "perf.time_estimate",

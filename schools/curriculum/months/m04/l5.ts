@@ -262,6 +262,11 @@ export const M4_L5: LessonBlock[] = [
        with every possible segment, and a run where neighbouring answers differ
        by one position — which is what kills `p[R] - p[L]` and `p[r] - p[l]`. */
     id: "m4.l5.b8",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "write_code",
     skillRefs: ["precompute.prefix", "loops.accumulator", "lists.traverse", "io.read"],
     sourceType: "curriculum-derived",

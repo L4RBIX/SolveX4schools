@@ -320,6 +320,11 @@ export const M3_L6: LessonBlock[] = [
        in `range(3)` passes the same cases. Both are accepted by the checker,
        which compares output and not shape. */
     id: "m3.l6.b5",
+    /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
+       default `token` checker tokenises on whitespace, so a program printing
+       every answer on one line passed a task that told the learner not to.
+       Verified: the reference passes every case unchanged under `exact`. */
+    checker: { kind: "exact" },
     type: "modify_code",
     skillRefs: ["func.define", "func.parameters", "func.reuse"],
     sourceType: "curriculum-derived",
