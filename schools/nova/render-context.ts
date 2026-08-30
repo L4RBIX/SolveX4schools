@@ -238,11 +238,44 @@ export function groundingReminder(
   if (s.verdict !== "unchecked") known.push("whether it was right");
 
   if (!known.length) return [];
-  return [
+
+  const lines = [
     "",
     "BEFORE YOU ANSWER",
     `- You can already see ${known.join(", ")}. Do not ask the learner for any of it.`,
     "- Start from what is actually on their screen, not from a general explanation",
     "  of the topic.",
+    /* Naming it, not merely being told it is available.
+     *
+     * A model handed a context it has not been told to USE will hedge — "I see
+     * the answer was not counted, but I do not yet understand why" — which
+     * reads to a learner as the tutor not looking at their screen, which is
+     * the complaint this whole file exists to answer. */
+    "- Never say you cannot see their work, their answer or their error. You can",
+    "  see all of it; refer to it by name.",
   ];
+
+  /*
+   * The one question that must never be asked back.
+   *
+   * On a prediction or a choice block the option they picked IS their stated
+   * expectation — that is what the block asked them for. Answering «Неге қате?»
+   * with "and what did you expect the program to print?" asks a
+   * fourteen-year-old to retype the thing they just clicked, and it is the
+   * exact sentence the screenshots that started this work were full of.
+   *
+   * Note what is NOT forbidden: asking what a LINE does, what a name holds,
+   * what runs first. Those are the ladder working. The prohibition is narrow
+   * and it is about facts the platform is already holding.
+   */
+  if (ctx.interaction.draft?.selectedOptionId) {
+    lines.push(
+      "- They have already told you what they expected: it is the option they",
+      "  picked, above. Do NOT ask what they expected the program to output. Ask",
+      "  about the CODE instead — what a line does, what is inside the quotes,",
+      "  what runs first.",
+    );
+  }
+
+  return lines;
 }

@@ -144,7 +144,7 @@ for (const [locale, question] of [['kk', 'Неге қате?'], ['ru', 'Поче
 
   const reply = await replyTail(p, question);
   console.log(`REPLY → ${reply.slice(0, 400).replace(/\n+/g, ' | ')}`);
-  const asksForScreen = /қандай қате|не көрдің|не күткен едің|что ты уже попробовал|какого результата ждал|не смог составить|толық жауап құрастыра алмадым/i.test(reply);
+  const asksForScreen = /қандай қате|не көрдің|не күткен|не деп ойладың|қандай нәтиже күт|что ты уже попробовал|какого результата ждал|что ты ожидал|чего ты ждал|не смог составить|толық жауап құрастыра алмадым|пока не понимаю, почему|не понимаю, почему|әлі көріп тұрған жоқпын|не вижу|көріп тұрған жоқпын/i.test(reply);
   check(`[${locale}] does NOT ask the learner to describe the screen`, !asksForScreen);
   check(`[${locale}] reply is grounded in this task`, /тырнақша|кавыч|"2 \+ 2"|print|жол|строк/i.test(reply));
 
