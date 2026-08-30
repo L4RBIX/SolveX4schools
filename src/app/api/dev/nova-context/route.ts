@@ -5,6 +5,7 @@ import { resolveIdentity } from "@schools/learning/identity";
 import { enforceHintPolicy } from "@schools/nova/enforce";
 import { buildNovaContext, type DraftInput } from "@schools/nova/build-context";
 import { buildNovaMessages } from "@schools/nova/prompt";
+import { executionContextFor } from "@schools/nova/execution-context";
 import { classifyMessage } from "@schools/nova/safety";
 import { findBlock, taskKindOf } from "@schools/learning/grade";
 import { capabilityFor } from "@schools/curriculum/capability";
@@ -41,6 +42,8 @@ interface Body {
   override?: boolean;
   locale?: Locale;
   draft?: DraftInput;
+  /** The learner's last local Run, in the shape `nova-chat.tsx` posts it. */
+  lastRun?: unknown;
 }
 
 export async function POST(request: Request) {
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
 
   const safety = classifyMessage(message);
 
-  const { grant, directive, directiveNote, assessmentCapped } = await enforceHintPolicy({
+  const { grant, directive, directiveNote, assessmentCapped, events } = await enforceHintPolicy({
     store,
     subjectId,
     episodeId,
@@ -92,6 +95,16 @@ export async function POST(request: Request) {
     draft: body.draft,
   });
 
+  /* The same execution wiring the hint route does, and it has to be the same
+     or this page stops being an inspector and becomes a second opinion. The
+     lab posts `lastRun` exactly as `nova-chat.tsx` does. */
+  const runnable = "code" in target.block || "cases" in target.block;
+  const execution = executionContextFor({
+    reported: runnable ? body.lastRun : undefined,
+    events,
+    blockId: target.block.id,
+  });
+
   const messages = buildNovaMessages(
     {
       locale,
@@ -105,6 +118,7 @@ export async function POST(request: Request) {
       grant,
       briefOffTopic: safety.verdict === "ALLOW_BRIEF_OFFTOPIC",
       context,
+      execution,
     },
     message,
   );

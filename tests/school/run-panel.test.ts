@@ -178,8 +178,13 @@ describe("task_ref agrees with the task_ref the server will write", () => {
        the same block would land under two different task_refs and the ledger
        would quietly stop joining them. */
     const grade = read("schools/learning/grade.ts");
-    expect(grade).toContain('lesson.id.endsWith("assessment")');
-    expect(grade).toContain("block.id.startsWith(`m${month.index}.p`)");
+    /* Matched without the receiver, because the rule is what is pinned and the
+       thing it is read off has been renamed once already (`block` became
+       `target.block` when `taskKindOf` started taking the whole target). A pin
+       that breaks on a rename teaches people to loosen it, which is how a pin
+       ends up pinning nothing. */
+    expect(grade).toMatch(/lesson\.id\.endsWith\("assessment"\)/);
+    expect(grade).toMatch(/block\.id\.startsWith\(`m\$\{(?:target\.)?month\.index\}\.p`\)/);
     expect(grade).toContain("taskRef: `sx-${kind}:${block.id}`");
   });
 });

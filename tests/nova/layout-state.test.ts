@@ -121,7 +121,11 @@ describe("opening Nova changes the layout and nothing else", () => {
        once at the top of the component — not inside a branch, not keyed on the
        panel. This is what makes "close Nova and your answer is still there"
        true by construction rather than by testing. */
-    const statesDecl = /const \[states, setStates\] = useState<Record<string, BlockState>>\(\{\}\)/;
+    /* The initialiser is now a lazy one that seeds from the server's hydration
+       payload, so the assertion is on the DECLARATION rather than on the empty
+       object it used to start from. What matters here is unchanged: `states`
+       lives at component scope and nothing the panel controls can gate it. */
+    const statesDecl = /const \[states, setStates\] = useState<Record<string, BlockState>>\(/;
     expect(lesson).toMatch(statesDecl);
     const idx = lesson.search(statesDecl);
     const chatIdx = lesson.indexOf("const [chatOpen");

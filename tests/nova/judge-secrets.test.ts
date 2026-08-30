@@ -327,7 +327,12 @@ describe("execution — stderr flows in, the answer key does not", () => {
       "түсінбедім",
     );
     const system = messages.find((m) => m.role === "system")!.content;
-    const user = messages.find((m) => m.role === "user")!.content;
+    /* ALL of them, joined. The prompt builder emits one user turn per fenced
+       kind — the unchecked screen, stdout, stderr, each earlier exchange, and
+       the question — so `find` returns whichever happens to come first and
+       quietly stops asserting about the rest. That is how a leak test passes
+       while looking at the wrong half of the payload. */
+    const user = messages.filter((m) => m.role === "user").map((m) => m.content).join("\n\n");
     return { execution, system, user };
   }
 

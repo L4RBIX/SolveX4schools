@@ -219,7 +219,7 @@ describe("layer 1b — a learner cannot write into someone else's episode", () =
    * a victim's episode; `reduceEpisode` folds it into `runs` and into the
    * `meaningful` filter that separates `stuck` from `productive_struggle`.
    */
-  it("mints a fresh episode rather than joining a foreign one", async () => {
+  it("refuses a foreign episode rather than joining or re-homing it", async () => {
     /* A different learner's episode, established by a row they own. */
     const victimEpisode = randomUUID();
     await store.appendEvents([
@@ -252,10 +252,20 @@ describe("layer 1b — a learner cannot write into someone else's episode", () =
         },
       ],
     });
-    /* Accepted, not refused — the rule is substitution, so a stale id never
-       costs a learner their own work. What must not happen is the row landing
-       in the other child's episode. */
-    expect(((await res.json()) as { inserted: number }).inserted).toBe(1);
+    /* REFUSED, and this changed during the Nova integration. The two branches
+       had independently grown a defence for this hole and they disagreed:
+       one SUBSTITUTED a fresh episode id (so a stale id never costs a learner
+       their own work), the other REFUSES the row and counts it.
+       `src/app/api/learning/events/route.ts` now refuses, and the argument is
+       that an ingest event is an observation ABOUT an episode — re-homing it
+       fabricates an episode whose contents never happened together, which the
+       reducer then reads as a real attempt. Substitution stays where it
+       belongs, on `submit`, where a graded answer genuinely has to land
+       somewhere.
+       The security property is identical either way and is asserted below; a
+       legitimate client never sends a foreign id, and `ingest.refused` is the
+       counter that says so out loud when one does. */
+    expect(((await res.json()) as { inserted: number }).inserted).toBe(0);
 
     const victimEvents = await store.eventsForEpisode(victimEpisode);
     expect(
