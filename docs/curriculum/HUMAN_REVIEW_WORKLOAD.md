@@ -1,5 +1,22 @@
 # Human review — the 48 blocks, and what a teacher can actually do
 
+> **Superseded in part.** This document was written against a worktree that
+> predates migrations 0021 and 0022 in the integrated workstream:
+> `learning_submissions.answer` now persists written responses, they survive a
+> refresh and a re-login, teacher own-class read authorization exists, and
+> `human_reviews` lets a teacher mark a persisted response `reviewed` or
+> `needs_followup` — with no numeric score or mastery created from it.
+>
+> So the `CURRENTLY_UNSUPPORTED` verdict on the 33 `explain` blocks below was an
+> artifact of this worktree's age, not a fact about the product. The trace that
+> produced it — no answer column, no payload key, no teacher surface — was
+> accurate for the code in front of me and is kept for that reason, but it is
+> not the current product state.
+>
+> The live question is no longer "can a teacher read this" but "**must** they",
+> and that is answered per block in `EXPLAIN_REVIEW_NECESSITY.md`. The 15
+> `ORAL_IN_CLASS` findings here stand unchanged.
+
 `checkBlock` returns `unknown` and the block carries `expectedPoints`. That proves the machine will not settle it. It does **not** prove a teacher can.
 
 Tracing the real product workflow for each of the 48 changes the answer completely.
@@ -96,7 +113,19 @@ These are correctly supported. They are also not a dashboard job and must not be
 | 9 | `m9.as.b6` | check | verify:oral_explanation | speech | n/a — live | n/a | in person | no | no | **C** | 30–120 |
 | 9 | `m9.as.b7` | check | verify:oral_explanation | speech | n/a — live | n/a | in person | no | no | **C** | 30–120 |
 
-## The workload, core route
+## The workload, core route — CORRECTED
+
+Superseded in part by `EXPLAIN_REVIEW_NECESSITY.md`, which classifies which of the 33 written blocks genuinely need a read. This section's live-interaction figures stand; its written-review figures were wrong and are restated here.
+
+| Written `explain` blocks, core route | |
+|---|---|
+| Per learner, per **year** | **17** |
+| Per learner, per **month** | **1.89** |
+| Class of 18, per month | **34** |
+| Class of 18, per year | **306** |
+
+At 30s / 1m / 2m / 5m each: **17 / 34 / 68 / 170 minutes a month**, or 2.5 / 5.1 / 10.2 / 25.5 hours a year — *if every one of them were mandatory*, which is the question the necessity classification answers.
+
 
 Because A, B and D are empty, there is no asynchronous grading queue at all.
 
@@ -132,12 +161,12 @@ At a plausible 60 seconds per oral exchange, one class costs a teacher **30 minu
 
 The reason it is that cheap is that **the written half of the assessment model does not exist in the product.** 33 blocks ask a fourteen-year-old to write out why their solution is correct, and the answer is thrown away. The workload is low because a third of the human evaluation the curriculum designed is silently not happening.
 
-If those 33 were supported — persisted, listed, markable — the load would change completely: 17 written responses per learner per month on core, 306 for a class of 18, at 2 minutes each **10 hours a month**. *That* would be a burden, and it is the load the curriculum currently implies without delivering.
+**Correction.** An earlier version of this paragraph said "17 written responses per learner per month on core, 306 for a class of 18, at 2 minutes each 10 hours a month". Every one of those figures was a year total wearing a month's label. 17 is the number of `explain` blocks a core learner meets **in the whole year** — 1.89 a month. 306 is the class-of-18 total **per year**, and 10.2 hours at two minutes is **per year**. The claim was inflated ninefold, and it was the number the conclusion rested on.
 
 So the honest answer is two answers:
 
 - **As shipped:** comfortably operable. 30 minutes a month.
-- **As designed:** not operable as universal marking. 10 hours a month for one class is more than the teaching.
+- **As designed:** see the corrected arithmetic below. It is not the burden the inflated figure suggested.
 
 ## What could change, if the written channel is ever built
 
@@ -148,6 +177,7 @@ Not recommendations to apply now — the shapes available, so the decision is ma
 | **Deterministic** | The narrowest `explain` blocks — those whose `expectedPoints` are effectively a single required token, e.g. naming which line is at fault. A few could become `multiple_choice` with the misconceptions as distractors. | Loses the learner's own words, which is the point of several of them. |
 | **Rubric-assisted** | Most of the 33. `expectedPoints` already *is* a rubric — 2 to 4 marking points per block, authored. A teacher view that shows the response beside its points is the smallest thing that makes them markable at all. | Build cost, no curriculum change. This is the obvious first move. |
 | **Sampled** | Lesson `explain` blocks (27 of the 33). Mark a rotating third of the class each month rather than everyone. | Evidence becomes statistical; a specific learner may go months unread. |
+| **Not every textarea is a queue item** | The distinction this document originally missed. `expectedPoints` is the author's rubric, not proof that reading is required. | Classified separately in `EXPLAIN_REVIEW_NECESSITY.md`. |
 | **Oral only** | Convert lesson `explain` to `oral_explanation`. | Moves load into class time — the 15 live interactions become ~50, which is 25 minutes a month more at 30s. Cheap, and it matches p.6. |
 | **Removed from required progression** | Already true. Progression does not wait for any of them today. | Nothing to do — but it should be stated rather than left as an accident of `unknown` meeting `attemptFloor`. |
 
