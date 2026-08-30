@@ -16,7 +16,8 @@ during that pass; nothing here is an estimate.
 |---|---|
 | Branch | `pilot-release-candidate` |
 | Base SHA (integration complete) | `41d9bb428875dfb5d7b3c6d52564b8fad37a19b1` |
-| Release SHA | *(the acceptance commit on this branch — `git rev-parse HEAD`)* |
+| Acceptance commit | `fe48ab770f265ad956cf1510525ce156ca2de8f6` — "Four gates that only fail against the real thing" |
+| Release SHA | this commit (the manifest cannot name its own hash; `git rev-parse HEAD`) |
 | Release tag | see §12 — **not tagged while a blocker is open** |
 | Rollback SHA | `41d9bb428875dfb5d7b3c6d52564b8fad37a19b1` |
 | Backup ref | `refs/backup/pre-final-launch-20260831` |
@@ -324,3 +325,30 @@ the tree is clean, on the acceptance commit, with `git tag -a`. Do not
 force-push. Do not deploy automatically: no hosting target has been authorised
 for this release, so the deliverable is a validated artifact plus the
 requirements above, not a running deployment.
+
+**NOT TAGGED.** Blockers remain and they are named in the acceptance report:
+
+1. **Nineteen brilliant.org reference assets still render on production routes**
+   — `/`, `/about`, `/program`, `/home`, `/course/*`, `/lesson/*`. Count read
+   from `productionReferenceAssets()`, not remembered. `schools/assets/registry.ts`
+   states the problem in its own words: "Downloading a competitor's assets to
+   measure a design is legitimate; serving them from a product a school pays for
+   is redistribution." No code change fixes this — it needs commissioned art.
+2. **No human content gate has been performed** for any month: native Kazakh
+   review, student timing validation, and curriculum-owner sign-off are all
+   NOT PERFORMED. Nothing automated can substitute for them and nothing here
+   claims to.
+3. **September's monthly check is priced at 30 minutes against the 20 it tells
+   the learner** — a 50% overrun, on the one month that ships. A curriculum
+   decision, not a code defect.
+4. **Two September tasks require constructs September never teaches**
+   (`m1.p8` needs `abs()` and an unshown float literal; `m1.l6.b3s` asks the
+   SUPPORT route for `!=`). Worst on the support route, which carries the
+   learners least able to absorb it.
+5. **No operator-facing way to un-publish a month.** `withdrawCurriculum()`
+   exists and is tested; nothing calls it. Rollback is the hand-written SQL in
+   §6 until that is closed.
+
+Every one of those is a decision for the curriculum owner or a commissioning
+budget. None is a defect this pass could close by editing code, and none should
+be closed by anyone pretending otherwise.
