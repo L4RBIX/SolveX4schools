@@ -58,8 +58,34 @@ async function openDb(dataDir: string): Promise<Db> {
       close: () => pool.end(),
     };
   }
+  /*
+   * `PGlite.create`, not `openDb` again.
+   *
+   * This line read `await openDb(dataDir)` — the function calling itself,
+   * unconditionally, on the branch that has no early return. Publishing on the
+   * PGlite path therefore recursed until the heap died, and `PGlite` was
+   * imported on the line above and never used, which is the tell.
+   *
+   * It is the SAME defect `scripts/provision-class.ts` carries a paragraph
+   * about having fixed; this copy of the function was never updated. It only
+   * ever worked with `DATABASE_URL` set, which takes the branch above and
+   * returns before reaching here — so the one deployment shape the production
+   * documentation still describes could never publish a month at all.
+   *
+   * Resolved absolute and created first, for the reason
+   * `schools/store/pglite-driver.ts` gives: a relative path reaches PGlite's
+   * node filesystem layer as a URL, and the resulting error names neither this
+   * file nor the path.
+   */
   const { PGlite } = await import("@electric-sql/pglite");
-  const db = await openDb(dataDir);
+  let target = dataDir;
+  if (!dataDir.startsWith("memory://")) {
+    const { mkdir } = await import("node:fs/promises");
+    const nodePath = await import("node:path");
+    target = nodePath.resolve(process.cwd(), dataDir);
+    await mkdir(target, { recursive: true });
+  }
+  const db = await PGlite.create(target);
   return {
     query: async <T,>(text: string, params: unknown[] = []) => {
       const r = await db.query(text, params);

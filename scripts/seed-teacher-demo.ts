@@ -118,10 +118,11 @@ async function main() {
   if (databaseUrl) {
     const { PostgresExecutor } = await import("../schools/store/postgres-driver");
     sql = await PostgresExecutor.open(databaseUrl);
-    /* `applyLocalBootstrap: false`, matching `schools/store/index.ts`: migration
-       0000 creates the `anon` and `authenticated` roles a real Postgres already
-       has, and running it against one fails. */
-    await migrate(sql, { applyLocalBootstrap: false });
+    /* Every migration, matching `schools/store/index.ts`. This used to skip
+       0000 on the belief that a real Postgres already has the `anon` /
+       `authenticated` roles — only Supabase does, and 0000 is an
+       `if not exists` no-op where they are present. */
+    await migrate(sql, {});
   } else {
     const db = await PGlite.create(target);
     await db.close();

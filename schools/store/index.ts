@@ -48,14 +48,20 @@ async function open(): Promise<StoreHandle> {
     /* Production path. Loaded lazily so `pg` is not pulled into a development
        install that will never open a socket.
 
-       `applyLocalBootstrap: false`: migration 0000 creates the `anon` and
-       `authenticated` roles that a managed Postgres already has, and running it
-       against one fails. The other migrations are byte-identical to the ones
-       PGlite runs — that sameness is the point, and is why a constraint that
-       rejects a row in development rejects it here. */
+       EVERY migration, including 0000. This used to pass `false` to skip
+       0000 "because a managed Postgres already has these roles, and running it
+       against one fails" — and both halves of that sentence were wrong.
+       `anon` / `authenticated` / `service_role` are SUPABASE roles; on RDS,
+       Neon, Railway, Fly or a self-hosted cluster they do not exist, twelve
+       later migrations revoke against them, and 0003 died with
+       `role "anon" does not exist` — one table applied, no product, on first
+       boot. And 0000 is an `if not exists` block, so applying it where the
+       roles already exist is a no-op. All the migrations are byte-identical to
+       the ones PGlite runs — that sameness is the point, and is why a
+       constraint that rejects a row in development rejects it here. */
     const { PostgresExecutor } = await import("./postgres-driver");
     const sql = await PostgresExecutor.open(config.databaseUrl);
-    return migrated(sql, false);
+    return migrated(sql, true);
   }
 
   const sql = await PgliteExecutor.open(config.dataDir);

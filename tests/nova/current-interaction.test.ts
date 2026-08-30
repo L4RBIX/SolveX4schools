@@ -336,3 +336,94 @@ describe("each block type's answer reaches the model", () => {
     }, 60_000);
   }
 });
+
+/* ========================================================================== */
+/* THE SAME REGRESSION, ON THE SHAPE NOBODY TESTED                            */
+/* ========================================================================== */
+
+/**
+ * Everything above is a `prediction` block, and `prediction` carries its
+ * options as bare strings.
+ *
+ * `multiple_choice` — the most common assessed block in the year — carries
+ * `{ id, label: { kk, ru } }` instead. The normaliser read `o.text`, a field no
+ * option in the curriculum has, so every one of them reached Nova as
+ * `{ id: "o1", text: "" }`: four blank options and an id, on the block type
+ * learners meet most.
+ *
+ * The suite above is titled "the screen Nova used to be blind to" and asserts
+ * exactly this property — and it passed throughout, because bare strings
+ * survive `String(o)` and objects do not. A regression test only covers the
+ * shapes it names, so this names the other one.
+ */
+describe("a multiple_choice screen, where the options are labels rather than strings", () => {
+  /** Ten to twenty is `and` vs `or`, and the wrong option is the misconception. */
+  const MCQ = "m1.l6.b2";
+
+  async function mcqContext(locale: "ru" | "kk", selectedOptionId: string) {
+    /* The chosen option directly, rather than `unattributedWrongAnswer`: every
+       wrong option on this block carries a diagnosticMapping, which is the
+       point of the block, and that helper insists on an unmapped one. */
+    const episode = await playEpisode({ store, sql, subjectId }, MCQ, [
+      { kind: "submit", answer: { kind: "option", id: selectedOptionId } },
+    ]);
+    const target = findBlock(MCQ)!;
+    return buildNovaContext({
+      store,
+      subjectId,
+      episodeId: episode.episodeId,
+      locale,
+      target,
+      grant: grant(0),
+      directive: null,
+      directiveNote: null,
+      action: null,
+      assessmentCapped: false,
+      draft: { selectedOptionId },
+    });
+  }
+
+  it("gives Nova the option TEXT, not four empty strings", async () => {
+    const ctx = await mcqContext("ru", "o2");
+    const options = ctx.interaction.visible?.options ?? [];
+
+    expect(options.length, "the block has four options").toBe(4);
+    for (const o of options) {
+      expect(o.text, `option ${o.id} must carry its own words`).not.toBe("");
+      expect(o.text, `option ${o.id} must not be a stringified object`).not.toContain(
+        "[object Object]",
+      );
+    }
+    // The distinction the whole block is about must actually be visible.
+    expect(options.map((o) => o.text).join(" | ")).toContain("and");
+    expect(options.map((o) => o.text).join(" | ")).toContain("or");
+  });
+
+  it("reaches the system prompt, so the model can name what the learner picked", async () => {
+    const ctx = await mcqContext("ru", "o2");
+    const messages = buildNovaMessages(
+      {
+        locale: "ru",
+        monthTitle: "Сентябрь",
+        lessonTitle: "Условия",
+        blockPrompt: ctx.curriculum.prompt,
+        skills: ctx.curriculum.skillIds,
+        directive: null,
+        grant: grant(0),
+        context: ctx,
+      },
+      "Почему ошибка?",
+    );
+    const system = messages[0].content;
+    expect(system, "the option the learner chose").toContain("x >= 10 or x <= 20");
+    expect(system, "and the one that is right").toContain("x >= 10 and x <= 20");
+  });
+
+  it("answers in the learner's own language for a bilingual label", async () => {
+    for (const locale of ["ru", "kk"] as const) {
+      const ctx = await mcqContext(locale, "o2");
+      const options = ctx.interaction.visible?.options ?? [];
+      expect(options.every((o) => o.text.length > 0), `${locale} labels resolve`).toBe(true);
+    }
+  });
+});

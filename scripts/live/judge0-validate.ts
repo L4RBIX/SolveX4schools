@@ -4,15 +4,20 @@
  *   npm run judge0:validate
  *   npm run judge0:validate -- --only=languages,conformance --max-submissions=20
  *
- * ## Read this first: it has never run against RapidAPI
+ * ## Read this first: it HAS now run against RapidAPI
  *
- * **There is no key in this repository and none in the shell environment.**
- * `env | grep -i rapidapi` is empty, no `.env*` file carries one, and nothing in
- * SolveX has ever contacted `judge0-ce.p.rapidapi.com`. Run today, this script
- * detects that, says so, spends nothing and stops. It is not a validation that
- * has passed; it is a validation that is ARMED. The document it writes,
- * `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`, is deliberately not created
- * until a run actually happens — a file full of `UNKNOWN` sitting in
+ * This block used to open "it has never run against RapidAPI ... there is no key
+ * in this repository and none in the shell environment", and it stayed that way
+ * after a key was added — so the first thing a reader saw was a claim the
+ * deployment had already disproved. It has since been run for real: 42 billable
+ * submissions against `judge0-ce.p.rapidapi.com`, Python 3.14.0 (language id
+ * 113) confirmed from `sys.version` rather than from the catalogue label, 11/11
+ * conformance and 25/25 September parity. `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`
+ * carries the measurements and the date.
+ *
+ * Without a key it still detects that, says so, spends nothing and stops — that
+ * behaviour is unchanged, and the document is still not created until a run
+ * actually happens, because a file full of `UNKNOWN` sitting in
  * `docs/infrastructure/` would eventually be read as a result.
  *
  * ## What it does, in order
@@ -634,18 +639,18 @@ async function execute(ctx: RunContext): Promise<ValidatorOutcome> {
     save();
   }
 
-  /* The instrumentation gap, recorded on every run because it is true on every
-     run until one call site changes. Phase `run` so it does not colour the exit
-     code: it is a defect in OUR accounting, not a verdict about the service. */
-  report.findings.push({
-    severity: "defect",
-    phase: "run",
-    summary:
-      "`recordJudge0Request` is not called from `schools/exec/providers/judge0.ts`'s " +
-      "`httpJson`, so every `judge0.*` ops counter and every `providerQuota()` field " +
-      "reads zero/null in production no matter what is spent. This run measured at " +
-      "`fetch` instead. One call site fixes it; it is outside this script.",
-  });
+  /* There used to be an unconditional `defect` finding here saying
+     `recordJudge0Request` had no caller, "recorded on every run because it is
+     true on every run until one call site changes". The call site changed —
+     `schools/exec/providers/judge0.ts` calls it from `httpJson` on both the
+     answered and the unanswered path — and the hardcoded string did not, so
+     every report this tool produced asserted a defect that no longer existed.
+     A release document that invents a defect is as expensive as one that hides
+     one: somebody goes and "fixes" correct code, or stops believing the rest of
+     the page. Whether the counters are wired is a property of that file, which
+     `tests/ops/judge0-accounting.test.ts` and `schools/ops/judge-probe.ts`
+     assert directly; it is not something this script can observe, so it no
+     longer claims to. */
 
   report.finishedAt = new Date().toISOString();
   save();
@@ -862,12 +867,30 @@ function collectLanguageFindings(report: LiveValidationReport): void {
   }
 
   if (l.quotaHeadersAbsent.length === KNOWN_QUOTA_HEADERS.length) {
+    /* Careful with the wording, because the previous one was refuted by this
+       document's own §1 table. It said "No x-ratelimit-* header arrived on any
+       response" while the table above it listed six that had —
+       `x-ratelimit-submissions-*` and `x-ratelimit-batched-submissions-*`.
+       What is actually true is narrower and more useful: none of the names
+       `schools/ops/provider-quota.ts` READS arrived, so the health view's quota
+       fields stay null even though the plan is sending quota information under
+       different names. That is a fixable mismatch in our reader, not an absent
+       signal from the service, and the two call for opposite actions. */
+    const arrived = Object.keys(l.quotaHeadersPresent ?? {})
+      .filter((h) => h.toLowerCase().startsWith("x-ratelimit-"))
+      .sort();
     report.findings.push({
       severity: "note",
       phase: "languages",
       summary:
-        "No x-ratelimit-* header arrived on any response. `providerQuota()` will stay null " +
-        "forever on this plan and the RapidAPI dashboard is the only meter there is.",
+        "None of the quota headers `schools/ops/provider-quota.ts` reads arrived, so " +
+        "`providerQuota()` stays null on this plan and the RapidAPI dashboard is the only " +
+        "meter there is. " +
+        (arrived.length > 0
+          ? `The service DID send ${arrived.length} other x-ratelimit-* header(s) — ` +
+            `${arrived.join(", ")} — which that module does not know about; teaching it ` +
+            "those names would give the health view a real meter."
+          : "No x-ratelimit-* header of any name arrived either."),
     });
   }
 

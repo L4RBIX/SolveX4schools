@@ -331,11 +331,23 @@ describe("a failed discovery stops the run instead of blessing it", () => {
     );
 
     const lines: string[] = [];
+    /* `saveFile` injected, and NOT optional in practice.
+       These last two cases omitted it and reached for `as ValidatorInput` to
+       silence the compiler. `saveFile` is optional so the CLI can fall through
+       to the real writer — so omitting it here meant every `npm test` run wrote
+       fake-server output over the committed
+       `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`. That dirtied the tree on
+       every test run, and it is why the release candidate shipped a "live
+       validation" document whose own header admits it talked to
+       `http://127.0.0.1:<random>` instead of RapidAPI. A test must not be able
+       to overwrite the evidence a release is signed off on. */
+    const files: { path: string; contents: string }[] = [];
     const outcome = await runValidation({
       argv: ["--only=languages", `--base-url=${fake.url}`],
       env: { JUDGE0_RAPIDAPI_KEY: "SECRET-KEY-DO-NOT-LEAK" },
       write: (l) => lines.push(l),
-    } as ValidatorInput);
+      saveFile: (path, contents) => files.push({ path, contents }),
+    });
 
     expect(outcome.exitCode, "a run that learned nothing must not report success").toBe(1);
     expect(
@@ -349,13 +361,27 @@ describe("a failed discovery stops the run instead of blessing it", () => {
   it("still exits zero when discovery genuinely succeeds", async () => {
     /* The complement. A guard that failed every run would be removed within a
        week, and then the real one would be gone too. */
+    const written: { path: string; contents: string }[] = [];
     const outcome = await runValidation({
       argv: ["--only=languages", `--base-url=${fake.url}`],
       env: { JUDGE0_RAPIDAPI_KEY: "SECRET-KEY-DO-NOT-LEAK" },
       write: () => {},
-    } as ValidatorInput);
+      saveFile: (path, contents) => written.push({ path, contents }),
+    });
 
     expect(outcome.report?.languages?.selected, "the fake does expose a Python").not.toBeNull();
     expect(outcome.exitCode).toBe(0);
+
+    /* The report went to the INJECTED sink, not to the filesystem.
+       The path it carries is still the real default — that is the validator
+       reporting where a CLI run would put it — so the guarantee this asserts is
+       that a `saveFile` was supplied at all and therefore nothing in this suite
+       can reach disk. Both cases in this describe block previously omitted it
+       and cast the input with `as ValidatorInput`, and every `npm test` then
+       rewrote the committed document with fake-server output. */
+    expect(
+      written.length,
+      "every artifact must reach the injected sink, so nothing reaches disk",
+    ).toBeGreaterThan(0);
   });
 });

@@ -9,21 +9,46 @@ import type { SqlExecutor } from "./sql";
  * Applies `database/migrations/*.sql` in filename order and records what it
  * applied, so it is safe to call on every boot. The files are the schema —
  * there is deliberately no second definition anywhere in this repository.
+ *
+ * EVERY file, on EVERY engine. There used to be an exception — 0000 was
+ * skipped on Postgres — and it is why the app could not boot on any Postgres
+ * that was not Supabase. See `MigrateOptions.applyLocalBootstrap`.
  */
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "database", "migrations");
 
-/** Applied by PGlite only; a managed Postgres already has these roles. */
-const LOCAL_ONLY = new Set(["0000_bootstrap_local.sql"]);
-
 export interface MigrateOptions {
-  /** True for the PGlite driver. */
-  applyLocalBootstrap: boolean;
+  /**
+   * Retained so existing call sites keep compiling; NO LONGER CONSULTED.
+   *
+   * It used to skip `0000_bootstrap_local.sql` on the Postgres path, on the
+   * belief — written down in `schools/store/index.ts` — that "a managed
+   * Postgres already has these roles, and running it against one fails".
+   * Both halves were wrong, and together they made the app unbootable on any
+   * Postgres that is not Supabase.
+   *
+   * `anon`, `authenticated` and `service_role` are SUPABASE roles. RDS, Neon,
+   * Railway, Fly and a self-hosted cluster have never heard of them. Twelve
+   * later migrations do `revoke all on <table> from anon, authenticated`, so
+   * on such a cluster migration 0003 dies with `role "anon" does not exist`
+   * and the deployment gets one table and no product. Measured on a pristine
+   * PostgreSQL 16.14: 1 of 21 migrations applied.
+   *
+   * And applying 0000 where the roles DO exist does not fail — it is a
+   * `do $$ ... if not exists ... $$` block, i.e. a no-op.
+   * `scripts/provision-class.ts` has always applied every file for exactly
+   * this reason and says so in its own comment.
+   *
+   * So there is no engine that should skip it, and the option has no meaning
+   * left. Removing the field outright would touch ~40 call sites during a
+   * release freeze; it should go in the follow-up that can afford them.
+   */
+  applyLocalBootstrap?: boolean;
 }
 
 export async function migrate(
   sql: SqlExecutor,
-  opts: MigrateOptions,
+  _opts: MigrateOptions = {},
 ): Promise<{ applied: string[]; skipped: string[] }> {
   await sql.query(`
     create table if not exists schema_migrations (
@@ -47,10 +72,6 @@ export async function migrate(
 
   for (const file of files) {
     if (done.has(file)) continue;
-    if (LOCAL_ONLY.has(file) && !opts.applyLocalBootstrap) {
-      skipped.push(file);
-      continue;
-    }
 
     const text = await readFile(path.join(MIGRATIONS_DIR, file), "utf8");
 

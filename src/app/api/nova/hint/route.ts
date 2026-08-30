@@ -808,17 +808,46 @@ export async function POST(request: Request) {
     });
 
     /*
-     * Cancellation, wired to two clocks.
+     * Cancellation, wired to three clocks — and two of them are built PER
+     * ATTEMPT, which is the whole point of this block.
      *
      * `request.signal` fires when the learner closes the panel or hits Stop;
-     * the timeout fires when the provider stops talking. Without either, a
-     * closed browser tab left the server streaming from DeepSeek to nobody and
-     * paying for every token of it — the Stop button aborted the fetch on the
-     * client and nothing at all on the server.
+     * the per-attempt timeout fires when the provider stops talking; the
+     * per-attempt `abort` is how the output validator stops paying for a
+     * response the learner will never see. Without any of them, a closed
+     * browser tab left the server streaming from DeepSeek to nobody and paying
+     * for every token of it — the Stop button aborted the fetch on the client
+     * and nothing at all on the server.
+     *
+     * ## Why the timeout and the controller moved inside `attempt`
+     *
+     * They used to be constructed HERE, once, and composed once into a single
+     * `signal` that both attempts shared. That made the stricter retry below
+     * dead on arrival, in the most direct way possible: the validator stops a
+     * bad first attempt by calling `abort.abort()`, `AbortSignal.any` is
+     * aborted forever the moment any input is, and the retry was then handed a
+     * signal that had ALREADY fired. It could not emit a token. The learner saw
+     * an empty reply and an `error` frame reading `kind: "timeout"` — about a
+     * second after asking, nowhere near the 30 s timeout that name implies.
+     *
+     * Measured before the fix, against the real provider: 1 of 9 Kazakh
+     * requests took that path and returned nothing at all. That is the
+     * validator-rejection rate, and every single rejection was unrecoverable
+     * even though a retry existed specifically to recover it.
+     *
+     * So each attempt now gets its own timeout and its own controller, and a
+     * violation in attempt 1 cancels attempt 1 and nothing else.
+     *
+     * ## And why there is still one shared clock
+     *
+     * `overall` is the total hard cap. Per-attempt budgets alone would let two
+     * attempts run to twice the configured timeout, which is a learner watching
+     * a spinner for a minute because the number they were promised was
+     * per-attempt and nobody said so. It counts from here, spans every attempt,
+     * and is deliberately not generous: one whole extra attempt's worth.
      */
-    const timeout = AbortSignal.timeout(config.nova.requestTimeoutMs);
-    const abort = new AbortController();
-    const signal = AbortSignal.any([request.signal, timeout, abort.signal]);
+    const NOVA_MAX_ATTEMPTS = 2;
+    const overall = AbortSignal.timeout(config.nova.requestTimeoutMs * NOVA_MAX_ATTEMPTS);
 
     let usageIn = 0;
     let usageOut = 0;
@@ -832,6 +861,12 @@ export async function POST(request: Request) {
 
     /** One guarded attempt. Returns what the learner saw and why it stopped. */
     const attempt = async (ctx: ValidationContext) => {
+      /* Fresh per attempt. See the long note above `overall`: sharing these was
+         what made the retry unable to emit a single token. */
+      const timeout = AbortSignal.timeout(config.nova.requestTimeoutMs);
+      const abort = new AbortController();
+      const signal = AbortSignal.any([request.signal, overall, timeout, abort.signal]);
+
       const stream = guardedStream(
         provider.stream({
           messages,

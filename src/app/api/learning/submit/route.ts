@@ -7,6 +7,7 @@ import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
 import { findBlock, gradeBlock, toLearningVerdictName } from "@schools/learning/grade";
+import { gateFor } from "@schools/curriculum/gate";
 import { ATTEMPTS_BEFORE_REVEAL, justificationFor, revealFor } from "@schools/learning/reveal";
 import { signAttestation } from "@schools/learning/sign";
 import type { BlockAnswer } from "@schools/learning/checking";
@@ -105,6 +106,33 @@ export async function POST(request: Request) {
 
   const target = findBlock(blockId);
   if (!target) {
+    return NextResponse.json({ error: "unknown block" }, { status: 404 });
+  }
+
+  /*
+   * The month has to be one a human approved.
+   *
+   * The publication gate was enforced on the PAGE and nowhere else, so
+   * `/lesson/m9.l1` redirected while `POST /api/learning/submit` with
+   * `blockId: "m9.l1.b2"` returned 200, `verdict: "wrong"` and
+   * `attested: true` — measured, on a database where only September was
+   * published. Every control the pilot's release process is built on runs
+   * through this row: the curriculum hash a reviewer signs, the "only
+   * September on day one" commitment, the monthly procedure that opens October
+   * later. All of it was navigational, and a learner with the network tab open
+   * could be graded on material nobody had read.
+   *
+   * 404 rather than 403, matching the teacher routes: a distinct refusal for
+   * "exists but is closed" tells an unauthenticated caller which months are
+   * authored, and that is not a question this endpoint should answer.
+   *
+   * `gateFor` returns `open: true` with `bypassedForDevelopment` outside
+   * production, so development and the test suite are unaffected — the same
+   * bypass the lesson page already relies on.
+   */
+  const gate = await gateFor(target.month);
+  if (!gate.open) {
+    opsLog("submit.unpublished_month", { block_id: blockId, month: String(target.month.index) });
     return NextResponse.json({ error: "unknown block" }, { status: 404 });
   }
 

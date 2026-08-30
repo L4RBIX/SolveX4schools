@@ -108,6 +108,27 @@ function readDraft(raw: DraftInput | undefined): NovaContext["interaction"]["dra
 }
 
 /**
+ * An option's own words, in the learner's language.
+ *
+ * Curriculum labels are `{ kk, ru }`. A plain `String(...)` over one of those
+ * yields `"[object Object]"`, which is worse than the empty string it replaced:
+ * empty at least reads as missing.
+ */
+function localisedOptionText(label: unknown, locale: Locale): string {
+  if (typeof label === "string") return label.slice(0, 200);
+  if (label && typeof label === "object") {
+    const l = label as Partial<Record<Locale, unknown>>;
+    const own = l[locale];
+    if (typeof own === "string") return own.slice(0, 200);
+    /* Fall back to the other language rather than to nothing: a Kazakh learner
+       shown a Russian option label is a cosmetic problem; a Nova that cannot
+       see the option at all is the defect this function exists to end. */
+    for (const v of Object.values(l)) if (typeof v === "string") return v.slice(0, 200);
+  }
+  return "";
+}
+
+/**
  * What the author put on the screen.
  *
  * Read from the curriculum rather than echoed from the browser, so a learner
@@ -128,14 +149,36 @@ function readVisible(block: LessonBlock, locale: Locale): NovaContext["interacti
   if (typeof b.code === "string") visible.code = b.code.slice(0, MAX_DRAFT_CHARS);
 
   if (Array.isArray(b.options)) {
-    /* Two shapes in the curriculum: `multiple_choice` carries objects,
-       `prediction` carries bare strings. Normalised here so the prompt has one
-       thing to render and does not grow a branch per block type. */
-    visible.options = b.options.slice(0, 12).map((o, i) =>
-      typeof o === "string"
-        ? { id: o, text: o }
-        : { id: String((o as { id: string }).id), text: String((o as { text?: string }).text ?? "") },
-    ).filter((o) => o.id);
+    /*
+     * Two shapes in the curriculum: `multiple_choice` carries objects,
+     * `prediction` carries bare strings. Normalised here so the prompt has one
+     * thing to render and does not grow a branch per block type.
+     *
+     * ## Read `label`, not `text`
+     *
+     * The object shape's field is `label`, and it is bilingual —
+     * `{ id: "o1", label: { kk: "...", ru: "..." } }`. This read
+     * `(o as { text?: string }).text ?? ""`, a field no option in the
+     * curriculum has, so EVERY `multiple_choice` option reached Nova as
+     * `{ id: "o1", text: "" }`. Four blank options and an id.
+     *
+     * Which is the exact failure the comment above this function warns about —
+     * "without it Nova is told the learner picked `b` and has no idea what `b`
+     * says" — while the system prompt separately forbids Nova from admitting it
+     * cannot see the screen. So on the most common assessed block type in the
+     * year, the tutor was told nothing and told to sound certain.
+     *
+     * It went unnoticed because `prediction` blocks carry bare strings and work
+     * perfectly, and those are the blocks the Nova samples were taken from.
+     */
+    visible.options = b.options
+      .slice(0, 12)
+      .map((o) => {
+        if (typeof o === "string") return { id: o, text: o };
+        const opt = o as { id?: unknown; label?: unknown; text?: unknown };
+        return { id: String(opt.id ?? ""), text: localisedOptionText(opt.label ?? opt.text, locale) };
+      })
+      .filter((o) => o.id);
   }
 
   if (Array.isArray(b.pieces)) {

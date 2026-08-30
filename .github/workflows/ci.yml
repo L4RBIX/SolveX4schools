@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+      # Release branches. `pilot-release-candidate` carried the entire pilot
+      # integration and, because the triggers named only `master`, CI had never
+      # run against a single commit of it — the branch being cut for a real
+      # school was the one branch with no automated gate behind it.
+      - "*-release-candidate"
   pull_request:
     branches:
       - master
@@ -123,5 +128,23 @@ jobs:
       # Greps the built client chunks for the VALUES of server-only secrets.
       # It reads `.next/static`, so it can only run after the build — which is
       # why it is last and not beside the other static checks.
+      #
+      # The values matter, and this step used to pass none. The script compares
+      # chunks against what a secret actually IS, so with an empty environment
+      # it searched for nothing, printed a note saying so, and exited 0 — every
+      # green run of this gate in the repository's history had verified nothing.
+      # It now refuses to pass empty under CI, so these must be set as
+      # repository secrets. They are only ever compared against built output and
+      # are never printed.
+      #
+      # If a fork or a contributor's repository has no secrets configured, set
+      # BUNDLE_SCAN_ALLOW_EMPTY=1 on this step to go back to the name-only
+      # check — but know that it is then not checking for a leak.
       - name: Client bundle secret scan
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          JUDGE0_RAPIDAPI_KEY: ${{ secrets.JUDGE0_RAPIDAPI_KEY }}
+          LEARNING_ATTESTATION_SECRET: ${{ secrets.LEARNING_ATTESTATION_SECRET }}
+          LEARNING_CRON_SECRET: ${{ secrets.LEARNING_CRON_SECRET }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: npm run check:bundle
