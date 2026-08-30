@@ -56,12 +56,20 @@ let store: Store;
 let events: typeof import("../../src/app/api/learning/events/route");
 let subjectId: string;
 
+/* 30s, not vitest's default 10s.
+ *
+ * This hook imports an API route, opens the store and resolves an identity —
+ * real setup, and it exceeded 10 seconds whenever the full suite ran, because
+ * the Python-heavy content suites saturate the machine while it runs. The file
+ * passed alone every time, so the symptom was a test file that failed to LOAD
+ * on some full runs and not others, which reads as a curriculum defect and is
+ * not one. */
 beforeAll(async () => {
   events = await import("../../src/app/api/learning/events/route");
   store = await (await import("@schools/store")).getStore();
   const { resolveIdentity } = await import("@schools/learning/identity");
   subjectId = (await resolveIdentity()).subjectId;
-});
+}, 30_000);
 
 const post = (body: unknown) =>
   events.POST(
