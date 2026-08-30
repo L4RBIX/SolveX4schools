@@ -3,21 +3,26 @@ import { MONTHS } from "@schools/curriculum/months";
 import { ALLOWED_PAYLOAD_KEYS } from "@solvex/learning-contracts";
 
 /**
- * 33 blocks ask a learner to write, and nothing keeps what they wrote.
+ * The written-explanation channel: what is true about the curriculum, not about
+ * one worktree.
  *
- * `explain` settles `unknown` by design — it is marked by a human. What the
- * audit found is that no human can: the submit route reads `answer.value` only
- * for code blocks, `learning_submissions` has no answer column, the event
- * payload contract has `content_len` but no field for the text, and the teacher
- * API returns `LearnerState` aggregates rather than responses.
+ * An earlier version of this file was called `explain-blocks-are-unreadable`
+ * and asserted that nothing could persist a learner's prose. That was true of
+ * THIS worktree and false of the product — the integrated workstream persists
+ * written responses (`learning_submissions.answer`, migration 0021) and lets a
+ * teacher mark them (`human_reviews`, 0022). Asserting the absence of a feature
+ * that exists on another branch is how a test becomes an argument for not
+ * building something.
  *
- * So every `expectedPoints` list on an `explain` block is currently
- * decorative — authored marking points for a response that no longer exists by
- * the time anyone could mark it.
+ * What remains worth pinning are two curriculum facts that no migration
+ * changes:
  *
- * This file does not assert that state is correct. It pins the two facts that
- * make it true, so that building the teacher view breaks this test and whoever
- * builds it finds this comment.
+ *   - 33 blocks carry authored marking points, so the rubric exists;
+ *   - progression does not wait for any of them, so an unread explanation never
+ *     traps a learner — and a future policy change must not start gating on a
+ *     review, because "must a teacher read this" is answered per block in
+ *     `docs/curriculum/EXPLAIN_REVIEW_NECESSITY.md` and the answer is not
+ *     "always".
  */
 
 describe("the written-explanation channel", () => {
@@ -39,16 +44,20 @@ describe("the written-explanation channel", () => {
     expect(withPoints, "explain blocks carrying marking points a teacher could mark against").toBe(explain);
   });
 
-  it("has no payload field that could carry the learner's prose", () => {
-    /* If this ever fails, someone has added a way to transport the text — which
-       is the first half of making these blocks markable. The other half is a
-       teacher surface that reads it. */
+  it("keeps prose out of the EVENT payload, whatever the submission store holds", () => {
+    /* Two different questions, and only this one is about the ledger. A
+       learner's words may be persisted as a submission — they are, upstream —
+       and must still not travel inside a `learning_events` payload, where they
+       would reach the reducer, the teacher's signals and every replay. The
+       payload contract carries `content_len` and `contains_code`: facts ABOUT
+       the prose, never the prose. */
     const carriers = [...ALLOWED_PAYLOAD_KEYS].filter((k) =>
       /answer|response|text|prose|explanation|content(?!_len)/i.test(k),
     );
     expect(
       carriers,
-      "a payload key now exists that could carry an explain response — see docs/curriculum/HUMAN_REVIEW_WORKLOAD.md",
+      "a learning-event payload key now exists that could carry an explain response — " +
+        "the submission store is the right home for it, the event ledger is not",
     ).toEqual([]);
   });
 
