@@ -37,17 +37,47 @@ import { surfaceForBlock } from "../schools/execution/trust-policy";
 import type { LessonBlock } from "../schools/curriculum/types";
 
 export type Klass =
-  | "A LOCAL_PRACTICE_ONLY"
-  | "B SERVER_VERIFIED_PROGRESS"
-  | "C SERVER_VERIFIED_ASSESSMENT"
-  | "D NO_JUDGE";
+  | "1 DETERMINISTIC_AUTO_GRADED"
+  | "2 SERVER_CODE_JUDGED"
+  | "3 HUMAN_REVIEW_REQUIRED"
+  | "4 OPTIONAL_HUMAN_INTERACTION"
+  | "5 SPECIAL_UNMEASURED";
 
-/** A task whose answer is a program a judge must run. */
+/**
+ * A task the SERVER executes.
+ *
+ * This asks exactly the question `src/app/api/learning/submit/route.ts:278`
+ * asks, rather than listing the `verify` modes that were expected to have
+ * cases. Listing them was wrong by one: `m1.as.b2` is `verify:find_bug` with
+ * six cases, and the submit route runs any `verify` that has them. The route's
+ * own comment says so — "the modes that no machine should score have no
+ * `cases` and fall through this branch untouched". A predicate that names modes
+ * instead of asking about cases will drift the moment an author writes a
+ * seventh mode or attaches cases to a sixth.
+ */
 export function isProgramTask(b: LessonBlock): boolean {
   if (b.type === "write_code" || b.type === "modify_code" || b.type === "challenge") return true;
-  if (b.type === "verify") return b.mode === "unseen_problem" || b.mode === "delayed_resolve";
+  const cases = (b as unknown as { cases?: unknown[] }).cases;
+  if (b.type === "verify") return Array.isArray(cases) && cases.length > 0;
   return false;
 }
+
+/**
+ * A task `checkBlock` settles by itself, with no sandbox and no teacher.
+ *
+ * Read off `schools/learning/checking.ts`: these six arms compare the learner's
+ * answer against a declared one and return `correct` or `wrong`. Nothing is
+ * executed and no provider is involved, so they are unaffected by anything
+ * about a judge.
+ */
+const DETERMINISTIC: ReadonlySet<LessonBlock["type"]> = new Set([
+  "prediction",
+  "multiple_choice",
+  "fill_blank",
+  "reorder_code",
+  "find_bug",
+  "trace_code",
+]);
 
 const CONTEST_LESSON = /^m\d+\.c\d+$/;
 
@@ -56,47 +86,63 @@ export function classify(
   lessonId: string,
   inAssessment: boolean,
 ): { klass: Klass; reason: string } {
-  if (!isProgramTask(b)) {
+  /* Traced, not inferred. Each arm names the code that settles this type. */
+
+  if (isProgramTask(b)) {
     return {
-      klass: "D NO_JUDGE",
+      klass: "2 SERVER_CODE_JUDGED",
       reason:
-        b.type === "explain" || (b.type === "verify" && b.mode === "oral_explanation")
-          ? "the answer is prose or speech; there is no program to run"
-          : b.type === "verify" && b.mode === "manual_trace"
-            ? "the learner is the computer here; running it would answer the question for them"
-            : b.type === "test_case"
-              ? "the answer is an INPUT the learner invented; it settles correct or unknown and never wrong"
-              : b.type === "arena_problem"
-                ? "marked by a human by design"
-                : "string-compared against a declared answer; no program is executed",
+        `submit/route.ts:278 treats it as a code block and runs its ` +
+        `${(b as unknown as { cases: unknown[] }).cases.length} cases through the trusted provider; ` +
+        `checking.ts settles it \`unknown\` when no sandbox result arrives, never \`wrong\``,
     };
   }
 
-  if (inAssessment) {
+  if (DETERMINISTIC.has(b.type)) {
     return {
-      klass: "C SERVER_VERIFIED_ASSESSMENT",
-      reason: "a monthly check or the final tournament — a browser-local pass is never assessment evidence",
-    };
-  }
-  if (CONTEST_LESSON.test(lessonId)) {
-    return {
-      klass: "C SERVER_VERIFIED_ASSESSMENT",
-      reason: "a contest problem; the whole point is a verdict the learner did not produce",
-    };
-  }
-  if (b.bank) {
-    return {
-      klass: "A LOCAL_PRACTICE_ONLY",
+      klass: "1 DETERMINISTIC_AUTO_GRADED",
       reason:
-        "optional. A learner may skip it, so crediting it toward required-path mastery would " +
-        "let work nobody has to do stand in for work everybody does",
+        "checking.ts compares the answer against a declared one and returns correct or wrong — " +
+        "no execution, no provider, no teacher",
     };
   }
+
+  if (b.type === "test_case") {
+    return {
+      klass: "5 SPECIAL_UNMEASURED",
+      reason:
+        "settles `correct` when the input is one the author listed and `unknown` otherwise — " +
+        "never `wrong`, because the learner may have found a real breaking case nobody enumerated. " +
+        "A teacher can adjudicate an `unknown`; the lesson completes either way",
+    };
+  }
+
+  if (b.type === "arena_problem") {
+    return { klass: "5 SPECIAL_UNMEASURED", reason: "human-marked by design; none authored" };
+  }
+
+  if (b.type === "explain" || (b.type === "verify" && b.mode === "oral_explanation")) {
+    return {
+      klass: "3 HUMAN_REVIEW_REQUIRED",
+      reason:
+        "checking.ts returns `unknown` unconditionally. The block carries expectedPoints for a " +
+        "teacher to mark against, and nothing else can turn it into evidence — the answer is prose " +
+        "or speech",
+    };
+  }
+
+  if (b.type === "verify" && b.mode === "manual_trace") {
+    return {
+      klass: "3 HUMAN_REVIEW_REQUIRED",
+      reason:
+        "the learner is the computer here — the trace is written on paper and read by a teacher. " +
+        "Running it would answer the question for them, which is why it carries no cases",
+    };
+  }
+
   return {
-    klass: "B SERVER_VERIFIED_PROGRESS",
-    reason: isIndependent(b)
-      ? "a whole program written from nothing on the required path — this is what backs the programme's «толық дербес шешім»"
-      : "graded work on the required path; evidence of the skill, though not of independence",
+    klass: "5 SPECIAL_UNMEASURED",
+    reason: "settles `unknown`; no declared answer and no program",
   };
 }
 
@@ -113,6 +159,7 @@ interface Row {
   assessment: boolean;
   cases: number;
   reference: boolean;
+  bank: boolean;
   reason: string;
 }
 
@@ -136,12 +183,13 @@ export function rows(): Row[] {
         lesson,
         klass,
         surface: surfaceForBlock({ blockType: b.type, blockId: b.id, lessonId: lesson }),
-        localRun: klass !== "D NO_JUDGE",
-        serverRequired: klass === "B SERVER_VERIFIED_PROGRESS" || klass === "C SERVER_VERIFIED_ASSESSMENT",
-        trustedEvidence: klass === "B SERVER_VERIFIED_PROGRESS" || klass === "C SERVER_VERIFIED_ASSESSMENT",
+        localRun: klass === "2 SERVER_CODE_JUDGED",
+        serverRequired: klass === "2 SERVER_CODE_JUDGED",
+        trustedEvidence: klass === "1 DETERMINISTIC_AUTO_GRADED" || klass === "2 SERVER_CODE_JUDGED",
         assessment: inAssessment || CONTEST_LESSON.test(lesson),
         cases: Array.isArray(any.cases) ? (any.cases as unknown[]).length : 0,
         reference: Boolean(any.referenceSolution ?? any.fixedCode),
+        bank: Boolean(b.bank),
         reason,
       });
     }
@@ -168,21 +216,21 @@ if (md) {
   const by = new Map<string, number>();
   for (const r of R) by.set(r.klass, (by.get(r.klass) ?? 0) + 1);
   console.log("");
-  for (const k of ["A LOCAL_PRACTICE_ONLY", "B SERVER_VERIFIED_PROGRESS", "C SERVER_VERIFIED_ASSESSMENT", "D NO_JUDGE"]) {
+  for (const k of ["1 DETERMINISTIC_AUTO_GRADED", "2 SERVER_CODE_JUDGED", "3 HUMAN_REVIEW_REQUIRED", "4 OPTIONAL_HUMAN_INTERACTION", "5 SPECIAL_UNMEASURED"]) {
     console.log(`  ${k.padEnd(30)}${by.get(k) ?? 0}`);
   }
-  const program = R.filter((r) => r.klass !== "D NO_JUDGE");
+  const program = R.filter((r) => r.klass === "2 SERVER_CODE_JUDGED");
   console.log(`\n  program tasks: ${program.length}`);
   console.log(`  with cases:    ${program.filter((r) => r.cases > 0).length}`);
   console.log(`  with a reference solution: ${program.filter((r) => r.reference).length}`);
 
   /* Where the pedagogy and the shipped surface disagree. */
-  const shouldBeServer = new Set(["B SERVER_VERIFIED_PROGRESS", "C SERVER_VERIFIED_ASSESSMENT"]);
+  const shouldBeServer = new Set(["2 SERVER_CODE_JUDGED"]);
   const clash = program.filter(
     (r) => shouldBeServer.has(r.klass) && r.surface === "lesson_guided",
   );
   console.log(`\n  classified as needing the server, shipped on lesson_guided: ${clash.length}`);
-  const bankOnEvidence = R.filter((r) => r.klass === "A LOCAL_PRACTICE_ONLY" && r.surface !== "lesson_guided");
+  const bankOnEvidence = R.filter((r) => r.surface === "independent_evidence" && r.bank);
   console.log(`  optional tasks on an evidence surface: ${bankOnEvidence.length}`);
   console.log("");
 }
