@@ -50,5 +50,29 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+
+    /* 30 seconds, against defaults of 5 and 10.
+     *
+     * Not because anything here is slow. The curriculum suites execute real
+     * Python — `content-execution` runs 262 reference solutions against 2143
+     * cases, one process each — and vitest runs test FILES in parallel across
+     * every core. So while those are running, the machine is saturated, and the
+     * tests that lose are the ones that are CPU-bound for their own reasons:
+     * `auth`'s deliberately-expensive password hashing, and `forged-outcomes`'
+     * hook, which imports an API route and opens the store.
+     *
+     * The symptom was the worst kind. Both pass alone in 13 seconds; both
+     * failed only in a full run, and not the same both times — so a full run
+     * would report two or three failures that had nothing to do with the change
+     * being tested, in a suite whose entire job is to be believed. One of them
+     * even surfaced as a test FILE failing to load, which reads as a broken
+     * import rather than a busy laptop.
+     *
+     * A real regression in any of these is orders of magnitude away from 30
+     * seconds, so nothing slow is being hidden. The alternative — capping
+     * `maxWorkers` — would make every run slower to fix a problem that only
+     * appears in one. */
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 });
