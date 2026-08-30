@@ -140,9 +140,14 @@ describe("the contract says the things it must not stop saying", () => {
       expect(voiceContract(locale).join("\n")).toMatch(/build on it|Never re-ask/i);
     });
 
-    it(`${locale}: names its own locale and refuses the other`, () => {
+    it(`${locale}: describes the register for its own language`, () => {
+      /* Which LANGUAGE to answer in is no longer decided here — it follows the
+         learner's own message, set in `buildSystemPrompt`. What stays per
+         locale is the register, because a Kazakh reply that is a word-for-word
+         rendering of a Russian one reads as translated. */
       const text = voiceContract(locale).join("\n");
-      expect(text).toContain(locale === "kk" ? "Kazakh only" : "Russian only");
+      expect(text).toContain(locale === "kk" ? "In Kazakh" : "In Russian");
+      expect(text).not.toMatch(/only\b.*(Kazakh|Russian)/i);
     });
 
     it(`${locale}: lists tired openers in that language only`, () => {
@@ -154,6 +159,42 @@ describe("the contract says the things it must not stop saying", () => {
       expect(TIRED_OPENER_LIST[other].join(" ")).not.toContain(marker);
     });
   }
+});
+
+describe("the reply follows the learner's language, not the interface", () => {
+  for (const locale of ["ru", "kk"] as const) {
+    it(`${locale}: instructs the model to answer in the learner's language`, async () => {
+      const { buildSystemPrompt } = await import("@schools/nova/prompt");
+      const text = buildSystemPrompt({
+        locale,
+        monthTitle: "M", lessonTitle: "L", blockPrompt: "P", skills: [],
+        directive: null,
+        grant: { requested: 1, granted: 1, capped: false, reason: "granted_as_requested",
+          explanation: null, mayIncludeCode: false, mustNotSay: [] },
+      });
+      expect(text).toMatch(/language of the learner's last message/i);
+      expect(text).toMatch(/Kazakh, Russian or\s+English/i);
+      /* The interface locale survives as the FALLBACK, not the rule — an empty
+         or wordless message still lands in the language the school chose. */
+      expect(text).toContain(locale === "kk" ? "use Kazakh (қазақша)" : "use Russian (по-русски)");
+      /* And the old rule is genuinely gone, not merely outvoted further down. */
+      expect(text).not.toMatch(/Write ONLY in (Kazakh|Russian)/);
+    });
+  }
+
+  it("leaves the offline provider able to pick a language", async () => {
+    /* `echo` has no model and cannot detect anything, so it reads the fallback
+       marker out of the prompt. If that phrase is reworded without updating the
+       provider, every offline reply silently becomes Russian. */
+    const { buildSystemPrompt } = await import("@schools/nova/prompt");
+    const kk = buildSystemPrompt({
+      locale: "kk", monthTitle: "M", lessonTitle: "L", blockPrompt: "P", skills: [],
+      directive: null,
+      grant: { requested: 1, granted: 1, capped: false, reason: "granted_as_requested",
+        explanation: null, mayIncludeCode: false, mustNotSay: [] },
+    });
+    expect(/use Kazakh \(қазақша\)/.test(kk)).toBe(true);
+  });
 });
 
 describe("the fixture set covers what it claims to", () => {

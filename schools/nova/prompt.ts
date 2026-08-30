@@ -212,10 +212,33 @@ function fence(nonce: string, kind: string, content: string): string {
 export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()): string {
   const { directive, grant, locale } = ctx;
 
+  /*
+   * Answer in the language they asked in.
+   *
+   * This used to be "Write ONLY in Kazakh/Russian", pinned to the interface
+   * setting, and that is not what anyone expects from something with a chat box
+   * in it — a learner who types in Russian and gets Kazakh back concludes the
+   * tutor did not understand them, which is the opposite of the thing this
+   * panel is for.
+   *
+   * The interface locale stays the DEFAULT, so an empty or ambiguous message
+   * still lands in the language the school chose. It is the fallback, not the
+   * rule.
+   *
+   * Detection is the model's job rather than ours on purpose. A regex over
+   * alphabets cannot tell «Почему ошибка?» from «Неге қате?» reliably once a
+   * learner mixes them — code-switching is ordinary here — and a detector that
+   * is wrong flips the language of a reply for no reason the learner can see.
+   * The model reads the whole message and simply answers it.
+   *
+   * Note what this does NOT change: the panel's own copy. Failure lines, the
+   * policy status and the safety responses are product text and stay in the
+   * interface locale, because they are the product speaking, not Nova.
+   */
+  const home = locale === "kk" ? "Kazakh (қазақша)" : "Russian (по-русски)";
   const language =
-    locale === "kk"
-      ? "Kazakh (қазақша). Write ONLY in Kazakh."
-      : "Russian (по-русски). Write ONLY in Russian.";
+    `Reply in the language of the learner's last message (Kazakh, Russian or ` +
+    `English). If unclear, use ${home}.`;
 
   const lines: string[] = [
     "SYSTEM POLICY — SolveX4Schools Nova",
@@ -231,7 +254,6 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
     "  otherwise. (This is a requirement of the approved programme, not a style note.)",
     "",
     "LANGUAGE",
-    `- ${language}`,
     "- Programming keywords stay English: if, for, while, return, print, input, int.",
     "- The learner is 14 or 15 and started from zero this year. Short sentences.",
     "",
@@ -337,7 +359,25 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
         : "- The evidence does NOT support naming any specific misunderstanding. " +
           "Do not tell the learner why they are struggling — you do not know. " +
           "ASK them what they were thinking instead.",
-      `- OPENING LINE: ${directive.opening}`,
+      /*
+       * The engine's opening is an INTENT, and saying so is what stops it being
+       * pasted.
+       *
+       * It arrives from the core in English and the core is not ours to fork.
+       * In Russian and Kazakh that was invisible: the model had to render it
+       * into the learner's language anyway, so it paraphrased. The moment a
+       * learner writes in English the model simply copies it, and the learner
+       * reads the decision engine's own coaching note — including
+       * «What did you expect that test to print?», which is the exact question
+       * the grounding rules below forbid.
+       *
+       * This does not weaken the directive. Its authority is over WHAT may be
+       * said — the hint ceiling, whether a misconception may be named, the
+       * forbidden phrases — and none of that is touched. `opening` was only
+       * ever a suggested wording.
+       */
+      `- OPENING INTENT (convey this, in your own words, in the learner's ` +
+        `language — never copy it verbatim): ${directive.opening}`,
     );
     if (directive.mustNotSay.length) {
       lines.push(`- Do not say any of these: ${directive.mustNotSay.join("; ")}`);
@@ -389,6 +429,21 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
   lines.push(...voiceContract(ctx.locale));
 
   if (ctx.context) lines.push(...groundingReminder(ctx.context, ctx.execution));
+
+  /*
+   * Last line of the prompt, and that position is the whole point.
+   *
+   * It used to sit in the LANGUAGE section around a hundred and sixty lines
+   * earlier, and a rule stated there competes with everything after it — the
+   * task statement, the learner's code and the curriculum text are all in
+   * Russian or Kazakh, and they pull the model back towards the language they
+   * are written in. A learner writing English got English about half the time.
+   *
+   * Moved rather than repeated: saying it twice would cost prompt budget to
+   * state something already stated, and the budget is a real ceiling with a
+   * test on it.
+   */
+  lines.push("", `LANGUAGE OF YOUR REPLY — ${language}`);
 
   return lines.join("\n");
 }

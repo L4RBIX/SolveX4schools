@@ -30,8 +30,15 @@ export class EchoProvider implements NovaModelProvider {
        language, that it is not a model.
 
        Language is read from the prompt the route already built, so this stays
-       a single source of truth. */
-    const kk = /Write ONLY in Kazakh/.test(system);
+       a single source of truth.
+
+       It reads the FALLBACK language rather than the learner's, and that is the
+       best this provider can do: a real model is now told to answer in whatever
+       language the learner wrote in, and detecting that is exactly the thing a
+       string generator with no model cannot do. So the offline sentence comes
+       out in the language the school configured, which is right far more often
+       than a coin flip. */
+    const kk = /use Kazakh \(қазақша\)/.test(system);
 
     /* One sentence, and it is a question the learner can act on.
        This text is read by a fourteen-year-old, not by whoever forgot the

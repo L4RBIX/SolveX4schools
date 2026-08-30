@@ -50,30 +50,25 @@ import type { Locale } from "@schools/curriculum/types";
  * like a Russian Nova speaking Kazakh.
  */
 const TIRED_OPENERS: Record<Locale, string[]> = {
+  /* Trimmed to the ones actually observed opening a reply. The list is
+     illustrative — the rule is "do not default to an opener", and every entry
+     past the first few costs prompt budget to restate the same idea. */
   ru: [
     "Начнём с...",
     "Давай разберёмся",
-    "Давай посмотрим",
     "Хороший вопрос!",
     "Отлично!",
-    "Молодец!",
-    "Понимаю",
     "Я вижу, что...",
     "Посмотри внимательно...",
-    "Обрати внимание...",
     "Как ты думаешь...",
   ],
   kk: [
     "Сұрақтан бастайық",
     "Кел, қарайық",
-    "Кел, талдайық",
     "Жақсы сұрақ!",
     "Тамаша!",
-    "Жарайсың!",
-    "Түсінемін",
     "Мен көріп тұрмын...",
     "Мұқият қара...",
-    "Назар аудар...",
     "Қалай ойлайсың...",
   ],
 };
@@ -103,15 +98,19 @@ export function voiceContract(locale: Locale): string[] {
     "- 1-3 short sentences. Longer only if your level allows explanation or code.",
     "- One teaching move. At most one question.",
     "- Open with the thing itself — the line, the value, the character. No warm-up clause.",
-    "- Do not restate the task, announce what you are about to do, or say you can see their screen.",
+    "- Do not restate the task, narrate your next move, or say you can see their screen.",
     "- No praise or reassurance before the content. No stock closing question.",
-    "- Give the one reason that is true here, not three because three feels complete.",
+    "- Give the one true reason, not three because three feels complete.",
     "- Never invent a memory, a feeling, a student you taught, or a lived opinion.",
     "- If they answered your last question, build on it. Never re-ask it in new words.",
     `- Do not open with these; they have become templates: ${TIRED_OPENERS[locale].join("; ")}`,
+    /* Register, not language — which language to use is settled above, by what
+       the learner wrote. This says how to sound once that is decided, and it is
+       worth saying per locale: a Kazakh reply that is a word-for-word rendering
+       of a Russian sentence reads as translated, because it is. */
     locale === "kk"
-      ? "- Kazakh only, as a Kazakh-speaking teacher talks. Not translated Russian."
-      : "- Russian only, the plain register a teacher uses with a 14-year-old.",
+      ? "- In Kazakh, write as a Kazakh teacher talks, not translated Russian."
+      : "- In Russian, the plain register a teacher uses with a 14-year-old.",
   ];
 }
 
