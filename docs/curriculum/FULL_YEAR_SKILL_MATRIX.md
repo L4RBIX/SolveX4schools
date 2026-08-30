@@ -47,9 +47,9 @@ An earlier version of this script reported "20 never assessed skills" as one num
 
 `loops.nested`, `graph.regions`, `contest.defend`.
 
-Covered by May's final tournament, which declares twenty skills where a monthly check declares five or six. The learner does produce assessed evidence of these. What is true is that no single month's own check asked for it. That is an observation about the monthly checks, not a hole in the year.
+Covered by May's final tournament, which declares twenty skills where a monthly check declares five to seven. The learner does produce assessed evidence of these. What is true is that no single month's own check asked for it. That is an observation about the monthly checks, not a hole in the year.
 
-### 2. Never assessed anywhere — 12 skills, of which 4 are not real
+### 2. Never assessed anywhere — 12 skills, of which 3 are not real
 
 Nothing the learner is graded on, all year, declares these. But the list divides sharply.
 

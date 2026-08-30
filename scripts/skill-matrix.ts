@@ -3,7 +3,7 @@
  * The full-year skill matrix, derived.
  *
  * The programme promises, on p.2, nine things a learner can do by the end of
- * the year, and `skills.ts` names the 46 skills those outcomes decompose into.
+ * the year, and `skills.ts` names the 48 skills those outcomes decompose into.
  * The question this script answers is the one a school actually asks: for each
  * of those skills, where is it **introduced**, where is it **practised**, where
  * does the learner produce **independent evidence** of it, and where is it

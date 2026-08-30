@@ -438,7 +438,7 @@ describe("nothing under src/lib/pyodide can reach the server's half of the world
  * what a debugging paste would leave behind. What can collide is a short
  * fragment of CODE: letters, spaces and operators, no digits.
  *
- * So that is the rule, and it costs 28 of 1572 secrets — 1.8% of the scan — and
+ * So that is the rule, and it costs 28 of 1608 secrets — 1.74% of the scan — and
  * hides exactly one collision, the one named above. `secretStringsOf` itself is
  * untouched: `payload-privacy.test.ts` remains the single source of truth for
  * leak detection and its floor is its own.

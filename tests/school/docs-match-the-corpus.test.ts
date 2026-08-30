@@ -90,6 +90,9 @@ describe("the audit documents report the corpus that exists", () => {
     { file: "FULL_YEAR_RELEASE_AUDIT.md", label: "monthly-check tasks", value: () => T.assessment },
     { file: "FULL_YEAR_RELEASE_AUDIT.md", label: "contest problems", value: () => T.contest },
     { file: "FULL_YEAR_RELEASE_AUDIT.md", label: "bank", value: () => T.bank },
+    /* The traceability manifest's Built column read nine zeros beside
+       September's 36 for eight months of authoring, because nothing read it. */
+    { file: "CURRICULUM_TRACEABILITY.md", label: "comparable practice", value: () => T.practice },
   ];
 
   for (const c of cases) {

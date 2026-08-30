@@ -95,15 +95,17 @@ binary search. See the comment on `TrackLevel`.
 
 | # | Month | Topic | Promised tasks | Built | File |
 |---|---|---|---|---|---|
-| 1 | Қыркүйек | Reading data, computing, conditions | 36 | **36** | `months/month-01-september.ts` |
-| 2 | Қазан | Loops and lists | 38 | 0 | `months/month-02-october.ts` |
-| 3 | Қараша | Functions | 34 | 0 | `months/month-03-november.ts` |
-| 4 | Желтоқсан | Speed, sorting, precomputation | 32 | 0 | `months/month-04-december.ts` |
-| 5 | Қаңтар | Binary search, two pointers | 30 | 0 | `months/month-05-january.ts` |
-| 6 | Ақпан | Exhaustive search, recursion | 30 | 0 | `months/month-06-february.ts` |
-| 7 | Наурыз | Grids and paths | 26 | 0 | `months/month-07-march.ts` |
-| 8 | Сәуір | Greedy and dynamic programming | 28 | 0 | `months/month-08-april.ts` |
-| 9 | Мамыр | Contests and final tournament | 25 † | 0 | `months/month-09-may.ts` |
+| 1 | Қыркүйек | Reading data, computing, conditions | 36 | **44** | `months/month-01-september.ts` |
+| 2 | Қазан | Loops and lists | 38 | **60** | `months/month-02-october.ts` |
+| 3 | Қараша | Functions | 34 | **55** | `months/month-03-november.ts` |
+| 4 | Желтоқсан | Speed, sorting, precomputation | 32 | **50** | `months/month-04-december.ts` |
+| 5 | Қаңтар | Binary search, two pointers | 30 | **58** | `months/month-05-january.ts` |
+| 6 | Ақпан | Exhaustive search, recursion | 30 | **50** | `months/month-06-february.ts` |
+| 7 | Наурыз | Grids and paths | 26 | **45** | `months/month-07-march.ts` |
+| 8 | Сәуір | Greedy and dynamic programming | 28 | **43** | `months/month-08-april.ts` |
+| 9 | Мамыр | Contests and final tournament | 25 † | **42** | `months/month-09-may.ts` |
+
+**Year total: 447 comparable practice tasks against 279 promised.** The Built column is the validator's own output in the PDF's unit — one route, lessons only, bank excluded. See `TASK_COUNT_RECONCILIATION.md` for why that unit and not another.
 
 † **Derived, not quoted.** The PDF gives no task total for May; it specifies
 four contests plus a final tournament. 4 × 5 + 5 = 25. This is the only figure
@@ -112,9 +114,16 @@ comment.
 
 All nine months carry: metadata, `mastery`, `explanation`,
 `endOfMonthCapability`, `practiceOutline`, hours, units, lessons with
-objectives and skill refs, and an assessment. Months 2–9 have `draft` lesson
-bodies — the validator reports built counts of 0 for them and the number is not
-rounded up anywhere.
+objectives and skill refs, and an assessment — **and lesson bodies.**
+
+This paragraph used to say months 2–9 were `draft` with built counts of 0, and
+the Built column above was nine zeros beside September's 36. That was true when
+the manifest was written and stopped being true across eight months of
+authoring, and nothing failed when it went stale: no test read this table, and
+the validator it quotes had meanwhile been corrected to count in the PDF's own
+unit. The Built column is now the validator's own output, and
+`tests/school/docs-match-the-corpus.test.ts` asserts the year total so it cannot
+drift silently again.
 
 **Discrepancy, stated rather than smoothed over:** the per-month figures sum to
 254 for months 1–8, while p.11 summarises the year as "~250 tasks, of which

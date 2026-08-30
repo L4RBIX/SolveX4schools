@@ -5,7 +5,7 @@
  * Every learner-facing string in this curriculum was written by an agent. Two
  * of them are in languages — Kazakh and Russian — that no automated check in
  * this repository can read. A native speaker has to, and «review the
- * curriculum» is not a task anybody completes: it is 615 blocks across nine
+ * curriculum» is not a task anybody completes: it is 614 blocks across nine
  * months, each carrying a prompt, often options, often expected points.
  *
  * So this splits the job into what a machine can settle and what only a person
