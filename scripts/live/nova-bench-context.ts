@@ -55,5 +55,3 @@ export function contextFor(c: {
 
 
 
-/** Letters Kazakh has and Russian does not. */
-const KK_ONLY = /[әғқңөұүһі]/i;
