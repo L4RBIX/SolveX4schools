@@ -139,6 +139,11 @@ describe("the product's own routes exist and are wired to the curriculum", () =>
     // Only authored lessons get a route. A pre-rendered page for an unwritten
     // lesson is a link a learner can reach and find empty.
     expect(lessons.length).toBeGreaterThan(0);
-    expect(lessons.every((l) => /^m\d+\.l\d+$/.test(l.lessonId))).toBe(true);
+    /* `l` for a taught lesson, `c` for a contest. May has no new topic and is
+       four 45-minute practice contests instead — «төрт 45 минуттық жаттығу
+       жарысы», PDF p.10 — so `m9.c1`..`m9.c4` are lessons in every structural
+       sense and route like any other. This pattern used to be `l` only, which
+       was true for as long as September was the only authored month. */
+    expect(lessons.every((l) => /^m\d+\.[lc]\d+$/.test(l.lessonId))).toBe(true);
   });
 });

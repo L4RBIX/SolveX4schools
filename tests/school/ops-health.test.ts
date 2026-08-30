@@ -101,7 +101,7 @@ describe("the teacher view", () => {
     expect(Array.isArray(body.capabilities)).toBe(true);
   }, 60_000);
 
-  it("names five things a teacher can act on, in both languages", async () => {
+  it("names six things a teacher can act on, in both languages", async () => {
     const body = (await (await get(health)).json()) as {
       capabilities: { id: string; status: string; message: { kk: string; ru: string } }[];
     };
@@ -111,6 +111,12 @@ describe("the teacher view", () => {
       "code_checking",
       "lessons",
       "nova",
+      /* Running and checking fail on different afternoons and in different
+         places — Run in the child's browser, Check on our judge — so the
+         teacher view names them separately. This assertion is the gate that
+         `tests/ops/local-runtime.test.ts` defers to; the two must be widened
+         together or the capability exists with nothing asserting its wording. */
+      "running_code",
       "saving_progress",
     ]);
     for (const c of body.capabilities) {

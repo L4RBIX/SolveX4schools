@@ -299,16 +299,16 @@ describe("what a teacher is told about a school with no judge", () => {
        anything is stuck at the first line; a class that cannot be CHECKED can
        work all lesson and be marked later. Conflating them would tell a teacher
        to wait for grades that are arriving fine.
-       KNOWN GAP, asserted so it is not forgotten: the teacher view currently
-       says nothing at all about the local runtime, so this case shows green.
-       The admin report knows — `hybrid.localRuntime.broken` — and adding a
-       `running_code` capability needs the five-id assertion in
-       `tests/school/ops-health.test.ts` widened, which is another unit's file. */
+       The gap this used to assert is closed: the teacher view now carries a
+       `running_code` capability of its own, so a broken browser runtime is
+       reported AS a running failure instead of not at all. What must stay true
+       is the separation — `code_checking` is still green, because the judge is
+       fine and today's answers will be marked. */
     const h = teacherHealth(
       adminFixture({ submitProducesEvidence: true, hybridStatus: "degraded" }),
     );
     expect(capability(h, "code_checking")?.status).toBe("ok");
-    expect(h.capabilities.map((c) => c.id)).not.toContain("running_code");
+    expect(capability(h, "running_code")?.status).toBe("degraded");
   });
 
   it("says nothing about infrastructure in either language", () => {
