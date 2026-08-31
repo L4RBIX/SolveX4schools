@@ -15,6 +15,7 @@ import { LOCAL_LIMITS, type LocalExecutionStatus,
   isLearnerOutcome,
 } from "@schools/execution/trust";
 import type { Localized } from "@schools/curriculum/types";
+import { YEAR_ONE_LANGUAGE } from "@schools/curriculum/source-of-truth";
 import type { PublicCase } from "@schools/curriculum/public";
 import { L } from "@schools/presentation/labels";
 /**
@@ -373,7 +374,20 @@ export function runEventPayload(input: RunEventInput): LearningPayload {
   return {
     task_ref: schoolTaskRef(input),
     task_kind: taskKindOf(input),
-    language: "python",
+    /* From the source of truth, not spelled out here.
+     *
+     * This said "python" until the migration, and it was wrong in a way nothing
+     * could see: `YEAR_ONE_LANGUAGE` existed, and NOTHING imported it, so the
+     * constant and the string the product actually emitted were free to
+     * disagree — which is exactly what they did. A hardcoded language on an
+     * event is a claim about the curriculum made by a component that has no
+     * business having an opinion about it.
+     *
+     * It also has a downstream effect worth naming: the intelligence core keys
+     * boilerplate detection off this string, so a wrong value is not a cosmetic
+     * label, it is silent under-detection of "the learner submitted the starter
+     * unchanged". */
+    language: YEAR_ONE_LANGUAGE,
     is_custom_input: input.isCustomInput,
     case_count: 1,
   };

@@ -306,11 +306,11 @@ const EMPTY_CHARS = 40;
 const RESET_SURVIVING_FRACTION = 0.35;
 const RESET_CEILING_CHARS = 140;
 
-/** Shapes of the starter templates the editor loads, computed once. */
-const TEMPLATE_SHAPES: ReadonlyMap<string, string> = new Map(
+/** Stripped text of the starter templates the editor loads, computed once. */
+const TEMPLATE_STRIPPED: ReadonlyMap<string, string> = new Map(
   Object.entries(STARTER_TEMPLATES).map(([language, template]) => [
     language,
-    normalizeCode(template, language).shape,
+    normalizeCode(template, language).stripped,
   ])
 );
 
@@ -324,11 +324,42 @@ const TEMPLATE_SHAPES: ReadonlyMap<string, string> = new Map(
  * starter contains `if __name__`, so it never matched, and an idiomatic
  * vectorised Python solution contains no loop at all, so it always did. The
  * template is a known string; there is no reason to guess at it.
+ *
+ * ## Why this compares the text and not the shape
+ *
+ * It compared `shape` — the control-flow token sequence — and that is a third
+ * version of the same mistake, exposed by the move to C++.
+ *
+ * Python's starter carried `if __name__`, a shape no real answer shared, so
+ * shape-equality behaved like text-equality and the flaw never showed. C++ has
+ * a mandatory frame: `int main() { ... return 0; }`. Every program a learner
+ * writes before loops are taught — which is the whole of September — has the
+ * shape `{ return }`, and so does the scaffold they started from. Both sides
+ * of the diff were therefore "boilerplate", which silently disabled the two
+ * classes that pivot on it:
+ *
+ *   - `authored` never fired, so a learner's FIRST EVER program was reported
+ *     as a routine `extension`
+ *   - `reset` never fired, so deleting everything back to the scaffold — the
+ *     clearest signal of giving up there is — looked like ordinary editing
+ *
+ * Both in the months where a beginner most needs the signal read correctly.
+ *
+ * `stripped` already removes comments, string bodies and whitespace, so
+ * comparing it is exactly the question worth asking — "is this the template,
+ * modulo formatting and notes to self?" — and it cannot be satisfied by an
+ * unrelated program that merely shares the language's skeleton.
+ *
+ * The failure mode is now under-detection: a block whose `starter` differs
+ * from the template here reads as authored work. That is the direction this
+ * file's header already declares acceptable, and it is the safe one — the
+ * alternative was telling a teacher that a correct first program was
+ * boilerplate.
  */
 function isBoilerplate(code: NormalizedCode, language: string): boolean {
   if (code.stripped.replace(/\s/g, "").length < EMPTY_CHARS) return true;
-  const templateShape = TEMPLATE_SHAPES.get(language);
-  return templateShape !== undefined && code.shape === templateShape;
+  const templateStripped = TEMPLATE_STRIPPED.get(language);
+  return templateStripped !== undefined && code.stripped === templateStripped;
 }
 /** Fraction of lines that must change before an edit reads as a rewrite. */
 const STRUCTURAL_LINE_RATIO = 0.6;

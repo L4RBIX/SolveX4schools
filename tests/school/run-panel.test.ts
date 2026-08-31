@@ -28,6 +28,7 @@ import {
   seedStdin,
   taskKindOf,
 } from "../../src/components/brilliant/lesson/blocks/run-state";
+import { YEAR_ONE_LANGUAGE } from "../../schools/curriculum/source-of-truth";
 
 /**
  * The Run button in the lesson player.
@@ -69,6 +70,20 @@ describe("the run_executed payload", () => {
     monthIndex: 1,
     blockId: "m1.l8.b4",
     isCustomInput: true,
+  });
+
+  it("reports the language the curriculum actually teaches", () => {
+    /* This said "python" while `YEAR_ONE_LANGUAGE` said something else, and
+       nothing noticed, because nothing imported the constant. The value is not
+       decorative: the intelligence core keys boilerplate detection off it, so a
+       stale string silently stops detecting "they submitted the starter
+       unchanged" rather than failing.
+
+       Asserted against the constant rather than against the literal "cpp17" on
+       purpose — a test that hardcodes the answer is a second source of truth,
+       which is the thing that broke. */
+    expect(payload.language).toBe(YEAR_ONE_LANGUAGE);
+    expect(payload.language, "the run event still claims Python").not.toMatch(/python/i);
   });
 
   it("uses only keys on the global allowlist", () => {

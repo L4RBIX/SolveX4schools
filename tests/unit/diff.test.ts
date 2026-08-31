@@ -194,3 +194,45 @@ describe("hashCode", () => {
     expect(hashCode(BASE)).not.toBe(hashCode(BASE + "\n"));
   });
 });
+
+describe("a mandatory frame is not an attempt", () => {
+  /**
+   * The C++ frame reintroduces the exact failure this file's author already
+   * rejected once.
+   *
+   * `isBoilerplate` matched on SHAPE — the control-flow token sequence. That
+   * worked for Python because the starter carried `if __name__`, a shape no
+   * real answer shared. Every C++ program a beginner writes before loops are
+   * taught has the same shape as the scaffold it started from: `{ return }`.
+   * The frame is mandatory, so the shape is universal.
+   *
+   * Consequences, both silent, both in the months where the signal matters
+   * most — September has no loops at all:
+   *   - a learner's FIRST EVER program reads as `extension`, never `authored`
+   *   - deleting everything back to the scaffold is not a `reset`
+   *
+   * The comment beside `isBoilerplate` says two heuristics were tried and both
+   * failed on real code, and that "the template is a known string; there is no
+   * reason to guess at it." That is right, and it is the fix: compare against
+   * the known string, not against a fingerprint the whole language shares.
+   */
+  const SCAFFOLD =
+    "#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    return 0;\n}";
+  const ANSWER =
+    "#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << 7 * 8;\n    return 0;\n}";
+
+  it("calls the first C++ program a learner writes `authored`", () => {
+    expect(classifyDiff(SCAFFOLD, ANSWER, "cpp17").diffClass).toBe("authored");
+  });
+
+  it("calls wiping it back to the scaffold a `reset`", () => {
+    expect(classifyDiff(ANSWER, SCAFFOLD, "cpp17").diffClass).toBe("reset");
+  });
+
+  it("still tells the two apart when only a comment differs", () => {
+    /* Comments are stripped, so a learner who only wrote a note has not
+       authored anything and this must stay cosmetic. */
+    const noted = SCAFFOLD.replace("// Мұнда жаз / Напиши здесь", "// подумать");
+    expect(classifyDiff(SCAFFOLD, noted, "cpp17").diffClass).toBe("cosmetic");
+  });
+});

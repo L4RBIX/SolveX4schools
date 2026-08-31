@@ -33,6 +33,12 @@
  */
 
 export const STARTER_TEMPLATES: Record<string, string> = {
-  cpp17: "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}\n",
+  /* The frame September's scaffolded blocks actually ship — see any
+     `starter` field in `schools/curriculum/months/`. It is NOT the contest
+     form (`bits/stdc++.h`, `sync_with_stdio`) that stood here at the export
+     baseline: that header costs ~4 s per browser compile and Year 1 never
+     uses it, so no learner has ever started from it. Comparing against a
+     template the editor does not load is silent under-detection. */
+  cpp17: "#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n",
   python3: "import sys\ninput = sys.stdin.readline\n\ndef solve():\n    pass\n\nif __name__ == \"__main__\":\n    solve()\n",
 };
