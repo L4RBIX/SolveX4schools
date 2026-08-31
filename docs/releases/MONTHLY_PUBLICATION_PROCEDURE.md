@@ -1,9 +1,21 @@
 # Publishing a month
 
-The pilot launches with September and nothing else. October through May are
-technically ready and deliberately closed. This is the procedure for opening
-one of them, and the point of writing it down is that publishing October in
-November should take **minutes, not another engineering project**.
+**All nine months are already published.** This procedure is therefore not the
+gate on a learner reaching October — that is
+[`SELF_PACED_UNLOCK_POLICY.md`](SELF_PACED_UNLOCK_POLICY.md), and it depends on
+their own work rather than on an engineer.
+
+What this is for now:
+
+- **re-publishing a month after editing it.** Editing content changes the
+  month's hash, the approval lapses, and the month closes on its own. Every
+  correction from the Kazakh review or the timing protocol will need this.
+- **publishing a month for the first time** on a new deployment.
+- the human decisions in steps 1, 2 and 5, which no amount of publishing
+  automates.
+
+The point of writing it down is unchanged: doing this should take **minutes,
+not another engineering project**.
 
 Nine steps. Steps 1, 2 and 5 are human judgement and cannot be automated; the
 rest are commands.
@@ -53,7 +65,8 @@ into the change record. It is what makes the approval falsifiable: edit the
 content afterwards and the hash stops matching, the approval lapses, and the gate
 closes on its own.
 
-Abort at the password prompt (Ctrl-C) if you only wanted the hash.
+Abort at the password prompt (Ctrl-C) if you only wanted the hash. The prompt
+does not echo, so nothing typed there reaches the scrollback.
 
 ## 4. Tests green
 
@@ -103,31 +116,50 @@ As a real learner, in the browser, against production:
 Open a lesson from an already-published month. Publication is additive — one row
 per month — so this should be unaffected. Verify it rather than assuming it.
 
-## 9. Future months remain closed
+## 9. Learner access is unchanged by publishing
 
-Try a lesson URL from the next unpublished month directly. It must not serve
-content. Publishing month N must never open month N+1.
+Publishing a month does not open it for anybody. Confirm with a learner account
+that has not earned it: `/lesson/m<n>.l1` must still 404, and
+`POST /api/learning/submit` for one of its blocks must 404 and record nothing.
+
+This is the invariant the release before last did not hold — the gate was on the
+page and the grading route ignored it, so a month could be graded and attested
+by anyone who opened a network tab.
 
 ---
 
 ## Rolling a month back
 
-There is no operator command for this yet — `withdrawCurriculum()` exists in the
-store and is tested, but nothing calls it. Until that is closed:
+There is a command now. The previous release had only hand-written SQL, which is
+not a rollback procedure.
 
-```sql
-update curriculum_publications
-   set withdrawn_at = now(),
-       withdrawn_by = (select user_id from school_accounts
-                        where school_id = '<school-id>' and username = '<reviewer>')
- where month_index = <n> and withdrawn_at is null;
+```bash
+DATABASE_URL=… npm run curriculum:unpublish -- \
+  --school <school-id> --month <n> --reviewer <username> --i-am-the-reviewer
 ```
 
+It refuses a month index that is not a month, has no `--all` — closing the whole
+year should not be one keystroke — refuses to run without the same explicit
+human assertion publishing requires, and is idempotent: withdrawing an already
+closed month changes nothing and says so. It records `withdrawn_at` and
+`withdrawn_by`, and reads the before and after counts from the database on both
+sides rather than inferring them.
+
 Learners are served only published months, so this closes the month at the next
-request. Verified working during acceptance.
+request. Exercised end to end against a real Postgres: invalid month, `--all`,
+withdraw-before-publish, publish, missing flag, wrong school, withdraw,
+double-withdraw, republish.
 
 Withdrawing does **not** delete learner work in that month. Anything already
 submitted stays, and reappears if the month is published again.
+
+### One thing to know before withdrawing
+
+A learner who has already finished the month keeps their `lesson_completions`
+rows, so **the months after it stay unlocked for them**. Withdrawing closes the
+door for everyone, including learners who are past it; it does not rewind
+anyone's progress. If a month is withdrawn for a correction and re-published,
+those learners are unaffected.
 
 ---
 
