@@ -37,8 +37,14 @@ export const SKILLS: Skill[] = [
   s("arith.integer_division", "Бүтін бөлу", "Целочисленное деление", 1, 7),
   s("arith.remainder", "Қалдық", "Остаток", 1, 7),
   s("compare.operators", "Салыстыру амалдары", "Операторы сравнения", 1, 7),
-  s("cond.if_elif_else", "if / elif / else шарттары", "Условия if / elif / else", 1, 7),
-  s("logic.and_or_not", "Логикалық амалдар (and, or, not)", "Логические операции (and, or, not)", 1, 7),
+  /* The ids stay `if_elif_else` and `and_or_not`. They are the auditable keys
+     the ledger, the skill matrix and every stored attempt are filed under, and
+     `capability.ts` additionally uses `stmt.elif` and `builtin.print` as a LIVE
+     DETECTOR for "the construct vocabulary has not been migrated yet" — renaming
+     ids here would silently open that gate. The id is a name; the title is the
+     claim a teacher reads on the skills grid, and only the claim was wrong. */
+  s("cond.if_elif_else", "if / else if / else шарттары", "Условия if / else if / else", 1, 7),
+  s("logic.and_or_not", "Логикалық амалдар (&&, ||, !)", "Логические операции (&&, ||, !)", 1, 7),
   s("debug.boundary", "Шарт шекарасы", "Границы условия", 1, 7),
 
   /* --- Month 2 · Қазан · loops and lists (p.7) --- */

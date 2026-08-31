@@ -564,14 +564,21 @@ export const L = {
   submit: { kk: "Тапсыру", ru: "Отправить" },
   understood: { kk: "Түсіндім", ru: "Понятно" },
 
-  /* --- Run: local Python, in the learner's own browser ------------------
+  /* --- Run: local C++17, in the learner's own browser -------------------
    *
-   * The strings around a Run panel, and only the strings AROUND it. What
-   * Python prints — `NameError`, `ZeroDivisionError`, a traceback with line
-   * numbers — is never translated and never rewritten: reading a real Python
-   * error is one of the skills the programme is trying to teach, and a
-   * product that helpfully replaces it with «қате бар» teaches the opposite.
-   * So the labels are bilingual, the output is Python's.
+   * The strings around a Run panel, and only the strings AROUND it. What the
+   * toolchain prints — clang's `expected ';' after expression` with its caret,
+   * wasm-ld's undefined symbols — is never translated and never rewritten:
+   * reading a real compiler diagnostic is one of the skills the programme is
+   * trying to teach, and a product that helpfully replaces it with «қате бар»
+   * teaches the opposite. So the labels are bilingual, the output is the
+   * compiler's, and one label says so in as many words.
+   *
+   * C++ moved where the failure happens. Python failed at RUN time with a
+   * named exception and a traceback; C++ mostly fails at COMPILE time, before
+   * a single line of the learner's program has executed — which is why an
+   * empty output box beside an error is the normal case here and needed
+   * saying, and why `runCompiling` exists at all.
    */
 
   /**
@@ -1422,7 +1429,7 @@ export const TEACHER_FAILURE_CLASS: Record<string, Localized> = {
     kk: "қатені жауап шығарған тармақтан іздейді",
     ru: "ищет ошибку в той ветке, которая напечатала ответ",
   },
-  and_or_swap: { kk: "and мен or-ды шатастырады", ru: "путает and и or" },
+  and_or_swap: { kk: "&& мен ||-ды шатастырады", ru: "путает && и ||" },
   strict_vs_inclusive_boundary: {
     kk: "< пен <= арасында қателеседі",
     ru: "ошибается между < и <=",
@@ -1431,9 +1438,15 @@ export const TEACHER_FAILURE_CLASS: Record<string, Localized> = {
     kk: "аралықтың шекараларын ауыстырып алады",
     ru: "меняет местами границы интервала",
   },
+  /* Renamed in meaning, not just in wording. In Python the surprise was that
+     `/` hands back a float; in C++ the surprise is the exact opposite — `/` on
+     two ints throws the fraction away and `7 / 2` is `3`. Left under its old
+     key because the key is the auditable identifier the ledger already stores
+     and past attempts are filed under; the key is a name, the label is the
+     claim, and it was the claim that had inverted. */
   true_division_returns_float: {
-    kk: "/ амалының бөлшек сан беретінін ескермейді",
-    ru: "не учитывает, что / даёт дробное число",
+    kk: "екі бүтін санды бөлгенде бөлшек бөлігі жоғалатынын ескермейді",
+    ru: "не учитывает, что при делении двух целых дробная часть отбрасывается",
   },
   fractional_where_integer_required: {
     kk: "бүтін сан керек жерде бөлшек қалдырады",
