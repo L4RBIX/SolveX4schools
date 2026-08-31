@@ -3,11 +3,11 @@
  * Authoring-time block checker.
  *
  * `tests/school/content-execution.test.ts` is the gate: it runs every reference
- * solution in the programme against every one of its own cases with real
- * Python, and it is what CI trusts. But it only sees blocks that are already
+ * solution in the programme against every one of its own cases with a real C++
+ * compiler, and it is what CI trusts. But it only sees blocks that are already
  * wired into a `Month`, and it runs the whole year — which is the wrong shape
  * for the moment that matters most, when someone has just written one lesson
- * and wants to know whether its Python is true before anybody else reads it.
+ * and wants to know whether its C++ is true before anybody else reads it.
  *
  * So this runs the same checks against a single file that exports
  * `LessonBlock[]`, before assembly. It is deliberately a SUPERSET of the test's
@@ -25,7 +25,6 @@
  *
  * Exit code 1 on any error. Warnings do not fail.
  */
-import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -37,8 +36,33 @@ import { SKILL_BY_ID } from "../schools/curriculum/skills";
 import { extractConstructs, CONSTRUCTS } from "../schools/curriculum/capability";
 import type { ConstructId } from "../schools/curriculum/capability";
 import { EXECUTION_LIMITS } from "../schools/exec/provider";
+import { CompileError, compileReference, cppCompiler, runCase } from "../tests/support/cpp-run";
 
-const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
+const COMPILER = cppCompiler();
+
+/**
+ * Every distinct source, built at most once per invocation.
+ *
+ * A Python case was one fork. A C++ case is a ~1 s compile plus a fork, and a
+ * single lesson can carry sixty cases across six references. Compiling per case
+ * turns an authoring tool that should answer in seconds into one nobody runs.
+ * Keyed by source text, so a find_bug's `fixedCode` that is byte-identical to
+ * the reference beside it costs one compile, not two.
+ */
+const built = new Map<string, { ok: true; binary: string } | { ok: false; diagnostics: string }>();
+
+function build(source: string, label = "block") {
+  const hit = built.get(source);
+  if (hit) return hit;
+  let out: { ok: true; binary: string } | { ok: false; diagnostics: string };
+  try {
+    out = { ok: true, binary: compileReference(source, label).binary };
+  } catch (e) {
+    out = { ok: false, diagnostics: e instanceof CompileError ? e.diagnostics : String(e) };
+  }
+  built.set(source, out);
+  return out;
+}
 
 /**
  * Two programs compared the way a learner would see them, not the way a byte
@@ -58,25 +82,24 @@ function norm(source: string): string {
     .replace(/^\n+|\n+$/g, "");
 }
 
-function run(source: string, stdin: string): { ok: boolean; out: string; err: string } {
-  try {
-    const out = execFileSync(PYTHON, ["-I", "-S", "-c", source], {
-      input: stdin.endsWith("\n") ? stdin : `${stdin}\n`,
-      encoding: "utf8",
-      timeout: 10_000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return { ok: true, out, err: "" };
-  } catch (e) {
-    const err = e as { stdout?: string; stderr?: string };
-    return { ok: false, out: err.stdout ?? "", err: (err.stderr ?? "").trim() };
-  }
+function run(source: string, stdin: string, label = "block"): { ok: boolean; out: string; err: string } {
+  const b = build(source, label);
+  if (!b.ok) return { ok: false, out: "", err: b.diagnostics };
+  const r = runCase(b.binary, stdin.endsWith("\n") ? stdin : `${stdin}\n`);
+  return { ok: r.status === "ok", out: r.stdout, err: r.stderr || r.status };
 }
 
-function compiles(code: string): { ok: boolean; err: string } {
-  const probe = `import sys\ncompile(sys.stdin.read(), "<curriculum>", "exec")`;
-  const got = run(probe, code);
-  return { ok: got.ok, err: got.err };
+/**
+ * Does the compiler accept this?
+ *
+ * Was a `compile()` probe piping the snippet through Python. In C++ there is no
+ * such separation — parsing IS compiling — so this asks the real question, and
+ * it is a stronger one: a snippet that names an undeclared identifier failed
+ * Python's `compile()` never, and fails here always.
+ */
+function compiles(code: string, label = "snippet"): { ok: boolean; err: string } {
+  const b = build(code, label);
+  return b.ok ? { ok: true, err: "" } : { ok: false, err: b.diagnostics };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -240,7 +263,7 @@ function checkBlock(block: LessonBlock, file: string) {
     if (problem) err(id, `unusable checker — ${problem}`);
   }
 
-  /* -- every snippet the learner sees must be real Python ---------------- */
+  /* -- every snippet the learner sees must be real C++17 ---------------- */
   const snippets: [string, string][] = [];
   if ("code" in block && typeof block.code === "string" && block.code.trim()) {
     snippets.push(["code", block.code]);
@@ -273,12 +296,12 @@ function checkBlock(block: LessonBlock, file: string) {
   }
   for (const [label, code] of snippets) {
     const c = compiles(code);
-    if (!c.ok) err(id, `${label} is not valid Python:\n${c.err}`);
+    if (!c.ok) err(id, `${label} is not valid C++17:\n${c.err}`);
     else checkConstructs(id, label, code);
     /*
      * A blank placeholder that escaped into a program.
      *
-     * `___` is a legal Python identifier, so `compile()` accepts it without a
+     * `___` is a legal C++ identifier, so the compiler accepts it without a
      * murmur and every other gate in this file passes. A careless whole-file
      * string replace put one inside a worked example's code four hundred lines
      * from the block being edited, and nothing caught it — the learner would
@@ -296,7 +319,7 @@ function checkBlock(block: LessonBlock, file: string) {
     if (!sol.trim()) err(id, "empty referenceSolution");
     else {
       const c = compiles(sol);
-      if (!c.ok) err(id, `referenceSolution is not valid Python:\n${c.err}`);
+      if (!c.ok) err(id, `referenceSolution is not valid C++17:\n${c.err}`);
       else checkConstructs(id, "referenceSolution", sol);
     }
     const cases = "cases" in block && Array.isArray(block.cases) ? block.cases : [];
@@ -382,14 +405,14 @@ function checkBlock(block: LessonBlock, file: string) {
     }
   }
 
-  /* -- predictions state what Python prints ------------------------------ */
+  /* -- predictions state what the compiler prints ------------------------------ */
   if (block.type === "prediction") {
     const got = run(block.code, block.stdin ?? "");
     const actual = got.out.replace(/\s+$/, "");
     if (actual !== block.answer.trim()) {
       err(
         id,
-        `stored answer is not what Python prints\n    stored: ${JSON.stringify(block.answer)}` +
+        `stored answer is not what the program prints\n    stored: ${JSON.stringify(block.answer)}` +
           `\n    actual: ${JSON.stringify(actual)}${got.err ? `\n    stderr: ${got.err}` : ""}`,
       );
     }
@@ -467,7 +490,7 @@ function checkBlock(block: LessonBlock, file: string) {
   if (block.type === "test_case") {
     if (!block.breakingInputs.length) err(id, "test_case names no breaking input");
     const c = compiles(block.code);
-    if (!c.ok) err(id, `test_case code is not valid Python:\n${c.err}`);
+    if (!c.ok) err(id, `test_case code is not valid C++17:\n${c.err}`);
   }
 }
 
@@ -480,10 +503,11 @@ async function main() {
     process.exit(2);
   }
 
-  try {
-    execFileSync(PYTHON, ["--version"], { stdio: "pipe" });
-  } catch {
-    console.error(`[check-blocks] ${PYTHON} is not available — nothing would be executed.`);
+  if (COMPILER === null) {
+    console.error(
+      "[check-blocks] no C++ compiler found — nothing would be executed.\n" +
+        "Install a C++17 compiler or set EXEC_CPP_BIN.",
+    );
     process.exit(2);
   }
 
