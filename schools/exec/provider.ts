@@ -270,14 +270,35 @@ export const EXECUTION_LIMITS = {
   /**
    * 16 KiB of stdin, and it had no limit at all before.
    *
-   * The largest input any case in the curriculum declares is eight characters
-   * («1000 100»). This is two thousand times that, which comfortably covers the
-   * only legitimate large case — a learner on manual Run pasting a few hundred
-   * lines to test a loop that reads until EOF — and still refuses a payload
-   * designed to make a subprocess sit on a full pipe.
+   * It used to say here that "the largest input any case in the curriculum
+   * declares is eight characters («1000 100»)", which stopped being true the
+   * moment May's complexity guards landed. It is now about 16 000 — those cases
+   * are deliberately at the ceiling — and the second-largest is 670 bytes
+   * (m9.c2.p5's 25×25 map). The limit still comfortably covers a learner on
+   * manual Run pasting a few hundred lines to test a loop that reads until EOF,
+   * and still refuses a payload designed to make a subprocess sit on a full pipe.
    *
    * A quarter of the source limit on purpose: a learner types stdin, they do
    * not paste a program into it, so the honest ceiling is lower.
+   *
+   * ## What this number costs the curriculum, measured
+   *
+   * At two bytes per value it caps a case at roughly 8 190 numbers, which caps
+   * the work a naive solution can be made to do at about 3e7 operations. That
+   * is enough to defeat an O(n²) solution inside the 5 s cpu budget — May's two
+   * new guards run the reference in 0.1 s and the naive in 8-12 s — and it is
+   * NOT enough to defeat an O(n·q) one: at the largest legal input `m9.c4.p3`'s
+   * quadratic solution finishes in 2.9 s and `m9.c1.p4`'s in 4.5 s, both inside
+   * the budget. So those two tasks cannot test the bound their own prompts
+   * state, and raising this number is the only thing that would let them.
+   *
+   * That is a decision about the judge rather than about content, which is why
+   * it is written down here rather than acted on: a bigger ceiling is a bigger
+   * payload through a rented service for every learner, and the case for it
+   * should be made deliberately.
+   *
+   * `runCases` appends a newline, so a case's `input` literal may be at most
+   * 16 383 bytes.
    */
   maxStdinBytes: 16 * 1024,
 } as const;

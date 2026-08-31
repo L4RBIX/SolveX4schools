@@ -65,6 +65,30 @@ import type { LessonBlock } from "../../types";
  * — not in quietly handing one route a shorter contest. The written defence
  * that «тереңдетілген» owes is m9.l4's, not this lesson's.
  */
+/**
+ * The witness for `m9.c3.p4`'s own stated ceiling.
+ *
+ * The prompt says n ≤ 100 000 and the largest case tested n = 6. Two 4s among
+ * 7 998 5s with L = 9: only the two 4s can ever share a boat, so a quadratic
+ * pairing loop scans the whole list for every 5 before giving up.
+ *
+ * The weights are not arbitrary. With a random 1..9 fill the early-exit scan
+ * finds partners quickly and finishes inside the budget; this shape denies it
+ * every one.
+ *
+ * The solution it is aimed at is the RIGHT idea implemented the long way —
+ * sort, then scan down from the heavy end for each lightest-remaining
+ * passenger. That answers all seven of the small cases correctly and takes
+ * over 8 s here against the reference's 0.10 s. It is deliberately not aimed
+ * at the unsorted greedy, which is simply wrong and which three existing small
+ * cases already catch: a complexity guard aimed at a solution the small cases
+ * can already fault is not the thing doing the catching.
+ *
+ * 16 007 bytes with the appended newline, inside
+ * `EXECUTION_LIMITS.maxStdinBytes`.
+ */
+const M9_C3_P4_LARGE_INPUT = `8000 9\n4 4 ${"5 ".repeat(7997)}5`;
+
 export const M9_C3: LessonBlock[] = [
   {
     /*
@@ -286,6 +310,8 @@ export const M9_C3: LessonBlock[] = [
          forgot to sort gives 3 here and 2 on the sample. */
       { input: "4 5\n4 1 3 2", expectedOutput: "2", hidden: true },
       { input: "5 6\n1 1 5 5 6", expectedOutput: "3", hidden: true },
+      /* The stated ceiling, actually tested. See M9_C3_P4_LARGE_INPUT. */
+      { input: M9_C3_P4_LARGE_INPUT, expectedOutput: "7998", hidden: true },
     ],
   },
   {

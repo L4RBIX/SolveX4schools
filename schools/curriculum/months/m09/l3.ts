@@ -85,6 +85,21 @@ import type { LessonBlock } from "../../types";
 
 const P = 10; // PDF page for all of May
 
+/**
+ * The witness for `m9.l3.b6`'s own stated ceiling.
+ *
+ * The prompt says n ≤ 200 000 and the largest case tested n = 6, so the block
+ * that exists to teach two pointers accepted the all-subarrays solution it
+ * exists to replace. 8 000 ones with S = 7 999: the window never has to shrink,
+ * so the reference does one pass while the quadratic scan does ~3.2e7 steps.
+ *
+ * Measured: reference 0.09 s, naive 12.37 s, against a 5 s cpu budget.
+ * 16 010 bytes with the newline `runCases` appends — inside
+ * `EXECUTION_LIMITS.maxStdinBytes` (16 384), which is what caps how far this
+ * technique goes at all.
+ */
+const M9_L3_B6_LARGE_INPUT = `8000 7999\n${"1 ".repeat(7999)}1`;
+
 export const M9_L3: LessonBlock[] = [
   {
     id: "m9.l3.b1",
@@ -458,6 +473,11 @@ export const M9_L3: LessonBlock[] = [
         expectedOutput: "1",
         hidden: true,
       },
+      /* The stated ceiling, actually tested.
+         Time-based on purpose, and it has to be: the quadratic solution is
+         CORRECT here, only slow, and telling those two apart is precisely what
+         `twopointers.core` is for. See M9_L3_B6_LARGE_INPUT. */
+      { input: M9_L3_B6_LARGE_INPUT, expectedOutput: "7999", hidden: true },
     ],
   },
   {

@@ -36,6 +36,7 @@ import type { LessonBlock } from "../schools/curriculum/types";
 import { SKILL_BY_ID } from "../schools/curriculum/skills";
 import { extractConstructs, CONSTRUCTS } from "../schools/curriculum/capability";
 import type { ConstructId } from "../schools/curriculum/capability";
+import { EXECUTION_LIMITS } from "../schools/exec/provider";
 
 const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
 
@@ -304,6 +305,33 @@ function checkBlock(block: LessonBlock, file: string) {
       solutionsRun += 1;
       for (const cse of cases) {
         casesRun += 1;
+        /*
+         * The ceiling the judge enforces and this script did not.
+         *
+         * `EXECUTION_LIMITS.maxStdinBytes` is 16 KiB and `sizeGuarded` applies
+         * it to every provider; `runCases` appends a newline first. A case
+         * larger than that passed here — this script only has a subprocess
+         * timeout — and then, in production, came back `payload_too_large` as an
+         * INFRASTRUCTURE error, which makes the whole submission report as
+         * unmeasured rather than failing loudly. So an oversized case does not
+         * break a build, it quietly stops a learner being graded.
+         *
+         * It matters now because May's two complexity guards sit deliberately
+         * within a few hundred bytes of the limit.
+         */
+        const stdinBytes = Buffer.byteLength(
+          cse.input.endsWith("\n") ? cse.input : `${cse.input}\n`,
+          "utf8",
+        );
+        if (stdinBytes > EXECUTION_LIMITS.maxStdinBytes) {
+          err(
+            id,
+            `case input is ${stdinBytes} bytes; the judge refuses anything over ` +
+              `${EXECUTION_LIMITS.maxStdinBytes} (EXECUTION_LIMITS.maxStdinBytes) and reports ` +
+              `the whole submission unmeasured rather than wrong`,
+          );
+          continue;
+        }
         const got = run(sol, cse.input);
         if (!got.ok) {
           err(id, `reference solution crashed on ${JSON.stringify(cse.input)}: ${got.err}`);
