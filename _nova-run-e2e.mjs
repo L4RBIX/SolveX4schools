@@ -1,9 +1,9 @@
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
 
-const BASE = 'http://localhost:3200';
-const DB = 'postgres://localhost/solvex_dev';
-const SHOTS = '/private/tmp/claude-501/-Users-kydyrbekbekarys-SolveX4schools/81a13827-c38c-4047-b082-952d6af117aa/scratchpad/shots';
+const BASE = process.env.BASE ?? 'http://localhost:3000';
+const DB = process.env.DATABASE_URL ?? 'postgres://localhost/solvex_dev';
+const SHOTS = process.env.SHOTS ?? new URL('./.shots/', import.meta.url).pathname;
 let pass = 0, fail = 0;
 const check = (n, c, d = '') => { c ? (pass++, console.log(`PASS  ${n}${d ? ` — ${d}` : ''}`)) : (fail++, console.log(`FAIL  ${n}${d ? ` — ${d}` : ''}`)); };
 

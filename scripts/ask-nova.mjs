@@ -6,7 +6,7 @@ const body = {
   draft: process.env.CODE ? { code: process.env.CODE } : { selectedOptionId: '"2 + 2"' },
 };
 
-const res = await fetch("http://localhost:3100/api/nova/hint", {
+const res = await fetch(`${process.env.BASE ?? "http://localhost:3000"}/api/nova/hint`, {
   method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify(body),

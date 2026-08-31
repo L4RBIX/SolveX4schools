@@ -65,3 +65,11 @@ __pycache__/
 
 # Atomic-write temporaries left behind by a crashed writer.
 *.ts.tmp.*
+
+# Git worktrees live inside this directory (see eslint.config.mjs, which
+# ignores them for the same reason). Each is a checkout of a DIFFERENT branch;
+# none of it belongs to this branch's tree.
+.claude/worktrees/
+
+# Screenshots written by the ad-hoc _nova-*.mjs harnesses.
+.shots/

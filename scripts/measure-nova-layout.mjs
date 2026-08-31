@@ -12,7 +12,7 @@ for (const width of WIDTHS) {
     colorScheme: "dark",
   });
   const page = await ctx.newPage();
-  await page.goto("http://localhost:3100/lesson/m1.l1", { waitUntil: "networkidle" });
+  await page.goto(`${process.env.BASE ?? "http://localhost:3000"}/lesson/m1.l1`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
 
   const closed = await measure(page);

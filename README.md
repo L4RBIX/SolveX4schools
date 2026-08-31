@@ -1,3 +1,20 @@
+> **Running SolveX4Schools?**
+>
+> ```
+> cd /Users/kydyrbekbekarys/SolveX4schools
+> npm run dev     # http://localhost:3000
+> ```
+>
+> This repository root is the canonical checkout, on branch
+> `pilot-release-candidate`. No worktree, no alternate port, no second
+> checkout. See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the
+> database, provisioning, publication and verification steps.
+>
+> Everything below is the upstream website-cloner template this project was
+> scaffolded from, kept for reference.
+
+---
+
 <div align="center">
 
 # AI Website Cloner Template
