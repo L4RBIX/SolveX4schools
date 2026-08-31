@@ -1,5 +1,9 @@
 import type { Completable } from "@schools/curriculum/inventory";
-import { monthCompletables, type MonthCompletableShape } from "@schools/curriculum/inventory";
+import {
+  monthCompletables,
+  monthIndependenceBlocks,
+  type MonthCompletableShape,
+} from "@schools/curriculum/inventory";
 
 /**
  * Which months this learner may enter.
@@ -27,20 +31,56 @@ import { monthCompletables, type MonthCompletableShape } from "@schools/curricul
  *
  * ## The rule
  *
- * September is always unlocked. Month N unlocks when month N-1 is COMPLETE.
+ * September is always unlocked. Month N unlocks when month N-1 is COMPLETE
+ * **and** the learner has SOLVED at least one of that month's unseen problems.
  *
- * "Complete" is not defined here. It is `monthCompletables()` — every authored
- * lesson plus the monthly check — each carrying a `lesson_completions` row.
- * That row is written only by `/api/learning/complete`, which evaluates
- * `schools/policies/completion.ts` against the ledger and refuses a claim the
- * evidence does not support. So this policy inherits, without restating:
+ * ### Why completion alone was not enough
  *
- *   - optional and bank tasks never count (`isMandatory` excludes them);
- *   - correctness is never required — the shipped policies ask for `attempted`,
- *     not `passed`, because gating progress on getting it right would lock a
- *     struggling fourteen-year-old out at exactly the lesson they needed most;
- *   - a learner's route (Support/Core/Advanced) is honoured by the completion
- *     target, so an Advanced-only task cannot block a Support learner.
+ * "Complete" is `monthCompletables()` — every authored lesson plus the monthly
+ * check — each carrying a `lesson_completions` row, written only by
+ * `/api/learning/complete` after `schools/policies/completion.ts` passes. Those
+ * policies ask for `attempted` and `measured`, never `passed`, and that is
+ * right for a LESSON: a learner who tries every task and gets half of them
+ * wrong has done the work, and gating a lesson on correctness would lock a
+ * struggling fourteen-year-old out of exactly the lesson they needed most.
+ *
+ * It is not right for opening the NEXT MONTH. Measured on the real curriculum:
+ * a learner submitting one WRONG answer to every required block satisfies
+ * 36 of 36 September lesson/route combinations and the monthly check as well.
+ * Attempt-spam opened October. For a self-paced learner with no teacher
+ * watching the pace, that is a gate in name only.
+ *
+ * ### Why THIS second condition, and not a percentage
+ *
+ * `VerifyBlock.mode` is the programme's own five independent checks (PDF p.6),
+ * and `unseen_problem` is the one it defines as «Ешбір сабақта талданбаған
+ * есептер. Олар оқушының үлгіні қайталап тұрғанын әлде шынымен ойлап тұрғанын
+ * көрсетеді» — problems analysed in no lesson, which show whether the learner
+ * is repeating a pattern or actually thinking.
+ *
+ * That is the curriculum answering this exact question in its own words, so the
+ * gate uses it rather than a number somebody chose. Every month has at least
+ * one, in its monthly check, and every one carries test cases. No threshold, no
+ * percentage, no score.
+ *
+ * ### What it therefore does NOT require
+ *
+ *   - **Not correctness anywhere else.** One solved unseen problem. Everything
+ *     else in the month may be wrong.
+ *   - **Not solo work.** A solve after four rungs of Nova is a solve. The
+ *     programme's own rule is that help is followed by explaining it back and
+ *     re-solving later, not that help disqualifies you.
+ *   - **Not optional or bank work**, ever.
+ *   - **Not a teacher.** Every independence block is machine-graded, so nobody
+ *     waits days for one of the four written reviews to be marked.
+ *   - **Not speed, not time spent, not League XP.**
+ *
+ * ### What stops a browser claiming it
+ *
+ * `solved` comes from `blockAttempts`, whose `accepted` predicate is gated on
+ * `source_trust = 'judge'` — only this server, having actually run the code,
+ * may say a block was solved. It is ledger state, so it survives a refresh, a
+ * re-login and a cleared cache.
  *
  * There is deliberately no second definition of "required" in this file. Every
  * time this product has had two, they have disagreed.
@@ -64,6 +104,17 @@ export interface MonthUnlock {
   remaining: string[];
   /** Total completables in the month. `0` means nothing is authored yet. */
   required: number;
+  /**
+   * Has the learner solved one of this month's unseen problems?
+   *
+   * Separate from `complete` because they answer different questions and a
+   * screen should be able to say which one is missing: "three lessons left" and
+   * "the monthly check's new problem is not solved yet" are different sentences
+   * and only one of them is discouraging by accident.
+   */
+  demonstrated: boolean;
+  /** The month's independence blocks. Empty only if none is authored. */
+  independenceBlocks: string[];
 }
 
 export interface UnlockState {
@@ -71,6 +122,21 @@ export interface UnlockState {
   unlockedThrough: number;
   months: MonthUnlock[];
 }
+
+/**
+ * Everything the rule reads. Both sets are ledger state.
+ *
+ * `completed` — completable ids with a `lesson_completions` row.
+ * `solved`    — block ids with a judge-trusted accepted verdict. A browser
+ *               cannot put an id in here; see `blockAttempts`.
+ */
+export interface UnlockEvidence {
+  completed: ReadonlySet<string>;
+  solved: ReadonlySet<string>;
+}
+
+/** Nothing recorded. The state every learner starts in. */
+export const NO_EVIDENCE: UnlockEvidence = { completed: new Set(), solved: new Set() };
 
 function completablesOf(month: MonthCompletableShape): Completable[] {
   return monthCompletables(month);
@@ -97,6 +163,24 @@ export function isMonthComplete(
   return completablesOf(month).every((c) => completed.has(c.id));
 }
 
+/**
+ * Has this learner solved one of the month's unseen problems?
+ *
+ * A month that authors none returns `true`, for the same reason
+ * `isMonthComplete` treats an empty month as complete: a month the curriculum
+ * has not given an independence check cannot be a wall in front of a learner
+ * who has finished everything in it. Every shipped month has one, and
+ * `tests/school/unlock-policy.test.ts` asserts that stays true.
+ */
+export function hasDemonstratedIndependence(
+  month: MonthCompletableShape,
+  solved: ReadonlySet<string>,
+): boolean {
+  const blocks = monthIndependenceBlocks(month);
+  if (blocks.length === 0) return true;
+  return blocks.some((id) => solved.has(id));
+}
+
 /** What is left of a month, in authored order. */
 export function remainingIn(
   month: MonthCompletableShape,
@@ -116,9 +200,10 @@ export function remainingIn(
  */
 export function unlockStateFor(
   months: readonly MonthCompletableShape[],
-  completed: ReadonlySet<string>,
+  evidence: UnlockEvidence,
 ): UnlockState {
   const ordered = [...months].sort((a, b) => a.index - b.index);
+  const { completed, solved } = evidence;
 
   let open = true;
   const out: MonthUnlock[] = [];
@@ -127,15 +212,26 @@ export function unlockStateFor(
     const required = completablesOf(month);
     const remaining = required.filter((c) => !completed.has(c.id)).map((c) => c.id);
     const complete = remaining.length === 0;
+    const independenceBlocks = monthIndependenceBlocks(month);
+    const demonstrated = hasDemonstratedIndependence(month, solved);
     /* The first month is open whatever came before it, because nothing did. */
     const unlocked = month.index === FIRST_MONTH_INDEX ? true : open;
 
-    out.push({ index: month.index, unlocked, complete, remaining, required: required.length });
+    out.push({
+      index: month.index,
+      unlocked,
+      complete,
+      remaining,
+      required: required.length,
+      demonstrated,
+      independenceBlocks,
+    });
 
-    /* Once a month is unlocked and unfinished, everything after it is closed.
-       Note the order: an unlocked-but-incomplete month closes the NEXT one, so
-       the learner always has exactly one frontier. */
-    if (!complete) open = false;
+    /* Both conditions, and the order matters: a month that is unlocked and not
+       yet FINISHED-AND-DEMONSTRATED closes the next one, so the learner always
+       has exactly one frontier. Attempting everything without solving the
+       month's unseen problem leaves them here — which is the whole point. */
+    if (!complete || !demonstrated) open = false;
   }
 
   const unlockedThrough = out.reduce(
@@ -149,10 +245,23 @@ export function unlockStateFor(
 export function isMonthUnlocked(
   monthIndex: number,
   months: readonly MonthCompletableShape[],
-  completed: ReadonlySet<string>,
+  evidence: UnlockEvidence,
 ): boolean {
   if (monthIndex === FIRST_MONTH_INDEX) return true;
-  return unlockStateFor(months, completed).months.some(
+  return unlockStateFor(months, evidence).months.some(
     (m) => m.index === monthIndex && m.unlocked,
   );
+}
+
+/**
+ * Every block id the gate might need a verdict for, across the whole programme.
+ *
+ * Small — one per month, five in May — so the server can ask for all of them in
+ * a single `blockAttempts` call rather than one per month. See
+ * `schools/learning/access.ts`.
+ */
+export function allIndependenceBlocks(
+  months: readonly MonthCompletableShape[],
+): string[] {
+  return months.flatMap((m) => monthIndependenceBlocks(m));
 }

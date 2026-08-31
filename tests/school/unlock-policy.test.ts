@@ -1,115 +1,309 @@
 import { describe, it, expect } from "vitest";
 import { PROGRAM } from "@schools/curriculum/program";
-import { monthCompletables } from "@schools/curriculum/inventory";
+import { monthCompletables, monthIndependenceBlocks } from "@schools/curriculum/inventory";
+import { publicLesson, publicAssessment } from "@schools/curriculum/public";
+import { isPublicAttemptBlock } from "@schools/learning/checking";
+import {
+  LESSON_COMPLETION_POLICY,
+  ASSESSMENT_COMPLETION_POLICY,
+  evaluateCompletion,
+  policyBlocksFromPublic,
+} from "@schools/policies/completion";
 import {
   FIRST_MONTH_INDEX,
+  NO_EVIDENCE,
+  allIndependenceBlocks,
+  hasDemonstratedIndependence,
   isMonthComplete,
   isMonthUnlocked,
   remainingIn,
   unlockStateFor,
+  type UnlockEvidence,
 } from "@schools/policies/unlock";
+import type { TrackLevel } from "@schools/curriculum/types";
 
 /**
  * The self-paced unlock policy.
  *
- * All nine months are PUBLISHED. That is a property of the deployment. Which
- * months a given learner may ENTER is a property of the learner, and it is what
- * this decides — see the module header for why conflating the two is the defect
- * the previous release shipped.
+ * All nine months are PUBLISHED — a property of the deployment. Which months a
+ * given learner may ENTER is a property of the learner, and it is what this
+ * decides.
+ *
+ * ## The weakness this file was rewritten for
+ *
+ * The first version of the rule was "month N unlocks when month N-1 is
+ * COMPLETE", and completion is attempt-based by design. So a learner who
+ * submitted one WRONG answer to every required block satisfied every lesson and
+ * the monthly check, and opened the next month having demonstrated nothing.
+ * That is fine for a LESSON — a struggling learner must be able to finish one —
+ * and it is not a gate for a self-paced learner nobody is watching.
+ *
+ * The second condition is the curriculum's own instrument, not a number:
+ * `VerifyBlock.mode === "unseen_problem"` is one of the programme's five
+ * independent checks (PDF p.6), defined as problems analysed in no lesson,
+ * which show whether the learner is repeating a pattern or thinking.
  */
 
 const MONTHS = PROGRAM.months;
-const ids = (monthIndex: number) =>
-  monthCompletables(MONTHS.find((m) => m.index === monthIndex)!).map((c) => c.id);
+const TRACKS: readonly TrackLevel[] = ["support", "core", "advanced"];
 
-/** Everything finished up to and including `through`. */
-const doneThrough = (through: number) =>
-  new Set(MONTHS.filter((m) => m.index <= through).flatMap((m) => ids(m.index)));
+const ids = (m: number) =>
+  monthCompletables(MONTHS.find((x) => x.index === m)!).map((c) => c.id);
+const independence = (m: number) =>
+  monthIndependenceBlocks(MONTHS.find((x) => x.index === m)!);
+
+/** A learner who finished months 1..through legitimately. */
+function through(n: number): UnlockEvidence {
+  const completed = new Set<string>();
+  const solved = new Set<string>();
+  for (const m of MONTHS) {
+    if (m.index > n) continue;
+    for (const id of ids(m.index)) completed.add(id);
+    /* One unseen problem per month. Not all of May's five — one is the rule. */
+    const first = independence(m.index)[0];
+    if (first) solved.add(first);
+  }
+  return { completed, solved };
+}
+
+/* ========================================================================== */
+/* THE PROGRAMME SUPPLIES THE INSTRUMENT                                      */
+/* ========================================================================== */
+
+describe("the rule is built on something the curriculum authored", () => {
+  it("every month has a machine-gradeable unseen problem", () => {
+    /* If this ever fails, `hasDemonstratedIndependence` returns true for that
+       month and the gate silently degrades to the attempt-based rule. */
+    for (const m of MONTHS) {
+      expect(independence(m.index).length, `month ${m.index}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("and there are few enough of them to ask for in one query", () => {
+    /* The server fetches every one of these in a single `blockAttempts` call.
+       Thirteen ids, not one query per month. */
+    expect(allIndependenceBlocks(MONTHS).length).toBeLessThanOrEqual(20);
+  });
+
+  it("each one is in its own month's monthly check", () => {
+    for (const m of MONTHS) {
+      for (const id of independence(m.index)) {
+        expect(id.startsWith(`m${m.index}.as.`), id).toBe(true);
+      }
+    }
+  });
+
+  it("and reaches every route, so no learner is gated on a block they never see", () => {
+    /*
+     * Load-bearing for properties E and F. If an independence block were
+     * projected only onto `advanced`, a support learner could finish the month
+     * perfectly and never be shown the one task that opens the next one — a
+     * gate they cannot even attempt. Checked over all nine months and all three
+     * routes rather than assumed from the assessment being "common".
+     */
+    for (const m of MONTHS) {
+      const want = independence(m.index);
+      for (const track of TRACKS) {
+        const have = new Set(publicAssessment(m.assessment!, m.index, track).blocks.map((b) => b.id));
+        for (const id of want) {
+          expect(have.has(id), `${id} is missing from ${track} in month ${m.index}`).toBe(true);
+        }
+      }
+    }
+  });
+});
+
+/* ========================================================================== */
+/* SEPTEMBER                                                                  */
+/* ========================================================================== */
 
 describe("September is open to everybody", () => {
   it("is unlocked on a learner with no record at all", () => {
-    expect(isMonthUnlocked(FIRST_MONTH_INDEX, MONTHS, new Set())).toBe(true);
+    expect(isMonthUnlocked(FIRST_MONTH_INDEX, MONTHS, NO_EVIDENCE)).toBe(true);
   });
 
   it("and it is the only one", () => {
-    const state = unlockStateFor(MONTHS, new Set());
+    const state = unlockStateFor(MONTHS, NO_EVIDENCE);
     expect(state.unlockedThrough).toBe(1);
     expect(state.months.filter((m) => m.unlocked).map((m) => m.index)).toEqual([1]);
   });
 });
 
-describe("a month opens when the one before it is finished", () => {
-  it("October stays shut until September's last completable is done", () => {
-    const septemberIds = ids(1);
-    expect(septemberIds.length).toBeGreaterThan(1);
+/* ========================================================================== */
+/* PERSONAS                                                                   */
+/* ========================================================================== */
 
-    /* Everything but the last one. */
-    const almost = new Set(septemberIds.slice(0, -1));
-    expect(isMonthUnlocked(2, MONTHS, almost)).toBe(false);
-    expect(remainingIn(MONTHS[0], almost)).toEqual([septemberIds.at(-1)]);
+describe("who gets through, and who does not", () => {
+  const septemberIds = () => ids(1);
+  const septemberUnseen = () => independence(1)[0];
 
-    const all = new Set(septemberIds);
-    expect(isMonthComplete(MONTHS[0], all)).toBe(true);
-    expect(isMonthUnlocked(2, MONTHS, all)).toBe(true);
+  it("STRONG — finished the month and solved its unseen problem → October opens", () => {
+    const e: UnlockEvidence = {
+      completed: new Set(septemberIds()),
+      solved: new Set([septemberUnseen()]),
+    };
+    expect(isMonthUnlocked(2, MONTHS, e)).toBe(true);
   });
 
-  /**
-   * The monthly check is part of the month.
-   *
-   * `programmeToLearningPath` learned this the expensive way — a learner who
-   * had finished all 72 lessons and none of the nine checks was shown 100%.
-   * The gate uses the same set, so finishing every lesson is not finishing the
-   * month.
-   */
-  it("finishing every LESSON but not the check does not open the next month", () => {
-    const september = MONTHS[0];
-    const lessonsOnly = new Set(
-      monthCompletables(september).filter((c) => c.kind === "lesson").map((c) => c.id),
-    );
-    const check = monthCompletables(september).find((c) => c.kind === "assessment");
-    expect(check, "September has a monthly check").toBeTruthy();
-
-    expect(isMonthComplete(september, lessonsOnly)).toBe(false);
-    expect(isMonthUnlocked(2, MONTHS, lessonsOnly)).toBe(false);
-    expect(remainingIn(september, lessonsOnly)).toEqual([check!.id]);
-  });
-});
-
-describe("progress is sequential, not a set of independent doors", () => {
-  it("finishing September and November does not open December", () => {
-    const skipped = new Set([...ids(1), ...ids(3)]);
-    const state = unlockStateFor(MONTHS, skipped);
-    expect(state.unlockedThrough, "October is the frontier").toBe(2);
-    expect(isMonthUnlocked(4, MONTHS, skipped)).toBe(false);
+  it("ASSISTED — same evidence; the policy cannot even see that Nova was used", () => {
+    /*
+     * Property C, and the proof is structural rather than a test fixture: the
+     * rule reads two sets of ids and nothing else. There is no assistance
+     * input, no independence weight, no hint count. A solve after four rungs of
+     * help is the same id in the same set as a solve with none.
+     *
+     * The programme's own rule is that help is followed by explaining it back
+     * and re-solving later — not that help disqualifies you.
+     */
+    const e: UnlockEvidence = {
+      completed: new Set(septemberIds()),
+      solved: new Set([septemberUnseen()]),
+    };
+    expect(isMonthUnlocked(2, MONTHS, e)).toBe(true);
   });
 
-  it("walks the whole year one month at a time", () => {
-    for (let through = 1; through <= 8; through += 1) {
-      const completed = doneThrough(through);
-      const state = unlockStateFor(MONTHS, completed);
-      expect(state.unlockedThrough, `finished through month ${through}`).toBe(through + 1);
-      expect(isMonthUnlocked(through + 1, MONTHS, completed)).toBe(true);
-      if (through + 2 <= 9) {
-        expect(isMonthUnlocked(through + 2, MONTHS, completed)).toBe(false);
+  it("STRUGGLING BUT LEARNING — everything else wrong, one unseen problem solved → opens", () => {
+    /* Property B. Exactly one correct answer in the whole month is enough. */
+    const e: UnlockEvidence = {
+      completed: new Set(septemberIds()),
+      solved: new Set([septemberUnseen()]),
+    };
+    expect(isMonthUnlocked(2, MONTHS, e)).toBe(true);
+    expect(isMonthComplete(MONTHS[0], e.completed)).toBe(true);
+  });
+
+  it("SPAM — one wrong answer everywhere, nothing solved → October stays shut", () => {
+    /* Property A, and the reason this file was rewritten. The completion rows
+       are all legitimately there; the learner has demonstrated nothing. */
+    const e: UnlockEvidence = { completed: new Set(septemberIds()), solved: new Set() };
+    expect(isMonthComplete(MONTHS[0], e.completed), "the month IS complete").toBe(true);
+    expect(hasDemonstratedIndependence(MONTHS[0], e.solved)).toBe(false);
+    expect(isMonthUnlocked(2, MONTHS, e), "and October is still shut").toBe(false);
+
+    const state = unlockStateFor(MONTHS, e);
+    const september = state.months.find((m) => m.index === 1)!;
+    expect(september.complete).toBe(true);
+    expect(september.demonstrated).toBe(false);
+    expect(september.remaining, "nothing is outstanding — that is not what is missing").toEqual([]);
+  });
+
+  it("BANK-HEAVY — optional work done, one required lesson skipped → stays shut", () => {
+    /* Property D from the other side: optional work cannot substitute for
+       required work, and it is not in the completable set at all. */
+    const all = septemberIds();
+    const e: UnlockEvidence = {
+      completed: new Set(all.slice(0, -1)),
+      solved: new Set([septemberUnseen()]),
+    };
+    expect(isMonthUnlocked(2, MONTHS, e)).toBe(false);
+    expect(remainingIn(MONTHS[0], e.completed)).toEqual([all.at(-1)]);
+  });
+
+  it("ASSESSMENT-SKIPPING — every lesson done, the check untouched → stays shut", () => {
+    const lessonsOnly = monthCompletables(MONTHS[0])
+      .filter((c) => c.kind === "lesson")
+      .map((c) => c.id);
+    const e: UnlockEvidence = { completed: new Set(lessonsOnly), solved: new Set() };
+    expect(isMonthUnlocked(2, MONTHS, e)).toBe(false);
+    /* Both reasons, and a screen can tell them apart. */
+    const september = unlockStateFor(MONTHS, e).months.find((m) => m.index === 1)!;
+    expect(september.complete).toBe(false);
+    expect(september.demonstrated).toBe(false);
+  });
+
+  it("ROUTE MISMATCH — a support learner is never blocked by advanced-only work", () => {
+    /*
+     * Property E, asserted where it actually lives. The unlock rule reads
+     * completable ids, and a completable is a whole lesson — so the route
+     * question is settled one layer down, by `evaluateCompletion` over the
+     * learner's OWN projection. This walks every September lesson on every
+     * route and confirms a learner who does what their route asks can finish
+     * it, which is what makes the ids appear in `completed` at all.
+     */
+    for (const track of TRACKS) {
+      for (const unit of MONTHS[0].units) {
+        for (const lesson of unit.lessons) {
+          const projected = publicLesson(lesson, track);
+          const decision = evaluateCompletion({
+            policy: LESSON_COMPLETION_POLICY,
+            blocks: policyBlocksFromPublic(projected.blocks),
+            /* Only what THIS route projected. An advanced-only block is not in
+               the projection, so it cannot be an outstanding requirement. */
+            reached: (id) =>
+              projected.blocks.some((b) => b.id === id && isPublicAttemptBlock(b))
+                ? "measured"
+                : "none",
+          });
+          expect(decision.satisfied, `${lesson.id}/${track}`).toBe(true);
+        }
       }
     }
   });
+});
 
-  it("opens May once April is done, and nothing beyond it exists", () => {
-    const completed = doneThrough(8);
-    expect(isMonthUnlocked(9, MONTHS, completed)).toBe(true);
-    const state = unlockStateFor(MONTHS, doneThrough(9));
-    expect(state.unlockedThrough).toBe(9);
-    expect(state.months.every((m) => m.complete)).toBe(true);
+/* ========================================================================== */
+/* THE MONTHLY CHECK STILL COMPLETES WITHOUT BEING SOLVED                     */
+/* ========================================================================== */
+
+describe("finishing a month and leaving it are different questions", () => {
+  it("the check completes on a wrong answer, and still does", () => {
+    /*
+     * Deliberate, and the separation the whole design rests on. A learner who
+     * attempts the monthly check honestly and gets it wrong has FINISHED the
+     * month — their board says done, their teacher sees the work. What they
+     * have not done is earn the next month. Making the check itself refuse to
+     * complete would have been the crueller way to build this.
+     */
+    const projected = publicAssessment(MONTHS[0].assessment!, 1, "core");
+    const decision = evaluateCompletion({
+      policy: ASSESSMENT_COMPLETION_POLICY,
+      blocks: policyBlocksFromPublic(projected.blocks),
+      reached: () => "measured",
+    });
+    expect(decision.satisfied, "the check completes").toBe(true);
+    expect(
+      hasDemonstratedIndependence(MONTHS[0], new Set()),
+      "and the next month does not open",
+    ).toBe(false);
   });
 });
 
+/* ========================================================================== */
+/* THE WHOLE YEAR                                                             */
+/* ========================================================================== */
+
+describe("progress is sequential, and each step needs both conditions", () => {
+  it("walks September to May one month at a time", () => {
+    for (let n = 1; n <= 8; n += 1) {
+      const e = through(n);
+      const state = unlockStateFor(MONTHS, e);
+      expect(state.unlockedThrough, `finished through month ${n}`).toBe(n + 1);
+      expect(isMonthUnlocked(n + 1, MONTHS, e)).toBe(true);
+      if (n + 2 <= 9) expect(isMonthUnlocked(n + 2, MONTHS, e)).toBe(false);
+    }
+  });
+
+  it("one solved unseen problem is enough in May, which authors five", () => {
+    const e = through(9);
+    expect(e.solved.has("m9.as.b1")).toBe(true);
+    expect(e.solved.has("m9.as.b2")).toBe(false);
+    expect(unlockStateFor(MONTHS, e).months.find((m) => m.index === 9)!.demonstrated).toBe(true);
+  });
+
+  it("completing every month but solving nothing opens nothing past September", () => {
+    const completed = new Set(MONTHS.flatMap((m) => ids(m.index)));
+    const state = unlockStateFor(MONTHS, { completed, solved: new Set() });
+    expect(state.unlockedThrough).toBe(1);
+    expect(state.months.every((m) => m.complete)).toBe(true);
+    expect(state.months.every((m) => !m.demonstrated)).toBe(true);
+  });
+});
+
+/* ========================================================================== */
+/* WHAT MAY NEVER GATE                                                        */
+/* ========================================================================== */
+
 describe("what is NOT allowed to gate a learner", () => {
-  /**
-   * Optional and bank tasks are blocks inside a completable, never completables
-   * themselves, so this policy is structurally incapable of requiring them. The
-   * exclusion lives once, in `schools/policies/completion.ts`.
-   */
   it("a month's requirements are only its lessons and its check", () => {
     for (const month of MONTHS) {
       const kinds = new Set(monthCompletables(month).map((c) => c.kind));
@@ -120,18 +314,33 @@ describe("what is NOT allowed to gate a learner", () => {
   it("no completable is a draft or an empty shell", () => {
     for (const month of MONTHS) {
       for (const c of monthCompletables(month)) {
-        expect(c.status, `${c.id}`).not.toBe("draft");
-        expect(c.blockCount, `${c.id}`).toBeGreaterThan(0);
+        expect(c.status, c.id).not.toBe("draft");
+        expect(c.blockCount, c.id).toBeGreaterThan(0);
       }
     }
   });
 
-  it("every month in the shipped programme has something to finish", () => {
-    /* If this ever fails, `isMonthComplete` returns true for an empty month and
-       the year opens at once. That is the documented, deliberately-recoverable
-       direction — but it should never actually happen, and this is what says so. */
-    for (const month of MONTHS) {
-      expect(monthCompletables(month).length, `month ${month.index}`).toBeGreaterThan(0);
+  it("the rule reads two sets of ids and nothing else", () => {
+    /*
+     * Properties K, L and M, asserted by shape. There is no XP input, no
+     * seconds, no timestamp and no rank — so the gate cannot come to depend on
+     * speed, time spent or a league position without this signature changing
+     * and this test being edited on purpose.
+     */
+    const e: UnlockEvidence = { completed: new Set(), solved: new Set() };
+    expect(Object.keys(e).sort()).toEqual(["completed", "solved"]);
+    expect(unlockStateFor(MONTHS, e).unlockedThrough).toBe(1);
+  });
+
+  it("no independence block is a written or oral one", () => {
+    /*
+     * Property H. Every independence block carries test cases and is graded by
+     * the judge, so no learner ever waits for one of the year's four mandatory
+     * written reviews in order to reach the next month.
+     */
+    const mandatoryWritten = new Set(["m3.as.b2", "m6.as.b3", "m7.as.b3", "m8.as.b1"]);
+    for (const id of allIndependenceBlocks(MONTHS)) {
+      expect(mandatoryWritten.has(id), `${id} must not need a teacher`).toBe(false);
     }
   });
 });

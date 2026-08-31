@@ -217,6 +217,41 @@ export interface MonthCompletableShape {
 }
 
 /**
+ * The blocks that carry the month's own proof of independent thinking.
+ *
+ * `VerifyBlock.mode` is the programme's five independent checks (PDF p.6), and
+ * `unseen_problem` is the one it describes as
+ * «Ешбір сабақта талданбаған есептер. Олар оқушының үлгіні қайталап тұрғанын
+ * әлде шынымен ойлап тұрғанын көрсетеді» — problems analysed in no lesson,
+ * which show whether the learner is repeating a pattern or actually thinking.
+ * See `VERIFICATION_METHODS_KK` in `source-of-truth.ts`.
+ *
+ * Every one of the nine months has at least one, in its monthly check, and
+ * every one carries test cases — so this is a machine-gradeable question the
+ * curriculum itself nominates as the measure of independence. It is not a
+ * threshold anybody here invented, which is the whole reason the month-unlock
+ * rule is built on it rather than on a percentage.
+ *
+ * Only blocks with cases are returned. An `unseen_problem` a machine cannot
+ * grade could never be *solved* in the sense the gate needs, and requiring one
+ * would make the month impossible to leave.
+ */
+export function monthIndependenceBlocks(month: MonthCompletableShape & {
+  assessment?: { blocks: readonly unknown[] } | null;
+}): string[] {
+  const assessment = month.assessment;
+  if (!assessment) return [];
+  const out: string[] = [];
+  for (const raw of assessment.blocks) {
+    const b = raw as { id?: unknown; type?: unknown; mode?: unknown; cases?: unknown };
+    if (b.type !== "verify" || b.mode !== "unseen_problem") continue;
+    if (!Array.isArray(b.cases) || b.cases.length === 0) continue;
+    if (typeof b.id === "string") out.push(b.id);
+  }
+  return out;
+}
+
+/**
  * Is this lesson one of May's timed practice contests?
  *
  * `m9.c1`–`m9.c4`. Derived from the id rather than declared on the lesson,

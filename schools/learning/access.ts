@@ -1,6 +1,12 @@
 import "server-only";
 import { PROGRAM } from "@schools/curriculum/program";
-import { isMonthUnlocked, unlockStateFor, type UnlockState } from "@schools/policies/unlock";
+import {
+  allIndependenceBlocks,
+  isMonthUnlocked,
+  unlockStateFor,
+  type UnlockEvidence,
+  type UnlockState,
+} from "@schools/policies/unlock";
 import { resolveIdentity } from "@schools/learning/identity";
 import { getStore } from "@schools/store";
 
@@ -26,10 +32,33 @@ import { getStore } from "@schools/store";
  * request, never per block: a check inside a render loop would be 73 queries on
  * a September lesson, which is the shape this note exists to forbid.
  */
-export async function unlockStateForSubject(subjectId: string): Promise<UnlockState> {
+export async function unlockEvidenceFor(subjectId: string): Promise<UnlockEvidence> {
   const store = await getStore();
-  const completions = await store.completionsForSubject(subjectId);
-  return unlockStateFor(PROGRAM.months, new Set(completions.map((c) => c.lessonId)));
+
+  /* Two reads, not two per month. `completionsForSubject` is one indexed scan
+     returning at most 83 rows for a learner who has finished the whole year;
+     `blockAttempts` is asked ONCE for every independence block in the
+     programme — thirteen ids in total, one per month plus May's five — rather
+     than once per month. A check inside a render loop would be dozens of
+     queries on one page, which is the shape this note exists to forbid. */
+  const [completions, attempts] = await Promise.all([
+    store.completionsForSubject(subjectId),
+    store.blockAttempts(subjectId, allIndependenceBlocks(PROGRAM.months)),
+  ]);
+
+  const solved = new Set<string>();
+  for (const [blockId, evidence] of attempts) {
+    /* `accepted` and nothing else. It is computed with
+       `source_trust = 'judge'` in the query itself, so only this server —
+       having actually run the learner's code — can put an id in this set. */
+    if (evidence.accepted) solved.add(blockId);
+  }
+
+  return { completed: new Set(completions.map((c) => c.lessonId)), solved };
+}
+
+export async function unlockStateForSubject(subjectId: string): Promise<UnlockState> {
+  return unlockStateFor(PROGRAM.months, await unlockEvidenceFor(subjectId));
 }
 
 /**
@@ -42,9 +71,7 @@ export async function unlockStateForSubject(subjectId: string): Promise<UnlockSt
  */
 export async function monthUnlockedFor(subjectId: string, monthIndex: number): Promise<boolean> {
   if (monthIndex === 1) return true;
-  const store = await getStore();
-  const completions = await store.completionsForSubject(subjectId);
-  return isMonthUnlocked(monthIndex, PROGRAM.months, new Set(completions.map((c) => c.lessonId)));
+  return isMonthUnlocked(monthIndex, PROGRAM.months, await unlockEvidenceFor(subjectId));
 }
 
 /**
