@@ -29,6 +29,28 @@ import { DEFAULT_CPP17_BASE_URL, type WorkerInbound, type WorkerOutbound } from 
 /** The lifecycle a caller can observe. */
 export type RunnerPhase = "idle" | "loading" | "ready" | "compiling" | "running" | "failed";
 
+/**
+ * How long the BUILD may take, as distinct from how long the program may run.
+ *
+ * These were one number, and it was `LOCAL_LIMITS.timeLimitMs` — 3 seconds —
+ * started when the job was posted and covering compile, link and run together.
+ * Two things followed, both observed rather than reasoned about:
+ *
+ *   - A program with no `main` should fail to LINK instantly. It was reported
+ *     as «Бағдарлама 3 секундта аяқталмады — шексіз цикл болуы мүмкін»: did not
+ *     finish, possibly an infinite loop. It had not run at all.
+ *   - `#include <bits/stdc++.h>` takes about FOUR seconds to compile — measured,
+ *     and written down in `CPP17_JUDGE_PARITY.md` — which is longer than the
+ *     whole budget. Every program using it was unrunnable by construction, and
+ *     blamed on a loop it did not contain. That header is what May's contest
+ *     lessons teach.
+ *
+ * So the build gets its own ceiling, generous because a cold compile on a
+ * school laptop is slow and being slow is not a defect, and the learner's
+ * 3 seconds now start when the program does.
+ */
+export const COMPILE_BUDGET_MS = 30_000;
+
 export interface RunnerStatus {
   phase: RunnerPhase;
   /** Null until a worker has reported for itself. Never a written-down pin. */
@@ -101,7 +123,10 @@ export class Cpp17Runner {
   private inflight: {
     id: number;
     resolve: (r: LocalRunResult) => void;
+    /** The BUILD ceiling until the program starts, the execution deadline after. */
     timer: ReturnType<typeof setTimeout>;
+    /** How long the learner's program itself may run, once it is running. */
+    budget: number;
   } | null = null;
 
   constructor(private readonly options: Cpp17RunnerOptions = {}) {}
@@ -153,6 +178,7 @@ export class Cpp17Runner {
           reject(new Error(msg.error));
           return;
         }
+        if (msg.kind === "running") this.beginExecution(msg.id);
         if (msg.kind === "result") this.settle(msg);
       };
       worker.onerror = (event: ErrorEvent) => {
@@ -166,6 +192,31 @@ export class Cpp17Runner {
     });
 
     return this.booting;
+  }
+
+  /**
+   * The build finished; the learner's program is now running.
+   *
+   * Swaps the build ceiling for the execution deadline. Until this arrives the
+   * clock is measuring OUR compiler, and a slow compiler is not something to
+   * put on a child's record.
+   */
+  private beginExecution(id: number): void {
+    const job = this.inflight;
+    if (!job || job.id !== id || id !== this.claimed) return;
+    clearTimeout(job.timer);
+    this.setState({ phase: "running" });
+    job.timer = setTimeout(() => {
+      this.kill({
+        trust: "client_local",
+        status: "time_limit_exceeded",
+        stdout: "",
+        stderr: "",
+        truncated: false,
+        runtimeMs: job.budget,
+      });
+      if (!this.disposed) void this.warm();
+    }, job.budget);
   }
 
   /** A reply arrived. Deliver it only if it belongs to the current job. */
@@ -319,15 +370,19 @@ export class Cpp17Runner {
     this.setState({ phase: "compiling" });
 
     return new Promise<LocalRunResult>((resolve) => {
+      /* The BUILD ceiling. Replaced by the execution deadline the moment the
+         worker says the program started — see `beginExecution`. */
       const timer = setTimeout(() => {
-        /* The deadline. The worker is not asked to stop — it cannot — it is
-           destroyed, and the next Run builds a new one. */
+        /* The worker is not asked to stop — it cannot — it is destroyed, and
+           the next Run builds a new one.
+         *
+         * `runtime_unavailable`, NOT `time_limit_exceeded`, and the difference
+         * matters: `isLearnerOutcome` excludes the first and includes the
+         * second. A compiler that took half a minute on a school laptop is our
+         * outage, and recording "did not finish" against a child for it is the
+         * same mistake as blaming them for a dead judge. */
         this.kill({
-          trust: "client_local",
-          status: "time_limit_exceeded",
-          stdout: "",
-          stderr: "",
-          truncated: false,
+          ...unavailable(),
           runtimeMs: Date.now() - started,
         });
         /* And immediately build the replacement.
@@ -345,9 +400,9 @@ export class Cpp17Runner {
          * costs an instantiate, not a download: the wasm is in the HTTP cache
          * by definition, since it was serving a program a moment ago. */
         if (!this.disposed) void this.warm();
-      }, budget);
+      }, COMPILE_BUDGET_MS);
 
-      this.inflight = { id, resolve, timer };
+      this.inflight = { id, resolve, timer, budget };
       worker.postMessage({
         kind: "run",
         id,

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { Cpp17Runner, type RunnerWorker } from "../../src/lib/cpp17/runner";
+import { COMPILE_BUDGET_MS, Cpp17Runner, type RunnerWorker } from "../../src/lib/cpp17/runner";
 import { classifyFailure, stripProgress } from "../../src/lib/cpp17/worker";
 import { BITS_STDCPP_HEADERS, BITS_STDCPP_PATH, bitsStdcppSource } from "../../src/lib/cpp17/bits-stdcpp";
-import { LOCAL_LIMITS } from "@schools/execution/trust";
+import { isLearnerOutcome, LOCAL_LIMITS } from "@schools/execution/trust";
 
 /**
  * The three things the worker cannot do for itself.
@@ -39,6 +39,18 @@ class FakeWorker implements RunnerWorker {
 
   emit(data: unknown): void {
     this.onmessage?.({ data } as MessageEvent);
+  }
+
+  /**
+   * Announce that the nth job finished building and its program is running.
+   *
+   * The real worker sends this, and the runner swaps the build ceiling for the
+   * learner's execution deadline when it arrives. A test that wants to
+   * exercise "the PROGRAM hung" must send it first — otherwise it is testing
+   * "the BUILD hung", which is a different budget and a different status.
+   */
+  startRunning(index: number): void {
+    this.emit({ kind: "running", id: this.ids[index], compileMs: 900 });
   }
 
   /** Reply to the nth job this worker was given (0-based). */
@@ -88,6 +100,9 @@ describe("the deadline", () => {
 
     const promise = runner.run({ source: "int main(){for(;;);}", stdin: "" });
     await vi.advanceTimersByTimeAsync(1); // let init resolve
+    /* It BUILT — an infinite loop compiles fine — and then hung. Without this
+       the test would be measuring the build ceiling instead. */
+    worker.startRunning(0);
     await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 10);
 
     const result = await promise;
@@ -108,6 +123,8 @@ describe("the deadline", () => {
     });
 
     const hung = runner.run({ source: "for(;;);", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    workers[0].startRunning(0);
     await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 10);
     expect((await hung).status).toBe("time_limit_exceeded");
 
@@ -145,6 +162,8 @@ describe("the deadline", () => {
     });
 
     const hung = runner.run({ source: "int main(){for(;;);}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    workers[0].startRunning(0);
     await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 10);
     expect((await hung).status).toBe("time_limit_exceeded");
 
@@ -178,6 +197,7 @@ describe("the deadline", () => {
 
     void runner.run({ source: "int main(){for(;;);}", stdin: "" });
     await vi.advanceTimersByTimeAsync(1);
+    workers[0].startRunning(0);
     runner.dispose();
     await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 100);
 
@@ -447,6 +467,95 @@ describe("a program that touched the filesystem does not get to keep the worker"
     await vi.advanceTimersByTimeAsync(50);
     expect(workers[0].terminated, "a clean run threw its worker away").toBe(false);
     expect(workers, "a clean run rebuilt the toolchain for nothing").toHaveLength(1);
+    vi.useRealTimers();
+  });
+});
+
+describe("compiling is not running, and the clock knows the difference", () => {
+  /**
+   * These two were one budget, and the bug was visible from a browser.
+   *
+   * `LOCAL_LIMITS.timeLimitMs` — 3 seconds — was started when the job was
+   * POSTED, so it covered compile, link and run together. A program with no
+   * `main`, which should fail to link instantly, came back as «Бағдарлама 3
+   * секундта аяқталмады — шексіз цикл болуы мүмкін»: did not finish, probably
+   * an infinite loop. It had never run.
+   *
+   * The measured consequence is worse than the confusing message.
+   * `#include <bits/stdc++.h>` takes about four seconds to compile — measured,
+   * and written down in CPP17_JUDGE_PARITY.md — which is longer than the
+   * entire budget. Every program using that header was unrunnable by
+   * construction and blamed on a loop it did not contain. It is the header
+   * May's contest lessons teach.
+   */
+  const buildOnlyWorker = () => {
+    const workers: FakeWorker[] = [];
+    const runner = new Cpp17Runner({
+      createWorker: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+    return { workers, runner };
+  };
+
+  it("gives the build far longer than the learner's three seconds", async () => {
+    /* The number that matters: a `bits/stdc++.h` compile must survive. */
+    expect(COMPILE_BUDGET_MS).toBeGreaterThan(LOCAL_LIMITS.timeLimitMs * 3);
+
+    vi.useFakeTimers();
+    const { workers, runner } = buildOnlyWorker();
+    const p = runner.run({ source: "#include <bits/stdc++.h>\nint main(){}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+
+    /* Four seconds of compiling — longer than the OLD whole-job budget. */
+    await vi.advanceTimersByTimeAsync(4000);
+    workers[0].startRunning(0);
+    workers[0].reply(0, { stdout: "42" });
+
+    const result = await p;
+    expect(result.status, "a slow compile was reported as a program that hung").toBe("ok");
+    expect(result.stdout).toBe("42");
+    vi.useRealTimers();
+  });
+
+  it("a build that never finishes is our outage, not the learner's failure", async () => {
+    /* `runtime_unavailable`, not `time_limit_exceeded`. `isLearnerOutcome`
+       excludes the first and includes the second, and a compiler that stalled
+       on a school laptop must not put "did not finish" on a child's record —
+       the same rule the server already applies to a dead judge. */
+    vi.useFakeTimers();
+    const { runner } = buildOnlyWorker();
+    const p = runner.run({ source: "int main(){}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(COMPILE_BUDGET_MS + 100);
+
+    const result = await p;
+    expect(result.status).toBe("runtime_unavailable");
+    expect(
+      isLearnerOutcome(result.status),
+      "a stalled compiler was recorded against the learner",
+    ).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("the learner's three seconds start when their program does", async () => {
+    vi.useFakeTimers();
+    const { workers, runner } = buildOnlyWorker();
+    const p = runner.run({ source: "int main(){for(;;);}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+
+    /* Two seconds of compiling, then it starts. */
+    await vi.advanceTimersByTimeAsync(2000);
+    workers[0].startRunning(0);
+
+    /* Two more seconds: past the old combined budget, inside the new one. */
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(runner.status().phase, "the panel still said compiling").toBe("running");
+
+    await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs);
+    expect((await p).status).toBe("time_limit_exceeded");
     vi.useRealTimers();
   });
 });

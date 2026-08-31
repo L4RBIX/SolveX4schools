@@ -49,6 +49,15 @@ export type WorkerInbound =
 export type WorkerOutbound =
   | { kind: "ready"; initMs: number }
   | { kind: "failed"; error: string }
+  /**
+   * Compilation and linking are done; the learner's program is about to run.
+   *
+   * The runner cannot infer this moment, and it has to know it: the deadline
+   * that means "your program did not finish" must start HERE, not when the
+   * job was posted. Sending it is the only way the two sides can agree on
+   * where compiling stops and running starts.
+   */
+  | { kind: "running"; id: number; compileMs: number }
   | {
       kind: "result";
       id: number;
@@ -352,6 +361,9 @@ async function run(msg: Extract<WorkerInbound, { kind: "run" }>): Promise<void> 
 
     const compilerText = sink.compilerOutput();
     sink.enterRunPhase();
+    /* Both sides now agree the build is over. Anything after this line is the
+       learner's program, and so is anything the clock says about it. */
+    post({ kind: "running", id: msg.id, compileMs: Date.now() - started });
 
     let mod: WebAssembly.Module;
     try {
