@@ -71,12 +71,26 @@ function run(source: string, stdin: string): { seconds: number; out: string } {
   }
 }
 
-function findBlock(id: string): LessonBlock & { cases: { input: string; expectedOutput: string }[] } {
+/** Exactly the fields this file reads. Narrowed once, here, rather than cast at
+    every use — the union over every block type has neither `referenceSolution`
+    nor `cases.hidden` in common. */
+interface RunnableBlock {
+  id: string;
+  referenceSolution: string;
+  cases: { input: string; expectedOutput: string; hidden?: boolean }[];
+}
+
+function findBlock(id: string): RunnableBlock {
   for (const month of MONTHS) {
     for (const unit of month.units) {
       for (const lesson of unit.lessons) {
         for (const block of lesson.blocks) {
-          if (block.id === id) return block as never;
+          if (block.id !== id) continue;
+          const b = block as LessonBlock & Partial<RunnableBlock>;
+          if (typeof b.referenceSolution !== "string" || !Array.isArray(b.cases)) {
+            throw new Error(`${id} is not a runnable block`);
+          }
+          return { id, referenceSolution: b.referenceSolution, cases: b.cases };
         }
       }
     }
@@ -178,7 +192,7 @@ describe("May's complexity guards", () => {
       });
 
       it.runIf(python)("the reference solution passes it comfortably", () => {
-        const result = run(block.referenceSolution as string, large.input);
+        const result = run(block.referenceSolution, large.input);
         expect(result.out, `reference failed its own guard case`).toBe(large.expectedOutput);
         /* Comfortably, not narrowly: the judge is a different machine and a
            reference that only just fits is a flaky task. */
