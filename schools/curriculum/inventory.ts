@@ -164,6 +164,84 @@ export function findCompletable(id: string): Completable | null {
   return null;
 }
 
+/**
+ * Everything a learner has to finish for a month to count as done.
+ *
+ * ## Why this is here and not in three places
+ *
+ * The set was already computed inside `programmeToLearningPath` in
+ * `schools/presentation/adapters.ts`, as a local `requiredIds`, and its comment
+ * records what it cost to get right:
+ *
+ *   > The monthly check counts. It was outside the denominator, so a learner
+ *   > who had finished all 72 lessons and not one of the nine checks was shown
+ *   > 100% on /program.
+ *
+ * That is the definition, and it is now load-bearing in a second place: the
+ * self-paced unlock policy decides whether the NEXT month opens, and a gate
+ * that disagreed with the progress bar above it would be the same defect
+ * again, in the direction where a learner is locked out rather than flattered.
+ * So the presentation layer and the policy layer call this, and there is one
+ * answer.
+ *
+ * ## What counts
+ *
+ * Authored lessons plus the monthly check. "Authored" is `status !== "draft"`
+ * with at least one block — a draft lesson is not work a learner can be asked
+ * for, and a month whose content is unwritten must not be a wall.
+ *
+ * ## What deliberately does NOT count
+ *
+ * Optional and bank tasks. They are blocks INSIDE these completables, and
+ * `schools/policies/completion.ts` already excludes them from a completable's
+ * own requirement via `isMandatory`. Nothing here needs to know about them, and
+ * a second exclusion rule at this level is how the two would eventually
+ * disagree.
+ */
+/**
+ * The shape `monthCompletables` actually needs.
+ *
+ * Structural rather than `Month`, because the board renders `MonthOutline` —
+ * the public projection, identical to `Month` except that its blocks are
+ * reduced to `{id, type}`. This function only ever reads `blocks.length`, so
+ * insisting on the full authored type would force the presentation layer to
+ * keep its own copy of the definition, which is exactly what moving it here
+ * was for.
+ */
+export interface MonthCompletableShape {
+  index: number;
+  units: readonly {
+    lessons: readonly { id: string; status: PublicationStatus; blocks: readonly unknown[] }[];
+  }[];
+  assessment?: { id: string; status: PublicationStatus; blocks: readonly unknown[] } | null;
+}
+
+export function monthCompletables(month: MonthCompletableShape): Completable[] {
+  const out: Completable[] = [];
+  for (const unit of month.units) {
+    for (const lesson of unit.lessons) {
+      if (lesson.status === "draft" || lesson.blocks.length === 0) continue;
+      out.push({
+        id: lesson.id,
+        monthIndex: month.index,
+        blockCount: lesson.blocks.length,
+        status: lesson.status,
+        kind: "lesson",
+      });
+    }
+  }
+  if (month.assessment && month.assessment.status !== "draft") {
+    out.push({
+      id: month.assessment.id,
+      monthIndex: month.index,
+      blockCount: month.assessment.blocks.length,
+      status: month.assessment.status,
+      kind: "assessment",
+    });
+  }
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Curriculum role — what a learner must do vs what is available to them       */
 /* -------------------------------------------------------------------------- */

@@ -18,7 +18,25 @@ import { useLocale } from "@/components/sx/i18n";
  * No mention of hashes, statuses or reviewers: the learner needs to know it is
  * not open yet and that a teacher opens it. The rest is the admin's business.
  */
-export function MonthNotOpen({ month }: { month: MonthOutline }) {
+/**
+ * Why this month will not open.
+ *
+ * `unpublished` is about the school: nobody has approved the content and the
+ * learner can do nothing about it. `locked` is about the learner: the month is
+ * published and waiting, and finishing the previous one opens it. Same panel,
+ * different sentence, because telling a learner to wait for a teacher when the
+ * door is theirs to open teaches them the product does not know what is going
+ * on.
+ */
+export type MonthClosedReason = "unpublished" | "locked";
+
+export function MonthNotOpen({
+  month,
+  reason = "unpublished",
+}: {
+  month: MonthOutline;
+  reason?: MonthClosedReason;
+}) {
   const { locale } = useLocale();
   const loc = locale as Locale;
 
@@ -28,8 +46,12 @@ export function MonthNotOpen({ month }: { month: MonthOutline }) {
         <p className="text-[14px] leading-5 tracking-wide text-b-fg/50 uppercase">
           {`${month.index}. ${month.monthName[loc]}`}
         </p>
-        <h1 className="text-[26px] leading-[34px] font-bold">{t(L.monthNotOpenTitle, loc)}</h1>
-        <p className="text-[16px] leading-6 text-b-fg/70">{t(L.monthNotOpenBody, loc)}</p>
+        <h1 className="text-[26px] leading-[34px] font-bold">
+          {t(reason === "locked" ? L.monthLockedTitle : L.monthNotOpenTitle, loc)}
+        </h1>
+        <p className="text-[16px] leading-6 text-b-fg/70">
+          {t(reason === "locked" ? L.monthLockedBody : L.monthNotOpenBody, loc)}
+        </p>
         <Link
           href="/home"
           className="mt-2 inline-flex h-12 items-center justify-center rounded-[12px] border-2 border-b-sched-edge bg-b-sched-fill text-[16px] font-medium text-b-fg"

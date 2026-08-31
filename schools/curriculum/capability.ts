@@ -934,11 +934,24 @@ export interface CapabilityContext {
    * shown.
    *
    * Almost always empty, and when it is not, it is a finding rather than a
-   * feature: `m1.p8` (clock angle) is solved with `abs()` and a decimal
-   * literal, neither of which September ever puts on screen. Surfacing it is
-   * the point — the alternative is Nova being forbidden from giving the level-4
-   * fix to a task whose only sane fix needs the construct, and nobody ever
-   * learning that the gap is there.
+   * feature. Surfacing it is the point — the alternative is Nova being
+   * forbidden from giving the level-4 fix to a task whose only sane fix needs
+   * the construct, and nobody ever learning that the gap is there.
+   *
+   * September used to be the example here: `m1.p8` (clock angle) was solved
+   * with `abs()` and a decimal literal, and `m1.l6.b3`, `m1.l8.b2` and the
+   * month's own check needed `!=` and `<=`. All four are closed — the operators
+   * are written into the concepts that already teach around them, and `m1.p8`
+   * takes its absolute value with the `if`/`else` its skillRefs name. The month
+   * now reports an empty gap on every block, and
+   * `tests/nova/construct-context.test.ts` asserts that it stays empty.
+   *
+   * The eight that remain are all in months 4-9 and share one shape: the
+   * construct IS taught in the month, but only inside backticked PROSE, and
+   * this walk reads `code` fields alone. So the gap is real from Nova's point
+   * of view and invisible to `tests/school/constructs-are-taught.test.ts`,
+   * which also reads inline spans. Two honest answers to the same question,
+   * and the divergence is worth knowing about before it is worth closing.
    */
   taskGap: ConstructSpec[];
 }

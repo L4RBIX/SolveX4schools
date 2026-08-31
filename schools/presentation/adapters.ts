@@ -5,6 +5,7 @@ import type {
   UnitOutline as Unit,
 } from "@schools/curriculum/public";
 import { ATTEMPT_BLOCK_TYPES } from "@schools/curriculum/types";
+import { monthCompletables } from "@schools/curriculum/inventory";
 import { ASSESSMENT_ART, monthArt, PROGRAMME_ART } from "./illustrations";
 
 /**
@@ -244,11 +245,15 @@ export function programmeToLearningPath(
   /* The monthly check counts. It was outside the denominator, so a learner who
      had finished all 72 lessons and not one of the nine checks was shown 100%
      on /program and a full bar on every tile — the programme's own independence
-     check excluded from the measure of whether the programme was done. */
-  const requiredIds = (month: Month): string[] => [
-    ...monthLessons(month).filter((e) => isLessonReady(e.lesson)).map((e) => e.lesson.id),
-    ...(month.assessment && month.assessment.status !== "draft" ? [month.assessment.id] : []),
-  ];
+     check excluded from the measure of whether the programme was done.
+
+     This used to be computed here. It now comes from `monthCompletables`,
+     because the self-paced unlock policy needs the SAME set to decide whether
+     the next month opens: a gate that disagreed with the bar directly above it
+     would be this very defect again, in the direction that locks a learner out
+     rather than flattering them. */
+  const requiredIds = (month: Month): string[] =>
+    monthCompletables(month).map((c) => c.id);
 
   const tiles = months.map<PathTileData>((month) => {
     const ready = requiredIds(month);

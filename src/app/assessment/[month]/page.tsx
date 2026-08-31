@@ -5,6 +5,7 @@ import { MONTHS, MONTH_BY_INDEX } from "@schools/curriculum/months";
 import { publicAssessment } from "@schools/curriculum/public";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
+import { currentLearnerMayEnter } from "@schools/learning/access";
 import { lessonHydration } from "@schools/learning/rehydrate";
 import { AssessmentRoute } from "@/components/brilliant/lesson/assessment-route";
 import { trustedProviderConfigured } from "@schools/config";
@@ -72,6 +73,11 @@ export default async function AssessmentPage({ params }: { params: Promise<Param
      unreviewed judgement on a child's record. */
   const gate = await gateFor(found);
   if (!gate.open) notFound();
+
+  /* The monthly check is content, so this 404s rather than rendering a panel:
+     the board at /course/N is the navigation surface that explains a closed
+     month, and this is the thing behind the door. */
+  if (!(await currentLearnerMayEnter(found.index))) notFound();
 
   const track = await resolveTrack(monthIndex);
   const assessment = publicAssessment(found.assessment, monthIndex, track);

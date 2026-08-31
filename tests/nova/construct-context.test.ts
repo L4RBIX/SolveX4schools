@@ -283,26 +283,44 @@ describe("auditing a proposed solution against what was taught", () => {
 });
 
 describe("tasks whose own solution outruns the month", () => {
-  it("surfaces abs() on m1.p8 rather than hiding it", () => {
-    /* A finding, not a feature. `m1.p8` (clock hands) is solved with `abs()`
-       and a decimal literal, and September puts neither on screen — so either
-       Nova is forbidden from giving the level-4 fix to a task whose fix needs
-       them, or the gap is stated. It is stated. */
-    const gap = ctx("m1.p8").taskGap.map((s) => s.id);
-    expect(gap).toContain("builtin.abs");
-    expect(gap).toContain("literal.float");
-  });
-
-  it("leaves almost every other task with no gap at all", () => {
-    /* If this number starts climbing, September's tasks have drifted away from
-       what September teaches, which is the thing worth being told about. */
+  /**
+   * This block used to assert the gaps. Now it asserts their absence.
+   *
+   * `taskGap` exists so Nova can be honest when a task's own solution needs
+   * something the month has not taught: better to state it than to have Nova
+   * either refuse the level-4 fix or hand over syntax the learner has never
+   * seen. That was the right mechanism and September had five tasks in it —
+   * `m1.p8` needing `abs()` and a decimal literal, `m1.l6.b3`/`b3s` needing
+   * `!=`, and `m1.l8.b2`/`m1.as.b1` needing `<=`.
+   *
+   * The mechanism was doing its job; the content was the bug. `!=`, `<=` and a
+   * float literal are now written in the September concepts that already teach
+   * around them, and `m1.p8` takes its absolute value with the `if`/`else` its
+   * own skillRefs name rather than with `abs()`, which September has no skill
+   * for. So the honest statement is now that there is nothing to state.
+   *
+   * The assertion is kept and inverted rather than deleted, because an empty
+   * September gap set is a property worth defending: it is exactly what starts
+   * silently drifting when a month is edited.
+   */
+  it("leaves September with no task whose solution outruns the month", () => {
     const withGap = teachingOrder()
       .filter((e) => e.monthIndex === 1)
       .filter((e) => ctx(e.block.id).taskGap.length > 0)
-      .map((e) => e.block.id);
-    expect(withGap.sort()).toEqual(
-      ["m1.as.b1", "m1.l6.b3", "m1.l6.b3s", "m1.l8.b2", "m1.p8"].sort(),
-    );
+      .map((e) => `${e.block.id}: ${ctx(e.block.id).taskGap.map((s) => s.id).join(", ")}`);
+    expect(withGap.sort(), `\n${withGap.map((l) => `  · ${l}`).join("\n")}\n`).toEqual([]);
+  });
+
+  it("still reports a gap when one genuinely exists", () => {
+    /* Guards the guard. An inverted assertion that could never fail would be
+       worse than no assertion, so this proves the mechanism still detects a
+       task solved with something its month has not taught — `abs()`, which is
+       first shown in month four. */
+    const september = ctx("m1.p8");
+    expect(september.taskGap).toEqual([]);
+    expect(
+      untaughtConstructsIn("d = abs(3 - 5)\nprint(d)", september).map((s) => s.id),
+    ).toContain("builtin.abs");
   });
 });
 
@@ -353,19 +371,32 @@ describe("the system prompt carries the constraint", () => {
   });
 
   it("withholds the task-specific exception below level 3", () => {
-    /* `taskGap` names what THIS task needs. On `m1.p8` that is `abs()`, and
-       handing the name over at level 1 skips four rungs of the ladder. */
-    const low = buildSystemPrompt({ ...base, grant: grantAt(1), capability: ctx("m1.p8") });
+    /* `taskGap` names what THIS task needs. Handing the name over at level 1
+       skips four rungs of the ladder.
+
+       The example moved from `m1.p8` to `m4.l1.b8` because September no longer
+       has a task whose solution outruns its month — see the inverted assertion
+       above. `m4.l1.b8` needs `max()`, which December's own blocks write only
+       in prose, so `capabilityFor` reports it as untaught and the exception
+       clause has something real to carry. Using a live gap rather than a
+       synthetic context is deliberate: a hand-built `CapabilityContext` would
+       keep passing after the mechanism that produces one had broken. */
+    const gapped = "m4.l1.b8";
+    expect(ctx(gapped).taskGap.map((c) => c.id), "the fixture must have a real gap").toContain(
+      "builtin.max",
+    );
+
+    const low = buildSystemPrompt({ ...base, grant: grantAt(1), capability: ctx(gapped) });
     expect(low).not.toContain("EXCEPTION, this task only");
     expect(low).not.toContain("its intended solution also needs");
-    /* `abs()` is still NAMED at level 1 — in the never-shown list, as something
+    /* `max()` is still NAMED at level 1 — in the never-shown list, as something
        Nova may not use. That is the opposite claim from "this task needs it",
        and the difference is the whole point of the gate. */
     expect(low).toContain("NEVER SHOWN");
 
-    const high = buildSystemPrompt({ ...base, grant: grantAt(4), capability: ctx("m1.p8") });
+    const high = buildSystemPrompt({ ...base, grant: grantAt(4), capability: ctx(gapped) });
     expect(high).toContain("EXCEPTION, this task only");
-    expect(high).toContain("its intended solution also needs abs()");
+    expect(high).toContain("its intended solution also needs");
   });
 
   it("builds the prompt unchanged when no capability context is available", () => {

@@ -112,34 +112,35 @@ interface FirstUse {
   ordinal: number;
 }
 
-/**
- * Three constructs September asks for before anything shows them.
+/*
+ * There used to be a `SEPTEMBER_INHERITED` exemption here, holding `cmp.ne`,
+ * `builtin.abs` and `literal.float` — three constructs September required
+ * before anything showed them. It said they were "genuinely small" and left
+ * them to whoever owned the month, and the reverse assertion below existed so
+ * that closing one would fail this test and ask for the entry to be deleted.
  *
- * All three are inherited, none was introduced by the months 2-9 workstream,
- * and all three are genuinely small:
+ * That is what happened, and a fourth turned up on the way. All four are now
+ * shown before they are required:
  *
- *   `!=`   — required by `m1.l6.b3s`; September teaches `compare.operators` and
- *            simply never writes this one down. First shown at `m2.l3.b5`.
- *   `abs()` and a decimal literal — both required by `m1.p8`, the clock-angle
- *            task, which is advanced-only. `abs()` is first shown at `m4.l4.b2`,
- *            four months later; the float at `m2.l5.b7`.
+ *   `!=`            m1.l6.b1 — the lesson that already teaches and/or/not.
+ *                   Needed by m1.l6.b3 AND m1.l6.b3s, i.e. every route, not
+ *                   just support as the original note assumed.
+ *   `<=`            m1.l6.b1 — needed by m1.l8.b2 and by `m1.as.b1`,
+ *                   SEPTEMBER'S OWN MONTHLY CHECK. First written in October
+ *                   until now: the month's check asked for an operator the
+ *                   month never wrote.
+ *   a float literal m1.l10.b1 — the lesson whose whole subject is int versus
+ *                   float, which printed `3.5` in a comment and never wrote a
+ *                   fraction. Nothing in the nine-month programme did.
+ *   `abs()`         NOT taught. `m1.p8` now takes the absolute value with the
+ *                   `if`/`else` its own skillRefs already name, because
+ *                   September has no skill for `abs()` and adding one would
+ *                   hand a shortcut to the month whose point is the long way
+ *                   round. Verified identical on all 720 clock positions.
  *
- * They are listed rather than fixed for the reason the written-defence gap is:
- * September is the frozen quality baseline, it has been through a forensic
- * audit this workstream did not run, and "three small prose edits to a frozen
- * month" is exactly the kind of small that turns out not to be. Each one is a
- * five-minute change for whoever owns that month — write the operator into the
- * concept that already teaches it — and
- * `docs/curriculum/FULL_YEAR_CONTENT_AUDIT.md` names them for that purpose.
- *
- * The exemption is asserted in REVERSE below, so the day somebody closes one,
- * this test fails and asks for the entry to be deleted.
+ * So the exemption is gone rather than emptied. An empty set with a paragraph
+ * about what used to be in it is an invitation to put something back.
  */
-const SEPTEMBER_INHERITED: ReadonlySet<ConstructId> = new Set<ConstructId>([
-  "cmp.ne",
-  "builtin.abs",
-  "literal.float",
-]);
 
 const shownAt = new Map<ConstructId, FirstUse>();
 const requiredAt = new Map<ConstructId, FirstUse>();
@@ -174,21 +175,8 @@ describe("every construct a task needs has been shown to the learner first", () 
     const unshown: string[] = [];
     const late: string[] = [];
 
-    /** Every exempted construct must still BE a gap, or the exemption is stale. */
-    const staleExemptions: string[] = [];
-
     for (const [construct, required] of requiredAt) {
       const shown = shownAt.get(construct);
-      if (SEPTEMBER_INHERITED.has(construct)) {
-        const stillLate = !shown || shown.ordinal > required.ordinal;
-        if (!stillLate) {
-          staleExemptions.push(
-            `${LABEL.get(construct) ?? construct} is now shown before it is required — ` +
-              `remove it from SEPTEMBER_INHERITED`,
-          );
-        }
-        continue;
-      }
       if (!shown) {
         unshown.push(
           `${LABEL.get(construct) ?? construct} is required by ${required.blockId} ` +
@@ -212,6 +200,6 @@ describe("every construct a task needs has been shown to the learner first", () 
       [...unshown, ...late],
       `\n${[...unshown, ...late].map((l) => `  · ${l}`).join("\n")}\n`,
     ).toEqual([]);
-    expect(staleExemptions, `\n${staleExemptions.map((l) => `  · ${l}`).join("\n")}\n`).toEqual([]);
+
   });
 });

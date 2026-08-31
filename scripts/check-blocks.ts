@@ -96,9 +96,17 @@ function compiles(code: string): { ok: boolean; err: string } {
  * month is frozen costs a re-review.
  */
 const MONTH_BUDGET: Record<number, ConstructId[]> = {
-  /* Derived from September's own shown code (25 constructs, computed via
-     `teachingOrder()` + `shownCode()`), plus the four its reference solutions
-     use and therefore treat as available: abs(), <=, != and a float literal. */
+  /* Derived from September's own shown code, computed via `teachingOrder()` +
+     `shownCode()`.
+
+     It used to carry four extras "its reference solutions use and therefore
+     treat as available": abs(), <=, != and a float literal. That phrasing was
+     the defect written down — a solution using something the month never shows
+     is not a construct the month has, it is a task outrunning its month. Three
+     of the four are now genuinely shown in September (`!=` and `<=` at
+     m1.l6.b1, a float literal at m1.l10.b1) and belong here on their own
+     merits. `abs()` is gone: `m1.p8` no longer uses it, September has no skill
+     for it, and it is first shown in month four. */
   1: [
     "stmt.assign", "stmt.assign_unpack",
     "stmt.if", "stmt.elif", "stmt.else",
@@ -106,7 +114,7 @@ const MONTH_BUDGET: Record<number, ConstructId[]> = {
     "cmp.eq", "cmp.ne", "cmp.lt", "cmp.gt", "cmp.le", "cmp.ge",
     "logic.and", "logic.or", "logic.not",
     "builtin.print", "builtin.input", "builtin.int", "builtin.float", "builtin.str",
-    "builtin.map", "builtin.abs",
+    "builtin.map",
     "method.split",
     "literal.int", "literal.float", "literal.str", "literal.bool",
   ],

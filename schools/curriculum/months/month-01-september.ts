@@ -699,10 +699,23 @@ const l6Blocks: LessonBlock[] = [
     pdfPage: P,
     title: { kk: "and, or, not", ru: "and, or, not" },
     body: {
-      kk: "`and` — екеуі де ақиқат болғанда ғана ақиқат. `or` — кем дегенде біреуі ақиқат болса жеткілікті. `not` — мәнді керісінше айналдырады.",
-      ru: "`and` истинно только когда истинны оба. `or` — достаточно хотя бы одного. `not` — меняет значение на противоположное.",
+      kk: "`and` — екеуі де ақиқат болғанда ғана ақиқат. `or` — кем дегенде біреуі ақиқат болса жеткілікті. `not` — мәнді керісінше айналдырады. Теңдікті терістеудің қысқа жазылуы бар: `x != 7` дегеніміз `not (x == 7)` дегенмен бірдей, `!=` — «тең емес». Шекараны қоса салыстыру үшін `<=` және `>=` бар: `x <= 7` — «7-ден кіші немесе тең».",
+      ru: "`and` истинно только когда истинны оба. `or` — достаточно хотя бы одного. `not` — меняет значение на противоположное. У отрицания равенства есть короткая запись: `x != 7` — это то же самое, что `not (x == 7)`, а `!=` читается «не равно». Чтобы сравнить, включая границу, есть `<=` и `>=`: `x <= 7` — «меньше или равно 7».",
     },
-    code: "x = 7\nprint(x > 0 and x < 10)   # True\nprint(x < 0 or x > 5)     # True\nprint(not (x == 7))       # False",
+    /* The last line is not decoration. `m1.l6.b3` and `m1.l6.b3s` — four blocks
+       later, on all three routes — solve the leap year with
+       `y % 100 != 0`, and until this line existed `!=` was first written on
+       screen in OCTOBER (m2.l3.b5). The lesson asked every learner in the month
+       to use an operator the programme had never shown them. It belongs here
+       rather than in the leap-year block itself: this is the lesson about
+       composing conditions, and «not equal» is one.
+
+       `<=` is the same story and was the worse one: it is needed by `m1.l8.b2`
+       and by `m1.as.b1` — SEPTEMBER'S OWN MONTHLY CHECK — and was first written
+       in October too (m2.l3.b4). A month whose check asks for an operator the
+       month never wrote is a month that measures the wrong thing. Both are one
+       line each, in the lesson that already shows `>`, `<` and `==`. */
+    code: "x = 7\nprint(x > 0 and x < 10)   # True\nprint(x < 0 or x > 5)     # True\nprint(not (x == 7))       # False\nprint(x != 7)             # False\nprint(x <= 7)             # True",
   },
   {
     id: "m1.l6.b2",
@@ -1161,10 +1174,16 @@ const l10Blocks: LessonBlock[] = [
     pdfPage: P,
     title: { kk: "Екі түрлі бөлу", ru: "Два разных деления" },
     body: {
-      kk: "Python-да бөлудің екі белгісі бар. `/` әрқашан бөлшек сан береді — тіпті бөліну қалдықсыз болса да. `//` бүтін бөлінді береді. Қайсысын алу керегін есептің өзі айтады: адам санын бөлшекпен айтуға болмайды, ал орташа баға бөлшек болуы мүмкін.",
-      ru: "В Python два знака деления. `/` всегда даёт дробное число — даже когда делится нацело. `//` даёт целую часть частного. Что выбрать, подсказывает сама задача: количество людей не бывает дробным, а средний балл — может.",
+      kk: "Python-да бөлудің екі белгісі бар. `/` әрқашан бөлшек сан береді — тіпті бөліну қалдықсыз болса да. `//` бүтін бөлінді береді. Қайсысын алу керегін есептің өзі айтады: адам санын бөлшекпен айтуға болмайды, ал орташа баға бөлшек болуы мүмкін. Бөлшек санды тікелей де жазуға болады: `0.5` — жарты, `2.5` — екі жарым; үтірдің орнына нүкте қойылады.",
+      ru: "В Python два знака деления. `/` всегда даёт дробное число — даже когда делится нацело. `//` даёт целую часть частного. Что выбрать, подсказывает сама задача: количество людей не бывает дробным, а средний балл — может. Дробное число можно записать и напрямую: `0.5` — половина, `2.5` — два с половиной; вместо запятой ставится точка.",
     },
-    code: "print(7 / 2)    # 3.5\nprint(7 // 2)   # 3\nprint(10 / 5)   # 2.0\nprint(10 // 5)  # 2",
+    /* The last line WRITES a fraction rather than only printing one.
+       `3.5` and `2.0` above appear solely inside comments, so nothing in the
+       whole nine-month programme ever put a float literal on screen — while
+       `m1.p8` asked a learner to type `m * 0.5`. This is the lesson whose
+       entire subject is int versus float; if a fraction is written anywhere, it
+       is written here. */
+    code: "print(7 / 2)    # 3.5\nprint(7 // 2)   # 3\nprint(10 / 5)   # 2.0\nprint(10 // 5)  # 2\nprint(0.5 * 8)  # 4.0",
   },
   {
     id: "m1.l10.b2",
@@ -1565,8 +1584,17 @@ const practiceSpecs: PracticeSpec[] = [
     kk: "Сағат 12 сағаттық форматта. h сағат және m минут берілген. Сағат тілі мен минут тілінің арасындағы бұрыш неше градус? Жауаптың бүтін бөлігін шығар.",
     ru: "Часы 12-часовые. Даны h часов и m минут. Каков угол между часовой и минутной стрелками в градусах? Выведи целую часть ответа.",
     skills: ["arith.basic", "arith.remainder", "cond.if_elif_else"],
+    /* The difference is taken with `if`/`else`, not `abs()`.
+       `abs()` is first shown in MONTH FOUR (m4.l4.b2) and September has no
+       skill for it, so the reference solution was written in a Python the
+       learner had not been given — the same mistake this file records fixing
+       for `m1.p2` («Negative floor-modulo is a real topic; it is not a
+       September topic»). The block's own skills already name
+       `cond.if_elif_else`, so the long way round is the taught way round, and
+       it is what the month is for. Verified identical to the `abs()` version on
+       all 720 clock positions. */
     solution:
-      "h, m = map(int, input().split())\nhh = (h % 12) * 30 + m * 0.5\nmm = m * 6\nd = abs(hh - mm)\nif d > 180:\n    d = 360 - d\nprint(int(d))",
+      "h, m = map(int, input().split())\nhh = (h % 12) * 30 + m * 0.5\nmm = m * 6\nif hh > mm:\n    d = hh - mm\nelse:\n    d = mm - hh\nif d > 180:\n    d = 360 - d\nprint(int(d))",
     cases: [
       { input: "3 0", expectedOutput: "90" },
       { input: "12 0", expectedOutput: "0", hidden: true },

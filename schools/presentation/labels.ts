@@ -802,6 +802,19 @@ export const L = {
     ru: "Уроки станут доступны после того, как учитель проверит и откроет материал.",
   },
 
+  /* A month that IS published but that this learner has not reached yet.
+     Different sentence from the one above, and the difference matters: "the
+     teacher has not opened it" is about the school and there is nothing the
+     learner can do, while this is about their own work and there is. Telling a
+     learner to wait for an adult when the door is in fact theirs to open is the
+     kind of small untruth that teaches them the product does not know what is
+     going on. */
+  monthLockedTitle: { kk: "Бұл ай әлі жабық", ru: "Этот месяц ещё закрыт" },
+  monthLockedBody: {
+    kk: "Алдыңғы айдың сабақтары мен айлық сынағын аяқтасаң, бұл ай өзі ашылады.",
+    ru: "Он откроется сам, когда ты закончишь уроки и месячную проверку предыдущего месяца.",
+  },
+
   /* --- sign in (migration 0012 identity) --------------------------------- */
   signInTitle: { kk: "Кіру", ru: "Вход" },
   signInSub: {

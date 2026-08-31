@@ -7,6 +7,7 @@ import type { Lesson, Month } from "@schools/curriculum/types";
 import { publicLesson } from "@schools/curriculum/public";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
+import { currentLearnerMayEnter } from "@schools/learning/access";
 import { lessonHydration } from "@schools/learning/rehydrate";
 import { LessonRoute } from "@/components/brilliant/lesson/lesson-route";
 
@@ -75,6 +76,13 @@ export default async function LessonPage({
      the hash of exactly the content being served. */
   const gate = await gateFor(found.month);
   if (!gate.open) notFound();
+
+  /* And the learner's own gate. Publication says the month exists; this says
+     this learner has earned it. All nine months are published, so without this
+     line every learner could open May on their first day. Same `notFound()` as
+     an unpublished month — a distinct "locked" page would let anyone read the
+     shape of the year off the status code. See `schools/policies/unlock.ts`. */
+  if (!(await currentLearnerMayEnter(found.month.index))) notFound();
 
   /*
    * The learner gets the PUBLIC projection, never the curriculum object.

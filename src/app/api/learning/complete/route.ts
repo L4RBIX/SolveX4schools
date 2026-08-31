@@ -3,6 +3,7 @@ import { findCompletable, type Completable } from "@schools/curriculum/inventory
 import { getStore, getStoreHandle } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
+import { monthUnlockedFor } from "@schools/learning/access";
 import { bump, opsLog } from "@schools/ops/counters";
 import { resolveTrack } from "@schools/learning/track";
 import { completionTarget } from "@schools/policies/lookup";
@@ -110,6 +111,17 @@ export async function POST(request: Request) {
 
   const { subjectId, anonId, isNew } = await resolveIdentity();
   const store = await getStore();
+
+  /* A completion in a month this learner has not unlocked is not a completion.
+     Without this a learner could not GRADE anything in March — `submit` refuses
+     — but could still post a bare completion for a March lesson and have the
+     row written, which would then unlock April. The gate that decides
+     progression must not be reachable by the request that claims progression.
+
+     Same 404 and same silence as `submit`; see `schools/policies/unlock.ts`. */
+  if (!(await monthUnlockedFor(subjectId, target.monthIndex))) {
+    return NextResponse.json({ error: "unknown lesson" }, { status: 404 });
+  }
 
   /* Evidence, not assertion. Every block the policy governs is looked up in the
      ledger; a block with no submission recorded reaches `none` and the decision

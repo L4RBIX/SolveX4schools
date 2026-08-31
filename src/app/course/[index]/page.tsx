@@ -5,6 +5,7 @@ import { MONTHS, MONTH_BY_INDEX } from "@schools/curriculum/months";
 import { monthOutline } from "@schools/curriculum/public";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
+import { currentLearnerMayEnter } from "@schools/learning/access";
 import { MonthBoard } from "@/components/brilliant/gameboard/month-board";
 import { MonthNotOpen } from "@/components/brilliant/gameboard/month-not-open";
 
@@ -47,7 +48,15 @@ export default async function CoursePage({
      full of nodes that each 404 when tapped. So the month renders as closed,
      with a reason, rather than as absent or as a set of dead links. */
   const gate = await gateFor(month);
-  if (!gate.open) return <MonthNotOpen month={monthOutline(month)} />;
+  if (!gate.open) return <MonthNotOpen month={monthOutline(month)} reason="unpublished" />;
+
+  /* Published, but not yet this learner's. Same panel and the same reasoning as
+     the comment above — a closed month is a real and useful thing to see, and a
+     board of nodes that each 404 when tapped is not. The learner is told what
+     opens it, which is true and is theirs to act on. */
+  if (!(await currentLearnerMayEnter(month.index))) {
+    return <MonthNotOpen month={monthOutline(month)} reason="locked" />;
+  }
 
   return <MonthBoard month={monthOutline(month, track)} track={track} />;
 }

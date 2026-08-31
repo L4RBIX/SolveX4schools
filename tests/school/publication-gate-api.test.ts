@@ -34,6 +34,8 @@ import { randomUUID } from "node:crypto";
 const ANON = "44444444-4444-4444-8444-444444444444";
 /** May, block 2. Never published, in this fixture or anywhere else. */
 const UNPUBLISHED_BLOCK = "m9.l1.b2";
+/** September. Unpublished in this fixture, but unlocked for every learner. */
+const SEPTEMBER_BLOCK = "m1.l1.b2";
 
 process.env.LEARNING_DATA_DIR = "memory://";
 
@@ -121,9 +123,26 @@ describe("a signed-in learner cannot be graded on a month nobody approved", () =
     /* The complement. A gate that closed everywhere would be removed within a
        week, and the real one would go with it. `gateFor` returns
        `bypassedForDevelopment: true` outside production, which is what lets the
-       rest of this suite grade every month of the year. */
+       rest of this suite grade an unpublished month.
+       
+       September, not May — because there are now TWO gates and only one of them
+       has a development bypass. Publication is a property of the deployment and
+       is bypassed outside production; UNLOCK is a property of the learner and
+       is not, deliberately: a learner who has finished nothing has not earned
+       May in development either, and a bypass there would mean the progression
+       tests could never catch a regression. Month 1 is unlocked for everybody
+       from the first login, so this isolates the publication bypass. */
+    vi.resetModules();
+    const res = await submit(SEPTEMBER_BLOCK);
+    expect(res.status, "development keeps the documented publication bypass").not.toBe(404);
+  });
+
+  it("refuses a month the learner has not unlocked, even in development", async () => {
+    /* The unlock gate has no environment bypass, and this is what says so. A
+       fresh learner has finished nothing, so May is closed to them whatever the
+       deployment thinks about publication. */
     vi.resetModules();
     const res = await submit(UNPUBLISHED_BLOCK);
-    expect(res.status, "development keeps the documented bypass").not.toBe(404);
+    expect(res.status, "unlock is about the learner, not the environment").toBe(404);
   });
 });

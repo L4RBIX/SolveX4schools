@@ -6,6 +6,7 @@ import { config } from "@schools/config";
 import { getStore } from "@schools/store";
 import { checkLearningAccess } from "@schools/auth/policy";
 import { anonCookie, resolveIdentity } from "@schools/learning/identity";
+import { monthUnlockedFor } from "@schools/learning/access";
 import { findBlock, gradeBlock, toLearningVerdictName } from "@schools/learning/grade";
 import { gateFor } from "@schools/curriculum/gate";
 import { ATTEMPTS_BEFORE_REVEAL, justificationFor, revealFor } from "@schools/learning/reveal";
@@ -179,6 +180,31 @@ export async function POST(request: Request) {
 
   const { subjectId, anonId, isNew } = await resolveIdentity();
   const store = await getStore();
+
+  /*
+   * PUBLISHED is not UNLOCKED, and this is the boundary where that distinction
+   * has to hold.
+   *
+   * All nine months are published, so the gate above no longer restricts
+   * anything by itself — it only rejects a month nobody approved. Which months
+   * THIS learner may work in is their own record's business, and
+   * `schools/policies/unlock.ts` decides it.
+   *
+   * It sits here rather than beside the publication gate because the answer
+   * depends on the learner, and the learner is not known until `resolveIdentity`
+   * three lines above. It sits BEFORE grading, before the judge and before any
+   * ledger write, so a request for a locked month costs nothing and records
+   * nothing — the whole point being that a learner cannot accumulate evidence
+   * in March by posting to it.
+   *
+   * 404 with the same body as an unknown block, for the same reason the
+   * publication gate uses one: a distinct "locked" would let anyone enumerate
+   * the shape of the year and of other learners' progress.
+   */
+  if (!(await monthUnlockedFor(subjectId, target.month.index))) {
+    opsLog("submit.locked_month", { block_id: blockId, month: String(target.month.index) });
+    return NextResponse.json({ error: "unknown block" }, { status: 404 });
+  }
 
   /* The episode is a second key into the ledger and it arrives in the request
      body. `ownedEpisodeId` refuses one that already belongs to another learner
