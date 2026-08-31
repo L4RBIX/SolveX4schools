@@ -43,6 +43,7 @@
     "check:bundle": "node scripts/check-client-bundle.mjs",
     "curriculum:test-content": "vitest run tests/school/content-execution.test.ts tests/school/payload-privacy.test.ts tests/school/reveal-policy.test.ts tests/school/tracks.test.ts",
     "curriculum:publish": "tsx scripts/publish-curriculum.ts",
+    "curriculum:unpublish": "tsx scripts/unpublish-curriculum.ts",
     "judge0:validate": "tsx scripts/live/judge0-validate.ts",
     "school:provision": "tsx scripts/provision-class.ts",
     "pyodide:sync": "node scripts/sync-pyodide-assets.mjs --force",

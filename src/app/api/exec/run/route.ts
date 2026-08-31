@@ -1,3 +1,4 @@
+import { checkLearningAccess } from "@schools/auth/policy";
 import { getExecutionProvider, EXECUTION_LIMITS } from "@schools/exec";
 import { MAX_REQUEST_BYTES, checkPayloadSize, requestTooLarge } from "@schools/exec/limits";
 import { resolveIdentity } from "@schools/learning/identity";
@@ -31,6 +32,33 @@ import { takeToken } from "@schools/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  /*
+   * The gate every other learning route already had, and this one did not.
+   *
+   * Ten sibling routes — submit, complete, events, track, activity, state/me,
+   * dictionary, review, explanation, nova/hint — open with
+   * `checkLearningAccess()`. This one went straight to `resolveIdentity()`, and
+   * the difference was not academic: `proxy.ts` mints a fresh `sx_anon` for
+   * every cookie-less request, so each anonymous POST inserted a
+   * `learning_subjects` row, an alias, a `school_subject_scope` row and a
+   * `rate_limit_bucket` row — four rows apiece — and the per-learner token
+   * bucket never bit, because its key was new every time. An unauthenticated
+   * caller could also spend the judge's metered quota.
+   *
+   * First statement in the handler, ahead of the size check, matching the order
+   * in `submit`: production and preview require a session, development may stay
+   * anonymous, and `schools/auth/policy.ts` is the one place that decides so two
+   * routes cannot disagree.
+   *
+   * This does NOT touch the learner's Run button. That is Pyodide in the
+   * browser — `run-panel.tsx` imports `usePython` and makes no fetch at all, an
+   * invariant `tests/school/run-panel.test.ts` pins. The only caller of this
+   * route in the whole application is the dev lab, on a page that 404s in
+   * production.
+   */
+  const access = await checkLearningAccess();
+  if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
+
   /* Before the body is read. `request.json()` buffers whatever arrives, so the
      cheapest possible refusal of a hundred-megabyte POST is one that happens
      before it is parsed. See `schools/exec/limits.ts`. */

@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { PgliteExecutor } from "@schools/store/pglite-driver";
@@ -248,5 +250,81 @@ describe("accounts", () => {
         salt: account!.passwordSalt,
       }),
     ).toBe(true);
+  });
+});
+
+
+/* ========================================================================== */
+/* EVERY LEARNER-FACING ROUTE IS GATED, NOT MERELY SCOPED                     */
+/* ========================================================================== */
+
+/**
+ * The invariant that `/api/exec/run` broke by being written later.
+ *
+ * Ten learning routes opened with `checkLearningAccess()`. That one went
+ * straight to `resolveIdentity()`, and the cost was not theoretical: `proxy.ts`
+ * mints a fresh `sx_anon` for every cookie-less request, so each anonymous POST
+ * inserted a `learning_subjects` row, an alias, a `school_subject_scope` row
+ * and a `rate_limit_bucket` row — and the per-learner token bucket never bit,
+ * because its key was new every time. An anonymous caller could also spend the
+ * judge's metered quota.
+ *
+ * It was found by an audit rather than by a test, which is the part worth
+ * fixing. This is a source-level check on purpose: the behavioural assertion
+ * would have to run as `production` to be meaningful, since
+ * `anonymousLearningAllowed()` is true in development by design, and the thing
+ * actually at risk is a NEW route being added without the line.
+ *
+ * The exemptions are listed with reasons rather than by pattern, so adding a
+ * route to the allowlist is a decision somebody writes down.
+ */
+describe("every learner-facing API route asks the auth policy first", () => {
+  /** Route families a learner's browser calls directly. */
+  const LEARNER_FACING = ["learning", "exec", "nova", "league"];
+
+  /**
+   * Routes that may legitimately skip the gate, each with a written reason.
+   *
+   * Empty, and that is the point: every learner-facing route currently asks.
+   * A future entry here is a decision somebody has to justify in this file
+   * rather than an omission nobody notices.
+   */
+  const EXEMPT: Readonly<Record<string, string>> = {};
+
+  const routeFiles = (): string[] => {
+    const out: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name === "route.ts") out.push(p);
+      }
+    };
+    for (const family of LEARNER_FACING) {
+      const dir = path.join(process.cwd(), "src/app/api", family);
+      if (existsSync(dir)) walk(dir);
+    }
+    return out.map((p) => path.relative(process.cwd(), p)).sort();
+  };
+
+  it("finds the routes it means to check", () => {
+    const files = routeFiles();
+    /* Guards the guard: a moved directory would otherwise make this vacuous. */
+    expect(files.length, files.join(", ")).toBeGreaterThanOrEqual(10);
+    expect(files).toContain("src/app/api/exec/run/route.ts");
+    expect(files).toContain("src/app/api/learning/submit/route.ts");
+  });
+
+  it("leaves none of them ungated", () => {
+    const ungated = routeFiles().filter((rel) => {
+      if (rel in EXEMPT) return false;
+      return !readFileSync(path.join(process.cwd(), rel), "utf8").includes("checkLearningAccess");
+    });
+    expect(
+      ungated,
+      `\nThese learner-facing routes never call checkLearningAccess():\n${ungated
+        .map((f) => `  · ${f}`)
+        .join("\n")}\n`,
+    ).toEqual([]);
   });
 });

@@ -27,79 +27,11 @@
  * for fourteen-year-olds is a human act.
  */
 
-/**
- * One tiny query surface over either engine.
- *
- * These scripts run outside a request, so `schools/store` (which is
- * `server-only`) is unavailable — but a provisioning tool that only works
- * against the development database is a provisioning tool nobody can use on the
- * day it matters. `DATABASE_URL` picks Postgres; otherwise it is the local
- * PGlite directory, which is single-writer and therefore requires the app to be
- * stopped.
- */
-interface Db {
-  query<T = Record<string, unknown>>(
-    text: string,
-    params?: unknown[],
-  ): Promise<{ rows: T[] }>;
-  close(): Promise<void>;
-}
-
-async function openDb(dataDir: string): Promise<Db> {
-  const url = process.env.DATABASE_URL;
-  if (url) {
-    const pg = (await import("pg")).default;
-    const pool = new pg.Pool({ connectionString: url });
-    return {
-      query: async <T,>(text: string, params: unknown[] = []) => {
-        const r = await pool.query(text, params);
-        return { rows: r.rows as T[] };
-      },
-      close: () => pool.end(),
-    };
-  }
-  /*
-   * `PGlite.create`, not `openDb` again.
-   *
-   * This line read `await openDb(dataDir)` — the function calling itself,
-   * unconditionally, on the branch that has no early return. Publishing on the
-   * PGlite path therefore recursed until the heap died, and `PGlite` was
-   * imported on the line above and never used, which is the tell.
-   *
-   * It is the SAME defect `scripts/provision-class.ts` carries a paragraph
-   * about having fixed; this copy of the function was never updated. It only
-   * ever worked with `DATABASE_URL` set, which takes the branch above and
-   * returns before reaching here — so the one deployment shape the production
-   * documentation still describes could never publish a month at all.
-   *
-   * Resolved absolute and created first, for the reason
-   * `schools/store/pglite-driver.ts` gives: a relative path reaches PGlite's
-   * node filesystem layer as a URL, and the resulting error names neither this
-   * file nor the path.
-   */
-  const { PGlite } = await import("@electric-sql/pglite");
-  let target = dataDir;
-  if (!dataDir.startsWith("memory://")) {
-    const { mkdir } = await import("node:fs/promises");
-    const nodePath = await import("node:path");
-    target = nodePath.resolve(process.cwd(), dataDir);
-    await mkdir(target, { recursive: true });
-  }
-  const db = await PGlite.create(target);
-  return {
-    query: async <T,>(text: string, params: unknown[] = []) => {
-      const r = await db.query(text, params);
-      return { rows: r.rows as T[] };
-    },
-    close: () => db.close(),
-  };
-}
 import { randomUUID, createHash } from "node:crypto";
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { promptSecret } from "./prompt-secret";
 import { MONTH_BY_INDEX } from "../schools/curriculum/months";
 import { curriculumHash } from "../schools/curriculum/publication";
-import { verifyPassword } from "../schools/auth/password";
+import { authenticateReviewer, openOperatorDb } from "./operator";
 
 function arg(flag: string, fallback?: string): string {
   const argv = process.argv.slice(2);
@@ -146,46 +78,20 @@ async function main() {
     return;
   }
 
-  const rl = createInterface({ input: stdin, output: stdout, terminal: true });
-  const password = await rl.question(`  Password for ${reviewerUsername}: `);
-  rl.close();
+  const password = await promptSecret(`  Password for ${reviewerUsername}: `);
 
-  const db = await openDb(dataDir);
-  const found = await db.query<{
-    user_id: string;
-    role: string;
-    display_name: string;
-    password_hash: string;
-    password_salt: string;
-    disabled_at: string | null;
-  }>(
-    `select user_id, role, display_name, password_hash, password_salt, disabled_at
-       from school_accounts where school_id = $1 and lower(username) = lower($2)`,
-    [schoolId, reviewerUsername],
-  );
-  const reviewer = found.rows[0];
-
-  const ok =
-    reviewer &&
-    !reviewer.disabled_at &&
-    (await verifyPassword(password, {
-      hash: reviewer.password_hash,
-      salt: reviewer.password_salt,
-    }));
-
-  if (!ok) {
-    console.log("\n  Not published: credentials rejected.\n");
+  const db = await openOperatorDb(dataDir);
+  const auth = await authenticateReviewer(db, schoolId, reviewerUsername, password);
+  if (!auth.ok) {
+    /* The reason, not just "rejected". The commonest failure of this command is
+       a mismatched --school, and "credentials rejected" sent operators looking
+       at the password. */
+    console.log(`\n  Not published: ${auth.reason}.\n`);
     await db.close();
     process.exitCode = 1;
     return;
   }
-
-  if (reviewer.role !== "teacher" && reviewer.role !== "admin") {
-    console.log(`\n  Not published: ${reviewerUsername} is a ${reviewer.role}.\n`);
-    await db.close();
-    process.exitCode = 1;
-    return;
-  }
+  const reviewer = { user_id: auth.reviewer.userId, display_name: auth.reviewer.displayName };
 
   await db.query(
     `insert into curriculum_publications
