@@ -118,16 +118,38 @@ const haveCompiler = COMPILER !== null;
 /* -------------------------------------------------------------------------- */
 
 const WORKED = ALL.filter((e) => e.block.type === "worked_example");
+
+/**
+ * Does this program read standard input?
+ *
+ * It asked `code.includes("input(")`, and when the harness underneath it moved
+ * to C++ that selector was left behind — so it matched NOTHING. Both lists
+ * below silently reclassified: every worked example became "runnable", the
+ * unverifiable list became empty, and the assertion that a worked example
+ * reading stdin must declare its `stdin` could never fire again. A C++ example
+ * that reads `cin` and forgets to declare its input would run on an empty
+ * stream, print whatever that produces, and be certified as matching its own
+ * claimed output.
+ *
+ * A vacuous gate is worse than an absent one: it reports success. Caught by
+ * November's migration noticing the selector could not match its content.
+ *
+ * `>>` on `cin` and `getline` are the two ways in. Comments and string literals
+ * are not stripped first, which is deliberate — a mention of `cin` in a comment
+ * costs an author one `stdin: ""` declaration, and over-reporting here is the
+ * safe direction.
+ */
+const READS_STDIN = /\bcin\s*>>|\bgetline\s*\(/;
+
 /* A worked example is runnable when it reads nothing, or when it declares the
-   input it is reasoned over. The thirteen that read stdin now do — see the
-   `stdin` field on `WorkedExampleBlock` and why it was added. */
+   input it is reasoned over. */
 const RUNNABLE = WORKED.filter((e) => {
   const b = e.block as { code: string; stdin?: string };
-  return !b.code.includes("input(") || typeof b.stdin === "string";
+  return !READS_STDIN.test(b.code) || typeof b.stdin === "string";
 });
 const UNVERIFIABLE = WORKED.filter((e) => {
   const b = e.block as { code: string; stdin?: string };
-  return b.code.includes("input(") && typeof b.stdin !== "string";
+  return READS_STDIN.test(b.code) && typeof b.stdin !== "string";
 });
 
 describe("a worked example prints what it says it prints", () => {

@@ -561,6 +561,19 @@ export const L = {
     ru: "Это задание ты решил с помощью Nova — это учтено.",
   },
   run: { kk: "Іске қосу", ru: "Запустить" },
+
+  /* The one place C++ is QUIETER about a mistake than Python was, which makes
+     it the one place the product has to speak up instead.
+
+     `input()` on an empty stdin raised EOFError and the learner saw a failure.
+     `cin >> n` on an empty stdin fails the stream and returns WITHOUT touching
+     the variable, so an uninitialised `int n` keeps whatever was in that memory
+     — measured, not assumed — and the program prints a confident arbitrary
+     number. A beginner has no way to tell that from a real answer. */
+  runStdinEmptyButRead: {
+    kk: "Бағдарламаң cin арқылы оқиды, ал «Кіріс деректер» бос — сан кездейсоқ шығуы мүмкін",
+    ru: "Твоя программа читает через cin, а поле «Входные данные» пустое — число может оказаться случайным",
+  },
   submit: { kk: "Тапсыру", ru: "Отправить" },
   understood: { kk: "Түсіндім", ru: "Понятно" },
 

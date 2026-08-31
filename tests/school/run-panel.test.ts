@@ -281,10 +281,15 @@ const READY = {
   locked: false,
   sourceBytes: 40,
   hasSource: true,
+  /* A program that reads input, with input in the box. The default has to be
+     the ordinary case, or every unrelated test below would be exercising the
+     empty-stdin warning by accident. */
+  stdin: "1 2",
+  source: "int main(){ int a, b; cin >> a >> b; }",
 } as const;
 
 describe("the Run button is never a lie", () => {
-  it("says Python is still downloading, and is disabled while it is", () => {
+  it("says the toolchain is still downloading, and is disabled while it is", () => {
     for (const phase of ["idle", "loading"] as const) {
       const state = runButtonState({ ...READY, phase });
       expect(state.disabled).toBe(true);
@@ -299,7 +304,7 @@ describe("the Run button is never a lie", () => {
 
   it("offers a retry when the runtime failed, and does not call it the learner's fault", () => {
     const state = runButtonState({ ...READY, phase: "unavailable" });
-    /* Enabled. `PythonRunner.ensureReady` spawns a fresh worker, and school
+    /* Enabled. `Cpp17Runner.warm` spawns a fresh worker, and school
        Wi-Fi coming back is the common case — a permanently dead button would
        end the lesson for everyone in the room. */
     expect(state.disabled).toBe(false);
@@ -317,7 +322,7 @@ describe("the Run button is never a lie", () => {
     const state = runButtonState({
       ...READY,
       phase: "unavailable",
-      hasSource: false,
+      hasSource: false, stdin: "1 2", source: "int main(){}",
       locked: true,
     });
     expect(state.action).toBe("retry");
@@ -632,5 +637,49 @@ describe("the hint ladder cannot be climbed by pressing one button", () => {
     expect(
       isNewRunEffort({ source: "print(1)", stdin: "", lastReported: last("print(2)", "") }),
     ).toBe(true);
+  });
+});
+
+describe("a program that reads input it has not been given", () => {
+  /**
+   * The one place C++ is QUIETER than Python, so the product has to speak.
+   *
+   * `input()` on an empty stdin raised EOFError and the learner saw a failure
+   * they could act on. `cin >> n` fails the stream and returns WITHOUT writing
+   * to the variable — measured against the real toolchain, not assumed — so an
+   * uninitialised `int n` keeps whatever was in that memory and the program
+   * prints a confident arbitrary number with nothing on screen to contradict
+   * it.
+   *
+   * The box is seeded from the first visible case, so reaching this state means
+   * the learner cleared it — which is exactly what they do while experimenting,
+   * and exactly when they are least equipped to disbelieve a plausible number.
+   */
+  it("warns, and does not disable — trying things is allowed", () => {
+    const state = runButtonState({ ...READY, stdin: "   " });
+    expect(state.note).toBe(L.runStdinEmptyButRead);
+    expect(state.disabled, "a learner was stopped from running their own program").toBe(false);
+  });
+
+  it("says nothing when the program does not read input", () => {
+    const state = runButtonState({
+      ...READY,
+      stdin: "",
+      source: "int main(){ cout << 7 * 8; }",
+    });
+    expect(state.note).not.toBe(L.runStdinEmptyButRead);
+  });
+
+  it("says nothing when the input is there", () => {
+    expect(runButtonState({ ...READY }).note).not.toBe(L.runStdinEmptyButRead);
+  });
+
+  it("catches getline too, not just >>", () => {
+    const state = runButtonState({
+      ...READY,
+      stdin: "",
+      source: "int main(){ string s; getline(cin, s); }",
+    });
+    expect(state.note).toBe(L.runStdinEmptyButRead);
   });
 });

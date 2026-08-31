@@ -93,7 +93,20 @@ export interface RunButtonInput {
   sourceBytes: number;
   /** False when the editor is empty or whitespace. */
   hasSource: boolean;
+  /** What is in the «Входные данные» box, verbatim. */
+  stdin: string;
+  /** The editor's contents, for deciding whether the program reads input. */
+  source?: string;
 }
+
+/**
+ * Does this program read standard input?
+ *
+ * Same two ways in as the content gate uses. Deliberately not comment-stripped:
+ * a `cin` inside a comment costs the learner one harmless note, and
+ * over-warning is the safe direction here.
+ */
+const READS_STDIN = /\bcin\s*>>|\bgetline\s*\(/;
 
 /**
  * The one place the button's five states are decided.
@@ -128,6 +141,23 @@ export function runButtonState(input: RunButtonInput): RunButtonState {
 
   if (input.locked) {
     return { action: "none", disabled: true, label: L.run, note: L.runLockedAfterCheck };
+  }
+
+  /* Reads input, and has none. NOT disabled — a learner is allowed to run
+   * whatever they like, and being stopped from trying is worse than being
+   * warned. But they are told, because this is the one case where C++ is
+   * QUIETER than Python was and the silence is dangerous.
+   *
+   * Python raised EOFError and the learner saw a failure. `cin >> n` fails the
+   * stream and returns without writing to the variable, so an uninitialised
+   * `int n` keeps whatever was in that memory and the program prints a
+   * confident arbitrary number. Nothing on screen says it is not the answer.
+   *
+   * The box is seeded from the first visible case, so reaching this means the
+   * learner cleared it — which they do while experimenting, exactly when they
+   * are least equipped to disbelieve a plausible number. */
+  if (READS_STDIN.test(input.source ?? "") && input.stdin.trim() === "") {
+    return { action: "run", disabled: false, label: L.run, note: L.runStdinEmptyButRead };
   }
 
   if (input.sourceBytes > LOCAL_LIMITS.maxSourceBytes) {

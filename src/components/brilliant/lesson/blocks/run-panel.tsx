@@ -157,6 +157,8 @@ export function RunPanel({
     locked,
     sourceBytes: byteLength(source),
     hasSource: source.trim().length > 0,
+    stdin,
+    source,
   });
 
   /* The policy's answer, honoured rather than assumed. Every surface allows a
