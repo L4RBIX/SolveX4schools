@@ -9,6 +9,11 @@ on:
       # run against a single commit of it — the branch being cut for a real
       # school was the one branch with no automated gate behind it.
       - "*-release-candidate"
+      # The language migration. A branch that rewrites every reference solution
+      # in the programme is precisely one that must not merge on the strength of
+      # a local run — the same reasoning that added the release-candidate
+      # pattern above, and the same mistake if it is left out.
+      - "cpp17-migration"
   pull_request:
     branches:
       - master
@@ -111,15 +116,48 @@ jobs:
       - name: Curriculum validation
         run: npm run curriculum:validate
 
-      # Python BEFORE the tests, not after.
+      # The compiler that certifies the curriculum, BEFORE the tests.
       #
-      # `tests/school/content-execution.test.ts` executes every reference
-      # solution in the curriculum, and it is `it.runIf(python)` throughout — so
-      # with no interpreter it reported PASS having run nothing, 916 of 934
-      # tests skipped behind a green tick. It now FAILS under CI instead, which
-      # means the interpreter has to be installed before `npm test` rather than
-      # in the step that used to follow it.
-      - name: Set up Python
+      # `tests/school/content-execution.test.ts` compiles and runs every
+      # reference solution in the programme, and it is `it.runIf(haveCompiler)`
+      # throughout — so with no toolchain it would report PASS having run
+      # nothing, hundreds of tests skipped behind a green tick. It FAILS under
+      # CI instead, which is why this step comes before `npm test`.
+      #
+      # GCC 14 specifically, and not the runner's default g++.
+      #
+      # Judge0 language 105 is GCC 14.1, and Judge0 is what actually grades a
+      # fourteen-year-old. A CI that certifies "every reference solution passes
+      # every case" using a different compiler is asserting something about a
+      # compiler no learner is ever judged by — and the failure that hides is
+      # the worst kind: content green in CI, wrong answer in a classroom, and
+      # nothing in between to explain it. `-std=c++17` is passed by the harness;
+      # GCC 14's own default is `gnu++17`, which is where the judge sits.
+      #
+      # The version is asserted rather than assumed, because `apt-get install`
+      # succeeding is not the same as `g++` on PATH being the one installed.
+      - name: Set up the C++ toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-14
+          echo "EXEC_CPP_BIN=g++-14" >> "$GITHUB_ENV"
+          g++-14 --version
+          actual="$(g++-14 -dumpversion | cut -d. -f1)"
+          if [[ "$actual" != "14" ]]; then
+            echo "::error::expected GCC 14 to match Judge0 language 105, got $actual"
+            exit 1
+          fi
+          echo "int main(){ static_assert(__cplusplus == 201703L, \"not C++17\"); }" > /tmp/std.cc
+          g++-14 -std=c++17 -o /tmp/std /tmp/std.cc && echo "C++17 confirmed"
+
+      # Python is still installed, and it is no longer about the curriculum.
+      #
+      # It is here for `npm run test:python` alone — the archive's Nova
+      # directive suite, which is TOOLING that processes directives and is
+      # unrelated to the language the course teaches. Pinned to 3.12 because
+      # that suite uses `int | None` annotations pydantic cannot evaluate on
+      # 3.9, and "it passes on the machine with the right Python" is not a gate.
+      - name: Set up Python (Nova directive tooling only)
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -139,11 +177,8 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/solvex_ci
         run: npx vitest run tests/store/postgres-driver.test.ts
 
-      # The archive's own Nova directive suite. The interpreter is already
-      # installed above, because the curriculum-execution gate needs it before
-      # `npm test` rather than after. Pinned to 3.12 there: the suite uses
-      # `int | None` annotations that pydantic cannot evaluate on 3.9, and "it
-      # passes on the machine that has the right Python" is not a gate.
+      # The archive's own Nova directive suite — tooling, not the taught
+      # language. See the interpreter step above for why 3.12 is pinned.
       - name: Python tests
         run: npm run test:python
 
