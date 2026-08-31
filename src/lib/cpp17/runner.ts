@@ -87,6 +87,17 @@ export class Cpp17Runner {
    * see the first even though the first has not reached the worker yet.
    */
   private claimed: number | null = null;
+
+  /**
+   * Set once by `dispose`, never un-set.
+   *
+   * Belt to `kill`'s braces, and honestly labelled as such: `dispose` goes
+   * through `kill`, which clears the deadline timer, so the re-warm below
+   * cannot currently fire for a disposed runner and a mutation test says so.
+   * It is one line standing between a future refactor of `kill` and a page
+   * nobody is on downloading a compiler.
+   */
+  private disposed = false;
   private inflight: {
     id: number;
     resolve: (r: LocalRunResult) => void;
@@ -184,6 +195,10 @@ export class Cpp17Runner {
    * Used for the deadline and for disposal. Terminating is not a last resort
    * here, it is the mechanism: there is no other way to stop a WebAssembly
    * instance that has stopped yielding.
+   *
+   * Leaves the runner at `idle` with no worker, which `ensureWorker` treats as
+   * "spawn a fresh one". Whether anybody ever asks it to is the caller's
+   * problem, and `disposed` is why that matters — see `run`'s deadline.
    */
   private kill(reason: LocalRunResult | null): void {
     const job = this.inflight;
@@ -298,6 +313,21 @@ export class Cpp17Runner {
           truncated: false,
           runtimeMs: Date.now() - started,
         });
+        /* And immediately build the replacement.
+         *
+         * Without this the learner is stuck. `kill` leaves the runner at
+         * `idle`, the panel renders `idle` as «C++ дайындалып жатыр…» — which
+         * is the honest reading at mount, when a preload really is about to
+         * start — and nothing was going to start one. The Run button never came
+         * back. A first infinite loop is not an edge case in a course for
+         * beginners; `while (true)` is what a learner writes in the lesson
+         * where loops are introduced, and the product's answer to it cannot be
+         * "reload the page".
+         *
+         * Re-warming here makes the state the panel already shows true. It
+         * costs an instantiate, not a download: the wasm is in the HTTP cache
+         * by definition, since it was serving a program a moment ago. */
+        if (!this.disposed) void this.warm();
       }, budget);
 
       this.inflight = { id, resolve, timer };
@@ -313,6 +343,7 @@ export class Cpp17Runner {
 
   /** Navigating away. Nothing keeps compiling for a page nobody is on. */
   dispose(): void {
+    this.disposed = true;
     this.kill(unavailable());
     this.listeners.clear();
   }

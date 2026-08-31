@@ -70,22 +70,55 @@ export function LessonProse({
   );
 }
 
+/**
+ * `backticks` promoted to inline code, for any container.
+ *
+ * Extracted from `LessonParagraph`, which used to own it privately. That was
+ * fine while paragraphs were the only prose that named a construct, and stopped
+ * being fine when the worked-example steps started saying things like
+ * `` `cout << "Сәлем!";` `` — those render through a `<span>`, not a `<p>`, so
+ * they printed the backticks as characters. The parsing belongs to the text,
+ * not to the element it happens to sit in.
+ */
+export function inlineCode(text: string): ReactNode[] {
+  return text.split(/(`[^`]+`)/g).map((part, i) =>
+    part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
+      <code
+        key={i}
+        className="rounded-[4px] bg-b-fg/10 px-1.5 py-0.5 font-b-mono text-[15px] text-b-green-2"
+      >
+        {part.slice(1, -1)}
+      </code>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
+/**
+ * One numbered step of a worked example.
+ *
+ * A component rather than JSX inlined at the call site so that the thing it
+ * must not stop doing — running its text through `inlineCode` — is reachable
+ * from a test. It was inlined, it silently rendered raw text, and nothing
+ * failed.
+ */
+export function WorkedExampleStep({ n, text }: { n: number; text: string }) {
+  return (
+    <li className="flex gap-3 rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] px-4 py-3">
+      <span className="mt-[2px] flex size-6 shrink-0 items-center justify-center rounded-full bg-b-fg/10 text-[13px] font-medium tabular-nums text-b-fg/70">
+        {n}
+      </span>
+      <span className="text-[16px] leading-6 text-b-fg/85">{inlineCode(text)}</span>
+    </li>
+  );
+}
+
 /** A lesson paragraph, with `backticks` promoted to inline code. */
 export function LessonParagraph({ text }: { text: string }) {
   return (
     <p className="mb-[22.4px] text-[16px] leading-[25.6px] last:mb-0">
-      {text.split(/(`[^`]+`)/g).map((part, i) =>
-        part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
-          <code
-            key={i}
-            className="rounded-[4px] bg-b-fg/10 px-1.5 py-0.5 font-b-mono text-[15px] text-b-green-2"
-          >
-            {part.slice(1, -1)}
-          </code>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
+      {inlineCode(text)}
     </p>
   );
 }

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
   checkOutput,
@@ -10,6 +9,14 @@ import {
 import { MONTHS } from "../../schools/curriculum/months";
 import { ATTEMPT_BLOCK_TYPES } from "../../schools/curriculum/types";
 import type { LessonBlock, Month } from "../../schools/curriculum/types";
+import {
+  CompileError,
+  cleanup,
+  compileReference,
+  cppCompiler,
+  cppCompilerVersion,
+  runCase,
+} from "../support/cpp-run";
 
 /**
  * Content execution.
@@ -25,8 +32,31 @@ import type { LessonBlock, Month } from "../../schools/curriculum/types";
  * ran a reference solution against its own cases.**
  *
  * That is the entire gap this file closes. It is not a unit test of a function;
- * it is the assertion that the curriculum's own claims about Python are true,
- * checked by asking Python.
+ * it is the assertion that the curriculum's own claims are true, checked by
+ * asking a compiler.
+ *
+ * ## What the C++ migration changed here, and what it did not
+ *
+ * The gap and the guarantee are unchanged. Three mechanics are not:
+ *
+ * 1. **Compile once, run many.** A Python case was one fork. A C++ case is a
+ *    ~1 s compile plus a fork, and there are 2003 cases across 249 references.
+ *    Compiling per case is a forty-minute suite, so each distinct source is
+ *    built once and every case is piped through the binary. `sources` is that
+ *    cache and it is keyed by the text, not by the block, because a find_bug's
+ *    `fixedCode` is frequently some other block's `referenceSolution`.
+ *
+ * 2. **A broken program may now fail to compile.** In Python every curriculum
+ *    snippet parsed; the bugs were arithmetic. In C++ the most important bug a
+ *    beginner meets — a missing `;` — is a *compile* error, which is the whole
+ *    point of `m1.l1.b4`. So "is this supporting code valid" cannot be asked of
+ *    a find_bug's `code`, and "do the buggy and fixed programs differ" is now
+ *    satisfied most strongly when one compiles and the other does not.
+ *
+ * 3. **The interpreter check became a compiler check**, and it kept its teeth:
+ *    a release gate that vacates itself when the toolchain is missing is a
+ *    green tick over an unchecked curriculum, which is exactly the failure mode
+ *    this file was written to end.
  *
  * ## Scope
  *
@@ -51,53 +81,54 @@ import type { LessonBlock, Month } from "../../schools/curriculum/types";
  * judge has not quietly grown a second one.
  */
 
-const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
+const COMPILER = cppCompiler();
+const compilerBuild = COMPILER ? cppCompilerVersion() : null;
+const haveCompiler = COMPILER !== null;
 
 /**
- * Each of these forks a Python interpreter, once per case.
+ * Each of these compiles a translation unit and forks the result.
  *
  * Vitest's 5s default is a statement about the machine, not about the content:
  * on a loaded laptop these time out and report a curriculum failure that is
  * nothing of the kind. The limit that matters — is this program an infinite
- * loop — is the 10s one inside `run`, per execution.
+ * loop — is the 10s one inside `runCase`, per execution.
  */
-const SPAWN_TIMEOUT_MS = 60_000;
+const SPAWN_TIMEOUT_MS = 120_000;
 
-function pythonVersion(): string | null {
-  try {
-    return execFileSync(PYTHON, ["--version"], { encoding: "utf8", stdio: "pipe" }).trim();
-  } catch {
-    return null;
-  }
-}
+/** A built program, or the diagnostics explaining why there isn't one. */
+type Built = { ok: true; binary: string } | { ok: false; diagnostics: string };
 
 /**
- * Run a snippet the way the judge does: stdin in, RAW stdout out.
+ * Every distinct source, built at most once for the whole file.
  *
- * The trailing-whitespace trim that used to live on this line is gone. It was
- * the same normalisation the old judge applied, so it was invisible — but with
- * `exact` in the checker vocabulary a pre-trimmed `out` would make CI strictly
- * more forgiving than production, which is precisely the drift this file is
- * supposed to make impossible. Whatever normalising is owed to a task is the
- * declared checker's business and happens inside `checkOutput`.
+ * Keyed by source text. Two blocks that ship byte-identical programs — common,
+ * since a find_bug's `fixedCode` is usually the next block's starting point —
+ * share one compile.
  */
-function run(source: string, stdin: string): { ok: boolean; out: string; err: string } {
+const sources = new Map<string, Built>();
+
+function build(source: string, label: string): Built {
+  const hit = sources.get(source);
+  if (hit) return hit;
+  let out: Built;
   try {
-    const out = execFileSync(PYTHON, ["-I", "-S", "-c", source], {
-      input: stdin.endsWith("\n") ? stdin : `${stdin}\n`,
-      encoding: "utf8",
-      timeout: 10_000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return { ok: true, out, err: "" };
+    out = { ok: true, binary: compileReference(source, label).binary };
   } catch (e) {
-    const err = e as { stdout?: string; stderr?: string };
-    return {
+    out = {
       ok: false,
-      out: err.stdout ?? "",
-      err: (err.stderr ?? "").trim(),
+      diagnostics: e instanceof CompileError ? e.diagnostics : String(e),
     };
   }
+  sources.set(source, out);
+  return out;
+}
+
+/** Run a program the way the judge does: stdin in, RAW stdout out. */
+function run(source: string, stdin: string, label = "snippet"): { ok: boolean; out: string; err: string } {
+  const built = build(source, label);
+  if (!built.ok) return { ok: false, out: "", err: built.diagnostics };
+  const r = runCase(built.binary, stdin.endsWith("\n") ? stdin : `${stdin}\n`);
+  return { ok: r.status === "ok", out: r.stdout, err: r.stderr || r.status };
 }
 
 interface Executable {
@@ -136,17 +167,16 @@ const EXECUTABLE: Executable[] = EVERY_BLOCK.flatMap(({ where, block }) => {
   return [{ where, block, solution: block.referenceSolution, cases, checker }];
 });
 
-const pythonBuild = pythonVersion();
-const python = pythonBuild !== null;
+
 
 /**
  * A release gate may not vacate itself.
  *
- * Every assertion below is `it.runIf(python)`, so with no interpreter on PATH
- * this file reported PASS having executed nothing — 916 of its 934 tests
+ * Every assertion below is `it.runIf(haveCompiler)`, so with no compiler on
+ * PATH this file reported PASS having executed nothing — 916 of its 934 tests
  * skipped, the whole curriculum-execution gate silently absent, and a green
- * tick beside it. Locally that is the right default: a contributor without
- * python3 should still be able to run the suite.
+ * tick beside it. Locally that is the right default: a contributor without a
+ * C++ toolchain should still be able to run the suite.
  *
  * In CI it is a false negative wearing a tick, so there it fails instead. The
  * opt-out exists and is deliberately awkward to reach by accident.
@@ -155,25 +185,27 @@ const RELEASE_GATE =
   Boolean(process.env.CI) && process.env.CONTENT_EXECUTION_ALLOW_SKIP !== "1";
 
 describe("every reference solution passes every one of its own cases", () => {
-  it("has an interpreter, and says which", () => {
-    /* Printed rather than merely asserted: which Python ran the curriculum is
-       a fact a release report should carry, and "916 skipped" needs to be
-       visible when it happens rather than inferred from a count nobody reads. */
+  it("has a compiler, and says which", () => {
+    /* Printed rather than merely asserted: which compiler certified the
+       curriculum is a fact a release report should carry, and it is not a
+       detail — the browser runs Clang 8 and the judge runs GCC 14, so knowing
+       which of the three engines said "these programs are correct" is the
+       first question to ask of a green run. */
     // eslint-disable-next-line no-console
     console.log(
-      `[content-execution] interpreter: ${pythonBuild ?? "NONE"} (${PYTHON}) · ` +
+      `[content-execution] compiler: ${compilerBuild ?? "NONE"} (${COMPILER ?? "-"}) · ` +
         `${EXECUTABLE.length} executable blocks · ` +
-        `${python ? "0" : EXECUTABLE.length} would skip · ` +
+        `${haveCompiler ? "0" : EXECUTABLE.length} would skip · ` +
         `release gate: ${RELEASE_GATE ? "enforced" : "advisory"}`,
     );
 
     expect(
-      python || !RELEASE_GATE,
-      `\nNo Python interpreter (${PYTHON}), and this is a release gate.\n` +
+      haveCompiler || !RELEASE_GATE,
+      `\nNo C++ compiler, and this is a release gate.\n` +
         `${EXECUTABLE.length} reference solutions would be skipped and this file ` +
         `would report PASS having executed nothing.\n` +
-        `Install Python, set EXEC_PYTHON_BIN, or set CONTENT_EXECUTION_ALLOW_SKIP=1 ` +
-        `to accept a run that checks no content.\n`,
+        `Install a C++17 compiler, set EXEC_CPP_BIN, or set ` +
+        `CONTENT_EXECUTION_ALLOW_SKIP=1 to accept a run that checks no content.\n`,
     ).toBe(true);
   });
 
@@ -185,11 +217,22 @@ describe("every reference solution passes every one of its own cases", () => {
   });
 
   for (const item of EXECUTABLE) {
-    it.runIf(python)(
+    it.runIf(haveCompiler)(
       `${item.block.id} (${item.where})`,
       () => {
+        /* Built before the loop, and its failure reported as itself: a
+           reference that does not compile is a defect in the curriculum, and
+           saying so with the compiler's own words beats 20 identical
+           "expected X got ''" lines. */
+        const built = build(item.solution, item.block.id);
+        expect(
+          built.ok,
+          `${item.block.id} (${item.where}) does not compile:\n` +
+            `${built.ok ? "" : built.diagnostics}\n${item.solution}`,
+        ).toBe(true);
+
         for (const c of item.cases) {
-          const got = run(item.solution, c.input);
+          const got = run(item.solution, c.input, item.block.id);
           /* THE line this phase is about. `checkOutput` with the block's own
              checker — the identical call `runCases` makes on a learner's
              stdout — so "the reference solution passes" and "a learner's
@@ -243,13 +286,26 @@ describe("every reference solution passes every one of its own cases", () => {
   });
 });
 
-describe("supporting code in the curriculum is real Python", () => {
+describe("supporting code in the curriculum is real C++17", () => {
   const snippets = EVERY_BLOCK.flatMap(({ where, block }) => {
     const out: { id: string; where: string; label: string; code: string }[] = [];
     const push = (label: string, code: string | undefined) => {
       if (typeof code === "string" && code.trim()) out.push({ id: block.id, where, label, code });
     };
-    if ("code" in block) push("code", block.code as string | undefined);
+    /* A find_bug's `code` is EXCLUDED, and this is the one place the language
+       change altered what may be claimed.
+     *
+     * In Python every snippet in the curriculum parsed — a find_bug's defect
+     * was arithmetic, so `compile()` was a fair question to ask of it. In C++
+     * the first and most important bug a beginner meets is a missing `;`, which
+     * is a compile error by definition. `m1.l1.b4` is that lesson. Demanding
+     * that every snippet compile would forbid the curriculum from teaching the
+     * error C++ actually greets a fourteen-year-old with.
+     *
+     * Nothing is lost by the exemption: a find_bug's `code` is checked harder
+     * three describes below, where it must be demonstrably different from its
+     * own `fixedCode`. Failing to compile is the strongest form of different. */
+    if ("code" in block && block.type !== "find_bug") push("code", block.code as string | undefined);
     if ("fixedCode" in block) push("fixedCode", block.fixedCode);
     if (block.type === "reorder_code") {
       push("correctOrder", block.correctOrder.map((id) => block.lines.find((l) => l.id === id)?.code ?? "").join("\n"));
@@ -267,22 +323,25 @@ describe("supporting code in the curriculum is real Python", () => {
   });
 
   for (const s of snippets) {
-    it.runIf(python)(
+    it.runIf(haveCompiler)(
       `${s.id}.${s.label} compiles (${s.where})`,
       () => {
-        /* `compile` rather than execution: several of these read stdin or are
-           deliberately broken at runtime (a find_bug's `code` is *supposed* to
-           misbehave). Syntax is the claim being checked here. */
-        const probe = `import sys\ncompile(sys.stdin.read(), "<curriculum>", "exec")`;
-        const got = run(probe, s.code);
-        expect(got.ok, `${s.id}.${s.label} is not valid Python:\n${got.err}\n${s.code}`).toBe(true);
+        /* Compilation rather than execution: several of these read stdin, and
+           a snippet that blocks on `cin` is not evidence of anything. Whether
+           the compiler accepts it is the claim being checked here. */
+        const built = build(s.code, `${s.id}_${s.label}`);
+        expect(
+          built.ok,
+          `${s.id}.${s.label} is not valid C++17 (${s.where}):\n` +
+            `${built.ok ? "" : built.diagnostics}\n${s.code}`,
+        ).toBe(true);
       },
       SPAWN_TIMEOUT_MS,
     );
   }
 });
 
-describe("predictions state what Python actually prints", () => {
+describe("predictions state what the compiler actually prints", () => {
   const predictions = EVERY_BLOCK.filter((b) => b.block.type === "prediction");
 
   it("collects predictions", () => {
@@ -291,10 +350,16 @@ describe("predictions state what Python actually prints", () => {
 
   for (const { where, block } of predictions) {
     if (block.type !== "prediction") continue;
-    it.runIf(python)(
+    it.runIf(haveCompiler)(
       `${block.id} (${where})`,
       () => {
-        const got = run(block.code, block.stdin ?? "");
+        const built = build(block.code, block.id);
+        expect(
+          built.ok,
+          `${block.id}: a prediction the learner is shown does not compile:\n` +
+            `${built.ok ? "" : built.diagnostics}\n${block.code}`,
+        ).toBe(true);
+        const got = run(block.code, block.stdin ?? "", block.id);
         /* A prediction is typed into a text box, not executed, so it is not a
            `cases` block and carries no checker — `PredictionBlock.answer`
            documents its own comparison and this trims to honour it. The trim is
@@ -320,17 +385,42 @@ describe("find_bug tasks have a real, reproducible defect", () => {
 
   for (const { where, block } of bugs) {
     if (block.type !== "find_bug") continue;
-    it.runIf(python)(
+    it.runIf(haveCompiler)(
       `${block.id} buggy and fixed differ (${where})`,
       () => {
         const lines = block.code.replace(/\n$/, "").split("\n");
         expect(block.buggyLine, `${block.id}: buggyLine out of range`).toBeGreaterThanOrEqual(1);
         expect(block.buggyLine).toBeLessThanOrEqual(lines.length);
 
-        /* The claim "this program is broken" must be demonstrable. A block that
-           declares `symptomInput` is checked on exactly that input; the rest fall
-           back to a numeric spread, which covers the arithmetic bugs but cannot
-           reach one that only appears on text. */
+        /* The fixed program is the answer key and must always build. */
+        const fixed = build(block.fixedCode, `${block.id}_fixed`);
+        expect(
+          fixed.ok,
+          `${block.id}: the FIXED program does not compile — the answer key is broken:\n` +
+            `${fixed.ok ? "" : fixed.diagnostics}\n${block.fixedCode}`,
+        ).toBe(true);
+
+        /* The buggy one need not, and in C++ frequently must not.
+         *
+         * A missing semicolon, an unclosed brace, `cout` without `<iostream>` —
+         * the errors that actually greet a beginner are refusals to compile,
+         * and a curriculum that could only teach arithmetic slips would be
+         * teaching a language nobody meets. So the difference is checked in two
+         * tiers: if the two programs disagree about whether they compile at
+         * all, that IS the defect and no input is needed to show it. */
+        const buggy = build(block.code, `${block.id}_buggy`);
+        if (!buggy.ok) {
+          expect(
+            fixed.ok,
+            `${block.id}: neither program compiles, so there is no defect to find`,
+          ).toBe(true);
+          return;
+        }
+
+        /* Both compile, so the defect is behavioural and has to be provoked. A
+           block that declares `symptomInput` is checked on exactly that input;
+           the rest fall back to a numeric spread, which covers the arithmetic
+           bugs but cannot reach one that only appears on text. */
         const probes = block.symptomInput
           ? [block.symptomInput]
           : ["0", "1", "5", "17", "18", "19", "49", "50", "69", "70", "84", "85", "90"];
@@ -338,11 +428,15 @@ describe("find_bug tasks have a real, reproducible defect", () => {
            so the comparison stays where it was: trimmed. `run` no longer trims
            for anyone, so this says so instead of relying on it. */
         const differs = probes.some((p) => {
-          const a = run(block.code, p);
-          const b = run(block.fixedCode, p);
+          const a = run(block.code, p, `${block.id}_buggy`);
+          const b = run(block.fixedCode, p, `${block.id}_fixed`);
           return a.out.replace(/\s+$/, "") !== b.out.replace(/\s+$/, "") || a.ok !== b.ok;
         });
-        expect(differs, `${block.id}: the "buggy" and "fixed" programs behave identically`).toBe(true);
+        expect(
+          differs,
+          `${block.id}: both programs compile and behave identically on every probe — ` +
+            `there is nothing here for a learner to find`,
+        ).toBe(true);
       },
       SPAWN_TIMEOUT_MS,
     );
@@ -354,7 +448,7 @@ describe("test_case tasks name an input that genuinely breaks the program", () =
 
   for (const { where, block } of cases) {
     if (block.type !== "test_case") continue;
-    it.runIf(python)(
+    it.runIf(haveCompiler)(
       `${block.id} (${where})`,
       () => {
         expect(block.breakingInputs.length).toBeGreaterThan(0);

@@ -16,6 +16,7 @@ import {
   CodePanel,
   LessonParagraph,
   LessonProse,
+  WorkedExampleStep,
   OptionList,
   RevealNote,
 } from "./primitives";
@@ -1097,15 +1098,7 @@ function WorkedExampleView({ block, locale }: BlockViewProps) {
 
       <ol className="flex w-full flex-col gap-2">
         {block.steps.map((step, i) => (
-          <li
-            key={i}
-            className="flex gap-3 rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] px-4 py-3"
-          >
-            <span className="mt-[2px] flex size-6 shrink-0 items-center justify-center rounded-full bg-b-fg/10 text-[13px] font-medium tabular-nums text-b-fg/70">
-              {i + 1}
-            </span>
-            <span className="text-[16px] leading-6 text-b-fg/85">{t(step, locale)}</span>
-          </li>
+          <WorkedExampleStep key={i} n={i + 1} text={t(step, locale)} />
         ))}
       </ol>
 

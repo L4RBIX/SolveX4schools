@@ -118,6 +118,72 @@ describe("the deadline", () => {
     expect(workers, "a timeout should have forced a new worker").toHaveLength(2);
     vi.useRealTimers();
   });
+
+  it("comes back to a pressable state on its own, with nobody pressing anything", async () => {
+    /* The regression this exists for.
+     *
+     * `run` has always healed itself — it spawns a worker when it finds none —
+     * so the test above passed while the product was broken. What it did not
+     * check is the state a learner is looking at BETWEEN the timeout and the
+     * next press, and that is the only state that matters: the panel disables
+     * Run for `idle` exactly as it does for `loading`, because at mount idle is
+     * the half-frame before a preload starts. After a kill, nothing was going
+     * to start one. The button read «C++ дайындалып жатыр…» forever and the
+     * only cure was reloading the page.
+     *
+     * A first infinite loop is not an edge case here. `while (true)` is what a
+     * beginner writes in the lesson that introduces loops, and it must cost
+     * them three seconds, not their session. */
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const runner = new Cpp17Runner({
+      createWorker: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+
+    const hung = runner.run({ source: "int main(){for(;;);}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 10);
+    expect((await hung).status).toBe("time_limit_exceeded");
+
+    /* No `run`, no `warm`, no remount — just time passing. */
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(
+      runner.status().phase,
+      "after a timeout the runner never came back; Run stays disabled until reload",
+    ).toBe("ready");
+    vi.useRealTimers();
+  });
+
+  it("does not resurrect itself after the page has gone", async () => {
+    /* Navigating away mid-hang must not build a compiler for a dead page.
+     *
+     * What actually enforces this is `kill` clearing the deadline timer, not
+     * the `disposed` flag — removing the flag leaves this test green, which was
+     * checked rather than assumed. It is pinned here anyway because the
+     * property is the product's, not the implementation's: whichever of the two
+     * guards a later refactor keeps, a disposed runner spawns nothing. */
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const runner = new Cpp17Runner({
+      createWorker: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+
+    void runner.run({ source: "int main(){for(;;);}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    runner.dispose();
+    await vi.advanceTimersByTimeAsync(LOCAL_LIMITS.timeLimitMs + 100);
+
+    expect(workers, "a disposed runner built a worker for a dead page").toHaveLength(1);
+    vi.useRealTimers();
+  });
 });
 
 describe("cancellation", () => {
