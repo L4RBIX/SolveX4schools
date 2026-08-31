@@ -1,0 +1,215 @@
+/* ============================================================================
+   SolveX4Schools — base styles
+
+   The `@theme` token block lives in `globals.css`, not here. Turbopack turns a
+   CSS `@import` into a separate chunk instead of inlining it, so Tailwind never
+   sees an `@theme` declared in an imported file and every sx- utility silently
+   resolves to nothing. The tokens are commented where they are defined.
+
+   Separate from the reverse-engineered brilliant.org system in `globals.css`. Nothing here derives from that system: those fonts (CoFo Brilliant,
+   CoFo Robert) are commercially licensed by Contrast Foundry and cannot ship in
+   a paid product, and its palette belongs to someone else's brand.
+
+   Design decisions that are pedagogy, not taste — do not "clean these up":
+
+   1. `--sx-unknown` exists as its own colour and is deliberately not on the
+      red→green axis. `unknown` is a real state in the learning model: it means
+      nobody has measured this yet. Rendering it anywhere on a success scale
+      would claim a measurement that was never taken.
+
+   2. Wrong answers are rose (#F43F5E), not signal red. A 14-year-old gets a
+      wrong answer several times per lesson by design — the programme is 70%
+      practice. Alarm-red at that frequency teaches avoidance.
+
+   3. Body text is 17px, not 16px. The interface is Kazakh and Russian; Cyrillic
+      at 16px with these letterforms sits slightly small, and the extended
+      Kazakh characters (ә ғ қ ң ө ұ ү һ і) carry diacritic detail that needs
+      the extra pixel.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------ */
+
+.sx-root {
+  background: var(--color-sx-bg);
+  color: var(--color-sx-text);
+  font-family: var(--font-sx-sans);
+  font-size: var(--text-sx-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Kazakh and Russian both benefit; keeps `ғ` and `қ` descenders clean. */
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* Numerals in tables, timers and counters must not shift as they change. */
+.sx-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Focus
+
+   A single visible ring everywhere. Never removed — this product is used on
+   school machines where a trackpad may be broken and the keyboard is not.
+   ------------------------------------------------------------------------ */
+
+.sx-root :focus-visible {
+  outline: 2px solid var(--color-sx-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion preference
+
+   Honoured globally rather than per-component, so a component added later
+   cannot forget. Transitions collapse to near-zero instead of 0 so state
+   changes still read as changes rather than teleports.
+
+   The product's own setting comes FIRST, and it is authoritative in both
+   directions — the same model `globals.css` uses, because two stylesheets
+   disagreeing about whether a learner asked for motion is how a preference
+   ends up half-applied and looking broken:
+
+     data-motion="reduce"  the learner turned motion off in SolveX. It applies
+                           regardless of what the machine says — including the
+                           very common case of a school laptop with no OS
+                           preference set, where the media query alone would
+                           leave every animation running.
+     data-motion="full"    the learner turned it on, so the OS query below is
+                           scoped not to overrule them.
+     nothing stamped       no preference has been expressed; follow the OS.
+   ------------------------------------------------------------------------ */
+
+:root[data-motion="reduce"] .sx-root *,
+:root[data-motion="reduce"] .sx-root *::before,
+:root[data-motion="reduce"] .sx-root *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .sx-root *,
+  :root:not([data-motion="full"]) .sx-root *::before,
+  :root:not([data-motion="full"]) .sx-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Code
+
+   Lesson code is read far more often than it is written. Slightly larger than
+   the surrounding body text and generously leaded, because a 14-year-old
+   tracing `for i in range(n)` line by line is doing the hardest thing on the
+   page.
+   ------------------------------------------------------------------------ */
+
+.sx-code {
+  font-family: var(--font-sx-mono);
+  font-size: var(--text-sx-meta);
+  line-height: 1.75;
+  tab-size: 4;
+}
+
+/* ---------------------------------------------------------------------------
+   Entrance
+
+   Blocks reveal in sequence as the learner advances. Transform and opacity
+   only — never height, which would reflow the whole lesson.
+   ------------------------------------------------------------------------ */
+
+@keyframes sx-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.sx-rise {
+  animation: sx-rise 320ms var(--ease-sx-out) both;
+}
+
+@keyframes sx-nudge {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25%      { transform: translate3d(-5px, 0, 0); }
+  75%      { transform: translate3d(5px, 0, 0); }
+}
+
+/* Used once, on a wrong answer. Short and small: this is feedback, not a
+   reprimand. */
+.sx-nudge {
+  animation: sx-nudge 240ms var(--ease-sx-out);
+}
+
+/* ---------------------------------------------------------------------------
+   Strobi
+
+   The definition's `motion` fields — microSaccades, shake, slowDrift — are
+   ambient, not scripted: they run underneath whatever expression is current.
+   Kept small on purpose. A mascot that never stops moving stops being calm,
+   and this one sits beside a fourteen-year-old trying to concentrate.
+   ------------------------------------------------------------------------ */
+
+@keyframes strobi-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33%      { transform: translate3d(1.5%, -1.5%, 0) rotate(0.8deg); }
+  66%      { transform: translate3d(-1%, 1%, 0) rotate(-0.6deg); }
+}
+.strobi-drift { animation: strobi-drift 7s ease-in-out infinite; }
+
+@keyframes strobi-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20%      { transform: translate3d(-2.5%, 0, 0); }
+  40%      { transform: translate3d(2.5%, 0, 0); }
+  60%      { transform: translate3d(-1.5%, 0, 0); }
+  80%      { transform: translate3d(1.5%, 0, 0); }
+}
+.strobi-shake { animation: strobi-shake 620ms ease-in-out infinite; }
+
+@keyframes strobi-saccade {
+  0%, 88%, 100% { transform: translate3d(0, 0, 0); }
+  90%           { transform: translate3d(1.5px, -1px, 0); }
+  94%           { transform: translate3d(-1px, 0.5px, 0); }
+}
+.strobi-saccade { animation: strobi-saccade 3.4s steps(1, end) infinite; }
+
+@keyframes strobi-eyeshake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25%      { transform: translate3d(-1.5px, 0, 0); }
+  75%      { transform: translate3d(1.5px, 0, 0); }
+}
+.strobi-eyeshake { animation: strobi-eyeshake 320ms ease-in-out infinite; }
+
+/* Same rule, and it has to be here as well as in the component.
+   `StrobiAvatar` decides on the client, and its server snapshot deliberately
+   assumes motion is fine — so between first paint and hydration the drift and
+   shake classes ARE on the element for a learner who asked for neither. This is
+   what stops them running in that window, and it is why the two arms here
+   mirror the component's own precedence exactly. */
+:root[data-motion="reduce"] .strobi-drift,
+:root[data-motion="reduce"] .strobi-shake,
+:root[data-motion="reduce"] .strobi-saccade,
+:root[data-motion="reduce"] .strobi-eyeshake {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .strobi-drift,
+  :root:not([data-motion="full"]) .strobi-shake,
+  :root:not([data-motion="full"]) .strobi-saccade,
+  :root:not([data-motion="full"]) .strobi-eyeshake {
+    animation: none !important;
+  }
+}

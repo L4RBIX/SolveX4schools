@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+# and the bare name, so a symlink called `node_modules` is ignored too — the
+# trailing slash above does not match one, which is how this branch's baseline
+# snapshot came to commit a symlink pointing at one machine's absolute path.
+node_modules
+.pnp
+.pnp.js
+
+# Build
+.next/
+out/
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# Local settings (not project config)
+.claude/settings.local.json
+
+# User-specific skills (not part of the template)
+.claude/skills/customize/
+.claude/skills/release/
+
+# Local temp files
+temp/
+.data/
+
+# The Python runtime, copied out of node_modules by scripts/sync-pyodide-assets.mjs
+# on every build. 13 MB of WebAssembly that package.json already pins.
+public/pyodide/
+# The Python worker, compiled from src/lib/pyodide/worker.ts by
+# scripts/build-python-worker.mjs. Generated, never edited by hand.
+public/pyodide-worker.js
+# Python bytecode from the ported Nova directive suite.
+__pycache__/
+*.pyc
+
+# Atomic-write temporaries left behind by a crashed writer.
+*.ts.tmp.*
+
+# Git worktrees live inside this directory (see eslint.config.mjs, which
+# ignores them for the same reason). Each is a checkout of a DIFFERENT branch;
+# none of it belongs to this branch's tree.
+.claude/worktrees/
+
+# Screenshots written by the ad-hoc _nova-*.mjs harnesses.
+.shots/

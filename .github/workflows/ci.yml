@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      # Release branches. `pilot-release-candidate` carried the entire pilot
+      # integration and, because the triggers named only `master`, CI had never
+      # run against a single commit of it — the branch being cut for a real
+      # school was the one branch with no automated gate behind it.
+      - "*-release-candidate"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # A real Postgres, because `tests/store/postgres-driver.test.ts` skips
+    # itself without DATABASE_URL and its own header says "CI is where it must
+    # actually run, with DATABASE_URL set". It was skipping. Production is
+    # Postgres and development is PGlite, so the driver that ships is the one
+    # no gate was exercising.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: solvex_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify generated files are in sync
+        shell: bash
+        run: |
+          bash scripts/sync-agent-rules.sh
+          node scripts/sync-skills.mjs
+
+          if [[ -n "$(git status --porcelain=v1 --untracked-files=all)" ]]; then
+            echo "::error::Generated files are out of sync with their sources (AGENTS.md / SKILL.md)."
+            echo "Run the sync scripts locally and commit the result:"
+            echo "  bash scripts/sync-agent-rules.sh"
+            echo "  node scripts/sync-skills.mjs"
+            git status --short
+            git diff --stat
+            exit 1
+          fi
+          echo "All generated files are in sync with their sources."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      # The gate that had never gated anything.
+      #
+      # Until now this job ran lint, typecheck and build, and no tests at all.
+      # `tests/golden.test.ts` is designated by the imported archive as THE
+      # regression check to re-run after every integration step, and it had
+      # never run on a push or a pull request in the life of this repository.
+      # That is how fourteen typecheck errors and two failing tests sat in the
+      # tree unnoticed for an afternoon.
+      #
+      # Before the build, not after: a build takes minutes and a failing test
+      # is the answer either way.
+      # The curriculum is content, and content breaks differently from code.
+      # `npm run check` has run this locally since the day it existed; CI never
+      # did, so a block that fails its own validator could reach master with
+      # lint, typecheck and build all green.
+      # The gate whose absence let an unbootable chain ship.
+      #
+      # CI attached a real PostgreSQL and ran the driver suite against it —
+      # and never applied a single migration to it. `tests/store/migrate.test.ts`
+      # runs on PGlite with the local bootstrap ON, and the driver suite creates
+      # no tables, so the shipped SQL had never been applied to a real server
+      # the way the app applies it at boot. It died at 0003 on any Postgres that
+      # was not Supabase: one table, no product, on first boot.
+      #
+      # A dedicated database, created here rather than reusing `solvex_ci`,
+      # because the script REFUSES a target that already has tables — verifying
+      # a chain against a database that already has the schema proves nothing,
+      # and that false green is exactly what happened locally.
+      - name: Migrations on a pristine PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c 'create database solvex_migrations'
+          DATABASE_URL=postgres://postgres:postgres@localhost:5432/solvex_migrations             npm run db:verify-migrations
+
+      - name: Curriculum validation
+        run: npm run curriculum:validate
+
+      # Python BEFORE the tests, not after.
+      #
+      # `tests/school/content-execution.test.ts` executes every reference
+      # solution in the curriculum, and it is `it.runIf(python)` throughout — so
+      # with no interpreter it reported PASS having run nothing, 916 of 934
+      # tests skipped behind a green tick. It now FAILS under CI instead, which
+      # means the interpreter has to be installed before `npm test` rather than
+      # in the step that used to follow it.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependencies
+        run: python -m pip install --quiet pytest pydantic
+
+      - name: Test
+        run: npm test
+
+      # The Postgres-backed driver suite, against the service above. Separate
+      # from `npm test` on purpose: DATABASE_URL set for the whole run would
+      # point `getStore()` at Postgres for every suite, and the rest of them are
+      # written against the in-memory PGlite the fixtures open themselves.
+      - name: Test (Postgres driver)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/solvex_ci
+        run: npx vitest run tests/store/postgres-driver.test.ts
+
+      # The archive's own Nova directive suite. The interpreter is already
+      # installed above, because the curriculum-execution gate needs it before
+      # `npm test` rather than after. Pinned to 3.12 there: the suite uses
+      # `int | None` annotations that pydantic cannot evaluate on 3.9, and "it
+      # passes on the machine that has the right Python" is not a gate.
+      - name: Python tests
+        run: npm run test:python
+
+      - name: Build
+        run: npm run build
+
+      # Greps the built client chunks for the VALUES of server-only secrets.
+      # It reads `.next/static`, so it can only run after the build — which is
+      # why it is last and not beside the other static checks.
+      #
+      # The values matter, and this step used to pass none. The script compares
+      # chunks against what a secret actually IS, so with an empty environment
+      # it searched for nothing, printed a note saying so, and exited 0 — every
+      # green run of this gate in the repository's history had verified nothing.
+      # It now refuses to pass empty under CI, so these must be set as
+      # repository secrets. They are only ever compared against built output and
+      # are never printed.
+      #
+      # If a fork or a contributor's repository has no secrets configured, set
+      # BUNDLE_SCAN_ALLOW_EMPTY=1 on this step to go back to the name-only
+      # check — but know that it is then not checking for a leak.
+      - name: Client bundle secret scan
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          JUDGE0_RAPIDAPI_KEY: ${{ secrets.JUDGE0_RAPIDAPI_KEY }}
+          LEARNING_ATTESTATION_SECRET: ${{ secrets.LEARNING_ATTESTATION_SECRET }}
+          LEARNING_CRON_SECRET: ${{ secrets.LEARNING_CRON_SECRET }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: npm run check:bundle

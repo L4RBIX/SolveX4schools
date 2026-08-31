@@ -1,0 +1,1466 @@
+{
+ "source": "https://brilliant.org/terms-of-use/",
+ "fetchedUtc": "2026-08-21",
+ "httpStatus": 200,
+ "note": "Verbatim extraction of the /terms-of-use/ article column. Inline whitespace normalized to single spaces (HTML collapsing already does this in the browser). Do not edit the wording.",
+ "h1": "Terms of Use",
+ "blocks": [
+  {
+   "tag": "h1",
+   "class": "panda-textStyle_heading.2xl",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Terms of Use"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Effective as of February 9, 2026",
+     "strong": true
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "BRILLIANT.ORG WEBSITE TERMS OF USE",
+     "strong": true,
+     "underline": true
+    },
+    {
+     "t": "br"
+    },
+    {
+     "t": "text",
+     "text": " AND COPYRIGHT NOTICE",
+     "strong": true,
+     "underline": true
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The following terms and conditions (the \"Agreement\") govern all use of the www.Brilliant.org website (the \"Site\"), the Brilliant mobile application(s), and any access or use of the products and services made available or enabled by Brilliant (collectively, the \"Service\"). The Service is owned and operated by Brilliant Worldwide, Inc. (\"Brilliant\"). The Service is offered subject to your acceptance without modification of all of the terms and conditions contained herein and all other operating rules, policies and procedures that may be published from time to time on the Site by Brilliant. BY USING OR ACCESSING ANY PART OF THE SERVICE, YOU (the \"User\") AGREE TO ALL OF THE TERMS AND CONDITIONS CONTAINED HEREIN; IF YOU DO NOT AGREE, DO NOT USE OR ACCESS THE SERVICE."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant reserves the right, at its sole discretion, to modify or replace any of the terms or conditions of this Agreement at any time. It is User's responsibility to check this Agreement periodically for changes. User's continued use of the Service following the posting of any changes to this Agreement constitutes acceptance of those changes."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "PLEASE READ THESE TERMS AND CONDITIONS CAREFULLY, AS THEY CONTAIN AN AGREEMENT TO ARBITRATE AND OTHER IMPORTANT INFORMATION REGARDING YOUR LEGAL RIGHTS, REMEDIES, AND OBLIGATIONS. THE AGREEMENT TO ARBITRATE REQUIRES (WITH LIMITED EXCEPTION) THAT YOU SUBMIT CLAIMS YOU HAVE AGAINST US TO BINDING AND FINAL ARBITRATION, AND FURTHER (1) YOU WILL ONLY BE PERMITTED TO PURSUE CLAIMS AGAINST BRILLIANT ON AN INDIVIDUAL BASIS, NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY CLASS OR REPRESENTATIVE ACTION OR PROCEEDING, (2) YOU WILL ONLY BE PERMITTED TO SEEK RELIEF (INCLUDING MONETARY, INJUNCTIVE, AND DECLARATORY RELIEF) ON AN INDIVIDUAL BASIS, AND (3) YOU MAY NOT BE ABLE TO HAVE ANY CLAIMS YOU HAVE AGAINST US RESOLVED BY A JURY OR IN A COURT OF LAW."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-access",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "ACCESS."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Subject to the terms and conditions of this Agreement, the software and services provided in connection with the Service are solely for User's own personal use, and not for the use or benefit of any third party. Brilliant may change, suspend or discontinue the Services, including the availability of any feature, database or content, at any time. Brilliant may also impose limits on certain features and services or restrict User's access to parts or all of the Services without notice or liability. Brilliant reserves the right, at its discretion, to modify this Agreement at any time by posting a notice on the Site or by sending User a notice via email or postal mail. User shall be responsible for reviewing and becoming familiar with any such modifications. Use of the Service by User following such notification constitutes User's acceptance of the terms and conditions of this Agreement as modified."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User certifies to Brilliant that if User is an individual (i.e., not a corporation), User is legally permitted to use the Services and, if under 18 years of age, is accessing the Service under the supervision and with the consent of a parent or legal guardian. For Users under 18, a parent or legal guardian must review and accept this Agreement on the User's behalf. Because portions of the Service are directed to or may be used by children under the age of 13, Brilliant complies with the Children's Online Privacy Protection Act (\"COPPA\"). Brilliant permits children under the age of 13 to use the Service, provided that Brilliant has obtained verifiable parental consent where required by COPPA, including prior to the collection, use, or disclosure of personal information from such children. Brilliant may request additional information from the parent or legal guardian to verify such consent, and reserves the right to refuse, suspend, or terminate any child account where parental consent cannot be obtained or verified. User also certifies that User is legally permitted to use the Service and is responsible for selecting and using the Service in compliance with all applicable laws, including COPPA and any relevant state privacy laws and student privacy laws. The Service may not be accessed where prohibited by law, and any such right of access is revoked in those jurisdictions. Brilliant reserves the right to take reasonable steps to verify age, identity, and parent/guardian consent, and to suspend or terminate access if such verification is not successful."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-fees",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "FEES AND PAYMENT."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The basic Service is free to users, but if User elects to upgrade to a subscription membership or any of our other paid features, the following terms below shall apply. Brilliant reserves the right to change its prices at any time."
+    }
+   ]
+  },
+  {
+   "tag": "h4",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "A. Billing and Payment."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant bills users through an online account for use of the Service. User agrees to pay Brilliant all applicable Service fees using this online account. All fees are exclusive of applicable taxes (e.g. sales, use, or value-added tax), unless otherwise stated, and User is solely responsible for the payment of any such taxes that may be imposed on your use of the Service. Brilliant may correct any billing errors or mistakes that it makes even if it has already requested or received payment. Brilliant reserves the right to change its prices for certain Service features - and to institute new charges at any time - upon notice to you, which may be sent by email or posted on the Site. User agrees to maintain current, complete and accurate information for User's billing account. In addition, User authorizes Brilliant to obtain updated or replacement expiration dates and card numbers for User's credit or debit card as provided by User's credit or debit card issuer. Except as expressly provided in the “Refunds” section below, all fees are final and nonrefundable (including in the event any features or functions of any service that User has subscribed to are changed, modified, diminished or removed), except as otherwise required by applicable law. User shall be responsible for any applicable foreign transaction fees charged by User's bank."
+    }
+   ]
+  },
+  {
+   "tag": "h4",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "B. Automatic Renewal"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User's subscription to the Service will continue indefinitely until cancelled by User (via the cancellation mechanisms provided on the Site). After User's initial subscription period, and again after any subsequent subscription period, User's subscription will automatically continue for an additional equivalent period, at the price User agreed to when subscribing. User agrees that User's account will be subject to this automatic renewal feature. If User does not wish User's account to renew automatically, or if User wants to change or terminate User's subscription, please sign in and go to the "
+    },
+    {
+     "t": "text",
+     "text": "Change / Cancel Subscription page",
+     "href": "/settings/subscription/",
+     "target": "_blank",
+     "rel": "noreferrer"
+    },
+    {
+     "t": "text",
+     "text": ". If User cancels a subscription, User may use such subscription until the end of then-current subscription term and the subscription will not be renewed thereafter."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "YOU ACKNOWLEDGE AND AGREE THAT YOUR SUBSCRIPTION FOR THE SERVICES AUTOMATICALLY RENEWS UNLESS YOU CANCEL IT OR WE SUSPEND OR TERMINATE IT IN ACCORDANCE WITH THIS AGREEMENT. YOU MAY CANCEL YOUR SUBSCRIPTION AT ANY TIME BY EMAILING SUPPORT@BRILLIANT.ORG OR BY LOGGING INTO YOUR ACCOUNT AND SELECTING TO CANCEL. YOU MUST SUBMIT YOUR CANCELLATION REQUEST AT LEAST ONE (1) BUSINESS DAY PRIOR TO THE END OF YOUR THEN-CURRENT SUBSCRIPTION TERM TO AVOID BEING CHARGED."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "By subscribing, User authorizes Brilliant to charge User's credit card, debit card or other payment method at such time and again at the beginning of any subsequent subscription period, including any sales or similar taxes imposed on User's subscription payments. Upon the renewal of your subscription, if Brilliant does not receive payment, User agrees that Brilliant may either terminate or suspend User's subscription and continue to attempt to charge User's payment method provider until payment is received (upon receipt of payment, User's account will be activated and for purposes of automatic renewal, User's new subscription commitment period will begin as of the day payment was received). If User does not terminate User's subscription and/or if User continues to use the Service, User agrees that Brilliant is authorized to charge the payment method in User's Service account."
+    }
+   ]
+  },
+  {
+   "tag": "h4",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "C. Refunds"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "All payments To Brilliant for the Services are nonrefundable. There are no refunds or credits for partially used subscription periods. Any refund or credit issued by Brilliant is voluntary, provided solely as a courtesy at Brilliant's sole discretion, and does not create any obligation, policy, or ongoing practice. If you cancel your subscription to the Services, you will continue to have access to the Services through the end of the then-current billing period."
+    }
+   ]
+  },
+  {
+   "tag": "h4",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "D. Promotions"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant may offer promotions, such as free trials, discounts, or other special offers, to users from time to time (collectively, “Promotions”). Promotions may be subject to specific terms, including a defined period during which the Promotion must be redeemed and utilized (each, a “Promotion Period”). Unless otherwise stated, any use of a Promotion will automatically convert into a paid subscription for the Services upon the expiration of the Promotional Period. Users are responsible for canceling their subscription before the end of the Promotional Period to avoid incurring any charges (or, in the case of a discount Promotion, to avoid additional charges). Failure to cancel within the Promotional Period will result in the applicable subscription fee being charged to the payment method provided at the time of sign-up or as updated by User."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-content",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "SITE CONTENT."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User agrees that all content and materials (collectively, \"Content\") delivered via the Service or otherwise made available by Brilliant at the Site are protected by copyrights, trademarks, service marks, patents, trade secrets or other proprietary rights and laws. Except as expressly authorized by Brilliant in writing, User agrees not to sell, license, rent, modify, distribute, copy, reproduce, transmit, publicly display, publicly perform, publish, adapt, edit or create derivative works from such materials or content. Reproducing, copying or distributing any content, materials or design elements on the Site for any purpose is strictly prohibited without the express prior written permission of Brilliant."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Use of the content or materials for any purpose not expressly permitted in this Agreement is prohibited. Any rights not expressly granted herein are reserved."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-user-content",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "USER CONTENT."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The Sites and Service may permit the submission of communications (such as commentary on other users content) and other content submitted by User (\"User Submission(s)\") and the hosting, sharing, and/or publishing of such User Submission(s)."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall be solely responsible for User's User Submission(s) and the consequences of posting or publishing them. User agrees that Brilliant has no liability with respect to any User Submission(s), including, without limitation, User's User Submission(s), and User hereby irrevocably release Brilliant and its officers and directors, employees, agents, representatives and affiliates, from any and all liability arising out of or relating to User Submission(s) or any part thereof."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "By submitting the User Submission(s) to Brilliant, or displaying, publishing, or otherwise posting any content on or through the Sites or the Service, User hereby does and shall grant Brilliant a worldwide, non-exclusive, perpetual, royalty-free, fully paid, sublicensable and transferable license to reproduce, distribute, modify (such as by editing or otherwise creating derivatives), display, and perform the User Submission(s) in accordance with Brilliant's User Submission policies and User's Site settings. User agrees not to contest any modifications made by Brilliant and hereby waives any claims with respect thereto. For clarity, the foregoing license grant to Brilliant does not affect User's other ownership or license rights in your User Submission(s), including the right to grant additional licenses to the material in User's User Submission(s). User Submission(s) may be withdrawn by written request to support@brilliant.org to delete content."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "In connection with User's User Submission(s), User affirms, represents, and warrants that: (i) User owns or has the necessary licenses, rights, consents, and permissions to use and authorize Brilliant to use each and every image and sound contained in each such User Submission and to enable inclusion and use of such User Submission(s) in the manner contemplated by the Sites, the Service and this Agreement; (ii) User has the written consent, release, and/or permission of each and every identifiable individual person in the User Submission to use the name or likeness of each and every such identifiable individual person to enable inclusion and use of the User Submission(s) in the manner contemplated by the Sites, the Service and this Agreement; and (iii) the posting of your User Submission on or through the Sites or the Service or otherwise does not violate the privacy rights, publicity rights, intellectual property rights, contract rights, or any other rights of any person or entity. User agrees to pay all royalties, fees, and other monies owing any person or entity by reason of any content posted by User to or through the Sites or the Service."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User further agrees that User will not: (i) publish falsehoods or misrepresentations that could damage Brilliant or any third party; (ii) submit material that is unlawful, obscene, lewd, defamatory, libelous, threatening, pornographic, harassing, hateful, racially or ethnically offensive, excessively violent, or encourages conduct that would be considered a criminal offense, give rise to civil liability, violate any law, or is otherwise inappropriate or objectionable; (iii) post advertisements or solicitations of business; (iv) impersonate another person; (v) submit material that is copyrighted, protected by trade secret or otherwise subject to third party intellectual property or proprietary rights, including privacy and publicity right, unless you are the owner of such rights or have permission from their rightful owner to post the material and to grant Brilliant all of the license rights granted herein; or (vi) submit material that is unsuitable for minors in any country."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant does not endorse any User Submission or any opinion, recommendation, or advice expressed therein, and Brilliant expressly disclaims any and all responsibility or liability in connection with User Submission(s). Brilliant reserves the right to, in its sole discretion, remove any User Submission(s) at any time (with or without notice)."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-ai-features",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "AI FEATURES AND FUNCTIONALITY"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "When available, Brilliant may offer an AI-powered tutor feature within the Service that allows Users to engage in interactive multimedia conversations (the \"AI Feature\")."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "You may provide User Submissions in the form of text, audio, images, and other materials or data to the AI Feature (\"User Input\"). You are solely responsible for ensuring that all User Input complies with applicable law and this Agreement. You represent and warrant that you have all rights necessary to provide User Input and permit Brilliant to process it as described in this Agreement and the Privacy Policy. To use the voice interaction features of the AI Feature (\"Voice Input\"), you must grant the Service permission to access your device's microphone. If you do not grant permission, voice features will not be available. You may revoke microphone access at any time through your device or browser settings. By enabling or using Voice Input features, you expressly consent to the capture, transmission, storage, and processing of your audio recordings for purposes of transcribing your speech, processing your request, generating Output (as defined below), operating and enhancing the AI Feature, and as otherwise described in this Agreement and the Privacy Policy. For more information on how User Input is processed, please review our Privacy Policy."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The AI Feature may generate responses, recommendations, explanations, or other materials (\"Output\") based on your User Input. Due to the nature of machine learning, Output may not be unique across users and the AI Feature may generate the same or similar output for a third party User. Other Users may also provide similar User Input and receive the same or similar Output. Output generated for Users is not considered your content."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The AI Feature may integrate with or otherwise make available certain applications and materials that are developed or otherwise provided by a party other than Brilliant, including generative models, workflows, design files, plugins, component libraries, services, products, platforms, integrations, and code components (collectively, \"Non-Brilliant Resources\"). Brilliant does not warrant or guarantee the functionality, availability, or reliability of any such Non-Brilliant Resources. In addition, the use of such Non-Brilliant Resources may require you to agree to additional terms and conditions imposed by the respective service providers, which are independent of this Agreement. Brilliant reserves the right to modify or discontinue any Non-Brilliant Resource at any time without prior notice. Brilliant will not be liable for any damages or losses resulting from such modification or discontinuation."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "You acknowledge and agree that, during and after the term of this Agreement, Brilliant may (a) use User Input and Output (collectively, \"User Content\") to operate, maintain, and provide the Service (including the AI Feature), to comply with applicable laws, and to enforce our policies; and (b) collect and use de-identified or aggregated data related to your access to and use of the AI Feature, including User Content, technical logs, metadata, telemetry, interaction patterns, and similar information (collectively, \"Usage Data\"), to develop, maintain, improve, and enhance the Service and Brilliant's other products and technologies."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "We are constantly improving the Services, including the AI Feature. You acknowledge and agree that the AI Feature is subject to modification and change, including but not limited to the algorithms and methods used to generate the Output (as defined below), and the features available to you. YOU ACKNOWLEDGE THAT THE AI FEATURE GENERATES OUTPUT USING ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING, AND SUCH OUTPUT MAY BE INCOMPLETE, INACCURATE, MISLEADING, OR REFLECT LIMITATIONS OF THE UNDERLYING TECHNOLOGY. OUTPUT DOES NOT REPRESENT BRILLIANT'S OPINIONS OR VIEWS, AND IS PROVIDED FOR INFORMATIONAL AND EDUCATIONAL PURPOSES ONLY AND SHOULD NOT BE RELIED UPON AS PROFESSIONAL ADVICE (INCLUDING EDUCATIONAL, LEGAL, MEDICAL, FINANCIAL, OR OTHER PROFESSIONAL ADVICE). YOU ARE SOLELY RESPONSIBLE FOR EVALUATING THE ACCURACY AND USEFULNESS OF ANY OUTPUT, AND YOU SHOULD NOT SHARE SENSITIVE PERSONAL INFORMATION WITH THE AI FEATURE INTERACTIONS."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-software",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "SOFTWARE."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "With respect to any software User is authorized by Brilliant to download via the Service, Brilliant grants User a personal, nontransferable, nonsublicensable, nonexclusive license to use such software solely for User's personal, non-commercial use, and only in accordance with the written instructions/directions (if any) provided by Brilliant. User shall not, nor permit anyone else to, directly or indirectly: (i) copy, modify, or distribute the software; (ii) reverse engineer, disassemble, decompile or otherwise attempt to discover the source code or structure, sequence and organization of all or any part of the software (except that this restriction shall not apply to the limited extent restrictions on reverse engineering prohibited by applicable local law); or (iii) rent, lease, or use the software for timesharing or service bureau purposes, or otherwise use the software for any commercial purpose."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-restrictions",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "RESTRICTIONS."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not use, develop, authorize any third party to engage in, or otherwise support any \"deep-link\", \"page-scrape\", \"data mining\", \"robot\", \"spider\" or other automatic device, program, algorithm or methodology, or any similar or equivalent process or means, to access, extract, acquire, collect, copy or monitor any portion of the Service (including, but not limited to, any data from the Services) or any Content, or in any way reproduce or circumvent the navigational structure or presentation of the Service or any Content, to obtain or attempt to obtain any materials, documents, data or information through any means not purposely made available through the Service. Brilliant reserves the right to bar any such activity. This includes, but is not limited to, collecting or harvesting information about users, Content, or other proprietary data. This prohibition extends to any use of such methods for the purpose of training artificial intelligence (AI), machine learning models, or any other third-party data-driven technology. Any unauthorized access or use of the Content or Services, including scraping or similar data collection methods, is strictly prohibited and may result in the termination of your account and legal action."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not attempt to gain unauthorized access to any portion or feature of the Service, or any other systems or networks connected to the Service or to any Brilliant server, or to any of the services offered on or through the Service, by hacking, password \"mining\", or any other illegitimate means."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not probe, scan or test the vulnerability of the Service or any network connected to the Service, nor breach the security or authentication measures on the Service or any network connected to the Service. User shall not reverse look-up, trace or seek to trace any information on any other user of or visitor to the Service, or any other customer of Brilliant, including any Brilliant account not owned by User, to its source, or exploit the Service or any service or information made available or offered by or through the Service, in any way where the purpose is to reveal any information, including but not limited to personal identification or information, other than User's own information, as provided for by the Service."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not take any action that imposes an unreasonable or disproportionately large load on the infrastructure of the Service or Brilliant' systems or networks, or any systems or networks connected to the Service or to Brilliant."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not use any device, software or routine to interfere or attempt to interfere with the proper working of the Service or any transaction being conducted on the Service, or with any other person's use of the Service."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not forge headers or otherwise manipulate identifiers in order to disguise the origin of any message or transmittal User sends to Brilliant on or through the Service. User shall not, in connection with the Service, pretend (e.g. through impersonation) that User is any other individual or entity."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User shall not use the Service or any Content for any purpose that is unlawful or prohibited by this Agreement, or that infringes the rights of Brilliant or others."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-registration",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "REGISTRATION; SECURITY."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "You may be required to register with Brilliant or provide information about yourself (e.g., name and email address) in order to access and use certain features of the Service. If you choose to register for the Service, you agree to provide and maintain true, accurate, current, and complete information about yourself as prompted by the Service's registration form. Registration data and certain other information about you are governed by our Privacy Policy. You are responsible for maintaining the confidentiality of your password and account details, if any, and are fully responsible for any and all activities that occur under your password or account. You agree to (a) immediately notify Brilliant of any unauthorized use of your password or account or any other breach of security, and (b) ensure that you exit from your account at the end of each session when accessing the Service. Brilliant and its current and future affiliates will not be liable for any loss or damage arising from a User's failure to comply with this paragraph."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-third-party",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "THIRD PARTY SITES."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The Site may permit User to link to other websites or resources on the Internet, and other websites or resources may contain links to the Site. These other websites are not under Brilliant's control, and User acknowledges that Brilliant is not responsible or liable for the content, functions, accuracy, legality, appropriateness or any other aspect of such websites or resources. The inclusion of any such link does not imply endorsement by Brilliant. User further acknowledges and agrees that Brilliant shall not be responsible or liable, directly or indirectly, for any damage or loss caused or alleged to be caused by or in connection with the use of or reliance on any content, goods, information, or services available on or through any such website or resource."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-indemnification",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "INDEMNIFICATION."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User is responsible for all of its activity in connection with the Service. User shall defend, indemnify, and hold harmless Brilliant, its affiliates, and each of its and its affiliates' employees, contractors, directors, suppliers and representatives from all liabilities, claims, and expenses, including reasonable attorneys' fees, that arise from (i) User's use or misuse of the Service; (ii) User's access to any part of the Service, (iii) any of User's User Submission(s), or (iv) otherwise from User's violation of this Agreement."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-warranty",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "WARRANTY DISCLAIMER."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "THE SERVICE (INCLUDING, WITHOUT LIMITATION, THE SITE AND ANY SOFTWARE) IS PROVIDED ON AN \"AS IS\" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NON-INFRINGEMENT. BRILLIANT MAKES NO WARRANTY THAT (I) THE SERVICE IS FREE OF VIRUSES OR OTHER HARMFUL COMPONENTS OR (II) THE RESULTS OF USING THE SERVICE (OR ANY USER SUBMISSION(S)), INCLUDING ANY OUTPUT BY THE AI FEATURE, WILL MEET USER'S REQUIREMENTS. USER'S USE OF THE SERVICE IS SOLELY AT USER'S OWN RISK. BRILLIANT DOES NOT WARRANT OR SUPPORT, AND WILL NOT HAVE ANY RESPONSIBILITY OR LIABILITY OF ANY KIND FOR, NON-BRILLIANT RESOURCES OR ANY OUTPUT GENERATED THEREFROM."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-limitation",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "LIMITATION OF LIABILITY."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "IN NO EVENT SHALL BRILLIANT, ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, VENDORS OR SUPPLIERS BE LIABLE UNDER CONTRACT, TORT, STRICT LIABILITY, NEGLIGENCE OR ANY OTHER LEGAL THEORY WITH RESPECT TO THE SERVICE (OR ANY CONTENT, OUTPUT GENERATED BY THE AI FEATURE, PROGRAMS OR INFORMATION AVAILABLE THROUGH THE SERVICE): (I) FOR ANY LOST PROFITS OR SPECIAL, INDIRECT, INCIDENTAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES OF ANY KIND WHATSOEVER, SUBSTITUTE GOODS OR SERVICES (HOWEVER ARISING), (II) FOR ANY BUGS, VIRUSES, TROJAN HORSES, OR THE LIKE (REGARDLESS OF THE SOURCE OF ORIGINATION), (III) FOR ANY ERRORS OR OMISSIONS IN ANY CONTENT OR INFORMATION OR FOR ANY LOSS OR DAMAGE OF ANY KIND INCURRED AS A RESULT OF USER'S USE OF ANY CONTENT OR INFORMATION POSTED, EMAILED, TRANSMITTED OR OTHERWISE MADE AVAILABLE AT OR THROUGH THE SERVICE, OR (IV) FOR ANY DIRECT DAMAGES IN EXCESS OF (IN THE AGGREGATE) $500.00 (U.S.). IN ADDITION, BRILLIANT SHALL NOT BE LIABLE FOR ANY LOSS OR LIABILITY RESULTING, DIRECTLY OR INDIRECTLY, FROM USER'S INABILITY TO ACCESS OR OTHERWISE USE THE SITE (INCLUDING, WITHOUT LIMITATION, ANY DELAYS OR INTERRUPTIONS DUE TO ELECTRONIC OR MECHANICAL EQUIPMENT FAILURES, DENIAL OF SERVICE ATTACKS, PROCESSING FAILURES, TELECOMMUNICATIONS OR INTERNET PROBLEMS OR UTILITY FAILURES)."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-termination",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "TERMINATION."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant may terminate User's access to all or any part of the Service at any time, with or without cause, effective upon notice thereof to User (provided that, if Brilliant determines there may be an immediate threat to Brilliant, it may terminate such access without notice)."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Upon termination notice from Brilliant, User will (i) no longer access (or attempt to access) the Service and (ii) delete all software (and copies thereof) provided in connection with the Service. All provisions of this Agreement that by their nature should survive termination shall survive termination, including, without limitation, ownership provisions, warranty disclaimers and limitations of liability."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-export",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "EXPORT AND TRADE CONTROLS."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User agrees not to import, export, re-export, or transfer, directly or indirectly, any part of the Service or any information provided on or pursuant to the Service except in full compliance with all United States, foreign and other applicable laws and regulations."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-privacy",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "PRIVACY."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant's current privacy policy is available at "
+    },
+    {
+     "t": "text",
+     "text": "https://brilliant.org/privacy/",
+     "href": "/privacy/",
+     "rel": "noreferrer"
+    },
+    {
+     "t": "text",
+     "text": " (the \"Privacy Policy\"), which is incorporated by this reference."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-disputes",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "MEMBER DISPUTES."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "User is solely responsible for your interactions with other Service users. Brilliant reserves the right, but has no obligation, to monitor disputes between User and other Service users. If User has a dispute with one or more users of the Service, User shall and hereby does release Brilliant (and its officers, directors, agents, subsidiaries, joint ventures and employees) from claims, demands and damages (actual and consequential) of every kind and nature, known and unknown, arising out of or in any way connected with such disputes. If User is a California resident, User waives California Civil Code §1542, which states: \"A general release does not extend to claims which the creditor does not know or suspect to exist in his favor at the time of executing the release, which if known by him must have materially affected his settlement with the debtor.\""
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-copyright",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "COPYRIGHT."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "All content included on the Site, such as text, graphics, logos, button icons, images, audio clips, digital downloads, data compilations, and software, is the property of Brilliant or its content suppliers and is protected by United States and international copyright laws. The compilation of all content on the Site is the exclusive property of Brilliant and is protected by U.S. and international copyright laws. All software used on (or provided through) the Site is the property of Brilliant or its software suppliers and is protected by United States and international copyright laws."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-communications",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "ELECTRONIC COMMUNICATIONS."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "When Users visit the Site, use the Service, or send e-mails to Brilliant, Users are communicating with Brilliant electronically. User hereby consents to receive communications from Brilliant electronically. Brilliant may communicate with Users via e-mail, push notifications, SMS (if applicable), or by posting notices on the Site or through the Services. By enabling push notifications on User's device, User consents to receive notifications from Brilliant, including alerts, updates, and marketing messages regarding User's account or use of the Service, and other communications that may be delivered through the Service. User may disable push notifications at any time through the device or application settings; however, disabling certain notifications may impact the functionality of the Services. You agree that all agreements, notices, disclosures and other communications that Brilliant provides electronically satisfy any legal requirements that such communications be in writing."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-arbitration",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "DISPUTE RESOLUTION BY BINDING ARBITRATION"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "This Dispute Resolution by Binding Arbitration section is referred to in this Agreement as the \""
+    },
+    {
+     "t": "text",
+     "text": "Arbitration Agreement",
+     "strong": true,
+     "em": true
+    },
+    {
+     "t": "text",
+     "text": ".\" You agree that any and all disputes or claims that have arisen or may arise between you and Brilliant, whether arising out of or relating to this Agreement (including any alleged breach thereof), the Platform, and any aspect of the relationship or transactions between us, shall be resolved exclusively through final and binding arbitration, rather than a court, in accordance with the terms of this Arbitration Agreement, except that you may assert individual claims in small claims court, if your claims qualify. Further, this Arbitration Agreement does not preclude you from bringing issues to the attention of federal, state, or local agencies, and such agencies can, if the law allows, seek relief against us on your behalf. You agree that, by entering into this Agreement, you and Brilliant are each waiving the right to a trial by jury or to participate in a class action. Your rights will be determined by a neutral arbitrator, not a judge or jury. The Federal Arbitration Act governs the interpretation and enforcement of this Arbitration Agreement."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "YOU AND BRILLIANT AGREE THAT EACH OF US MAY BRING CLAIMS AGAINST THE OTHER ONLY ON AN INDIVIDUAL BASIS AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS OR REPRESENTATIVE ACTION OR PROCEEDING. UNLESS BOTH YOU AND BRILLIANT AGREE OTHERWISE, THE ARBITRATOR MAY NOT CONSOLIDATE OR JOIN MORE THAN ONE PERSON'S OR PARTY'S CLAIMS AND MAY NOT OTHERWISE PRESIDE OVER ANY FORM OF A CONSOLIDATED, REPRESENTATIVE, OR CLASS PROCEEDING. ALSO, THE ARBITRATOR MAY AWARD RELIEF (INCLUDING MONETARY, INJUNCTIVE, AND DECLARATORY RELIEF) ONLY IN FAVOR OF THE INDIVIDUAL PARTY SEEKING RELIEF AND ONLY TO THE EXTENT NECESSARY TO PROVIDE RELIEF NECESSITATED BY THAT PARTY'S INDIVIDUAL CLAIM(S), EXCEPT THAT YOU MAY PURSUE A CLAIM FOR AND THE ARBITRATOR MAY AWARD PUBLIC INJUNCTIVE RELIEF UNDER APPLICABLE LAW TO THE EXTENT REQUIRED FOR THE ENFORCEABILITY OF THIS PROVISION."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant is always interested in resolving disputes amicably and efficiently, and most user concerns can be resolved quickly and to the user's satisfaction by emailing support at support@brilliant.org. If such efforts prove unsuccessful, a party who intends to seek arbitration must first send to the other, by certified mail, a written Notice of Dispute (\" "
+    },
+    {
+     "t": "text",
+     "text": "Notice",
+     "strong": true,
+     "em": true
+    },
+    {
+     "t": "text",
+     "text": "\"). The Notice to Brilliant should be sent to Brilliant Worldwide, Inc., 2261 Market Street, Ste 4281, San Francisco, CA 94114 (\""
+    },
+    {
+     "t": "text",
+     "text": "Notice Address",
+     "strong": true,
+     "em": true
+    },
+    {
+     "t": "text",
+     "text": "\"). The Notice must (i) describe the nature and basis of the claim or dispute and (ii) set forth the specific relief sought. If Brilliant and you do not resolve the claim within sixty (60) calendar days after the Notice is received, you or Brilliant may commence an arbitration proceeding. During the arbitration, the amount of any settlement offer made by Brilliant or you shall not be disclosed to the arbitrator until after the arbitrator determines the amount, if any, to which you or Brilliant is entitled."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "To begin an arbitration proceeding, you must send a letter requesting arbitration and describing your dispute or claim or request for relief to the address set forth above. The arbitration will be conducted by JAMS, an established alternative dispute resolution provider. Disputes involving claims, counterclaims, or request for relief under $250,000, not inclusive of attorneys' fees and interest, shall be subject to JAMS's most current version of the Streamlined Arbitration Rules and procedures available at http://www.jamsadr.com/rules-streamlined-arbitration/; all other disputes shall be subject to JAMS's most current version of the Comprehensive Arbitration Rules and Procedures, available at http://www.jamsadr.com/rules-comprehensive-arbitration/. JAMS's rules are also available at www.jamsadr.com or by calling JAMS at 800-352-5267. If JAMS is not available to arbitrate, the parties will select an alternative arbitral forum. If the arbitrator finds that you cannot afford to pay JAMS's filing, administrative, hearing and/or other fees and cannot obtain a waiver from JAMS, Brilliant will pay them for you. In addition, Brilliant will reimburse all such JAMS's filing, administrative, hearing and/or other fees for disputes, claims, or requests for relief totaling less than $10,000 unless the arbitrator determines the claims are frivolous. You may choose to have the arbitration conducted by telephone, based on written submissions, or in person in the county where you live or at another mutually agreed location. Any judgment on the award rendered by the arbitrator may be entered in any court of competent jurisdiction."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The arbitrator shall have exclusive authority to (a) determine the scope and enforceability of this Arbitration Agreement and (b) resolve any dispute related to the interpretation, applicability, enforceability or formation of this Arbitration Agreement including, but not limited to, any assertion that all or any part of this Arbitration Agreement is void or voidable. The arbitration will decide the rights and liabilities, if any, of you and Brilliant. The arbitration proceeding will not be consolidated with any other matters or joined with any other cases or parties. The arbitrator shall have the authority to grant motions dispositive of all or part of any claim. The arbitrator shall have the authority to award monetary damages and to grant any non-monetary remedy or relief available to an individual under applicable law, the arbitral forum's rules, and these Terms of Service (including the Arbitration Agreement). The arbitrator shall issue a written award and statement of decision describing the essential findings and conclusions on which the award is based, including the calculation of any damages awarded. The arbitrator has the same authority to award relief on an individual basis that a judge in a court of law would have. The award of the arbitrator is final and binding upon you and us."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "If seventy-five (75) or more claimants represented by the same or similar counsel file demands for arbitration raising substantially similar disputes within 90 days of each other, then you and Brilliant agree that JAMS will administer them in batches of up to seventy-five (75) claimants each (\""
+    },
+    {
+     "t": "text",
+     "text": "Batch",
+     "strong": true,
+     "em": true
+    },
+    {
+     "t": "text",
+     "text": "\"), unless there are less than seventy-five (75) claimants in total or after batching, which will comprise a single Batch. JAMS will administer each Batch as a single consolidated arbitration with one arbitrator, one set of arbitration fees, and one hearing held by videoconference or in a location decided by the arbitrator for each Batch in accordance with the JAMS Mass Arbitration Rules. If any part of this section is found to be invalid or unenforceable as to a particular claimant or Batch, it will be severed and arbitrated in individual proceedings."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "All aspects of the arbitration proceeding, and any ruling, decision, or award by the arbitrator, will be strictly confidential for the benefit of all parties."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "If a court or the arbitrator decides that any term or provision of this Arbitration Agreement is invalid or unenforceable, the parties agree to replace such term or provision with a term or provision that is valid and enforceable and that comes closest to expressing the intention of the invalid or unenforceable term or provision, and this Arbitration Agreement shall be enforceable as so modified. If a court or the arbitrator decides that any of the provisions of this Section 8 are invalid or unenforceable, then the entirety of this Arbitration Agreement shall be null and void, unless such provisions are deemed to be invalid or unenforceable solely with respect to claims for public injunctive relief. The remainder of this Agreement will continue to apply."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Notwithstanding any provision in this Agreement to the contrary, Brilliant agrees that if it makes any future change to this Arbitration Agreement (other than a change to the Notice Address) while you are a user of the Platform, you may reject any such change by sending Brilliant written notice within thirty (30) calendar days of the change to the Notice Address provided above. By rejecting any future change, you are agreeing that you will arbitrate any dispute between us in accordance with the language of this Arbitration Agreement as of the date you first accepted this Agreement (or accepted any subsequent changes to this Agreement)."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-miscellaneous",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "MISCELLANEOUS."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The failure of either party to exercise in any respect any right provided for herein shall not be deemed a waiver of any further rights hereunder. Brilliant shall not be liable for any failure to perform its obligations hereunder where such failure results from any cause beyond Brilliant' reasonable control, including, without limitation, mechanical, electronic or communications failure or degradation (including \"line-noise\" interference). If any provision of this Agreement is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary so that this Agreement shall otherwise remain in full force and effect and enforceable. This Agreement is not assignable, transferable or sublicensable by User except with Brilliant' prior written consent. Brilliant may transfer, assign or delegate this Agreement and its rights and obligations without consent. This Agreement shall be governed by and construed in accordance with the laws of the state of Pennsylvania, as if made within Pennsylvania between two residents thereof, and the parties submit to the exclusive jurisdiction and venue of the state and Federal courts located in San Francisco, California. Both parties agree that this Agreement is the complete and exclusive statement of the mutual understanding of the parties and supersedes and cancels all previous written and oral agreements, communications and other understandings relating to the subject matter of this Agreement, and that all modifications must be in a writing signed by both parties, except as otherwise provided herein. No agency, partnership, joint venture, or employment is created as a result of this Agreement and User does not have any authority of any kind to bind Brilliant in any respect whatsoever."
+    }
+   ]
+  },
+  {
+   "tag": "h3",
+   "id": "tou-dmca",
+   "class": "panda-mt_12 panda-textStyle_heading.lg",
+   "runs": [
+    {
+     "t": "text",
+     "text": "DIGITAL MILLENNIUM COPYRIGHT ACT NOTICE."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Brilliant has adopted the following general policy toward copyright infringement in accordance with the "
+    },
+    {
+     "t": "text",
+     "text": "Digital Millennium Copyright Act",
+     "href": "http://lcweb.loc.gov/copyright/legislation/dmca.pdf"
+    },
+    {
+     "t": "text",
+     "text": ". The address of Brilliant' Designated Agent to Receive Notification of Claimed Infringement (\"Designated Agent\") is listed at the end of this policy."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "It is Brilliant' policy to (1) block access to or remove content that it believes in good faith to be copyrighted material that has been illegally copied and distributed by any of our advertisers, affiliates, content providers, members or users; and (2) remove and discontinue service to repeat offenders."
+    }
+   ]
+  },
+  {
+   "tag": "h4",
+   "id": "tou-dmca-a",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "A. Procedure for Reporting Copyright Infringements:"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "If User believes that content residing on or accessible through the Brilliant Service infringes a copyright, please send a notice of copyright infringement containing the following information to the Designated Agent listed below:"
+    }
+   ]
+  },
+  {
+   "tag": "ol",
+   "class": "panda-mt_4",
+   "items": [
+    [
+     {
+      "t": "text",
+      "text": "A physical or electronic signature of a person authorized to act on behalf of the owner of the copyright that has been allegedly infringed;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "Identification of works or materials being infringed;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "Identification of the content that is claimed to be infringing including information regarding the location of the content that the copyright owner seeks to have removed, with sufficient detail so that Brilliant is capable of finding and verifying its existence;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "Contact information about the notifier including address, telephone number and, if available, e-mail address;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "A statement that the notifier has a good faith belief that the content is not authorized by the copyright owner, its agent, or the law; and"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "A statement made under penalty of perjury that the information provided is accurate and the notifying party is authorized to make the complaint on behalf of the copyright owner."
+     }
+    ]
+   ]
+  },
+  {
+   "tag": "h4",
+   "id": "tou-dmca-b",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "B. Once Proper Bona Fide Infringement Notification is Received by the Designated Agent:"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "It is Brilliant's policy:"
+    }
+   ]
+  },
+  {
+   "tag": "ol",
+   "class": "panda-mt_4",
+   "items": [
+    [
+     {
+      "t": "text",
+      "text": "to remove or disable access to the infringing content;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "to notify the content provider, member or user that it has removed or disabled access to the content;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "that repeat offenders will have the infringing content removed from the system; and"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "to terminate such content provider's, member's or user's access to the service."
+     }
+    ]
+   ]
+  },
+  {
+   "tag": "h4",
+   "id": "tou-dmca-c",
+   "class": "panda-mt_12 panda-textStyle_heading.md",
+   "runs": [
+    {
+     "t": "text",
+     "text": "C. Procedure to Supply a Counter-Notice to the Designated Agent:"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "If the content provider, member or user believes that the content that was removed or to which access was disabled is either not infringing, or the content provider, member or user believes that it has the right to post and use such content from the copyright owner, the copyright owner's agent or pursuant to the law, the content provider, member or user must send a counter-notice containing the following information to the Designated Agent listed below:"
+    }
+   ]
+  },
+  {
+   "tag": "ol",
+   "class": "panda-mt_4",
+   "items": [
+    [
+     {
+      "t": "text",
+      "text": "A physical or electronic signature of the content provider, member or user;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "Identification of the content that has been removed or to which access has been disabled and the location at which the content appeared before it was removed or disabled;"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "A statement that the content provider, member or user has a good faith belief that the content was removed or disabled as a result of mistake or a misidentification of the content; and"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "text": "Content provider's, member's or user's name, address, telephone number, and, if available, email address and a statement that such person or entity consents to the jurisdiction of the Federal Court for the judicial district in which the content provider's, member's or user's address is located, or if the content provider's, member's or user's address is located outside the United States, for any judicial district in which Brilliant is located, and that such person or entity will accept service of process from the person who provided notification of the alleged infringement."
+     }
+    ]
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "If a counter-notice is received by the Designated Agent, Brilliant may send a copy of the counter-notice to the original complaining party informing that person that it may replace the removed content or cease disabling it in 10 business days. Unless the copyright owner files an action seeking a court order against the content provider, member or user, the removed content may be replaced, or access to it restored, in 10 to 14 business days or more after receipt of the counter-notice, at Brilliant's discretion."
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Please contact Brilliant's Designated Agent to Receive Notification of Claimed Infringement at the following address:"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "Designated Agent to Receive Notification of Claimed Infringement:",
+     "strong": true,
+     "underline": true
+    },
+    {
+     "t": "br"
+    },
+    {
+     "t": "text",
+     "text": "Brilliant DMCA Claims"
+    },
+    {
+     "t": "br"
+    },
+    {
+     "t": "text",
+     "text": "Brilliant Worldwide, Inc."
+    },
+    {
+     "t": "br"
+    },
+    {
+     "t": "text",
+     "text": "2261 Market Street, Ste 4281"
+    },
+    {
+     "t": "br"
+    },
+    {
+     "t": "text",
+     "text": "San Francisco, CA 94114"
+    },
+    {
+     "t": "br"
+    }
+   ]
+  },
+  {
+   "tag": "p",
+   "class": "panda-mt_4",
+   "runs": [
+    {
+     "t": "text",
+     "text": "The previous version of this document is located ",
+     "em": true
+    },
+    {
+     "t": "text",
+     "text": "here",
+     "em": true,
+     "href": "/terms-of-use/01-13-2025/",
+     "target": "_blank",
+     "rel": "noreferrer"
+    },
+    {
+     "t": "text",
+     "text": ".",
+     "em": true
+    }
+   ]
+  }
+ ],
+ "toc": [
+  {
+   "href": "#tou-access",
+   "label": "Access",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-content",
+   "label": "Site Content",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-fees",
+   "label": "Fees and Payment",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-user-content",
+   "label": "User Content",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-ai-features",
+   "label": "AI Features and Functionality",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-software",
+   "label": "Software",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-restrictions",
+   "label": "Restrictions",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-registration",
+   "label": "Registration; Security",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-third-party",
+   "label": "Third Party Sites",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-indemnification",
+   "label": "Indemnification",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-warranty",
+   "label": "Warranty Disclaimer",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-limitation",
+   "label": "Limitation of Liability",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-termination",
+   "label": "Termination",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-export",
+   "label": "Export and Trade Controls",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-privacy",
+   "label": "Privacy",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-disputes",
+   "label": "Member Disputes",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-copyright",
+   "label": "Copyright",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-communications",
+   "label": "Electronic Communications",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-arbitration",
+   "label": "Dispute Resolution by Binding Arbitration",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-miscellaneous",
+   "label": "Miscellaneous",
+   "style": "body.base"
+  },
+  {
+   "href": "#tou-dmca",
+   "label": "Digital Millennium Copyright Act Notice",
+   "style": "body.base",
+   "children": [
+    {
+     "href": "#tou-dmca-a",
+     "label": "Procedure for Reporting Copyright Infringements:",
+     "style": "body.sm"
+    },
+    {
+     "href": "#tou-dmca-b",
+     "label": "Once Proper Bona Fide Infringement Notification is Received by the Designated Agent:",
+     "style": "body.sm"
+    },
+    {
+     "href": "#tou-dmca-c",
+     "label": "Procedure to Supply a Counter-Notice to the Designated Agent:",
+     "style": "body.sm"
+    }
+   ]
+  }
+ ],
+ "tocHeading": "Jump to...",
+ "footer": {
+  "groups": [
+   {
+    "label": "Product",
+    "links": [
+     [
+      "Courses",
+      "/courses/"
+     ],
+     [
+      "Pricing",
+      "/subscribe/"
+     ],
+     [
+      "Gift Brilliant",
+      "/gift-premium/"
+     ],
+     [
+      "Resources",
+      "/resources/"
+     ],
+     [
+      "Help",
+      "/help/"
+     ]
+    ]
+   },
+   {
+    "label": "Solutions",
+    "links": [
+     [
+      "Educators",
+      "/educators/"
+     ],
+     [
+      "Homeschools",
+      "/start/homeschool/"
+     ]
+    ]
+   },
+   {
+    "label": "Company",
+    "links": [
+     [
+      "About us",
+      "/about/"
+     ],
+     [
+      "Careers",
+      "/careers/"
+     ]
+    ]
+   },
+   {
+    "label": "Behind the scenes",
+    "links": [
+     [
+      "A Tutor in Every Home",
+      "https://blog.brilliant.org/a-world-class-tutor-in-every-home/"
+     ],
+     [
+      "AI at Brilliant",
+      "https://blog.brilliant.org/hand-crafted-machine-made/"
+     ],
+     [
+      "AI Evals for Learning Games",
+      "https://blog.brilliant.org/when-almost-right-is-catastrophically-wrong-evals-for-ai-learning-games/"
+     ],
+     [
+      "Visual Algebra",
+      "https://blog.brilliant.org/visual-algebra/"
+     ],
+     [
+      "Decomposition and Abstraction",
+      "https://blog.brilliant.org/decomposition-and-abstraction/"
+     ]
+    ]
+   }
+  ],
+  "social": [
+   [
+    "Brilliant on Facebook",
+    "https://www.facebook.com/brilliantorg"
+   ],
+   [
+    "Brilliant on Instagram",
+    "https://www.instagram.com/brilliantorg"
+   ],
+   [
+    "Brilliant on Twitter",
+    "https://twitter.com/brilliantorg"
+   ],
+   [
+    "Brilliant on LinkedIn",
+    "https://www.linkedin.com/company/brilliant-org/"
+   ]
+  ],
+  "legalRow": [
+   [
+    "Terms of service",
+    "/terms-of-use/"
+   ],
+   [
+    "Do not sell my personal information",
+    null
+   ],
+   [
+    "California privacy policy",
+    "/ccpa-policy/"
+   ],
+   [
+    "Privacy policy",
+    "/privacy/"
+   ]
+  ],
+  "copyright": "© 2026 Brilliant Worldwide, Inc., Brilliant and the Brilliant Logo are trademarks of Brilliant Worldwide, Inc."
+ }
+}

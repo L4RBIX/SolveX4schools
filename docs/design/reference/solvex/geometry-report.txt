@@ -1,0 +1,53 @@
+Gameboard geometry vs brilliant.org reference (tolerance 4px)
+
+measurement             reference   solvex      verdict
+----------------------------------------------------------------
+scrollerTop             65          65          ok
+scrollerGap             32          32          ok
+scrollerPadTop          20          20          ok
+headerStickyTop         41          41          ok
+headerH                 64          64          ok
+headerBtnH              64          64          ok
+headerRadius            18          18          ok
+slabRadius              20          20          ok
+slabOverhangTop         2           2           ok
+slabOverhangBottom      6           6           ok
+slabOverhangSide        2           2           ok
+headerMarginBottom      200         200         ok
+stackMarginTopFirst     -120        -120        ok
+stackMarginTopRest      -200        -200        ok
+stackMarginBottom       60          60          ok
+stackGap                30          30          ok
+sectionGap              30          30          ok
+rowH                    134         134         ok
+rowPitch                164         164         ok
+firstRowMarginTop       45          45          ok
+pedestalW               128         128         ok
+pedestalH               134         134         ok
+pedestalLabelGap        8           8           ok
+labelH                  55          55          ok
+labelPadBottom          29.5        29.5        ok
+cardRadius              40          40          ok
+cardBorder              2           2           ok
+cardBottom              40          40          ok
+ctaH                    48          48          ok
+ctaRadius               60          60          ok
+
+zig-zag: 0,-59,0  (amplitude 59, reference 59)
+row heights: 134,134,134
+
+Horizontal overflow by viewport (must all be false):
+  1440px  scrollWidth 1440    inner 1440    overflow=false
+  1280px  scrollWidth 1280    inner 1280    overflow=false
+  1024px  scrollWidth 1024    inner 1024    overflow=false
+  768px   scrollWidth 768     inner 768     overflow=false
+  375px   scrollWidth 375     inner 375     overflow=false
+
+Brilliant assets requested by /course/1 (must all be none):
+  1440px  none
+  1280px  none
+  1024px  none
+  768px   none
+  375px   none
+
+0 measurement(s) outside tolerance. 0 Brilliant asset request(s).

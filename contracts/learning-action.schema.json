@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solvex.dev/schemas/learning-action.schema.json",
+  "title": "NextAction",
+  "description": "One decision the engine reached, with the evidence it rests on. Stored so it can be verified later and argued with — an engine that always has an opinion is indistinguishable from one that is right, until you check.",
+  "type": "object",
+  "required": ["actionType", "skill", "reason", "evidence", "confidence", "taskRequest", "expectedOutcome", "nova"],
+  "properties": {
+    "actionType": {
+      "type": "string",
+      "enum": ["REDUCE_ASSISTANCE", "REMEDIATE", "DIAGNOSE", "STRENGTHEN", "CHALLENGE"],
+      "description": "Priority order is exactly this array order (0 = highest). REDUCE_ASSISTANCE outranks remediation: if a learner's accepted work came off code-bearing hints, every skill conclusion drawn from it is built on sand. DIAGNOSE is the DEFAULT and the most common answer, because ~75% of failures carry no attributable cause."
+    },
+    "skill": { "type": ["string", "null"] },
+    "reason": { "type": "string", "description": "Plain-language, built from the same counts as the decision." },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "detail"],
+        "properties": {
+          "kind": { "type": "string" },
+          "detail": { "type": "string" },
+          "episodeIds": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "confidence": {
+      "type": "number", "minimum": 0, "maximum": 1,
+      "description": "Confidence in THIS DECISION, not in any misconception. The two are different numbers and conflating them is how a system starts asserting things."
+    },
+    "taskRequest": {
+      "type": "object",
+      "required": ["skill", "difficulty", "purpose"],
+      "properties": {
+        "skill": { "type": ["string", "null"] },
+        "difficulty": {
+          "type": "string", "enum": ["easier", "same", "harder"],
+          "description": "A DIRECTION for a catalogue query to resolve, not a measured level. Per-task difficulty calibration does not exist."
+        },
+        "requires": {
+          "type": "string", "enum": ["degenerate_cases", "complexity_gate", "any"],
+          "description": "A property the task's own verification evidence must have. Asking someone to practise edge cases on a task with no degenerate case is not practice."
+        },
+        "purpose": { "type": "string" }
+      }
+    },
+    "expectedOutcome": {
+      "type": "string",
+      "description": "What we expect to observe if this worked. Falsifiable on purpose — this is what makes action effectiveness measurable rather than assumed."
+    },
+    "nova": { "$ref": "https://solvex.dev/schemas/nova-directive.schema.json" }
+  }
+}
