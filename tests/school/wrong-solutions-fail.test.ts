@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { execFileSync } from "node:child_process";
 import { MONTHS } from "@schools/curriculum/months";
 import { WRONG_SOLUTIONS, type WrongSolution } from "./wrong-solution-fixtures";
 import type { LessonBlock } from "@schools/curriculum/types";
+import { CompileError, compileReference, cppCompiler, runCase } from "../support/cpp-run";
 
 /**
  * Sixteen programs that must keep failing.
@@ -27,17 +27,8 @@ import type { LessonBlock } from "@schools/curriculum/types";
  * a case set that rejected a valid alternative would be a defect of its own.
  */
 
-const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
-
-function hasPython(): boolean {
-  try {
-    execFileSync(PYTHON, ["--version"], { stdio: "pipe" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-const python = hasPython();
+const COMPILER = cppCompiler();
+const haveCompiler = COMPILER !== null;
 
 interface Run {
   ok: boolean;
@@ -46,53 +37,56 @@ interface Run {
 }
 
 /**
- * Run one program against many inputs in a SINGLE interpreter.
+ * Every distinct program, built at most once for the whole file.
  *
- * A process per case is the obvious way and it does not scale. This file wanted
- * 196 of them, running concurrently with the 825 of `content-execution`, and
- * the workers began to die — which surfaced as a different fixture failing on
- * each run and an unrelated test file failing to load at all. A heisenbug in a
- * suite whose whole job is to be believed is worse than a slow suite.
+ * The Python version of this file needed a batching script: a process per case
+ * did not scale to 196 interpreter starts running alongside `content-execution`
+ * — workers began to die, and it surfaced as a different fixture failing on
+ * every run, which is the worst possible defect in a suite whose entire job is
+ * to be believed.
  *
- * `support/run-cases.py` gives each case a fresh globals dict, its own stdin
- * and its own stdout. Verified against per-process execution over all 164 case
- * results with zero disagreements before this replaced it.
+ * C++ removes the problem rather than working around it. The cost was the
+ * interpreter start, and a compiled binary has none: build once, then each case
+ * is a native process that begins in microseconds. `support/run-cases.py` and
+ * its careful fresh-globals-per-case machinery are no longer reachable from
+ * here, and the honest reason is that the language changed, not that the
+ * problem was solved.
  */
-function runCases(source: string, inputs: string[]): Run[] {
-  if (!inputs.length) return [];
+const built = new Map<string, { ok: true; binary: string } | { ok: false; diagnostics: string }>();
+
+function build(source: string, label: string) {
+  const hit = built.get(source);
+  if (hit) return hit;
+  let out: { ok: true; binary: string } | { ok: false; diagnostics: string };
   try {
-    const out = execFileSync(PYTHON, ["tests/school/support/run-cases.py"], {
-      input: JSON.stringify({ program: source, cases: inputs.map((input) => ({ input })) }),
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 32 * 1024 * 1024,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return (JSON.parse(out) as { status: string; out: string }[]).map((r) => ({
-      ok: r.status === "ok",
-      out: r.out,
-      err: r.status === "ok" ? "" : r.status,
-    }));
+    out = { ok: true, binary: compileReference(source, label).binary };
   } catch (e) {
-    const err = e as { stderr?: string };
-    throw new Error(`the batched runner itself failed: ${(err.stderr ?? String(e)).slice(0, 400)}`);
+    out = { ok: false, diagnostics: e instanceof CompileError ? e.diagnostics : String(e) };
   }
+  built.set(source, out);
+  return out;
 }
 
-function run(source: string, stdin: string): Run {
-  try {
-    const out = execFileSync(PYTHON, ["-I", "-S", "-c", source], {
-      input: stdin.endsWith("\n") ? stdin : `${stdin}\n`,
-      encoding: "utf8",
-      timeout: 20_000,
-      stdio: ["pipe", "pipe", "pipe"],
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    return { ok: true, out: out.trim(), err: "" };
-  } catch (e) {
-    const err = e as { stdout?: string; stderr?: string };
-    return { ok: false, out: (err.stdout ?? "").trim(), err: (err.stderr ?? "").trim() };
-  }
+/**
+ * Run one program against many inputs.
+ *
+ * A wrong program is ALLOWED not to compile — that is one of the ways a program
+ * can be wrong, and in C++ a common one. It reports as a failed run for every
+ * case, which is exactly what the fixture's "it must fail at least one declared
+ * case" assertion wants.
+ */
+function runCases(source: string, inputs: string[], label = "wrong"): Run[] {
+  if (!inputs.length) return [];
+  const b = build(source, label);
+  if (!b.ok) return inputs.map(() => ({ ok: false, out: "", err: b.diagnostics }));
+  return inputs.map((input) => {
+    const r = runCase(b.binary, input.endsWith("\n") ? input : `${input}\n`);
+    return { ok: r.status === "ok", out: r.stdout.trim(), err: r.stderr.trim() || (r.status === "ok" ? "" : r.status) };
+  });
+}
+
+function run(source: string, stdin: string, label = "wrong"): Run {
+  return runCases(source, [stdin], label)[0] ?? { ok: false, out: "", err: "no result" };
 }
 
 const BLOCKS: Record<string, LessonBlock> = {};
@@ -163,7 +157,7 @@ describe("programs that were wrongly accepted stay rejected", () => {
 
   for (const f of WRONG_SOLUTIONS) {
     describe(f.blockId, () => {
-      it.runIf(python)("the reference still answers the witness correctly", () => {
+      it.runIf(haveCompiler)("the reference still answers the witness correctly", () => {
         const block = BLOCKS[f.blockId];
         const got = run(referenceOf(block), witnessFor(f, block));
         expect(got.ok, `${f.blockId}: the reference crashed on the witness\n${got.err}`).toBe(true);
@@ -174,7 +168,7 @@ describe("programs that were wrongly accepted stay rejected", () => {
         ).toBe(f.referenceOutput);
       });
 
-      it.runIf(python)("the wrong program is still wrong on the witness", () => {
+      it.runIf(haveCompiler)("the wrong program is still wrong on the witness", () => {
         const block = BLOCKS[f.blockId];
         const got = run(wrongProgramFor(f, block), witnessFor(f, block));
         if (f.wrongOutput === "@crash") {
@@ -189,7 +183,7 @@ describe("programs that were wrongly accepted stay rejected", () => {
         );
       });
 
-      it.runIf(python)("the declared cases now reject it", () => {
+      it.runIf(haveCompiler)("the declared cases now reject it", () => {
         /* The assertion that goes red if the guard case is deleted. */
         const block = BLOCKS[f.blockId];
         const cases = (block as unknown as { cases?: { input: string; expectedOutput: string }[] }).cases ?? [];
@@ -208,7 +202,7 @@ describe("programs that were wrongly accepted stay rejected", () => {
       });
 
       if (f.alternative) {
-        it.runIf(python)("an alternative CORRECT algorithm still passes", () => {
+        it.runIf(haveCompiler)("an alternative CORRECT algorithm still passes", () => {
           const block = BLOCKS[f.blockId];
           const cases = (block as unknown as { cases?: { input: string; expectedOutput: string }[] }).cases ?? [];
           const results = runCases(f.alternative!, cases.map((c) => c.input));
