@@ -120,47 +120,46 @@ function compiles(code: string, label = "snippet"): { ok: boolean; err: string }
  * month is frozen costs a re-review.
  */
 const MONTH_BUDGET: Record<number, ConstructId[]> = {
-  /* Derived from September's own shown code, computed via `teachingOrder()` +
-     `shownCode()`.
+  /* Derived, not invented: this is the C++17 construct vocabulary from
+     `schools/curriculum/capability.ts` grouped by the month in which each id is
+     first shown, computed from `teachingOrder()` over the migrated content.
 
-     It used to carry four extras "its reference solutions use and therefore
-     treat as available": abs(), <=, != and a float literal. That phrasing was
-     the defect written down — a solution using something the month never shows
-     is not a construct the month has, it is a task outrunning its month. Three
-     of the four are now genuinely shown in September (`!=` and `<=` at
-     m1.l6.b1, a float literal at m1.l10.b1) and belong here on their own
-     merits. `abs()` is gone: `m1.p8` no longer uses it, September has no skill
-     for it, and it is first shown in month four. */
+     It replaces the Python alphabet wholesale. That list did not merely go
+     stale — once the curriculum became C++ it made this script report nonsense
+     with confidence, flagging `{` as a dict literal, a three-clause `for` as a
+     comprehension and `a < b && c < d` as a chained comparison. 265 "errors"
+     on one month, every one of them false. */
   1: [
-    "stmt.assign", "stmt.assign_unpack",
-    "stmt.if", "stmt.elif", "stmt.else",
-    "op.add", "op.sub", "op.mul", "op.truediv", "op.floordiv", "op.mod", "op.pow",
+    "frame.include", "frame.using_namespace", "frame.main", "frame.return",
+    "io.cout", "io.cin", "io.endl",
+    "type.int", "type.long_long", "type.string",
+    "stmt.assign", "stmt.if", "stmt.else_if", "stmt.else",
+    "op.add", "op.sub", "op.mul", "op.div", "op.mod",
     "cmp.eq", "cmp.ne", "cmp.lt", "cmp.gt", "cmp.le", "cmp.ge",
     "logic.and", "logic.or", "logic.not",
-    "builtin.print", "builtin.input", "builtin.int", "builtin.float", "builtin.str",
-    "builtin.map",
-    "method.split",
-    "literal.int", "literal.float", "literal.str", "literal.bool",
+    "literal.int", "literal.double", "literal.str",
   ],
   2: [
-    "stmt.for", "stmt.while", "stmt.break", "stmt.continue",
-    "stmt.assign_augmented",
-    "builtin.range", "builtin.len", "builtin.list",
-    "literal.list", "expr.subscript", "expr.slice",
-    "logic.in", "method.append", "method.join",
+    "type.char", "stmt.compound_assign", "stmt.for", "stmt.while", "stmt.break",
+    "op.increment", "cont.vector",
+    "method.size", "method.push_back", "method.at",
+    "literal.char", "expr.subscript", "expr.range_for", "expr.brace_init",
   ],
-  3: ["stmt.def", "stmt.return", "stmt.global"],
-  /* Ordering and the aggregate builtins arrive together, and deliberately late:
-     October's «тізімдегі максимум мен минимум», «қосынды және орташа мән» and
-     «тізімді кері аудару» are the traversal being taught, and November asks for
-     a max/min FUNCTION. min(), max(), sum(), sorted() and reversed() available
-     any earlier would delete the exercise. */
-  4: ["builtin.sorted", "builtin.reversed", "builtin.min", "builtin.max", "builtin.sum", "method.sort"],
-  5: [],
-  6: [],
-  7: [],
-  8: [],
-  9: [],
+  3: ["type.void", "func.define", "func.return"],
+  /* Ordering arrives with December, and deliberately late: October's
+     «тізімдегі максимум мен минимум» and «тізімді кері аудару» are the
+     traversal being taught, and November asks for a max/min FUNCTION. `sort`
+     available any earlier would delete the exercise. */
+  4: ["method.begin_end", "lib.sort"],
+  5: ["type.bool", "func.reference_param", "literal.bool", "expr.cast"],
+  6: ["func.recursion", "method.substr", "lib.max_min"],
+  7: [
+    "type.auto", "cont.array", "cont.vector_2d", "cont.pair", "cont.queue",
+    "method.push_pop", "method.front_back", "method.empty",
+    "lib.reverse", "expr.structured_binding",
+  ],
+  8: ["expr.pair_member"],
+  9: ["lib.bits_stdc", "lib.abs"],
 };
 
 function budgetFor(month: number): Set<string> {

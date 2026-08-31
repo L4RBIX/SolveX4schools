@@ -1,3 +1,4 @@
+import { MONTHS } from "@schools/curriculum/months";
 import { SKILL_BY_ID } from "@schools/curriculum/skills";
 import type { Locale, SkillId } from "@schools/curriculum/types";
 
@@ -209,7 +210,7 @@ export const ARRIVES_LATER: readonly Cpp17Arrival[] = [
     why: "October. September's only text is a literal inside cout <<.",
   },
   {
-    label: "writing a function of their own, and return from one",
+    label: "their own functions",
     skill: "func.define",
     why: "November. Until then the only function that exists is main, and it is part of the given frame.",
   },
@@ -263,7 +264,7 @@ export const SEMANTIC_TRAPS: readonly string[] = [
   "-7 / 2 is -3 and -7 % 2 is -1 (C++ truncates toward zero, Python floors)",
   "int overflows SILENTLY past 2147483647 — a sum or product of inputs needs long long",
   "cin >> n on non-numeric text fails silently and leaves n unchanged",
-  '"5" + 5 does not compile',
+  '"5" + 5 is NOT concatenation — it is arithmetic on the text\'s address; with std::string it does not compile at all',
   "if (x) needs a real comparison; there is no truthiness",
   "division by zero is undefined behaviour, not an exception — guard the divisor, never catch it",
   "a decorative cout prompt is a WRONG ANSWER; the judge compares bytes",
@@ -293,13 +294,49 @@ export interface Cpp17Position {
  * is exactly the behaviour before a position was available. Guessing a lesson
  * number from an id shape nobody has seen would be worse than not knowing.
  */
+/**
+ * September's lesson ids are NOT its teaching order.
+ *
+ * The month runs `l1, l11, l2, l10, l3, l4, l5, l12, l6, l7, l8, l9` — the
+ * numbers are stable identifiers, not a sequence. This map is derived from the
+ * `Month` structure so it cannot drift from it.
+ *
+ * Reading the number out of the id, which is what this file used to do, was
+ * wrong in both directions and both were live:
+ *
+ *   - `m1.l11` is the SECOND lesson taught. It read as lesson 11, so a learner
+ *     two lessons into the year was described to Nova as having finished
+ *     eleven — and the tutor was free to reach for anything September teaches.
+ *   - `m1.l4` is «if және else», taught SIXTH. It read as lesson 4, so
+ *     `cond.if_else` came back as NOT TAUGHT YET in the very lesson that
+ *     introduces it, and the tutor would withhold the lesson's own subject.
+ *
+ * Found by the capability extractor's migration, which had just had the same
+ * class of defect removed from it pointing the other way.
+ */
+const SEPTEMBER_TEACHING_POSITION: ReadonlyMap<string, number> = (() => {
+  const order = new Map<string, number>();
+  const september = MONTHS.find((m) => m.index === 1);
+  if (!september) return order;
+  let n = 0;
+  for (const unit of september.units) {
+    for (const lesson of unit.lessons) order.set(lesson.id, ++n);
+  }
+  return order;
+})();
+
 export function cpp17PositionOf(blockId: string | undefined | null): Cpp17Position | null {
   if (typeof blockId !== "string") return null;
   const m = /^m(\d+)\.(l(\d+)|p\d+|as)\b/.exec(blockId.trim());
   if (!m) return null;
   const month = Number(m[1]);
   if (!Number.isFinite(month) || month < 1) return null;
-  if (m[3]) return { month, lesson: Number(m[3]), kind: "lesson" };
+  if (m[3]) {
+    /* Position in the sequence, not the digits in the name. Outside September
+       the two coincide and the fallback is the id's own number. */
+    const taught = SEPTEMBER_TEACHING_POSITION.get(`m${month}.l${m[3]}`);
+    return { month, lesson: taught ?? Number(m[3]), kind: "lesson" };
+  }
   return {
     month,
     lesson: month === 1 ? SEPTEMBER_LAST_LESSON : null,
@@ -400,7 +437,14 @@ export function cpp17PromptLines(
     "- C++17, procedural. NO classes and no OOP anywhere in year 1. Never write Python at",
     "  them — no print(), input(), def, elif or colon-and-indent blocks. Every statement ends",
     "  in ';' and every variable has a declared type.",
-    `- Their frame, GIVEN not invented: ${CPP17_FRAME.replace(/\n\s*/g, " ")}`,
+    /* Multi-line, exactly as it sits in their editor. Flattening it onto one
+       line saved a hundred characters and cost the thing the block is for: a
+       tutor that points at "line 2" has to mean the line the learner's line 2
+       actually is. */
+    "- Their frame, GIVEN to them rather than invented — this is what is on screen:",
+    "```cpp",
+    CPP17_FRAME,
+    "```",
   ];
 
   if (position && position.month === 1 && position.lesson !== null) {
