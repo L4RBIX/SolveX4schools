@@ -63,8 +63,27 @@ export interface RunButtonState {
   note: Localized | null;
 }
 
+/**
+ * The runtime phases this file reasons about, named here rather than imported
+ * from one engine's module.
+ *
+ * It used to be Pyodide's `RunnerPhase`, which was fine while there was one
+ * runtime. C++ has a phase Python does not — a program is COMPILED before it
+ * runs — and typing the button against one engine's union meant the other
+ * engine could not be wired in without a cast. The union below is the product's
+ * vocabulary; each runtime maps onto it.
+ */
+export type RunPhase =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "compiling"
+  | "running"
+  | "failed"
+  | "unavailable";
+
 export interface RunButtonInput {
-  phase: RunnerPhase;
+  phase: RunPhase;
   /** True between the press and the result. */
   isRunning: boolean;
   /** The block has been checked, so the editor is frozen and Run is too. */
@@ -79,15 +98,19 @@ export interface RunButtonInput {
  * The one place the button's five states are decided.
  *
  * The order of the branches is the priority order and it is deliberate: a
- * runtime that will not load outranks an empty editor, because "Python did not
- * start" is our failure and must never be presented as the learner's.
+ * runtime that will not load outranks an empty editor, because "the compiler
+ * did not load" is our failure and must never be presented as the learner's.
  */
 export function runButtonState(input: RunButtonInput): RunButtonState {
-  if (input.phase === "unavailable") {
-    /* Not disabled. The retry is the whole point — `PythonRunner.ensureReady`
-       spawns a fresh worker on the next call, and a school's connection coming
-       back is the common case. */
+  if (input.phase === "unavailable" || input.phase === "failed") {
+    /* Not disabled. The retry is the whole point — the runner spawns a fresh
+       worker on the next call, and a school's connection coming back is the
+       common case. */
     return { action: "retry", disabled: false, label: L.runRetryLoad, note: L.runRuntimeUnavailable };
+  }
+
+  if (input.phase === "compiling") {
+    return { action: "run", disabled: true, label: L.runCompiling, note: null };
   }
 
   if (input.isRunning) {
@@ -107,7 +130,7 @@ export function runButtonState(input: RunButtonInput): RunButtonState {
   }
 
   if (input.sourceBytes > LOCAL_LIMITS.maxSourceBytes) {
-    /* Told here rather than letting `PythonRunner.refuseOnSize` answer with
+    /* Told here rather than letting the runner answer with
        `runtime_unavailable`. That status is honest about not being the
        learner's fault, and it is the wrong sentence for a program that is
        simply too long — which IS something they can fix. */

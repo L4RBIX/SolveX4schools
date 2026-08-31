@@ -202,6 +202,23 @@ export class Cpp17Runner {
   }
 
   /**
+   * Bring the toolchain up without compiling anything.
+   *
+   * A separate verb from `run` because warming by running an empty source is a
+   * real compile — about a second of the learner's laptop spent building a
+   * translation unit nobody asked for, and on a phone that is a second of
+   * battery and heat for nothing.
+   */
+  async warm(): Promise<boolean> {
+    try {
+      await this.ensureWorker();
+      return this.worker !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Compile and run the learner's source.
    *
    * Refuses oversized input before starting a compiler, for the same reason the
@@ -264,6 +281,9 @@ export class Cpp17Runner {
     const started = Date.now();
     const budget = request.timeLimitMs ?? LOCAL_LIMITS.timeLimitMs;
 
+    /* `compiling` now, and the worker flips it to `running` when clang and lld
+       are done — a learner waiting four seconds on `bits/stdc++.h` should be
+       told which of the two steps they are waiting on. */
     this.setState({ phase: "compiling" });
 
     return new Promise<LocalRunResult>((resolve) => {

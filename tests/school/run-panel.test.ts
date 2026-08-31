@@ -275,8 +275,10 @@ describe("the Run button is never a lie", () => {
       expect(state.disabled).toBe(true);
       expect(state.action).toBe("none");
       expect(state.label).toBe(L.runPreparing);
-      expect(L.runPreparing.kk).toBe("Python дайындалып жатыр…");
-      expect(L.runPreparing.ru).toBe("Python готовится…");
+      /* Names the language the learner is actually waiting for. It said Python
+         when Python was the runtime; the assertion moved with the product. */
+      expect(L.runPreparing.kk).toBe("C++ дайындалып жатыр…");
+      expect(L.runPreparing.ru).toBe("C++ готовится…");
     }
   });
 
@@ -438,7 +440,7 @@ describe("every learner-facing string is bilingual", () => {
       L.runSourceTooLong,
       L.runStdout,
       L.runStderr,
-      L.runStderrIsPython,
+      L.runStderrIsCompiler,
       L.runNoOutput,
       L.runPreparing,
       L.runInProgress,

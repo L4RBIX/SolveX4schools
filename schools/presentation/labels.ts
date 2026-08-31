@@ -604,17 +604,25 @@ export const L = {
   runStdout: { kk: "Шыққан нәтиже", ru: "Вывод" },
   runStderr: { kk: "Қате туралы хабар", ru: "Сообщение об ошибке" },
   /**
-   * Said once, next to the traceback, so the English is a lesson rather than a
+   * Said once, next to the diagnostic, so the English is a lesson rather than a
    * wall. The programme teaches debugging; the first step of debugging is
-   * reading what the interpreter actually said.
+   * reading what the compiler actually said. A C++ learner meets this on their
+   * first missing semicolon, which is sooner than a Python learner met a
+   * traceback — so it matters more, not less.
    */
-  runStderrIsPython: {
-    kk: "Бұл — Python-ның өз сөзі, ағылшынша. Оны оқи білу — керек дағды.",
-    ru: "Это собственные слова Python, по-английски. Уметь их читать — нужный навык.",
+  runStderrIsCompiler: {
+    kk: "Бұл — компилятордың өз сөзі, ағылшынша. Оны оқи білу — керек дағды.",
+    ru: "Это собственные слова компилятора, по-английски. Уметь их читать — нужный навык.",
   },
   runNoOutput: { kk: "Бағдарлама ештеңе шығарған жоқ", ru: "Программа ничего не вывела" },
-  /** The 13 MB CPython download. Never a dead button, never a fake result. */
-  runPreparing: { kk: "Python дайындалып жатыр…", ru: "Python готовится…" },
+  /** The C++ toolchain download, ~18 MB gzipped. Never a dead button. */
+  runPreparing: { kk: "C++ дайындалып жатыр…", ru: "C++ готовится…" },
+  /**
+   * Compiling and running are separate waits in C++ and Python had only one.
+   * A learner staring at a button for four seconds because they wrote
+   * `#include <bits/stdc++.h>` should be told which step they are waiting on.
+   */
+  runCompiling: { kk: "Компиляция жүріп жатыр…", ru: "Идёт компиляция…" },
   runInProgress: { kk: "Орындалып жатыр…", ru: "Выполняется…" },
   /**
    * The runtime did not start.
@@ -624,8 +632,8 @@ export const L = {
    * read our failed download as their broken program.
    */
   runRuntimeUnavailable: {
-    kk: "Python браузеріңде іске қосылмады. Бұл сенің бағдарламаңның қатесі емес.",
-    ru: "Python не запустился в твоём браузере. Это не ошибка твоей программы.",
+    kk: "C++ компиляторы браузеріңде іске қосылмады. Бұл сенің бағдарламаңның қатесі емес.",
+    ru: "Компилятор C++ не запустился в твоём браузере. Это не ошибка твоей программы.",
   },
   runRetryLoad: { kk: "Қайта жүктеу", ru: "Загрузить снова" },
   runTimeLimit: (seconds: number): Localized => ({

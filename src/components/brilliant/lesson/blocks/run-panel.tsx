@@ -8,7 +8,7 @@ import { isLearnerOutcome } from "@schools/execution/trust";
 import { capabilityFor, surfaceForBlock } from "@schools/execution/trust-policy";
 import { L, t } from "@schools/presentation/labels";
 import type { LearningPayload } from "@solvex/learning-contracts";
-import { usePython } from "@/lib/pyodide/use-python";
+import { useCpp17 } from "@/lib/cpp17/use-cpp17";
 import { Button3D } from "../button-3d";
 import {
   byteLength,
@@ -120,7 +120,11 @@ export function RunPanel({
   onRun,
   onRunResult,
 }: RunPanelProps) {
-  const python = usePython({ preload: active });
+  /* The C++17 toolchain, not CPython. `preload: active` is what keeps 18 MB of
+     compiler off the wire until a block that can actually run code is the one
+     the learner is looking at — see `useCpp17`'s `preload` default, which is
+     the opposite of the Python hook's for that reason. */
+  const python = useCpp17({ preload: active });
 
   const seeded = useMemo(() => seedStdin(visibleCases), [visibleCases]);
   const [stdin, setStdin] = useState(seeded);
@@ -149,7 +153,7 @@ export function RunPanel({
 
   const button = runButtonState({
     phase: python.phase,
-    isRunning: python.isRunning,
+    isRunning: python.isBusy,
     locked,
     sourceBytes: byteLength(source),
     hasSource: source.trim().length > 0,
@@ -162,10 +166,10 @@ export function RunPanel({
 
   const result = python.result;
   const stale = result !== null && ranSource !== null && ranSource !== source;
-  /* The one sentence Python could not have said itself, or none. `syntax_error`
-     and `runtime_error` return null on purpose — the traceback is already the
-     better explanation, and putting «қате бар» above it replaces information
-     with reassurance. */
+  /* The one sentence the compiler could not have said itself, or none.
+     `syntax_error` and `runtime_error` return null on purpose — clang's own
+     diagnostic names a line and a cause, and putting «қате бар» above it
+     replaces information with reassurance. */
   const statusNote = result ? runStatusNote(result.status) : null;
 
   async function press() {
@@ -307,7 +311,7 @@ export function RunPanel({
               <>
                 <OutputPane label={t(L.runStderr, locale)} text={result.stderr} tone="err" />
                 <p className="text-[13px] leading-5 text-b-fg/40">
-                  {t(L.runStderrIsPython, locale)}
+                  {t(L.runStderrIsCompiler, locale)}
                 </p>
               </>
             ) : null}
