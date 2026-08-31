@@ -26,11 +26,18 @@ import { getStore } from "@schools/store";
  *
  * ## Cost
  *
- * One query per request — `completionsForSubject` is a single indexed read on
- * `(subject_id)` returning at most 81 rows for a learner who has finished the
- * whole year. It is called once per page render and once per state-changing
- * request, never per block: a check inside a render loop would be 73 queries on
- * a September lesson, which is the shape this note exists to forbid.
+ * TWO reads per request, issued in parallel — it was one before the gate grew
+ * its second condition, and a stale cost note is how a performance claim
+ * quietly stops being true. `completionsForSubject` is a single indexed read on
+ * `(subject_id)` returning at most 83 rows for a learner who has finished the
+ * whole year; `blockAttempts` is asked ONCE for every independence block in the
+ * programme — thirteen ids, one per month plus May's five — rather than once
+ * per month.
+ *
+ * Both are per page render and per state-changing request, never per block: a
+ * check inside a render loop would be 73 queries on a September lesson, which
+ * is the shape this note exists to forbid. September short-circuits before
+ * either of them.
  */
 export async function unlockEvidenceFor(subjectId: string): Promise<UnlockEvidence> {
   const store = await getStore();

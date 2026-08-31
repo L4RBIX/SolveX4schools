@@ -235,18 +235,32 @@ export interface MonthCompletableShape {
  * Only blocks with cases are returned. An `unseen_problem` a machine cannot
  * grade could never be *solved* in the sense the gate needs, and requiring one
  * would make the month impossible to leave.
+ *
+ * ## Why the AUTHORED block type is demanded, not a structural shape
+ *
+ * This took `readonly unknown[]` and cast its way to `mode` and `cases`, so
+ * that the board's `MonthOutline` — which `MonthCompletableShape` explicitly
+ * invites, and whose `outlineBlocks` reduces every block to `{id, type}` —
+ * satisfied it. Measured: passing outlines returns `[]` for all nine months,
+ * which flips `demonstrated` to `true` everywhere and hands the attempt-spam
+ * learner `unlockedThrough: 9`. The whole gate off, silently, with no type
+ * error anywhere.
+ *
+ * No live caller did that. The type accepted it, which for a function that
+ * decides whether a learner has demonstrated anything is close enough to a
+ * defect. Demanding `LessonBlock[]` makes it a compile error instead, and the
+ * narrowing on `block.type` then gives `mode` and `cases` for free.
  */
-export function monthIndependenceBlocks(month: MonthCompletableShape & {
-  assessment?: { blocks: readonly unknown[] } | null;
+export function monthIndependenceBlocks(month: {
+  assessment?: { blocks: readonly LessonBlock[] } | null;
 }): string[] {
   const assessment = month.assessment;
   if (!assessment) return [];
   const out: string[] = [];
-  for (const raw of assessment.blocks) {
-    const b = raw as { id?: unknown; type?: unknown; mode?: unknown; cases?: unknown };
-    if (b.type !== "verify" || b.mode !== "unseen_problem") continue;
-    if (!Array.isArray(b.cases) || b.cases.length === 0) continue;
-    if (typeof b.id === "string") out.push(b.id);
+  for (const block of assessment.blocks) {
+    if (block.type !== "verify" || block.mode !== "unseen_problem") continue;
+    if (!Array.isArray(block.cases) || block.cases.length === 0) continue;
+    out.push(block.id);
   }
   return out;
 }

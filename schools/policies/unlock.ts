@@ -4,6 +4,7 @@ import {
   monthIndependenceBlocks,
   type MonthCompletableShape,
 } from "@schools/curriculum/inventory";
+import type { LessonBlock, PublicationStatus } from "@schools/curriculum/types";
 
 /**
  * Which months this learner may enter.
@@ -93,6 +94,24 @@ import {
  * open March by finishing September twice.
  */
 
+/**
+ * A month this policy may be asked about.
+ *
+ * `MonthCompletableShape` alone is not enough, and the difference is
+ * load-bearing rather than pedantic. That shape's blocks are `readonly
+ * unknown[]` so the presentation layer can pass the board's `MonthOutline`,
+ * whose blocks are reduced to `{id, type}` — and an outline has no `mode` and
+ * no `cases`, so `monthIndependenceBlocks` returns `[]` for every month,
+ * `demonstrated` becomes `true` everywhere, and the attempt-spam learner is
+ * handed `unlockedThrough: 9`. Measured, before this type existed.
+ *
+ * So the gate demands the AUTHORED assessment. `PROGRAM.months` satisfies it;
+ * a projection does not, and says so at compile time.
+ */
+export type UnlockMonth = MonthCompletableShape & {
+  assessment?: { id: string; status: PublicationStatus; blocks: readonly LessonBlock[] } | null;
+};
+
 /** September. Always open, to everybody, from the first login. */
 export const FIRST_MONTH_INDEX = 1;
 
@@ -173,11 +192,17 @@ export function isMonthComplete(
  * `tests/school/unlock-policy.test.ts` asserts that stays true.
  */
 export function hasDemonstratedIndependence(
-  month: MonthCompletableShape,
+  month: UnlockMonth,
   solved: ReadonlySet<string>,
 ): boolean {
   const blocks = monthIndependenceBlocks(month);
   if (blocks.length === 0) return true;
+  /* `some`, and it is not a softened `every`. Months 1-8 author exactly one
+     `verify:unseen_problem` block each, so the two coincide on every month that
+     actually gates anything. May authors five and gates nothing after it, and
+     requiring all five would be a per-month count the programme never states —
+     p.11 gives «шамамен 100 толық дербес шешім» as a YEAR minimum and no
+     monthly figure. Inventing one here is exactly what this rule avoids. */
   return blocks.some((id) => solved.has(id));
 }
 
@@ -199,7 +224,7 @@ export function remainingIn(
  * or the public outline being asked about.
  */
 export function unlockStateFor(
-  months: readonly MonthCompletableShape[],
+  months: readonly UnlockMonth[],
   evidence: UnlockEvidence,
 ): UnlockState {
   const ordered = [...months].sort((a, b) => a.index - b.index);
@@ -244,7 +269,7 @@ export function unlockStateFor(
 /** The one question every server-side gate actually asks. */
 export function isMonthUnlocked(
   monthIndex: number,
-  months: readonly MonthCompletableShape[],
+  months: readonly UnlockMonth[],
   evidence: UnlockEvidence,
 ): boolean {
   if (monthIndex === FIRST_MONTH_INDEX) return true;
@@ -261,7 +286,7 @@ export function isMonthUnlocked(
  * `schools/learning/access.ts`.
  */
 export function allIndependenceBlocks(
-  months: readonly MonthCompletableShape[],
+  months: readonly UnlockMonth[],
 ): string[] {
   return months.flatMap((m) => monthIndependenceBlocks(m));
 }

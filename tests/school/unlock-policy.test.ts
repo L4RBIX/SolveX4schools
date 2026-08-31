@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PROGRAM } from "@schools/curriculum/program";
 import { monthCompletables, monthIndependenceBlocks } from "@schools/curriculum/inventory";
-import { publicLesson, publicAssessment } from "@schools/curriculum/public";
+import { monthOutline, publicLesson, publicAssessment } from "@schools/curriculum/public";
 import { isPublicAttemptBlock } from "@schools/learning/checking";
 import {
   LESSON_COMPLETION_POLICY,
@@ -77,6 +77,27 @@ describe("the rule is built on something the curriculum authored", () => {
     for (const m of MONTHS) {
       expect(independence(m.index).length, `month ${m.index}`).toBeGreaterThan(0);
     }
+  });
+
+  it("cannot be asked about a PROJECTED month, which would silently disable it", () => {
+    /*
+     * The landmine this closes, measured before the type existed: the board's
+     * `MonthOutline` reduces every block to `{id, type}`, so an outline has no
+     * `mode` and no `cases`. `monthIndependenceBlocks` returned `[]` for all
+     * nine months, `demonstrated` flipped to `true` everywhere, and the
+     * attempt-spam learner got `unlockedThrough: 9` — the entire gate off, with
+     * no type error anywhere and no live caller doing it.
+     *
+     * `UnlockMonth` demands the AUTHORED assessment, so it is a compile error
+     * now. The `@ts-expect-error` below FAILS THE BUILD if that ever stops
+     * being true, which is the only way to test a hole that had no runtime
+     * symptom.
+     */
+    const outlines = MONTHS.map((m) => monthOutline(m));
+    // @ts-expect-error a projected month must not satisfy UnlockMonth
+    const reopened = unlockStateFor(outlines, NO_EVIDENCE);
+    /* And if it somehow compiled, it must still not be usable. */
+    expect(reopened.unlockedThrough).toBeGreaterThanOrEqual(1);
   });
 
   it("and there are few enough of them to ask for in one query", () => {
