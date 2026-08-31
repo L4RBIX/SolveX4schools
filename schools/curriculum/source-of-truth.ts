@@ -219,10 +219,46 @@ export const DATA_COMMITMENTS_KK: readonly string[] = [
 ] as const;
 
 /**
- * Year 1 teaches Python. The programme's examples are Python throughout
- * (`if / elif / else`, `for`/`while`, lists, `return`), and p.7 states the base
- * reaches "ООР-ке дейінгі процедуралық бағдарламалау" — procedural programming
- * up to but not including OOP.
+ * Year 1 teaches GNU C++17.
+ *
+ * ## This is a change to the programme, not to the code
+ *
+ * It said `"python"`, and it said so with a citation: the programme's own
+ * examples are Python throughout (`if / elif / else`, `for`/`while`, lists,
+ * `return`). That citation is still true of the PDF. The release owner has
+ * decided the year is taught in C++ instead — the course is
+ * «Спортивное программирование», and C++ is the language of the contests it
+ * prepares for.
+ *
+ * So this constant is now ahead of the document it was traced from. That is
+ * stated here rather than hidden, because the whole point of this file is that
+ * the code cannot quietly disagree with the programme:
+ *
+ *   - the PDF still shows Python examples and needs revising;
+ *   - `curriculum-owner sign-off` is NOT satisfied by this edit and stays open;
+ *   - `docs/curriculum/CURRICULUM_TRACEABILITY.md` row 1.1 and the language
+ *     rows must be re-derived against the revised document, not against this
+ *     constant.
+ *
+ * ## What did NOT change
+ *
+ * p.7's "ООР-ке дейінгі процедуралық бағдарламалау" — procedural programming up
+ * to but not including OOP — is a pedagogical bound, not a language one, and it
+ * survives the move. Year 1 C++ is `int main()`, `cin`/`cout`, `vector`,
+ * `string`, free functions and recursion. No classes, no templates of the
+ * learner's own, no inheritance, no move semantics.
+ *
+ * The audience is unchanged and is the reason that bound matters:
+ * `PROGRAMME_FACTS.priorExperienceRequired` is `false` — 14–15 year olds,
+ * «нөлден бастайды», from zero.
  */
-export const YEAR_ONE_LANGUAGE = "python" as const;
+export const YEAR_ONE_LANGUAGE = "cpp17" as const;
 export const YEAR_ONE_EXCLUDES_OOP = true;
+
+/**
+ * What the learner sees the language called, and what the judge must be asked
+ * for. Kept beside the decision so a UI label and a Judge0 lookup cannot drift
+ * apart from the programme.
+ */
+export const YEAR_ONE_LANGUAGE_LABEL = "C++17" as const;
+export const YEAR_ONE_LANGUAGE_STANDARD = "c++17" as const;
