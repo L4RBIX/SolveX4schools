@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { execFileSync } from "node:child_process";
 import { MONTHS } from "@schools/curriculum/months";
 import type { LessonBlock, Localized, Month } from "@schools/curriculum/types";
+import { CompileError, compileReference, cppCompiler, runCase } from "../support/cpp-run";
 
 /**
  * Content integrity: the things a compiler and a grader both wave through.
@@ -18,7 +18,7 @@ import type { LessonBlock, Localized, Month } from "@schools/curriculum/types";
  *    told to trust — it is the model they reason from — and a wrong one teaches
  *    the wrong thing before they ever meet a grader.
  *
- * 2. **A placeholder is valid Python and valid prose.** `___` is a legal
+ * 2. **A placeholder is valid code and valid prose.** `___` is a legal
  *    identifier; a stray `TODO` in a prompt is a legal sentence. Both compile,
  *    both render, and a learner meets them. One of these actually happened: a
  *    whole-file string replace put `___` inside `m5.l7.b2`'s worked example
@@ -60,30 +60,36 @@ import type { LessonBlock, Localized, Month } from "@schools/curriculum/types";
  * summarise a table rather than reproduce it.
  */
 
-const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
+const COMPILER = cppCompiler();
 
-function hasPython(): boolean {
+/**
+ * Built once per distinct source, like the sibling gate.
+ *
+ * A worked example is a whole program and compiling it is ~1 s. There are few
+ * enough of them that this cache is a convenience rather than a necessity, but
+ * the two files must not disagree about what "this source compiles" means, so
+ * they share the harness in `tests/support/cpp-run.ts`.
+ */
+const built = new Map<string, { ok: true; binary: string } | { ok: false; diagnostics: string }>();
+
+function build(source: string, label: string) {
+  const hit = built.get(source);
+  if (hit) return hit;
+  let out: { ok: true; binary: string } | { ok: false; diagnostics: string };
   try {
-    execFileSync(PYTHON, ["--version"], { stdio: "pipe" });
-    return true;
-  } catch {
-    return false;
+    out = { ok: true, binary: compileReference(source, label).binary };
+  } catch (e) {
+    out = { ok: false, diagnostics: e instanceof CompileError ? e.diagnostics : String(e) };
   }
+  built.set(source, out);
+  return out;
 }
 
-function run(source: string, stdin: string): { ok: boolean; out: string; err: string } {
-  try {
-    const out = execFileSync(PYTHON, ["-I", "-S", "-c", source], {
-      input: stdin.endsWith("\n") || stdin === "" ? stdin : `${stdin}\n`,
-      encoding: "utf8",
-      timeout: 10_000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return { ok: true, out, err: "" };
-  } catch (e) {
-    const err = e as { stdout?: string; stderr?: string };
-    return { ok: false, out: err.stdout ?? "", err: (err.stderr ?? "").trim() };
-  }
+function run(source: string, stdin: string, label = "worked"): { ok: boolean; out: string; err: string } {
+  const b = build(source, label);
+  if (!b.ok) return { ok: false, out: "", err: b.diagnostics };
+  const r = runCase(b.binary, stdin.endsWith("\n") || stdin === "" ? stdin : `${stdin}\n`);
+  return { ok: r.status === "ok", out: r.stdout, err: r.stderr || r.status };
 }
 
 interface Located {
@@ -105,7 +111,7 @@ function walk(month: Month): Located[] {
 }
 
 const ALL = MONTHS.flatMap(walk);
-const python = hasPython();
+const haveCompiler = COMPILER !== null;
 
 /* -------------------------------------------------------------------------- */
 /* Worked examples                                                            */
@@ -133,19 +139,19 @@ describe("a worked example prints what it says it prints", () => {
     expect(
       UNVERIFIABLE.map((e) => e.block.id),
       "worked examples that read stdin but declare no `stdin` cannot be checked " +
-        "against real Python — add the sample their `problem` already states",
+        "against a real compiler — add the sample their `problem` already states",
     ).toEqual([]);
     // Not an assertion about the content — a statement of this file's reach.
     // eslint-disable-next-line no-console
     console.log(
-      `  worked examples: ${WORKED.length} total · ${RUNNABLE.length} executed against real Python`,
+      `  worked examples: ${WORKED.length} total · ${RUNNABLE.length} executed against a real compiler`,
     );
   });
 
   for (const { block, where } of RUNNABLE) {
     if (block.type !== "worked_example") continue;
-    it.runIf(python)(`${block.id} (${where})`, () => {
-      const got = run(block.code, block.stdin ?? "");
+    it.runIf(haveCompiler)(`${block.id} (${where})`, () => {
+      const got = run(block.code, block.stdin ?? "", block.id);
       expect(got.ok, `${block.id} crashed:\n${got.err}\n${block.code}`).toBe(true);
 
       const printed = got.out.trim();
@@ -245,7 +251,7 @@ function textsOf(block: LessonBlock): { label: string; text: string }[] {
   return out;
 }
 
-/** Every Python string on a block. */
+/** Every authored string on a block. */
 function codesOf(block: LessonBlock): { label: string; code: string }[] {
   const out: { label: string; code: string }[] = [];
   const any = block as unknown as Record<string, unknown>;
@@ -300,7 +306,7 @@ describe("nothing half-written reached a learner", () => {
   });
 
   it("carries no blank placeholder outside a fill_blank template", () => {
-    /* The regression test for the actual incident. `___` is a legal Python
+    /* The regression test for the actual incident. `___` is a legal C++
        identifier, so it survives compile(); it is only wrong because of WHERE
        it is. `check-blocks` enforces the same rule at authoring time — this is
        the CI half, so the guarantee does not depend on anyone running a script. */
