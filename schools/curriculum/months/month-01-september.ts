@@ -20,6 +20,18 @@ const P = 7; // PDF page for all of September
 /* -------------------------------------------------------------------------- */
 
 const l1Blocks: LessonBlock[] = [
+  /*
+   * Re-authored for C++17. This lesson used to teach `print` AND `input()` AND
+   * `int()`, which is reasonable in Python where each is one call. In C++
+   * reading a number needs a declared variable of a chosen type, and that is a
+   * bigger idea than a beginner's first lesson can carry on top of the frame.
+   * So l1 is OUTPUT ONLY; reading moves to l3, where `int` is taught with it.
+   * See docs/cpp17/CPP17_PEDAGOGY.md for the prerequisite graph.
+   *
+   * The frame is GIVEN in every block here and explained in b3. A learner
+   * writes real C++ from the first minute; they do not write `int main()` until
+   * l7.
+   */
   {
     id: "m1.l1.b1",
     type: "concept",
@@ -31,26 +43,31 @@ const l1Blocks: LessonBlock[] = [
       ru: "Программа — это последовательность инструкций",
     },
     body: {
-      kk: "Компьютер жазылған жолдарды жоғарыдан төменге қарай, бірінен соң бірін орындайды. `print` командасы жақшаның ішіндегіні экранға шығарады.",
-      ru: "Компьютер выполняет написанные строки сверху вниз, одну за другой. Команда `print` выводит на экран то, что стоит в скобках.",
+      kk: "Компьютер жолдарды жоғарыдан төменге қарай орындайды. `cout <<` — экранға шығару командасы. Әр нұсқаудың соңында нүктелі үтір `;` тұрады: ол компьютерге «бұл нұсқау бітті» дейді. Айналасындағы жолдарды әзірше дайын деп ал — оларды келесі қадамда талдаймыз.",
+      ru: "Компьютер выполняет строки сверху вниз. `cout <<` — команда вывода на экран. В конце каждой инструкции стоит точка с запятой `;`: она говорит компьютеру «инструкция закончилась». Строки вокруг пока прими как данность — разберём их на следующем шаге.",
     },
-    code: 'print("Сәлем!")\nprint(2 + 2)',
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!";\n    cout << 2 + 2;\n    return 0;\n}',
   },
   {
     id: "m1.l1.b2",
     type: "prediction",
     skillRefs: ["io.print"],
     sourceType: "product-authored",
+    /* The Python original asked the same question about `print("2 + 2")`, and
+       the distinction it teaches — quotes make it text, and text is not
+       computed — is identical in C++. Kept, because it is the single most
+       useful idea in the first lesson and it survives the language change
+       untouched. */
     prompt: {
       kk: "Бұл бағдарлама экранға нені шығарады?",
       ru: "Что выведет эта программа?",
     },
-    code: 'print("2 + 2")',
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "2 + 2";\n    return 0;\n}',
     answer: "2 + 2",
     options: ["4", "2 + 2", '"2 + 2"'],
     diagnosticMapping: {
-      // Choosing 4 means the learner did not see the quotes — that is the only
-      // way to arrive at 4 here, so the attribution is unambiguous.
+      // Choosing 4 means the learner did not see the quotes — the only way to
+      // arrive at 4 here, so the attribution is unambiguous.
       "4": {
         failureClass: "string_vs_number_confusion",
         justification:
@@ -61,86 +78,118 @@ const l1Blocks: LessonBlock[] = [
   {
     id: "m1.l1.b3",
     type: "concept",
-    skillRefs: ["io.read", "types.int_float"],
-    sourceType: "curriculum-derived",
-    pdfPage: P,
-    title: { kk: "Деректерді оқу", ru: "Чтение данных" },
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    /* Earning back the ceremony. b1 said "take these lines as given"; this is
+       where that debt is paid, and it is paid before the learner is asked to
+       find a bug in them. */
+    title: { kk: "Айналасындағы жолдар не үшін керек", ru: "Зачем нужны строки вокруг" },
     body: {
-      kk: "`input()` пернетақтадан бір жолды оқиды, бірақ ол әрқашан мәтін. Санмен жұмыс істеу үшін `int()` арқылы бүтін санға айналдыру керек.",
-      ru: "`input()` читает строку с клавиатуры, но это всегда текст. Чтобы работать с числом, нужно преобразовать его через `int()`.",
+      kk: "`#include <iostream>` — экранмен жұмыс істейтін құралдарды қосады; онсыз `cout` жоқ. `int main() { ... }` — бағдарлама осы жерден басталады, ал `{` мен `}` оның басы мен соңын белгілейді. `return 0;` — «бәрі сәтті бітті» дегені. Бұл төрт жолды әзірге әрдайым осылай жаз; неге дәл солай екенін жыл бойы бөлшектеп ашамыз.",
+      ru: "`#include <iostream>` подключает средства для работы с экраном; без него нет `cout`. `int main() { ... }` — отсюда начинается программа, а `{` и `}` отмечают её начало и конец. `return 0;` означает «всё завершилось успешно». Пока просто пиши эти четыре строки всегда одинаково; почему именно так, будем разбирать по частям в течение года.",
     },
-    code: "n = int(input())\nprint(n * 2)",
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << 2026 - 14;\n    return 0;\n}',
   },
   {
     id: "m1.l1.b4",
     type: "find_bug",
-    skillRefs: ["io.read", "types.int_float"],
+    skillRefs: ["io.print"],
     sourceType: "product-authored",
+    /*
+     * Re-authored, not translated. The Python version's bug was `n = input()`
+     * followed by `n * 2` printing `55` instead of `10` — text repeated rather
+     * than a number doubled. C++ has no such behaviour: `"5" * 2` does not
+     * compile at all, so there is no wrong ANSWER to find, only a build error.
+     *
+     * Replaced with the error a beginner in C++ actually makes on day one, and
+     * keeps making: a missing semicolon. It is also the first time they meet a
+     * compiler message rather than a wrong number, which is a distinction this
+     * course has to teach early — the program did not run, so there is nothing
+     * to be wrong about.
+     */
     prompt: {
-      kk: "Бұл бағдарлама 5 енгізгенде 10 емес, 55 шығарады. Қай жол кінәлі?",
-      ru: "При вводе 5 программа выводит 55 вместо 10. Какая строка виновата?",
+      kk: "Бұл бағдарлама тіпті іске қосылмайды: компилятор 6-жолда қате туралы айтады. Шын мәнінде қай жол жөнделуі керек?",
+      ru: "Эта программа даже не запускается: компилятор сообщает об ошибке в строке 6. Какую строку на самом деле нужно исправить?",
     },
-    code: "n = input()\nprint(n * 2)",
-    buggyLine: 1,
-    symptomInput: "5",
-    fixedCode: "n = int(input())\nprint(n * 2)",
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!"\n    cout << 2 + 2;\n    return 0;\n}',
+    buggyLine: 5,
+    symptomInput: "",
+    fixedCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!";\n    cout << 2 + 2;\n    return 0;\n}',
     diagnosticMapping: {
-      "2": {
-        failureClass: "string_vs_number_confusion",
+      "6": {
+        failureClass: "compiler_points_at_the_next_line",
         justification:
-          "Екінші жолды таңдау — көбейту дұрыс емес деп ойлау. Шын себебі бірінші жолда: `n` мәтін болып қалған, ал мәтінді 2-ге көбейту оны қайталайды.",
+          "Компилятор 6-жолда шағымданады, себебі 5-жол әлі бітпеген деп санайды. Нүктелі үтір жоқ болғанда қате көбіне КЕЛЕСІ жолда көрінеді — сондықтан хабарламадағы нөмірден бір жол жоғары қарау керек.",
       },
     },
   },
   {
     id: "m1.l1.b4a",
     type: "worked_example",
-    skillRefs: ["io.read", "types.int_float", "arith.basic"],
-    sourceType: "curriculum-derived",
-    pdfPage: P,
-    title: { kk: "Толық талданған мысал: оқу, айналдыру, есептеу", ru: "Разобранный пример: прочитать, преобразовать, посчитать" },
+    skillRefs: ["io.print", "arith.basic"],
+    sourceType: "product-authored",
+    title: {
+      kk: "Толық талданған мысал: екі жолды шығару",
+      ru: "Разобранный пример: вывести две строки",
+    },
     problem: {
-      kk: "Оқушының жасы беріледі. Ол 10 жылдан кейін неше жаста болатынын шығар. Мысалы 14 берілсе, жауап 24.",
-      ru: "Дан возраст ученика. Выведи, сколько ему будет через 10 лет. Например, при вводе 14 ответ 24.",
+      kk: "Экранға `Сәлем!` деп жаз, ал келесі жолда 2026 - 14 өрнегінің мәнін шығар.",
+      ru: "Выведи на экран `Сәлем!`, а на следующей строке — значение выражения 2026 - 14.",
     },
     steps: [
       {
-        kk: "`input()` пернетақтадан жолды оқиды. Бірақ ол — мәтін: біз 14 деп енгізсек те, компьютер оны «14» деген екі таңба деп көреді.",
-        ru: "`input()` читает строку с клавиатуры. Но это текст: мы ввели 14, а компьютер видит «14» как два символа.",
+        kk: "Дайын жақтауды жазамыз: `#include <iostream>`, `using namespace std;` және `int main() { ... return 0; }`.",
+        ru: "Пишем готовую рамку: `#include <iostream>`, `using namespace std;` и `int main() { ... return 0; }`.",
       },
       {
-        kk: "Мәтінге 10 қосуға болмайды. Сондықтан `int()` арқылы санға айналдырамыз да, нәтижені `age` айнымалысына сақтаймыз.",
-        ru: "К тексту нельзя прибавить 10. Поэтому преобразуем его через `int()` и сохраняем результат в переменную `age`.",
+        kk: "`cout << \"Сәлем!\";` — тырнақшадағы мәтін сол күйінде шығады, есептелмейді.",
+        ru: "`cout << \"Сәлем!\";` — текст в кавычках выводится как есть, он не вычисляется.",
       },
       {
-        kk: "Енді `age` — нағыз сан, оған 10 қосуға болады.",
-        ru: "Теперь `age` — настоящее число, к нему можно прибавить 10.",
+        kk: "`<< endl` жаңа жолға көшіреді. Онсыз екі шығыс бір жолға жабысып қалады.",
+        ru: "`<< endl` переводит на новую строку. Без него оба вывода слипнутся в одну строку.",
       },
       {
-        kk: "`print` есептелген нәтижені экранға шығарады. Жақшаның ішіндегі өрнек алдымен есептеледі, содан кейін шығады.",
-        ru: "`print` выводит вычисленный результат. Выражение в скобках сначала вычисляется, потом печатается.",
+        kk: "`cout << 2026 - 14;` — мұнда тырнақша жоқ, сондықтан алдымен өрнек есептеледі, содан кейін нәтижесі шығады.",
+        ru: "`cout << 2026 - 14;` — здесь кавычек нет, поэтому сначала вычисляется выражение, а потом печатается результат.",
       },
     ],
-    code: "age = int(input())\nprint(age + 10)",
-    stdin: "14",
-    result: { kk: "14 енгізгенде: 24", ru: "При вводе 14: 24" },
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!" << endl;\n    cout << 2026 - 14;\n    return 0;\n}',
+    stdin: "",
+    result: { kk: "Сәлем!\n2012", ru: "Сәлем!\n2012" },
   },
   {
     id: "m1.l1.b5",
     type: "write_code",
-    skillRefs: ["io.read", "io.print", "arith.basic"],
+    skillRefs: ["io.print", "arith.basic"],
     sourceType: "product-authored",
+    /*
+     * Stage 2 of the scaffold: the frame is given, the learner writes the body.
+     * No `cin` — reading is l3 — so the task has a fixed answer and one case
+     * with empty input. That is not a weaker task than the Python original's
+     * "square the input"; it is the same task the sequence can honestly ask for
+     * before types exist. The squaring task moves to l3 and arrives with `int`.
+     *
+     * The validator warns that this block has no hidden case, and it is right:
+     * a learner can write `cout << 56;` and pass without computing anything.
+     * That is unavoidable rather than an oversight — with no input there is
+     * only one possible answer, so no case can distinguish computing it from
+     * knowing it. Adding a second case with the same empty input would silence
+     * the warning and protect nothing, which is worse than carrying it.
+     *
+     * It resolves at l3, where `cin` arrives and a task can vary its answer.
+     * This is the only block in the month with the problem, and it is the price
+     * of not teaching input in the first lesson of a language where input needs
+     * a declared type.
+     */
     prompt: {
-      kk: "Бір бүтін сан беріледі. Оның квадратын шығар.",
-      ru: "Дано целое число. Выведи его квадрат.",
+      kk: "Экранға 7 * 8 өрнегінің мәнін шығар. Тырнақшасыз — санның өзін, мәтінді емес.",
+      ru: "Выведи на экран значение выражения 7 * 8. Без кавычек — само число, а не текст.",
     },
-    referenceSolution: "n = int(input())\nprint(n * n)",
-    cases: [
-      { input: "5", expectedOutput: "25" },
-      { input: "0", expectedOutput: "0" },
-      { input: "-3", expectedOutput: "9", hidden: true },
-      { input: "1000", expectedOutput: "1000000", hidden: true },
-    ],
+    starter: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    return 0;\n}',
+    referenceSolution:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << 7 * 8;\n    return 0;\n}',
+    cases: [{ input: "", expectedOutput: "56" }],
   },
 ];
 
@@ -1651,16 +1700,21 @@ export const MONTH_01_SEPTEMBER: Month = {
       title: { kk: "Кіріс және шығыс", ru: "Ввод и вывод" },
       sourceType: "curriculum-derived",
       lessons: [
+        /* Objectives narrowed with the C++ re-authoring: this lesson no longer
+           reads input. `cin` needs a declared variable of a chosen type, which
+           is l3's work, so "преобразование ввода в число" moved there with it.
+           What replaced it is the frame and the semicolon — ceremony Python
+           does not have and a C++ beginner cannot avoid. */
         lesson(
           "m1.l1",
           "Бірінші бағдарлама",
           "Первая программа",
-          10,
+          12,
           [
             { kk: "Экранға мәтін мен санды шығару", ru: "Вывод текста и числа на экран" },
-            { kk: "Енгізілген деректі санға айналдыру", ru: "Преобразование ввода в число" },
+            { kk: "Бағдарлама жақтауын тану және нүктелі үтірді қоя білу", ru: "Узнавать рамку программы и ставить точку с запятой" },
           ],
-          ["io.print", "io.read", "types.int_float"],
+          ["io.print", "arith.basic"],
           l1Blocks,
         ),
         /* PDF p.7 opens with «Сан мен мәтінді оқу». The month read text once,
