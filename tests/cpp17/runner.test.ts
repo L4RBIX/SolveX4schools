@@ -385,3 +385,68 @@ describe("bits/stdc++.h", () => {
     expect(source).toContain("#pragma once");
   });
 });
+
+describe("a program that touched the filesystem does not get to keep the worker", () => {
+  /**
+   * The memfs is built once and shared by every Run after it. Proved in a real
+   * browser: a program that writes `planted.txt` finds it again next Run, and
+   * one that opens `include/bits/stdc++.h` for writing can put `#error` in it
+   * and break every compile for the rest of the page's life — in lessons
+   * unrelated to the one where the learner experimented, with a diagnostic
+   * naming a header they never touched.
+   *
+   * Not a sandbox escape; that was checked separately and separately reported.
+   * It is a footgun with a baffling symptom, and it breaks the promise Run
+   * makes — that it shows you what YOUR program does — because the second run
+   * of one source can differ from the first.
+   */
+  it("answers the learner, then throws the dirtied worker away", async () => {
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const runner = new Cpp17Runner({
+      createWorker: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+
+    const p = runner.run({ source: "int main(){}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    workers[0].reply(0, { filesystemTouched: true, stdout: "wrote a file" });
+
+    /* The run they just made is still honest and still theirs. */
+    const result = await p;
+    expect(result.status).toBe("ok");
+    expect(result.stdout).toBe("wrote a file");
+
+    await vi.advanceTimersByTimeAsync(50);
+    expect(workers[0].terminated, "the dirtied worker was kept").toBe(true);
+    expect(workers, "no clean worker was built to replace it").toHaveLength(2);
+    vi.useRealTimers();
+  });
+
+  it("keeps the worker when the program left the filesystem alone", async () => {
+    /* Every real lesson takes this path — Year 1 teaches no file I/O at all —
+       so a recycle here would cost a rebuild on every single Run. */
+    vi.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const runner = new Cpp17Runner({
+      createWorker: () => {
+        const w = new FakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+
+    const p = runner.run({ source: "int main(){}", stdin: "" });
+    await vi.advanceTimersByTimeAsync(1);
+    workers[0].reply(0, { filesystemTouched: false });
+    expect((await p).status).toBe("ok");
+
+    await vi.advanceTimersByTimeAsync(50);
+    expect(workers[0].terminated, "a clean run threw its worker away").toBe(false);
+    expect(workers, "a clean run rebuilt the toolchain for nothing").toHaveLength(1);
+    vi.useRealTimers();
+  });
+});

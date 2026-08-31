@@ -270,11 +270,16 @@ export interface WorkedExampleBlock extends BlockBase {
    *
    * The same field `PredictionBlock` carries, for the same reason and after the
    * same discovery. A worked example states, in `result`, what its code prints
-   * for the sample in `problem` — and that is a claim about Python that can
-   * only be checked by running Python. Thirteen of the year's forty read
-   * stdin, so without this the sample lives in the prose and nowhere a test can
-   * reach, and `tests/school/content-integrity.test.ts` could verify two thirds
-   * of the worked examples and had to name the rest as unverifiable.
+   * for the sample in `problem` — and that is a claim about C++17 that can only
+   * be checked by compiling and running C++17. Thirteen of the year's forty
+   * read stdin, so without this the sample lives in the prose and nowhere a
+   * test can reach, and `tests/school/content-integrity.test.ts` could verify
+   * two thirds of the worked examples and had to name the rest as unverifiable.
+   *
+   * The claim got harder to guess at with the language, which is why the field
+   * matters more now than it did: `7 / 2` prints `3` here and printed `3.5`
+   * under Python, so a `result` carried over unexamined is not a stale comment,
+   * it is a wrong number in the one block a learner is told to trust.
    *
    * A worked example is the one block a learner is told to trust. It is the
    * model they reason from, and a wrong one teaches the wrong thing before they
@@ -297,7 +302,7 @@ export interface PredictionBlock extends BlockBase {
    * Most predictions are over a self-contained snippet and need none. One that
    * asks "what happens when the learner types 3 4" needs it declared rather
    * than described only in the prompt — otherwise the stated answer cannot be
-   * checked against real Python, which is how `content-execution.test.ts`
+   * checked against a real compiler, which is how `content-execution.test.ts`
    * caught exactly that.
    */
   stdin?: string;
@@ -349,11 +354,18 @@ export interface FindBugBlock extends BlockBase {
   /**
    * An input on which the broken program and the repaired one visibly differ.
    *
-   * "This program is broken" is a claim, and a claim about Python is checkable
-   * by running Python — which is what `content-execution.test.ts` does. Without
-   * a declared witness the test has to probe a spread of guessed inputs, and a
-   * guessed spread is numeric, so a bug that only shows on text (m1.l11.b3
-   * calls `int()` on a name) reads as "the two programs behave identically".
+   * "This program is broken" is a claim, and a claim about C++17 is checkable
+   * by compiling and running it — which is what `content-execution.test.ts`
+   * does. Without a declared witness the test has to probe a spread of guessed
+   * inputs, and a guessed spread is numeric, so a bug that only shows on text
+   * (`cin >> n` handed a name, which fails silently and leaves `n` unchanged)
+   * reads as "the two programs behave identically".
+   *
+   * C++ adds a second way for the claim to be true that Python did not have: a
+   * program can be broken at COMPILE time and never run at all. A `find_bug`
+   * whose defect is a missing semicolon has no witness input, because there is
+   * no run to differ on — leave `symptomInput` absent there rather than
+   * inventing one.
    *
    * Optional, because the numeric probe genuinely covers the arithmetic bugs.
    * Declare it whenever the symptom needs a specific input to appear.

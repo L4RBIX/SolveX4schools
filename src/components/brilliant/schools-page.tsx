@@ -6,7 +6,11 @@ import { SolveXWordmark } from "./app/school-chrome";
 import { useLocale } from "@/components/sx/i18n";
 import { LocaleToggle } from "./locale-toggle";
 import type { Locale } from "@schools/curriculum/types";
-import { PROGRAMME_FACTS, TASK_TARGETS } from "@schools/curriculum/source-of-truth";
+import {
+  PROGRAMME_FACTS,
+  TASK_TARGETS,
+  YEAR_ONE_LANGUAGE_LABEL,
+} from "@schools/curriculum/source-of-truth";
 
 /**
  * "For schools".
@@ -16,7 +20,14 @@ import { PROGRAMME_FACTS, TASK_TARGETS } from "@schools/curriculum/source-of-tru
  * actual parameters and a way to make contact — not a lead-capture sequence.
  *
  * Every figure is read from the curriculum manifest, so this page cannot drift
- * from the programme it describes.
+ * from the programme it describes. That now includes the taught language:
+ * `YEAR_ONE_LANGUAGE_LABEL` rather than a literal, because this row is the one
+ * line on the site a head teacher quotes back at us, and it said "Python" for
+ * as long as the constant beside it said `cpp17`.
+ *
+ * The key is "programming language", not "language" — the lede two paragraphs
+ * up says the teaching happens in Kazakh and Russian, and an unqualified
+ * «Язык: C++17» directly under it reads as a contradiction.
  */
 
 const COPY: Record<Locale, {
@@ -40,7 +51,7 @@ const COPY: Record<Locale, {
       { k: "Барлығы", v: `жылына кемінде ~${PROGRAMME_FACTS.totalLearningHours.value} сағат` },
       { k: "Практика", v: `${Math.round(PROGRAMME_FACTS.practiceRatio * 100)}% практика / ${Math.round(PROGRAMME_FACTS.theoryRatio * 100)}% түсіндіру` },
       { k: "Тапсырмалар", v: `~${TASK_TARGETS.totalTasks.value}, оның ~${TASK_TARGETS.fullyIndependentSolutions.value} толық дербес` },
-      { k: "Тіл", v: "Python" },
+      { k: "Бағдарламалау тілі", v: YEAR_ONE_LANGUAGE_LABEL },
     ],
     howTitle: "Қалай өтеді",
     how: [
@@ -64,7 +75,7 @@ const COPY: Record<Locale, {
       { k: "Всего", v: `минимум ~${PROGRAMME_FACTS.totalLearningHours.value} часов в год` },
       { k: "Практика", v: `${Math.round(PROGRAMME_FACTS.practiceRatio * 100)}% практики / ${Math.round(PROGRAMME_FACTS.theoryRatio * 100)}% объяснения` },
       { k: "Заданий", v: `~${TASK_TARGETS.totalTasks.value}, из них ~${TASK_TARGETS.fullyIndependentSolutions.value} полностью самостоятельных` },
-      { k: "Язык", v: "Python" },
+      { k: "Язык программирования", v: YEAR_ONE_LANGUAGE_LABEL },
     ],
     howTitle: "Как это устроено",
     how: [

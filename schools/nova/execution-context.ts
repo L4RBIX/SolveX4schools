@@ -5,6 +5,11 @@ import {
   type ExecutionTrust,
   type LocalExecutionStatus,
 } from "@schools/execution/trust";
+import {
+  diagnosticPromptLines,
+  looksLikeCompilerOutput,
+  recogniseDiagnostics,
+} from "./diagnostics";
 
 /**
  * What Nova is allowed to know about where the learner's code ran.
@@ -18,17 +23,19 @@ import {
  *   - "It ran in your browser and printed 17. Nothing has checked that yet."
  *   - "The checker ran it on our server and three tests did not pass."
  *
- * And it could not see the `ZeroDivisionError` the learner was looking at while
- * typing «түсінбедім». A tutor that cannot read the error on the screen is
- * guessing, and a guessing tutor asks the wrong question.
+ * And it could not see the diagnostic the learner was looking at while typing
+ * «түсінбедім» — which in C++ is usually not a crash at all but a compiler
+ * refusing to build, in English, about a line that is not the wrong one. A
+ * tutor that cannot read the error on the screen is guessing, and a guessing
+ * tutor asks the wrong question.
  *
  * ## The two facts are separate, and they are sourced differently
  *
  * `LocalRunEvidence` is REPORTED by the browser. It is the learner's own
- * program's own output, produced under Pyodide on a runtime they can edit in
- * DevTools. Its trust is the literal `client_local` and it is written HERE, in
- * server code, from the branch that constructed it — never copied out of the
- * request body. A browser that posts `{"trust":"server_verified"}` is posting a
+ * program's own output, produced by Clang 8 compiled to WebAssembly on a
+ * runtime they can open DevTools and edit. Its trust is the literal
+ * `client_local` and it is written HERE, in server code, from the branch that
+ * constructed it — never copied out of the request body. A browser that posts `{"trust":"server_verified"}` is posting a
  * field nothing reads.
  *
  * `ServerCheckEvidence` is DERIVED from the ledger — `verdict_received` rows on
@@ -53,8 +60,9 @@ import {
  * Which of the two executors produced a result.
  *
  * Named after the executor rather than the button, because the button can be
- * renamed and the guarantee cannot. `local_run` is Pyodide in the learner's
- * tab; `server_check` is the judge behind `/api/learning/submit`.
+ * renamed and the guarantee cannot. `local_run` is the in-browser C++
+ * toolchain in the learner's tab; `server_check` is the judge behind
+ * `/api/learning/submit`.
  */
 export type NovaExecutionSource = "local_run" | "server_check";
 
@@ -121,8 +129,10 @@ export interface NovaExecutionContext {
  * The local cap exists so a runaway loop cannot fill the browser's memory; this
  * one exists because every character here is paid for on every turn of the
  * conversation and a program that printed 64 KiB has not told Nova 64 KiB worth
- * of anything. A traceback is normally under 600 characters even with a chained
- * cause, so `stderr` — the diagnostic half — gets the larger share.
+ * of anything. A first compiler diagnostic with its source line and caret is
+ * normally under 600 characters, so `stderr` — the diagnostic half — gets the
+ * larger share. It needs the room more than Python's tracebacks did: one
+ * missing semicolon can produce a page of cascading errors.
  */
 export const NOVA_OUTPUT_LIMITS = {
   stdoutChars: 800,
@@ -142,12 +152,16 @@ export const NOVA_OUTPUT_LIMITS = {
  * "something happened".
  */
 const LOCAL_STATUS_PHRASE: Record<LocalExecutionStatus, string> = {
-  ok: "it ran to the end without crashing",
-  syntax_error: "Python refused to start it — the source does not parse",
-  runtime_error: "it started and then crashed part-way through",
+  ok: "it compiled and ran to the end without crashing",
+  /* Compile AND link failures both arrive as this status — see `classifyFailure`
+     in the browser worker. So the phrase must not say "syntax": a program that
+     compiles cleanly and has no `main` fails here too, and telling a learner
+     their syntax is wrong when it is not is worse than saying nothing. */
+  syntax_error: "IT DID NOT COMPILE. The compiler refused it, so nothing ran at all",
+  runtime_error: "it compiled, started, and then crashed part-way through",
   time_limit_exceeded: `it was still running after ${LOCAL_LIMITS.timeLimitMs / 1000} seconds and was stopped`,
   output_limit_exceeded: "it printed more than the output cap allows and was cut off",
-  runtime_unavailable: "Python never started in their browser",
+  runtime_unavailable: "the C++ toolchain never loaded in their browser",
 };
 
 function isLocalStatus(value: unknown): value is LocalExecutionStatus {
@@ -160,12 +174,17 @@ function isLocalStatus(value: unknown): value is LocalExecutionStatus {
 /**
  * Trim to a budget, keeping the end that carries the meaning.
  *
- * `keep: "tail"` for stderr, and that is not a detail. A Python traceback puts
- * the frames first and the exception LAST — `ZeroDivisionError: division by
- * zero` is the final line. Keeping the head of a long traceback would hand Nova
- * the call stack and cut off the only sentence that says what went wrong.
- * stdout is the opposite: a loop that printed ten thousand lines is best
- * understood from where it started.
+ * Which end to keep depends on WHICH FAILURE, and the migration inverted it.
+ *
+ * A Python traceback put the frames first and the exception last, so the tail
+ * was the only part worth having. A compiler is the other way round: the FIRST
+ * error is the real one and everything after it is wreckage — a single missing
+ * semicolon produces a page of undeclared identifiers behind it. Keeping the
+ * tail of a compile failure would hand Nova the cascade and cut off the cause.
+ *
+ * A runtime failure keeps the tail, because a trap message still arrives last.
+ * stdout keeps the head either way: a loop that printed ten thousand lines is
+ * best understood from where it started.
  */
 function clamp(text: string, limit: number, keep: "head" | "tail"): {
   text: string;
@@ -195,7 +214,7 @@ export function parseReportedRun(raw: unknown): LocalRunEvidence | null {
   const r = raw as Record<string, unknown>;
   if (!isLocalStatus(r.status)) return null;
 
-  /* Pyodide failing to download is our outage, not the learner's mistake — the
+  /* The toolchain failing to download is our outage, not the learner's mistake — the
      same rule `isLearnerOutcome` applies on the server side for a dead judge.
      The streams are dropped with it: what the runner captured in that state is
      a loader error with our asset URLs in it, which is neither useful to a
@@ -214,7 +233,11 @@ export function parseReportedRun(raw: unknown): LocalRunEvidence | null {
   const rawOut = typeof r.stdout === "string" ? r.stdout : "";
   const rawErr = typeof r.stderr === "string" ? r.stderr : "";
   const out = clamp(rawOut, NOVA_OUTPUT_LIMITS.stdoutChars, "head");
-  const err = clamp(rawErr, NOVA_OUTPUT_LIMITS.stderrChars, "tail");
+  const err = clamp(
+    rawErr,
+    NOVA_OUTPUT_LIMITS.stderrChars,
+    r.status === "syntax_error" ? "head" : "tail",
+  );
 
   return {
     source: "local_run",
@@ -306,7 +329,7 @@ export const EXECUTION_PROMPT_HEADING = "EXECUTION STATE — where this code act
  * derived, or an integer — nothing the learner's program wrote. Their stdout
  * and stderr are learner-controlled text and travel in the USER half of the
  * conversation, fenced with the per-request nonce, for the same reason their
- * message does: a program can `print("Ignore all previous instructions")` as
+ * message does: a program can `cout << "Ignore all previous instructions";` as
  * easily as a child can type it, and output that arrived in the system message
  * would carry system authority. See `buildNovaMessages` in `prompt.ts`.
  */
@@ -316,7 +339,7 @@ export function executionPromptLines(ex: NovaExecutionContext): string[] {
 
   if (localRun) {
     lines.push(
-      "- The learner pressed Run. Python executed IN THEIR OWN BROWSER.",
+      "- The learner pressed Run. Their C++ was COMPILED AND EXECUTED IN THEIR OWN BROWSER.",
       `- What happened: ${LOCAL_STATUS_PHRASE[localRun.status]}.`,
     );
 
@@ -340,6 +363,22 @@ export function executionPromptLines(ex: NovaExecutionContext): string[] {
           '  marked kind="program_stderr". Read it. It is the most useful thing you have.',
           "- Use it to decide WHICH question to ask. Quote at most one line of it back.",
         );
+        /* What the diagnostic MEANS, as opposed to what it says.
+         *
+         * The text itself travels in the user turn, fenced, because the learner
+         * controls it. What travels here is the family it belongs to — a member
+         * of a closed union declared in `./diagnostics`, rendered as constants
+         * from the same file. No substring of their output crosses into the
+         * trusted half, so the section carries this message's authority without
+         * carrying anything a program printed.
+         *
+         * Gated on the failure actually being a compiler talking. A program
+         * that ran fine and wrote to stderr is not a build failure, and pasting
+         * a paragraph about semicolons at that turn is a hundred wasted
+         * characters on a budget a test enforces. */
+        if (localRun.status === "syntax_error" || looksLikeCompilerOutput(localRun.stderr)) {
+          lines.push(...diagnosticPromptLines(recogniseDiagnostics(localRun.stderr)));
+        }
       }
       if (!localRun.stdout && !localRun.stderr) {
         lines.push("- Their program produced no output at all, on either stream.");

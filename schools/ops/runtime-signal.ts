@@ -4,10 +4,11 @@
  * ## The question this exists to answer, and the one it refuses to answer
  *
  * An operator needs to know one thing about the browser half of hybrid
- * execution: **can learners actually run code, or is Pyodide failing to load
- * across the school?** A 13 MB WASM download over a school link is the single
- * most likely thing to break, it breaks silently, and it breaks in a place no
- * server log can see. Nothing else about a local run is anybody's business.
+ * execution: **can learners actually run code, or is the compiler failing to
+ * load across the school?** A 57 MB WASM download over a school link is the
+ * single most likely thing to break, it breaks silently, and it breaks in a
+ * place no server log can see. Nothing else about a local run is anybody's
+ * business.
  *
  * So this contract carries a boot OUTCOME and, when it failed, one word from a
  * closed list saying which way. It cannot carry source code, stdout, stderr, an
@@ -37,8 +38,8 @@
  * be a network request per keystroke-cluster, would put a request on the path
  * whose whole point is that it has no request, and would let anyone with the
  * server logs reconstruct how often a particular class was struggling. Two
- * signals per page session — one when CPython came up, one when it did not —
- * answer the operator's question with a rounding error of traffic.
+ * signals per page session — one when the toolchain came up, one when it did
+ * not — answer the operator's question with a rounding error of traffic.
  *
  * ## No `server-only`
  *
@@ -51,7 +52,8 @@
  */
 
 /**
- * The ways local Python fails to come up, as three distinct operator problems.
+ * The ways the browser toolchain fails to come up, as three distinct operator
+ * problems.
  *
  * Closed, and small on purpose. Each value exists because it changes what an
  * operator would DO, which is the only test a reason code has to pass:
@@ -61,11 +63,12 @@
  *   The fix is a browser, not a deploy. If this is the only non-zero one, the
  *   platform is fine.
  * - `boot_failed` — the runtime threw while loading. Assets missing from
- *   `public/pyodide/`, a bad deploy, a proxy rewriting a `.wasm`. This one is
- *   OURS and a school-wide spike means a broken release.
+ *   `public/cpp17/`, a bad deploy, a proxy rewriting a `.wasm`, a server
+ *   sending anything but `application/wasm` (which `compileStreaming` refuses).
+ *   This one is OURS and a school-wide spike means a broken release.
  * - `boot_timeout` — nothing answered inside the boot budget. The download did
  *   not finish: a saturated school link, a captive portal, a throttled tab.
- *   Ours in the sense that we chose to ship 13 MB, but the fix is bandwidth or
+ *   Ours in the sense that we chose to ship 57 MB, but the fix is bandwidth or
  *   caching rather than a rollback.
  *
  * A fourth value would need its own answer to "and then what would you do".
@@ -83,7 +86,7 @@ export type LocalRuntimeFailure = (typeof LOCAL_RUNTIME_FAILURES)[number];
  * parser below enforces exactly it.
  */
 export type LocalRuntimeSignal =
-  /** CPython came up in this browser. The denominator. */
+  /** The compiler came up in this browser. The denominator. */
   | { outcome: "ready" }
   /** It did not. `isLearnerOutcome` is false for this; nobody is marked wrong. */
   | { outcome: "unavailable"; reason: LocalRuntimeFailure };

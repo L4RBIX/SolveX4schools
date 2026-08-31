@@ -15,7 +15,7 @@ import type { NovaContext } from "./context";
  * Everything here is written into the system message EXCEPT the draft, which is
  * fenced into the user turn. That is not a stylistic split: the draft is the
  * only part a learner authored, so it is the only part that could carry
- * `# ignore all previous instructions`. Rendering it into the system message
+ * `// ignore all previous instructions`. Rendering it into the system message
  * would hand system authority to whatever a fourteen-year-old typed into a code
  * editor, which is precisely the injection the fence exists to stop.
  *
@@ -64,7 +64,7 @@ export function trustedContextLines(ctx: NovaContext): string[] {
   );
 
   if (interaction.visible.code) {
-    lines.push("- The code shown with the question:", "```python", interaction.visible.code, "```");
+    lines.push("- The code shown with the question:", "```cpp", interaction.visible.code, "```");
   }
 
   if (interaction.visible.options?.length) {
@@ -199,7 +199,7 @@ export function draftBlock(ctx: NovaContext): string | null {
        so plainly: rungs 3 and 4 of the ladder are "walk through THEIR case" and
        "give the fix", and both are unsatisfiable against code nobody has seen.
        It arrives last and fenced, which is the order that made it safe to add. */
-    lines.push("The code they are writing right now:", "```python", d.code, "```");
+    lines.push("The code they are writing right now:", "```cpp", d.code, "```");
   }
 
   return lines.join("\n");
@@ -217,12 +217,13 @@ export function groundingReminder(
   /*
    * The learner's last LOCAL run, when there was one.
    *
-   * Passed separately because it is not part of `NovaContext`: a Pyodide run
-   * happens in the browser and is never written to the ledger, so it cannot
+   * Passed separately because it is not part of `NovaContext`: an in-browser
+   * Run happens in the tab and is never written to the ledger, so it cannot
    * arrive through `settled`. It has to be counted here anyway — the single
-   * commonest form of «Почему ошибка?» is asked about a traceback that only
-   * ever existed on screen, and a reminder that lists everything EXCEPT the
-   * error message invites the exact question this list exists to prevent.
+   * commonest form of «Почему ошибка?» is asked about a compiler diagnostic
+   * that only ever existed on screen, and a reminder that lists everything
+   * EXCEPT the error message invites the exact question this list exists to
+   * prevent.
    */
   execution?: { localRun: { stdout: string | null; stderr: string | null } | null } | null,
 ): string[] {

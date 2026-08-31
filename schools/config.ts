@@ -1,5 +1,5 @@
 import "server-only";
-import { PYTHON_RUNTIME } from "@schools/execution/python-policy";
+import { CPP_RUNTIME } from "@schools/execution/cpp-runtime";
 
 /**
  * Server configuration.
@@ -162,7 +162,7 @@ export const config = {
      * deployment has no trusted judge at all.
      *
      * `none` is a supported state, not a broken one, and that is new. Before
-     * the browser could run Python there was no such thing as a deployment
+     * the browser could compile there was no such thing as a deployment
      * without a judge — every code task simply failed. Now local Run works
      * without any server judge whatsoever, so a school can genuinely operate
      * with `none`: learners write code, run it, see output, iterate. What they
@@ -179,9 +179,9 @@ export const config = {
      * The key is a secret like every other one in this file: server-side,
      * unprefixed, header-only, and it never reaches a React prop, a client
      * bundle or a browser network call. The browser must never contact
-     * `judge0-ce.p.rapidapi.com` at all — RUN is Pyodide and SUBMIT goes
-     * through our own route — so RapidAPI never needs to appear in a future
-     * `connect-src` either.
+     * `judge0-ce.p.rapidapi.com` at all — RUN is the browser's own compiler and
+     * SUBMIT goes through our own route — so RapidAPI never needs to appear in
+     * a future `connect-src` either.
      *
      * See `docs/infrastructure/JUDGE0_RAPIDAPI_AUDIT.md`, and note the
      * residency consequence recorded in `docs/CODE_EXECUTION_DECISION.md`:
@@ -206,9 +206,15 @@ export const config = {
        * Skip language discovery and use this id.
        *
        * `undefined` — the normal case — means the provider asks the judge which
-       * Python 3 it has. An id hardcoded from a blog post is how a submission
-       * ends up running under Python 2.7; an id pinned deliberately by an
-       * operator is a decision, and this is where it goes.
+       * C++ it has and refuses anything older than GCC 11. An id hardcoded from
+       * a blog post is how a submission ends up on GCC 7, compiling as C++14
+       * and rejecting the syntax the course teaches; an id pinned deliberately
+       * by an operator is a decision, and this is where it goes.
+       *
+       * Pinning it also turns OFF the standard check, because the check is part
+       * of discovery. An operator who sets this owns the question of whether
+       * the id they chose defaults to `gnu++17` — this plan refuses
+       * `compiler_options`, so there is no second chance to ask for it.
        */
       languageId: optionalIntEnv("JUDGE0_LANGUAGE_ID"),
       /**
@@ -242,13 +248,21 @@ export const config = {
        */
       batchEnabled: env("JUDGE0_BATCH") === "true",
     },
-    /** Interpreter for the local dev provider. */
-    pythonBin: env("EXEC_PYTHON_BIN") ?? "python3",
+    /**
+     * Compiler for the local dev provider.
+     *
+     * A developer's machine, not a judge: on macOS `g++` is Apple clang, which
+     * is a different toolchain from the GCC that grades. That is acceptable
+     * precisely because this provider never grades anybody — it refuses to run
+     * in production — and the same variable name is what
+     * `tests/support/cpp-run.ts` already reads, so one export overrides both.
+     */
+    cppBin: env("EXEC_CPP_BIN") ?? "g++",
     /**
      * The pinned learner runtime, re-exported from the one file that declares it.
      *
      * Deliberately NOT read from an environment variable, and that is the point:
-     * a school operator who can change the Python version from a dashboard can
+     * a school operator who can change the compiler version from a dashboard can
      * make two months of a child's evidence incomparable without anyone noticing
      * or being able to say when it happened. The version is a programme decision
      * that ships with the build, so changing it is a commit and a rebuild — both
@@ -257,7 +271,7 @@ export const config = {
      * Consequence for `docs/deployment/PRODUCTION_ENVIRONMENT.md`: nothing. There
      * is no new variable for its table to document, which is the intended shape.
      */
-    python: PYTHON_RUNTIME,
+    cpp: CPP_RUNTIME,
   },
 
   /**
@@ -311,9 +325,9 @@ export const config = {
  * happens to be in. This shape lets the whole production matrix be asserted
  * without module-reload gymnastics.
  *
- * The decision it enforces is `docs/CODE_EXECUTION_DECISION.md`: RUN is Pyodide
- * in the learner's browser and needs nothing here, and SUBMIT is a server-side
- * judge with a credential. `local` is not one of the options — see
+ * The decision it enforces is `docs/CODE_EXECUTION_DECISION.md`: RUN is the
+ * learner's own browser compiling their C++ and needs nothing here, and SUBMIT
+ * is a server-side judge with a credential. `local` is not one of the options — see
  * `schools/exec/providers/local.ts` — and every recognised judge has exactly
  * one thing this function insists on, the piece of configuration whose absence
  * is SILENT: Piston's address, Judge0's key. Both produce the same failure

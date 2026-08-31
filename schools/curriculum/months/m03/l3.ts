@@ -13,42 +13,56 @@ import type { LessonBlock } from "../../types";
  *
  * ## The one idea
  *
- * `print` puts a value on the screen and hands nothing back. `return` hands the
+ * `cout` puts a value on the screen and hands nothing back. `return` hands the
  * value to whoever called the function. Only the second one can be used in an
  * expression — added, compared, fed back into the same function.
  *
  * That sentence is not hard to say and it is very hard to believe, because
- * October's programs ended in `print` and nothing went wrong. So the lesson
+ * October's programs ended in `cout` and nothing went wrong. So the lesson
  * makes the belief cost something four times before anyone writes a function:
- * b3 makes the learner watch Python print `None`, b4 asks which of three
- * functions can have 1 added to its result, b5 shows the failure inside a
- * digit-sum function they already know, and b6 shows a function that returns
- * before the loop it needs has run at all.
+ * b3 makes the learner watch a returned value vanish because nobody caught it,
+ * b4 asks which of three functions can have 1 added to its result, b5 shows the
+ * compiler refusing a `void` function that tries to return, and b6 shows a
+ * function that returns before the loop it needs has run at all.
  *
- * ## Why `None` is met here, deliberately, once
+ * ## What C++ replaced `None` with, and why the lesson is better for it
  *
- * A beginner who writes `print` inside a function and then assigns the call to
- * a variable meets `None` on their own, in a task they were trying to solve,
- * with no idea what the word means. Meeting it first in a four-line prediction
- * whose only job is that word turns the later encounter into recognition
- * instead of panic. `None` never appears in a snippet's SOURCE anywhere in this
- * lesson — it is only ever something Python prints — because the November
- * construct budget has not taught the literal and does not need to.
+ * The Python original spent two blocks on `None`: a function without `return`
+ * hands back a value that prints as a word the learner has never seen, and the
+ * whole difficulty was that this is silent and legal.
+ *
+ * C++ has no such value. A function that hands nothing back is declared `void`,
+ * and the two failures that used to produce `None` split cleanly in two:
+ *
+ * - **Using a `void` result is a compile error.** `int y = show(5);` does not
+ *   build, and neither does `cout << show(5);`. That is b5, and it is the
+ *   m1.l1.b4 shape — the compiler names line 10 and line 16, and the line to
+ *   fix is line 4, where `void` should have been `int`.
+ * - **Ignoring a returned value is silent.** `twice(5);` on a line of its own
+ *   compiles, runs, computes 10 and throws it away. That is b3, and it is the
+ *   half of the old `None` lesson that survives — the learner has to see that a
+ *   `return` which nobody catches leaves no trace at all.
+ *
+ * The declared return type is the other new obligation, and it is the one the
+ * whole month leans on: `int digit_sum(int n)` promises a number, so `return s;`
+ * has to give one, and the caller may rely on it. That promise is exactly what
+ * `void` refuses to make.
  *
  * ## The digit sum, four times, never twice the same way
  *
  * The lesson repeats one function on purpose — the PDF assigns it here — but
  * every appearance asks something the previous one did not: b2 puts two calls
- * in one expression, b5 breaks the return, b8 feeds the returned value back
- * into the same function until one digit is left, b9 puts it in a comparison.
- * b6 and b7 deliberately use different functions (a running total, a digit
- * COUNT) so that the two repair blocks are not one bug read twice.
+ * in one expression, b5 breaks the declared type, b8 feeds the returned value
+ * back into the same function until one digit is left, b9 puts it in a
+ * comparison. b6 and b7 deliberately use different functions (a running total,
+ * a digit COUNT) so that the two repair blocks are not one bug read twice.
  *
  * ## Left for later
  *
  * Nothing here says why `s` starts from 0 again on the second call — that is
  * `m3.l4`, and step 2 of the worked example states the fact without claiming to
- * explain it. `global` does not appear; the month's only sight of it is `m3.l5`.
+ * explain it. Global state does not appear; the month's only sight of it is
+ * `m3.l5`.
  */
 
 const P = 8; // PDF page for all of November
@@ -61,30 +75,40 @@ export const M3_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     title: {
-      kk: "return — нәтижені қайтарады, print — экранға жазады",
-      ru: "return — возвращает результат, print — пишет на экран",
+      kk: "return — нәтижені қайтарады, cout — экранға жазады",
+      ru: "return — возвращает результат, cout — пишет на экран",
     },
     /* The body has to make the difference OPERATIONAL, not verbal: "hands the
        value back" means nothing until the learner sees that one of the two
        calls below can have `+ 1` written after it and the other cannot. So the
        snippet defines both functions over the same arithmetic and the last
-       line is the test. */
+       line is the test. The declared type is what makes the difference visible
+       before the program runs: `void` in the header is a promise that there
+       will be nothing to add 1 to. */
     body: {
-      kk: "`print` мәнді экранға жазады және оны ешкімге бермейді: жазылып болған соң мән жоғалады. `return` басқаша істейді — мәнді функцияны ШАҚЫРҒАН жерге қайтарады. Сол жерде оны айнымалыға сақтауға, басқа санмен қосуға, салыстыруға болады. Демек айырмашылық сөзде емес: төмендегі `double(5)` шақыруының жанына `+ 1` жазуға болады, ал `show_double(5)` шақыруының жанына жазуға болмайды, өйткені ол ешқандай сан қайтармайды.",
-      ru: "`print` пишет значение на экран и никому его не отдаёт: после вывода значение пропадает. `return` поступает иначе — он возвращает значение туда, где функцию ВЫЗВАЛИ. Там его можно сохранить в переменную, прибавить к другому числу, сравнить. Значит, разница не в словах: к вызову `double(5)` ниже можно приписать `+ 1`, а к вызову `show_double(5)` приписать нельзя, потому что он не возвращает никакого числа.",
+      kk: "`cout` мәнді экранға жазады және оны ешкімге бермейді: жазылып болған соң мән жоғалады. `return` басқаша істейді — мәнді функцияны ШАҚЫРҒАН жерге қайтарады. Сол жерде оны айнымалыға сақтауға, басқа санмен қосуға, салыстыруға болады. C++-та бұл айырмашылық функцияның бірінші жолында-ақ көрініп тұрады: қайтаратын мәннің ТҮРІ ат алдында жазылады. `int twice(int x)` — «мен бір `int` қайтарамын» дегені, ал `void show_double(int x)` — «мен ешнәрсе қайтармаймын» дегені. Түрі `int` болса, функцияның әр жолы `return`-мен аяқталуы керек: `return` жазылмаған жол бағдарламаны бұзады. Демек айырмашылық сөзде емес: төмендегі `twice(5)` шақыруының жанына `+ 1` жазуға болады, ал `show_double(5)` шақыруының жанына жазуға болмайды — компилятор оны қабылдамайды, себебі қосатын ешқандай сан жоқ.",
+      ru: "`cout` пишет значение на экран и никому его не отдаёт: после вывода значение пропадает. `return` поступает иначе — он возвращает значение туда, где функцию ВЫЗВАЛИ. Там его можно сохранить в переменную, прибавить к другому числу, сравнить. В C++ эта разница видна уже в первой строке функции: ТИП возвращаемого значения пишут перед именем. `int twice(int x)` означает «я возвращаю одно число типа `int`», а `void show_double(int x)` — «я не возвращаю ничего». Если тип `int`, то каждый путь функции должен заканчиваться `return`: путь без него ломает программу. Значит, разница не в словах: к вызову `twice(5)` ниже можно приписать `+ 1`, а к вызову `show_double(5)` приписать нельзя — компилятор это не примет, потому что прибавлять там не к чему.",
     },
     code:
-      "def show_double(x):\n" +
-      "    print(x * 2)\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "def double(x):\n" +
-      "    return x * 2\n" +
+      "void show_double(int x) {\n" +
+      "    cout << x * 2 << endl;\n" +
+      "}\n" +
       "\n" +
-      "show_double(5)\n" +
-      "print(double(5) + 1)\n" +
+      "int twice(int x) {\n" +
+      "    return x * 2;\n" +
+      "}\n" +
       "\n" +
-      "# 10\n" +
-      "# 11",
+      "int main() {\n" +
+      "    show_double(5);\n" +
+      "    cout << twice(5) + 1 << endl;\n" +
+      "    return 0;\n" +
+      "}\n" +
+      "\n" +
+      "// 10\n" +
+      "// 11",
   },
   {
     /*
@@ -93,22 +117,18 @@ export const M3_L3: LessonBlock[] = [
      * есептеу».
      *
      * October already wrote this loop, twice — so the reasoning steps below
-     * spend no time on `% 10` and `// 10` and all of their time on the three
-     * decisions that are new: the result leaves through `return`, `return` is
-     * the last thing the function does, and one expression may contain two
-     * calls whose local variables never meet.
+     * spend no time on `% 10` and `/ 10` and all of their time on the three
+     * decisions that are new: the function's declared type is `int`, the result
+     * leaves through `return`, and one expression may contain two calls whose
+     * local variables never meet.
      *
-     * Step 2's Russian introduced `s` as a «накопитель», called it a
-     * «переменная» in the very next clause, and then referred back to it as
-     * «он». Two nouns for one thing, of two different genders, and a pronoun
-     * that agrees with the one further away — so the reader of a sentence whose
-     * entire job is «this name belongs to the function and to nothing else»
-     * first has to work out which name is being talked about. The Kazakh could
-     * not have the fault and does not: it has no gender and simply drops the
-     * subject («жоғалады»). The Russian now names the variable where the
-     * pronoun stood, and the «она» that is left has «переменная» directly in
-     * front of it with no masculine noun in between, so there is nothing to
-     * resolve. Same claim, same two calls, same promise that l4 explains why.
+     * Step 5 does NOT claim which of the two calls runs first, and that is not
+     * vagueness. C++17 leaves the order of evaluation of `+`'s operands
+     * unspecified, so a step that said «алдымен сол жақтағы шақыру орындалады»
+     * would be teaching a fact about this compiler rather than about the
+     * language. Both calls happen, each returns its own number, and the sum is
+     * the same either way because neither call changes anything the other can
+     * see — which is itself the property the next lesson is about.
      */
     id: "m3.l3.b2",
     type: "worked_example",
@@ -129,32 +149,41 @@ export const M3_L3: LessonBlock[] = [
         ru: "Цикл, который складывает цифры по одной, мы писали в октябре. Новое здесь другое — не переписывать этот цикл дважды: пишем его один раз как функцию и вызываем два раза.",
       },
       {
+        kk: "Функцияның тақырыбы — `int digit_sum(int n)`. Бірінші `int` — қайтаратын мәннің түрі, яғни «мен бір бүтін сан беремін» деген уәде. Екінші `int` — параметрдің түрі. `n` мәні 1 000 000 000-ға дейін жетеді, ал бұл `int`-тің шегінен (2 147 483 647) аспайды, сондықтан осы түр жеткілікті.",
+        ru: "Заголовок функции — `int digit_sum(int n)`. Первый `int` — тип возвращаемого значения, то есть обещание «я отдам одно целое число». Второй `int` — тип параметра. Значение `n` доходит до 1 000 000 000, а это меньше предела `int` (2 147 483 647), поэтому такого типа достаточно.",
+      },
+      {
         kk: "Функцияның ішінде `s` жинақтаушысы бар. Ол — функцияның өз айнымалысы: `digit_sum(a)` аяқталған соң жоғалады, ал `digit_sum(b)` шақырылғанда `s` қайтадан 0-ден басталады. Сондықтан екі шақыру бір-біріне кедергі жасамайды. Мұның НЕГЕ солай екенін келесі сабақта талдаймыз.",
         ru: "Внутри функции есть накопитель `s`. Это её собственная переменная: после завершения `digit_sum(a)` переменная `s` исчезает, а при вызове `digit_sum(b)` она снова начинается с 0. Поэтому два вызова не мешают друг другу. ПОЧЕМУ это так — разберём на следующем уроке.",
       },
       {
-        kk: "Циклден кейін `print(s)` жазсақ, сан экранға кетеді де, қосатын ештеңе қалмайды. Сондықтан `return s` жазамыз: сан функцияны шақырған жерге барады.",
-        ru: "Если после цикла написать `print(s)`, число уйдёт на экран и складывать будет нечего. Поэтому пишем `return s`: число уходит туда, откуда функцию вызвали.",
+        kk: "Циклден кейін `cout << s;` жазсақ, сан экранға кетеді де, қосатын ештеңе қалмайды. Сондықтан `return s;` жазамыз: сан функцияны шақырған жерге барады. `return` — функцияның соңғы қадамы: ол орындалған сәтте функция бірден тоқтайды, сондықтан оны цикл БІТКЕННЕН КЕЙІН жазамыз. Циклдің ішіне жазсақ, ол бірінші цифрдан кейін-ақ тоқтап қалады.",
+        ru: "Если после цикла написать `cout << s;`, число уйдёт на экран и складывать будет нечего. Поэтому пишем `return s;`: число уходит туда, откуда функцию вызвали. `return` — последний шаг функции: в момент его выполнения функция сразу останавливается, поэтому пишем его ПОСЛЕ того, как цикл закончился. Если написать его внутри цикла, функция остановится уже после первой цифры.",
       },
       {
-        kk: "`return` — функцияның соңғы қадамы. Ол орындалған сәтте функция бірден тоқтайды, сондықтан `return`-ды цикл БІТКЕННЕН КЕЙІН жазамыз. Циклдің ішіне жазсақ, ол бірінші цифрдан кейін-ақ тоқтап қалады.",
-        ru: "`return` — последний шаг функции. В момент его выполнения функция сразу останавливается, поэтому пишем `return` ПОСЛЕ того, как цикл закончился. Если написать его внутри цикла, функция остановится уже после первой цифры.",
-      },
-      {
-        kk: "Соңғы жол екі шақыруды бір өрнекке қояды: `digit_sum(a) + digit_sum(b)`. Алдымен сол жақтағы шақыру орындалып 11 қайтарады, содан кейін оң жақтағысы орындалып 5 қайтарады, сосын осы екі сан қосылады. `print` бір-ақ рет, дайын нәтижеге жазылады.",
-        ru: "Последняя строка ставит два вызова в одно выражение: `digit_sum(a) + digit_sum(b)`. Сначала выполняется левый вызов и возвращает 11, потом правый и возвращает 5, и уже эти два числа складываются. `print` пишется один раз — для готового результата.",
+        kk: "Соңғы жол екі шақыруды бір өрнекке қояды: `digit_sum(a) + digit_sum(b)`. Екі шақыру да орындалады, әрқайсысы өз санын қайтарады — 11 және 5 — содан кейін осы екі сан қосылады. Қайсысының бұрын орындалатыны маңызды емес: бірде-бір шақыру екіншісі көретін ештеңені өзгертпейді. `cout` бір-ақ рет, дайын нәтижеге жазылады.",
+        ru: "Последняя строка ставит два вызова в одно выражение: `digit_sum(a) + digit_sum(b)`. Оба вызова выполняются, каждый возвращает своё число — 11 и 5 — и уже эти два числа складываются. Какой из них выполнится раньше, неважно: ни один вызов не меняет ничего, что видит другой. `cout` пишется один раз — для готового результата.",
       },
     ],
     code:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "a, b = map(int, input().split())\n" +
-      "print(digit_sum(a) + digit_sum(b))",
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int a, b;\n" +
+      "    cin >> a >> b;\n" +
+      "    cout << digit_sum(a) + digit_sum(b) << endl;\n" +
+      "    return 0;\n" +
+      "}",
     stdin: "407 23",
     result: {
       kk: "«407 23» енгізгенде: 16",
@@ -163,36 +192,49 @@ export const M3_L3: LessonBlock[] = [
   },
   {
     /*
-     * The `None` block. Two lines of output where the learner expects one, and
-     * the second line is a word they have never seen — which is exactly the
-     * experience they would otherwise have alone, in a task they cared about.
+     * The block that replaces the `None` prediction, and it asks the half of
+     * that lesson C++ keeps: a value that comes back and is not caught leaves
+     * no trace. `twice(5);` on a line of its own is legal, computes 10, and
+     * throws it away — no output, no warning, no error.
      *
-     * Only "25\n25" carries a mapping. "25" alone is left unmapped: it comes
-     * from believing the assignment produces nothing AND from believing
-     * `print(r)` prints nothing, and those are different beliefs. "None" alone
-     * is unmapped for the same reason.
+     * The two prints around it exist for the same reason they do in m3.l1.b3:
+     * the correct answer is a visible pair of words rather than an empty
+     * string, which a fourteen-year-old cannot tell apart from a broken card.
+     *
+     * Only the middle distractor is mapped. "10" first and "10" last are each
+     * compatible with more than one belief — that a call prints before the
+     * program starts, that it prints at the end — and neither establishes one
+     * cause.
      */
     id: "m3.l3.b3",
     type: "prediction",
     skillRefs: ["func.return", "func.define"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бұл бағдарлама нені шығарады? Функцияның ішінде `return` жоқ екеніне назар аудар. Әр шыққан мән жеке жолда.",
-      ru: "Что выведет эта программа? Обрати внимание: внутри функции нет `return`. Каждое выведенное значение — на отдельной строке.",
+      kk: "Бұл бағдарлама нені шығарады? `twice` функциясы жеке жолда шақырылған, ал оның қайтарған мәні ешқайда жазылмаған. Әр шыққан мән жеке жолда.",
+      ru: "Что выведет эта программа? Функция `twice` вызвана в отдельной строке, а возвращённое ею значение никуда не записано. Каждое выведенное значение — на отдельной строке.",
     },
     code:
-      "def show_square(x):\n" +
-      "    print(x * x)\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "r = show_square(5)\n" +
-      "print(r)",
-    answer: "25\nNone",
-    options: ["25", "25\n25", "25\nNone", "None"],
+      "int twice(int x) {\n" +
+      "    return x * 2;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      '    cout << "start" << endl;\n' +
+      "    twice(5);\n" +
+      '    cout << "end";\n' +
+      "    return 0;\n" +
+      "}",
+    answer: "start\nend",
+    options: ["start\nend", "start\n10\nend", "10\nstart\nend", "start\nend\n10"],
     diagnosticMapping: {
-      "25\n25": {
-        failureClass: "print_mistaken_for_return",
+      "start\n10\nend": {
+        failureClass: "return_mistaken_for_print",
         justification:
-          "Екінші жолда 25 шығуының жалғыз жолы бар: `print` мәнді экранға жазумен қатар оны шақырған жерге де беріп жібереді деп ойлау. Шын мәнінде `r` айнымалысына ешқандай сан түспейді, өйткені функция ештеңе қайтармаған.",
+          "10 санының дәл `start` пен `end` арасында шығуының бір ғана себебі бар: `return` мәнді экранға да жазады деп ойлау. `return` мәнді тек шақырған жерге береді, ал мұнда оны ешкім ұстап алмаған — `twice(5);` жолы санды есептеп, содан кейін оны жоғалтады.",
       },
     },
   },
@@ -200,14 +242,23 @@ export const M3_L3: LessonBlock[] = [
     /*
      * The same idea as b3, asked from the other side: not "what comes out" but
      * "which one may be used in an expression". Three functions over identical
-     * arithmetic, so the only thing separating them is the last line of each.
+     * arithmetic, so the only thing separating them is the header and the last
+     * line of each.
      *
      * `f3` is the version that computes the value and drops it — the belief
      * that the last expression comes back on its own, which a learner coming
-     * from a calculator holds without ever having said it out loud.
+     * from a calculator holds without ever having said it out loud. In C++ it
+     * has to be declared `void` as well: a function whose header promises an
+     * `int` and never returns one is not a slower wrong answer, it is undefined
+     * behaviour, and a card that showed one would be teaching a program the
+     * language refuses to define.
+     *
+     * `main` is present and empty because a C++ program needs one; the comment
+     * inside it is where the question is asked, in the code the learner is
+     * looking at.
      *
      * o4 ("all three") carries no mapping: a learner reaches it by not reading
-     * the bodies at all, and also by thinking every call has SOME result, and
+     * the headers at all, and also by thinking every call has SOME result, and
      * those are not the same mistake.
      */
     id: "m3.l3.b4",
@@ -215,18 +266,29 @@ export const M3_L3: LessonBlock[] = [
     skillRefs: ["func.return", "func.define"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Осы үш функцияның қайсысын `print(f(3) + 1)` деп жазуға болады — яғни қайсысының нәтижесіне 1 қосуға болады?",
-      ru: "Какую из этих трёх функций можно записать как `print(f(3) + 1)` — то есть к результату какой из них можно прибавить 1?",
+      kk: "`main` ішінде `cout << f(3) + 1;` деп жазғымыз келеді. Осы үш функцияның қайсысын `f`-тің орнына қоюға болады — яғни қайсысының нәтижесіне 1 қосуға болады?",
+      ru: "Внутри `main` мы хотим написать `cout << f(3) + 1;`. Какую из этих трёх функций можно подставить вместо `f` — то есть к результату какой из них можно прибавить 1?",
     },
     code:
-      "def f1(x):\n" +
-      "    print(x + 10)\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "def f2(x):\n" +
-      "    return x + 10\n" +
+      "void f1(int x) {\n" +
+      "    cout << x + 10 << endl;\n" +
+      "}\n" +
       "\n" +
-      "def f3(x):\n" +
-      "    x + 10",
+      "int f2(int x) {\n" +
+      "    return x + 10;\n" +
+      "}\n" +
+      "\n" +
+      "void f3(int x) {\n" +
+      "    int r = x + 10;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    // cout << f(3) + 1;\n" +
+      "    return 0;\n" +
+      "}",
     options: [
       { id: "o1", label: { kk: "f1 функциясы", ru: "Функция f1" } },
       { id: "o2", label: { kk: "f2 функциясы", ru: "Функция f2" } },
@@ -238,63 +300,85 @@ export const M3_L3: LessonBlock[] = [
       o1: {
         failureClass: "print_mistaken_for_return",
         justification:
-          "f1-ді таңдау — экранға жазу мен шақырған жерге беруді бір нәрсе деп санау. f1 санды экранға шығарады, бірақ шақырған жерге ештеңе бермейді, сондықтан оның қасына `+ 1` жазуға болмайды.",
+          "f1-ді таңдау — экранға жазу мен шақырған жерге беруді бір нәрсе деп санау. f1 санды экранға шығарады, бірақ түрі `void`, яғни шақырған жерге ештеңе бермейді, сондықтан оның қасына `+ 1` жазуға болмайды — компилятор мұны қабылдамайды.",
       },
       o3: {
         failureClass: "value_computed_but_not_returned",
         justification:
-          "f3-те `x + 10` есептеледі, бірақ ешқайда жіберілмейді. Бұл жауап оқушының соңғы есептелген өрнек өздігінен қайтады деп ойлайтынын көрсетеді — Python-да олай емес, қайтару тек `return` арқылы болады.",
+          "f3-те `x + 10` есептеліп, `r` айнымалысына жазылады, бірақ ешқайда жіберілмейді, әрі функцияның түрі — `void`. Бұл жауап оқушының соңғы есептелген өрнек өздігінен қайтады деп ойлайтынын көрсетеді — C++-та олай емес, қайтару тек `return` арқылы болады.",
       },
     },
   },
   {
     /*
-     * The universal bug, in a function the learner has now met twice. The
-     * symptom is not a crash and not a silent wrong number: it is the word
-     * `None` under a correct-looking answer, which is what they will actually
-     * see on their own screen next week.
+     * The declared type, broken — and the reason this block exists in exactly
+     * this shape is that it is the C++ error a beginner meets on their first
+     * function with a result. The body is right, the caller is right, and the
+     * ONE word that is wrong is `void` on line 4.
      *
-     * symptomInput is declared because the numeric probe would show it too —
-     * but the probe's first value is "0", where the buggy program prints
-     * "0\nNone" and the fixed one prints "0", so the difference is real on any
-     * input. 407 is declared anyway so the failure the prompt describes is the
-     * failure the checker verifies.
+     * It is the m1.l1.b4 pattern: the compiler names lines the learner must not
+     * fix. Clang and GCC both complain at line 10, where `return s;` sits
+     * inside a function that promised nothing, and again at line 16, where a
+     * `void` result is fed to `cout`. Neither line is the defect. `buggyLine`
+     * is 4, and the prompt says the compiler's numbers out loud so the learner
+     * practises distrusting them.
+     *
+     * No `symptomInput` is declared: the buggy program does not compile, so the
+     * gate's first tier — the two programs disagree about whether they build at
+     * all — is the whole of the evidence and no input can add to it.
      */
     id: "m3.l3.b5",
     type: "find_bug",
     skillRefs: ["func.return", "func.define", "loops.while", "loops.accumulator"],
     sourceType: "product-authored",
     prompt: {
-      kk: "407 енгізгенде бұл бағдарлама екі жол шығарады: алдымен 11, содан кейін None. Тек 11 шығуы керек еді. Қате қай жолда?",
-      ru: "При вводе 407 эта программа выводит две строки: сначала 11, потом None. А должна выводить только 11. В какой строке ошибка?",
+      kk: "Бұл бағдарлама тіпті іске қосылмайды. Компилятор екі жерге шағымданады: 10-жолда «void функциясы мән қайтармауы керек» дейді, 16-жолда `cout`-қа беретін ештеңе жоқ дейді. Функцияның денесі де, шақыру да дұрыс жазылған. Шын мәнінде қай жол жөнделуі керек?",
+      ru: "Эта программа даже не запускается. Компилятор жалуется в двух местах: в строке 10 — «void-функция не должна возвращать значение», в строке 16 — что выводить в `cout` нечего. И тело функции, и вызов написаны верно. Какую строку на самом деле нужно исправить?",
     },
     code:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    print(s)\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "x = int(input())\n" +
-      "print(digit_sum(x))",
-    buggyLine: 6,
-    symptomInput: "407",
+      "void digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int x;\n" +
+      "    cin >> x;\n" +
+      "    cout << digit_sum(x) << endl;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 4,
     fixedCode:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "x = int(input())\n" +
-      "print(digit_sum(x))",
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int x;\n" +
+      "    cin >> x;\n" +
+      "    cout << digit_sum(x) << endl;\n" +
+      "    return 0;\n" +
+      "}",
     diagnosticMapping: {
-      "9": {
-        failureClass: "print_mistaken_for_return",
+      "10": {
+        failureClass: "compiler_line_taken_at_face_value",
         justification:
-          "9-жолды кінәлау — 11 санын функцияның ішіндегі `print` дұрыс шығарды деп қабылдау. Артық жол сол емес: функция ештеңе қайтармағандықтан, дұрыс жауапты шығаратын жол ғана None жазуға мәжбүр болып тұр.",
+          "10-жолды таңдау — компилятордың нөмірін сол күйінде қабылдағаны. Ол жол дұрыс: цифрлар қосындысы дәл сол жерде қайтарылуы керек. Қате — функцияның бірінші жолында тұрған `void` сөзі: ол «мен ешнәрсе қайтармаймын» деп уәде береді де, 10-жолды өтірікке айналдырады.",
       },
     },
   },
@@ -305,13 +389,17 @@ export const M3_L3: LessonBlock[] = [
      * the function will return immediately after creating the accumulator,
      * because `return` reads like a promise rather than an exit.
      *
+     * This one compiles, and that is the point of putting it next to b5: the
+     * previous card was a build failure and this one is a wrong number, so the
+     * learner meets both kinds of evidence in the same lesson.
+     *
      * A different function from b5 on purpose: this is a running total, so the
      * two repair blocks are two bugs and not one bug read twice.
      *
-     * No diagnostic mapping. Line 2 is reached both by "the accumulator should
+     * No diagnostic mapping. Line 5 is reached both by "the accumulator should
      * start at 1" and by "the answer equals the starting value, so the starting
-     * value is wrong", and line 4 is reached by any of the range off-by-one
-     * hunts October drilled. Neither answer names one cause, so the engine asks
+     * value is wrong", and line 7 by any of the loop-bound off-by-one hunts
+     * October drilled. Neither answer names one cause, so the engine asks
      * instead of telling.
      */
     id: "m3.l3.b6",
@@ -319,39 +407,59 @@ export const M3_L3: LessonBlock[] = [
     skillRefs: ["func.return", "func.define", "loops.for", "loops.accumulator"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Функция 1-ден n-ге дейінгі сандардың қосындысын қайтаруға тиіс. Бірақ n = 5 болғанда бағдарлама 15-тің орнына 0 шығарады. Қате қай жолда және неге циклдің мүлде орындалмағанын ойлан.",
-      ru: "Функция должна возвращать сумму чисел от 1 до n. Но при n = 5 программа выводит 0 вместо 15. В какой строке ошибка и почему цикл вообще не выполнился?",
+      kk: "Функция 1-ден n-ге дейінгі сандардың қосындысын қайтаруға тиіс. Бағдарлама компиляциядан өтеді, бірақ n = 5 болғанда 15-тің орнына 0 шығарады. Қате қай жолда және неге циклдің мүлде орындалмағанын ойлан.",
+      ru: "Функция должна возвращать сумму чисел от 1 до n. Программа компилируется, но при n = 5 выводит 0 вместо 15. В какой строке ошибка и почему цикл вообще не выполнился?",
     },
     code:
-      "def sum_to(n):\n" +
-      "    s = 0\n" +
-      "    return s\n" +
-      "    for i in range(1, n + 1):\n" +
-      "        s = s + i\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "print(sum_to(n))",
-    buggyLine: 3,
+      "int sum_to(int n) {\n" +
+      "    int s = 0;\n" +
+      "    return s;\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        s = s + i;\n" +
+      "    }\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    cout << sum_to(n) << endl;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 6,
     symptomInput: "5",
     fixedCode:
-      "def sum_to(n):\n" +
-      "    s = 0\n" +
-      "    for i in range(1, n + 1):\n" +
-      "        s = s + i\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "print(sum_to(n))",
+      "int sum_to(int n) {\n" +
+      "    int s = 0;\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        s = s + i;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    cout << sum_to(n) << endl;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
-     * Assembly, not authorship — and the third blank is the point. Two `return`
+     * Assembly, not authorship — and the third blank is the point. Two returned
      * values are being added to each other on the last line, so the learner
      * cannot fill in `return` as a word they copied without also deciding what
      * the caller does with what came back.
      *
      * A digit COUNT rather than a digit sum, so the fill-blank is not the
-     * worked example with holes punched in it.
+     * worked example with holes punched in it. The function's declared type is
+     * given: `int` is the only answer that could stand there, so a blank on it
+     * would be a word to copy rather than a decision.
      */
     id: "m3.l3.b7",
     type: "fill_blank",
@@ -362,14 +470,22 @@ export const M3_L3: LessonBlock[] = [
       ru: "Функция должна не выводить, а ВОЗВРАЩАТЬ количество цифр числа. Последняя строка выводит ОБЩЕЕ количество цифр в числах 407 и 25. Заполни три пропуска.",
     },
     template:
-      "def digit_count(n):\n" +
-      "    c = 0\n" +
-      "    while n > 0:\n" +
-      "        c = c + 1\n" +
-      "        n = n // 10\n" +
-      "    ___ ___\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "print(digit_count(407) ___ digit_count(25))",
+      "int digit_count(int n) {\n" +
+      "    int c = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        c = c + 1;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    ___ ___;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    cout << digit_count(407) ___ digit_count(25) << endl;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "return" },
       { id: "f2", answer: "c" },
@@ -382,15 +498,19 @@ export const M3_L3: LessonBlock[] = [
      *
      * The loop that repeats the function is what makes this a `return` task and
      * not an October task: the value that comes back goes straight in as the
-     * next argument, which is impossible for a function that prints. Two rounds
-     * are genuinely needed — 19 → 10 → 1 — so a solution that applies the
-     * function once is killed by a hidden case rather than by a warning.
+     * next argument, which is impossible for a `void` function that prints. Two
+     * rounds are genuinely needed — 19 → 10 → 1 — so a solution that applies
+     * the function once is killed by a hidden case rather than by a warning.
+     *
+     * The bound is 1 000 000 000, which is inside `int` (2 147 483 647), so the
+     * task needs no `long long` and none of the cases can overflow. That is a
+     * bound to check rather than inherit: Python had no reason to care.
      *
      * The cases, and what each kills:
      *   999   the prompt's own example, one round of work
      *   5     already a single digit, the loop body never runs
-     *   0     kills a do-while shape: `while n > 0` here never terminates
-     *   9     the exact boundary; `while n >= 9` hangs on it and times out
+     *   0     kills a do-while shape: `while (n > 0)` here never terminates
+     *   9     the exact boundary; `while (n >= 9)` hangs on it and times out
      *   19    kills "apply the function once" — 10 is not a single digit
      *   10    the smallest two-digit number
      *   999999999 / 1000000000  the stated maximum, both directions
@@ -401,21 +521,31 @@ export const M3_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бүтін сан n беріледі (0 ≤ n ≤ 1 000 000 000). Санның цифрлар қосындысын ҚАЙТАРАТЫН функция жаз. Сан 9-дан үлкен болса, сол функцияны шыққан нәтижеге қайта қолдана бер — бір таңбалы сан қалғанша. Сол таңбаны шығар. Мысалы: 999 → 27 → 9, жауап 9. n = 5 үшін жауап 5, n = 0 үшін жауап 0.",
-      ru: "Дано целое число n (0 ≤ n ≤ 1 000 000 000). Напиши функцию, которая ВОЗВРАЩАЕТ сумму цифр числа. Пока число больше 9, применяй эту функцию к полученному результату снова — пока не останется одна цифра. Её и выведи. Например: 999 → 27 → 9, ответ 9. При n = 5 ответ 5, при n = 0 ответ 0.",
+      kk: "Бүтін сан n беріледі (0 ≤ n ≤ 1 000 000 000). Санның цифрлар қосындысын ҚАЙТАРАТЫН функция жаз — түрі `int`, ішінде `cout` жоқ. Сан 9-дан үлкен болса, сол функцияны шыққан нәтижеге қайта қолдана бер — бір таңбалы сан қалғанша. Сол таңбаны шығар. Мысалы: 999 → 27 → 9, жауап 9. n = 5 үшін жауап 5, n = 0 үшін жауап 0.",
+      ru: "Дано целое число n (0 ≤ n ≤ 1 000 000 000). Напиши функцию, которая ВОЗВРАЩАЕТ сумму цифр числа — её тип `int`, внутри нет `cout`. Пока число больше 9, применяй эту функцию к полученному результату снова — пока не останется одна цифра. Её и выведи. Например: 999 → 27 → 9, ответ 9. При n = 5 ответ 5, при n = 0 ответ 0.",
     },
     referenceSolution:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "while n > 9:\n" +
-      "    n = digit_sum(n)\n" +
-      "print(n)",
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    while (n > 9) {\n" +
+      "        n = digit_sum(n);\n" +
+      "    }\n" +
+      "    cout << n << endl;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "999", expectedOutput: "9" },
       { input: "5", expectedOutput: "5" },
@@ -467,22 +597,32 @@ export const M3_L3: LessonBlock[] = [
       ru: "В одной строке даны два целых числа a и b (0 ≤ a, b ≤ 1 000 000 000). Напиши функцию, которая возвращает сумму цифр числа, примени её к обоим числам и определи, у какого из них сумма цифр больше. Выведи `first`, если больше у a, `second`, если больше у b, и `equal`, если суммы равны (ровно одно из этих трёх английских слов).",
     },
     referenceSolution:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "a, b = map(int, input().split())\n" +
-      "x = digit_sum(a)\n" +
-      "y = digit_sum(b)\n" +
-      "if x > y:\n" +
-      '    print("first")\n' +
-      "elif x < y:\n" +
-      '    print("second")\n' +
-      "else:\n" +
-      '    print("equal")',
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int a, b;\n" +
+      "    cin >> a >> b;\n" +
+      "    int x = digit_sum(a);\n" +
+      "    int y = digit_sum(b);\n" +
+      "    if (x > y) {\n" +
+      '        cout << "first" << endl;\n' +
+      "    } else if (x < y) {\n" +
+      '        cout << "second" << endl;\n' +
+      "    } else {\n" +
+      '        cout << "equal" << endl;\n' +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "407 23", expectedOutput: "first" },
       { input: "12 30", expectedOutput: "equal" },
@@ -504,7 +644,7 @@ export const M3_L3: LessonBlock[] = [
      * and the reading line, both already written twice in this lesson. What is
      * left to do is the whole point of the block — take the two values that
      * came back out of the calls and put them into a comparison instead of into
-     * two `print`s. A support learner meets the same idea, not a smaller one.
+     * two `cout`s. A support learner meets the same idea, not a smaller one.
      */
     id: "m3.l3.b9s",
     type: "modify_code",
@@ -516,33 +656,52 @@ export const M3_L3: LessonBlock[] = [
       ru: "Эта программа выводит суммы цифр двух чисел двумя отдельными строками. Измени её так, чтобы она писала, у какого числа сумма цифр больше: `first`, если у a, `second`, если у b, и `equal`, если суммы равны (ровно одно английское слово). Функцию `digit_sum` менять не нужно — нужно сравнить значения, которые она вернула.",
     },
     code:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "a, b = map(int, input().split())\n" +
-      "print(digit_sum(a))\n" +
-      "print(digit_sum(b))",
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int a, b;\n" +
+      "    cin >> a >> b;\n" +
+      "    cout << digit_sum(a) << endl;\n" +
+      "    cout << digit_sum(b) << endl;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "def digit_sum(n):\n" +
-      "    s = 0\n" +
-      "    while n > 0:\n" +
-      "        s = s + n % 10\n" +
-      "        n = n // 10\n" +
-      "    return s\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "a, b = map(int, input().split())\n" +
-      "x = digit_sum(a)\n" +
-      "y = digit_sum(b)\n" +
-      "if x > y:\n" +
-      '    print("first")\n' +
-      "elif x < y:\n" +
-      '    print("second")\n' +
-      "else:\n" +
-      '    print("equal")',
+      "int digit_sum(int n) {\n" +
+      "    int s = 0;\n" +
+      "    while (n > 0) {\n" +
+      "        s = s + n % 10;\n" +
+      "        n = n / 10;\n" +
+      "    }\n" +
+      "    return s;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int a, b;\n" +
+      "    cin >> a >> b;\n" +
+      "    int x = digit_sum(a);\n" +
+      "    int y = digit_sum(b);\n" +
+      "    if (x > y) {\n" +
+      '        cout << "first" << endl;\n' +
+      "    } else if (x < y) {\n" +
+      '        cout << "second" << endl;\n' +
+      "    } else {\n" +
+      '        cout << "equal" << endl;\n' +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "407 23", expectedOutput: "first" },
       { input: "12 30", expectedOutput: "equal" },

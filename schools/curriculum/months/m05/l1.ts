@@ -62,8 +62,8 @@ import type { LessonBlock } from "../../types";
  * get the boundary wrong belong to `m5.l2` and `m5.l6`, which exist for them.
  * Here every search is the closed range `left <= right` with `mid` excluded on
  * both updates, so the learner meets one correct shape before meeting its
- * failure modes. And no `import` — least of all `bisect`, which would delete
- * the month.
+ * failure modes. And no `lower_bound` from `<algorithm>` — importing the answer
+ * would delete the month; the loop is written by hand.
  */
 
 const P = 9; // PDF page for all of January
@@ -80,12 +80,12 @@ export const M5_L1: LessonBlock[] = [
       ru: "Сравни со средним и отбрось половину",
     },
     body: {
-      kk: "Тізім өсу ретімен реттелген болса, ортаңғы элементпен бір рет салыстырсақ, элементтердің жартысынан бірден құтыламыз. Іздеу аралығын екі сан ұстап тұрады: `left` — аралықтың сол шеті, `right` — оң шеті. Ортаңғы орын `mid = (left + right) // 2` арқылы табылады.\n\nЕгер `a[mid]` ізделетін саннан кіші болса, ол сан тек mid-тен оң жақта жатады: сол жақтың бәрі одан да кіші, оларды қараудың қажеті жоқ. Сонда `left` mid-тен кейінгі орынға көшеді. Ал `a[mid]` үлкен болса, керісінше, `right` mid-тен бұрынғы орынға көшеді. Тізім реттелмеген болса, бұл пайымның күші жоқ: реттелмеген тізімде ортаңғы элемент оның екі жағы туралы ештеңе айтпайды.\n\nМұның пайдасы неде? Миллион элементті бірінен соң бірін қарасаң, миллионға жуық салыстыру керек. Ал әр қадамда жартысын тастасаң: миллион → 500 000 → 250 000 → 125 000 → ... — жиырма қадамнан кейін бір ғана элемент қалады. Жиырма салыстыру мен миллион салыстырудың айырмасы — осы айдың бүкіл мәні.",
-      ru: "Если список отсортирован по возрастанию, одного сравнения со средним элементом достаточно, чтобы сразу избавиться от половины элементов. Интервал поиска держат два числа: `left` — левый край интервала, `right` — правый. Середина находится как `mid = (left + right) // 2`.\n\nЕсли `a[mid]` меньше искомого числа, то это число может лежать только правее mid: всё, что слева, ещё меньше, и смотреть туда незачем. Тогда `left` переходит на позицию после mid. Если же `a[mid]` больше — наоборот, `right` переходит на позицию перед mid. Для неотсортированного списка такое рассуждение не работает: там средний элемент ничего не сообщает о том, что лежит по обе стороны от него.\n\nЗачем это нужно? Если просматривать миллион элементов подряд, понадобится около миллиона сравнений. А если на каждом шаге отбрасывать половину: миллион → 500 000 → 250 000 → 125 000 → … — через двадцать шагов остаётся один элемент. Разница между двадцатью сравнениями и миллионом — это и есть смысл всего месяца.",
+      kk: "Тізім өсу ретімен реттелген болса, ортаңғы элементпен бір рет салыстырсақ, элементтердің жартысынан бірден құтыламыз. Іздеу аралығын екі сан ұстап тұрады: `left` — аралықтың сол шеті, `right` — оң шеті. Ортаңғы орын `int mid = left + (right - left) / 2;` арқылы табылады. Бұл `(left + right) / 2` дегенмен дәл бір сан, бірақ қауіпсіз түрі: `left + right` қосындысы `int` шегінен асып кетуі мүмкін, ал `left + (right - left) / 2` ешқашан аспайды. Бүтін сандарды бөлгенде бөлшек бөлігі тасталады, сондықтан `mid` әрқашан бүтін орын болады. Дайын тізімді `vector<int> a = {2, 5, 8};` деп жазуға болады, ал `a.size()` оның ұзындығын береді.\n\nЕгер `a[mid]` ізделетін саннан кіші болса, ол сан тек mid-тен оң жақта жатады: сол жақтың бәрі одан да кіші, оларды қараудың қажеті жоқ. Сонда `left` mid-тен кейінгі орынға көшеді. Ал `a[mid]` үлкен болса, керісінше, `right` mid-тен бұрынғы орынға көшеді. Тізім реттелмеген болса, бұл пайымның күші жоқ: реттелмеген тізімде ортаңғы элемент оның екі жағы туралы ештеңе айтпайды.\n\nМұның пайдасы неде? Миллион элементті бірінен соң бірін қарасаң, миллионға жуық салыстыру керек. Ал әр қадамда жартысын тастасаң: миллион → 500 000 → 250 000 → 125 000 → ... — жиырма қадамнан кейін бір ғана элемент қалады. Жиырма салыстыру мен миллион салыстырудың айырмасы — осы айдың бүкіл мәні.",
+      ru: "Если список отсортирован по возрастанию, одного сравнения со средним элементом достаточно, чтобы сразу избавиться от половины элементов. Интервал поиска держат два числа: `left` — левый край интервала, `right` — правый. Середина находится как `int mid = left + (right - left) / 2;`. Это ровно то же число, что и `(left + right) / 2`, но безопасная форма записи: сумма `left + right` может не поместиться в `int`, а `left + (right - left) / 2` не переполнится никогда. При делении целых чисел дробная часть отбрасывается, поэтому `mid` — всегда целая позиция. Готовый список записывается как `vector<int> a = {2, 5, 8};`, а `a.size()` даёт его длину.\n\nЕсли `a[mid]` меньше искомого числа, то это число может лежать только правее mid: всё, что слева, ещё меньше, и смотреть туда незачем. Тогда `left` переходит на позицию после mid. Если же `a[mid]` больше — наоборот, `right` переходит на позицию перед mid. Для неотсортированного списка такое рассуждение не работает: там средний элемент ничего не сообщает о том, что лежит по обе стороны от него.\n\nЗачем это нужно? Если просматривать миллион элементов подряд, понадобится около миллиона сравнений. А если на каждом шаге отбрасывать половину: миллион → 500 000 → 250 000 → 125 000 → … — через двадцать шагов остаётся один элемент. Разница между двадцатью сравнениями и миллионом — это и есть смысл всего месяца.",
     },
     /* Three lines and no loop on purpose: the loop is b3's job, and a concept
        block that printed a whole search would hand b9 its answer on card one. */
-    code: "a = [2, 5, 8, 11, 14, 17, 21, 26, 30]\nleft = 0\nright = len(a) - 1\nmid = (left + right) // 2\nprint(left, right, mid)\nprint(a[mid])",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {2, 5, 8, 11, 14, 17, 21, 26, 30};\n    int n = a.size();\n    int left = 0;\n    int right = n - 1;\n    int mid = left + (right - left) / 2;\n    cout << left << \" \" << right << \" \" << mid << endl;\n    cout << a[mid];\n    return 0;\n}",
   },
   {
     /*
@@ -140,12 +140,12 @@ export const M5_L1: LessonBlock[] = [
         ru: "В списке девять чисел, поэтому интервал поиска — весь список: `left` = 0, `right` = 8.",
       },
       {
-        kk: "`mid` = (0 + 8) // 2 = 4, ал `a[4]` = 20. 20 < 27, демек 27 тек оң жақта. 0-ден 4-ке дейінгі бес орын түгел жоғалады: `left` = 5.",
-        ru: "`mid` = (0 + 8) // 2 = 4, а `a[4]` = 20. 20 < 27, значит 27 может быть только справа. Пять мест с 0 по 4 исчезают целиком: `left` = 5.",
+        kk: "`mid` = 0 + (8 - 0) / 2 = 4, ал `a[4]` = 20. 20 < 27, демек 27 тек оң жақта. 0-ден 4-ке дейінгі бес орын түгел жоғалады: `left` = 5.",
+        ru: "`mid` = 0 + (8 - 0) / 2 = 4, а `a[4]` = 20. 20 < 27, значит 27 может быть только справа. Пять мест с 0 по 4 исчезают целиком: `left` = 5.",
       },
       {
-        kk: "Енді аралық 5-тен 8-ге дейін. `mid` = (5 + 8) // 2 = 6, ал `a[6]` = 31. 31 > 27, демек 27 сол жақта: `right` = 5.",
-        ru: "Теперь интервал от 5 до 8. `mid` = (5 + 8) // 2 = 6, а `a[6]` = 31. 31 > 27, значит 27 слева: `right` = 5.",
+        kk: "Енді аралық 5-тен 8-ге дейін. `mid` = 5 + (8 - 5) / 2 = 5 + 1 = 6 (3 / 2 бүтін бөлуде 1 болады), ал `a[6]` = 31. 31 > 27, демек 27 сол жақта: `right` = 5.",
+        ru: "Теперь интервал от 5 до 8. `mid` = 5 + (8 - 5) / 2 = 5 + 1 = 6 (3 / 2 при целочисленном делении даёт 1), а `a[6]` = 31. 31 > 27, значит 27 слева: `right` = 5.",
       },
       {
         kk: "Аралықта бір ғана орын қалды: `left` = 5, `right` = 5, `mid` = 5. `a[5]` = 27 — іздегеніміз осы, `pos` = 5 болып, цикл `break` арқылы тоқтайды.",
@@ -156,7 +156,7 @@ export const M5_L1: LessonBlock[] = [
         ru: "Мы нашли число среди девяти за три сравнения. Если список станет вдвое длиннее, добавится всего одно сравнение.",
       },
     ],
-    code: "a = [3, 6, 9, 14, 20, 27, 31, 38, 45]\nx = 27\nleft = 0\nright = len(a) - 1\npos = -1\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        pos = mid\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(pos)",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {3, 6, 9, 14, 20, 27, 31, 38, 45};\n    int x = 27;\n    int n = a.size();\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << pos;\n    return 0;\n}",
     result: {
       kk: "Бағдарлама 5 шығарады. Цикл денесі бар болғаны үш рет орындалды.",
       ru: "Программа выводит 5. Тело цикла выполнилось всего три раза.",
@@ -168,7 +168,7 @@ export const M5_L1: LessonBlock[] = [
      * works today. One step only: the learner names `mid` and then the two
      * boundaries that survive it.
      *
-     * Ten elements, not nine, so that `(left + right) // 2` and `len(a) // 2`
+     * Ten elements, not nine, so that `left + (right - left) / 2` and `a.size() / 2`
      * disagree — 4 against 5. That is what makes the second option worth
      * offering, and it is a real confusion: the middle of the LIST and the
      * middle of the current RANGE are the same thing only on the first step of
@@ -183,7 +183,7 @@ export const M5_L1: LessonBlock[] = [
       kk: "Тізім өсу ретімен реттелген, іздеп отырғанымыз x = 55. Бағдарлама бір ғана қадам жасайды: алдымен `mid`-ті, содан кейін жаңарған `left` пен `right`-ты бір жолда шығарады. Қай жарты аман қалатынын алдын ала шеш те, үш санды жаз.",
       ru: "Список отсортирован по возрастанию, ищем x = 55. Программа делает один шаг: выводит в одной строке `mid`, а затем обновлённые `left` и `right`. Заранее реши, какая половина уцелеет, и назови три числа.",
     },
-    code: "a = [5, 9, 13, 18, 24, 30, 37, 41, 55, 62]\nx = 55\nleft = 0\nright = 9\nmid = (left + right) // 2\nif a[mid] < x:\n    left = mid + 1\nelse:\n    right = mid - 1\nprint(mid, left, right)",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {5, 9, 13, 18, 24, 30, 37, 41, 55, 62};\n    int x = 55;\n    int left = 0;\n    int right = 9;\n    int mid = left + (right - left) / 2;\n    if (a[mid] < x) {\n        left = mid + 1;\n    } else {\n        right = mid - 1;\n    }\n    cout << mid << \" \" << left << \" \" << right;\n    return 0;\n}",
     answer: "4 5 9",
     options: ["4 5 9", "5 6 9", "4 0 3", "4 4 9"],
     diagnosticMapping: {
@@ -194,7 +194,7 @@ export const M5_L1: LessonBlock[] = [
       "5 6 9": {
         failureClass: "mid_taken_from_list_length",
         justification:
-          "mid = 5 болу үшін `len(a) // 2` есептелуі керек, өйткені (0 + 9) // 2 = 4. Бұл жауап оқушының ортаңғы орынды ағымдағы аралықтан емес, тізімнің ұзындығынан алғанын көрсетеді.",
+          "mid = 5 болу үшін `a.size() / 2` есептелуі керек, өйткені 0 + (9 - 0) / 2 = 4. Бұл жауап оқушының ортаңғы орынды ағымдағы аралықтан емес, тізімнің ұзындығынан алғанын көрсетеді.",
       },
       "4 0 3": {
         failureClass: "kept_the_half_without_the_answer",
@@ -229,14 +229,14 @@ export const M5_L1: LessonBlock[] = [
       kk: "Бағдарламаны қағаздағыдай қадамдап орында, x = 30. Әр айналымда `mid` жаңа есептелген сәттегі `left`, `right`, `mid` мәндерін жаз. Соңғы жолда цикл неге тоқтағанын өзің көресің: `left` `right`-тан асып кетеді, яғни аралықта бірде-бір орын қалмайды.",
       ru: "Выполни программу пошагово, как на бумаге, при x = 30. Для каждого прохода запиши `left`, `right` и `mid` в тот момент, когда `mid` только что вычислен. В последней строке ты сам увидишь, почему цикл остановился: `left` перескакивает через `right`, то есть в интервале не остаётся ни одного места.",
     },
-    code: "a = [4, 7, 12, 15, 19, 23, 28, 33, 39, 42, 50, 61]\nx = 30\nleft = 0\nright = len(a) - 1\npos = -1\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        pos = mid\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(pos)",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {4, 7, 12, 15, 19, 23, 28, 33, 39, 42, 50, 61};\n    int x = 30;\n    int n = a.size();\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << pos;\n    return 0;\n}",
     steps: [
-      { line: 4, vars: { left: "0", right: "11" } },
-      { line: 7, vars: { left: "0", right: "11", mid: "5" } },
-      { line: 7, vars: { left: "6", right: "11", mid: "8" } },
-      { line: 7, vars: { left: "6", right: "7", mid: "6" } },
-      { line: 7, vars: { left: "7", right: "7", mid: "7" } },
-      { line: 15, vars: { left: "7", right: "6", pos: "-1" } },
+      { line: 10, vars: { left: "0", right: "11" } },
+      { line: 13, vars: { left: "0", right: "11", mid: "5" } },
+      { line: 13, vars: { left: "6", right: "11", mid: "8" } },
+      { line: 13, vars: { left: "6", right: "7", mid: "6" } },
+      { line: 13, vars: { left: "7", right: "7", mid: "7" } },
+      { line: 23, vars: { left: "7", right: "6", pos: "-1" } },
     ],
   },
   {
@@ -298,12 +298,12 @@ export const M5_L1: LessonBlock[] = [
       ru: "Программа ищет число 20 в отсортированном списке и выводит, сколько шагов на это ушло. Дополни два места: выражение, которое считает середину из текущих `left` и `right`, и новое значение левой границы, когда `a[mid]` оказался меньше. После этого посчитай число шагов на бумаге сам.",
     },
     template:
-      "a = [2, 6, 11, 17, 20, 25, 29, 34, 40, 46, 52, 58, 63, 70, 77]\nx = 20\nleft = 0\nright = len(a) - 1\nsteps = 0\nwhile left <= right:\n    mid = ___\n    steps = steps + 1\n    if a[mid] == x:\n        break\n    elif a[mid] < x:\n        left = ___\n    else:\n        right = mid - 1\nprint(steps)",
+      "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {2, 6, 11, 17, 20, 25, 29, 34, 40, 46, 52, 58, 63, 70, 77};\n    int x = 20;\n    int n = a.size();\n    int left = 0;\n    int right = n - 1;\n    int steps = 0;\n    while (left <= right) {\n        int mid = ___;\n        steps = steps + 1;\n        if (a[mid] == x) {\n            break;\n        } else if (a[mid] < x) {\n            left = ___;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << steps;\n    return 0;\n}",
     blanks: [
       {
         id: "f1",
-        answer: "(left + right) // 2",
-        alternatives: ["(right + left) // 2", "left + (right - left) // 2"],
+        answer: "left + (right - left) / 2",
+        alternatives: ["(left + right) / 2", "(right + left) / 2", "left + (right - left) / 2;"],
       },
       { id: "f2", answer: "mid + 1" },
     ],
@@ -332,9 +332,9 @@ export const M5_L1: LessonBlock[] = [
       kk: "Бұл бағдарлама өсу ретімен реттелген тізімнен x санын тауып, оның индексін шығарады, ал таппаса -1 шығарады. Енді тізім кему ретімен беріледі: ең үлкен сан — бірінші орында, ең кішісі — соңғысында, сандар қайталанбайды. Бағдарлама бұрынғыдай индексті тапсын. Бір ғана жол өзгереді: `a[mid]` мен x-ті салыстырғанда іздеген сан қай жақта қалатынын қайта ойлан. Енгізу: бірінші жолда n, екінші жолда n сан, үшінші жолда x.",
       ru: "Эта программа находит число x в списке, отсортированном по возрастанию, и выводит его индекс, а если числа нет — выводит -1. Теперь список приходит по убыванию: самое большое число стоит первым, самое маленькое — последним, числа не повторяются. Программа должна по-прежнему находить индекс. Меняется всего одна строка: заново подумай, с какой стороны остаётся искомое число при сравнении `a[mid]` с x. Ввод: в первой строке n, во второй — n чисел, в третьей — x.",
     },
-    code: "n = int(input())\na = list(map(int, input().split()))\nx = int(input())\nleft = 0\nright = n - 1\npos = -1\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        pos = mid\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(pos)",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << pos;\n    return 0;\n}",
     referenceSolution:
-      "n = int(input())\na = list(map(int, input().split()))\nx = int(input())\nleft = 0\nright = n - 1\npos = -1\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        pos = mid\n        break\n    elif a[mid] > x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(pos)",
+      "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] > x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << pos;\n    return 0;\n}",
     cases: [
       { input: "7\n90 74 61 50 38 25 12\n74", expectedOutput: "1" },
       { input: "7\n90 74 61 50 38 25 12\n40", expectedOutput: "-1" },
@@ -396,7 +396,7 @@ export const M5_L1: LessonBlock[] = [
       ru: "В первой строке дано число n (1 ≤ n ≤ 200 000), во второй — n различных целых чисел, отсортированных по возрастанию, в третьей — число x. Выведи английское слово `yes`, если x есть в списке, и `no`, если его нет (больше ничего выводить не нужно). Совет: список отсортирован, поэтому пиши поиск с отбрасыванием половины — просматривать 200 000 элементов подряд слишком медленно.",
     },
     referenceSolution:
-      'n = int(input())\na = list(map(int, input().split()))\nx = int(input())\nleft = 0\nright = n - 1\nans = "no"\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        ans = "yes"\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(ans)',
+      "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    if (pos == -1) {\n        cout << \"no\";\n    } else {\n        cout << \"yes\";\n    }\n    return 0;\n}",
     cases: [
       { input: "6\n2 5 9 14 20 33\n14", expectedOutput: "yes" },
       { input: "6\n2 5 9 14 20 33\n7", expectedOutput: "no" },
@@ -424,9 +424,9 @@ export const M5_L1: LessonBlock[] = [
      * rebuilt is where the data comes from and what gets reported, which is the
      * part b9 grades on the other routes.
      *
-     * `right = len(a) - 1` survives from b7 rather than becoming `n - 1`. That
-     * is what the edit actually produces, and it is also correct: n is read
-     * because the input format has it, and the list knows its own length.
+     * The completed program is byte-identical to b9's reference, which is what a
+     * support twin IS: the same problem, reached by editing a program the
+     * learner has already finished rather than from an empty editor.
      */
     id: "m5.l1.b9s",
     type: "modify_code",
@@ -437,9 +437,9 @@ export const M5_L1: LessonBlock[] = [
       kk: "Бұл бағдарламаны сен осы сабақта өзің толықтырдың: ол дайын тізімнен 20 санын іздеп, қадам санын шығарады. Екі нәрсені өзгерт. Біріншіден, тізім мен ізделетін сан пернетақтадан оқылсын: бірінші жолда n, екінші жолда n сан (өсу ретімен, қайталанбайды), үшінші жолда x. Екіншіден, қадам санының орнына x табылса `yes`, табылмаса `no` деген ағылшын сөзі шықсын. Іздеу циклін өзгертудің қажеті жоқ — ол дұрыс жұмыс істеп тұр.",
       ru: "Эту программу ты сам дополнил на этом уроке: она ищет число 20 в готовом списке и выводит количество шагов. Измени две вещи. Во-первых, пусть список и искомое число читаются с клавиатуры: в первой строке n, во второй — n чисел (по возрастанию, без повторов), в третьей — x. Во-вторых, вместо количества шагов пусть выводится английское слово `yes`, если x найден, и `no`, если нет. Цикл поиска менять не нужно — он работает правильно.",
     },
-    code: "a = [2, 6, 11, 17, 20, 25, 29, 34, 40, 46, 52, 58, 63, 70, 77]\nx = 20\nleft = 0\nright = len(a) - 1\nsteps = 0\nwhile left <= right:\n    mid = (left + right) // 2\n    steps = steps + 1\n    if a[mid] == x:\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(steps)",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {2, 6, 11, 17, 20, 25, 29, 34, 40, 46, 52, 58, 63, 70, 77};\n    int x = 20;\n    int n = a.size();\n    int left = 0;\n    int right = n - 1;\n    int steps = 0;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        steps = steps + 1;\n        if (a[mid] == x) {\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    cout << steps;\n    return 0;\n}",
     referenceSolution:
-      'n = int(input())\na = list(map(int, input().split()))\nx = int(input())\nleft = 0\nright = len(a) - 1\nans = "no"\nwhile left <= right:\n    mid = (left + right) // 2\n    if a[mid] == x:\n        ans = "yes"\n        break\n    elif a[mid] < x:\n        left = mid + 1\n    else:\n        right = mid - 1\nprint(ans)',
+      "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n - 1;\n    int pos = -1;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            pos = mid;\n            break;\n        } else if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    if (pos == -1) {\n        cout << \"no\";\n    } else {\n        cout << \"yes\";\n    }\n    return 0;\n}",
     cases: [
       { input: "6\n2 5 9 14 20 33\n14", expectedOutput: "yes" },
       { input: "6\n2 5 9 14 20 33\n7", expectedOutput: "no" },

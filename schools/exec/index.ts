@@ -199,11 +199,14 @@ export async function runCases(
   checker: OutputChecker = DEFAULT_CHECKER,
 ): Promise<{ results: CaseResult[]; infrastructureFailed: boolean }> {
   const requests: ExecutionRequest[] = cases.map((c) => ({
-    language: "python3",
+    language: "cpp17",
     sourceCode,
-    /* Every case's input ends in a newline, because `input()` reads a LINE and
-       a case declared without one would hand the last value to a program that
-       then blocks waiting for the end of it. */
+    /* Every case's input ends in a newline, because a line-oriented read wants
+       a terminated line: `getline` on an unterminated final line still yields
+       it at EOF, but a program that reads with `getline` in a loop and a case
+       declared without a newline differ from the same case declared with one,
+       and the curriculum's inputs are written as lines. It costs one byte and
+       removes a class of case-authoring surprise. */
     stdin: c.input.endsWith("\n") ? c.input : `${c.input}\n`,
     timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
     memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,

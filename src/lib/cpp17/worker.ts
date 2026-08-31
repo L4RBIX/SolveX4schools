@@ -57,6 +57,9 @@ export type WorkerOutbound =
       stderr: string;
       truncated: boolean;
       runtimeMs: number;
+      /** The learner's program opened a file. The memfs is no longer pristine
+       *  and this worker must not be reused — see `watchForFileAccess`. */
+      filesystemTouched: boolean;
     };
 
 /* -------------------------------------------------------------------------- */
@@ -184,6 +187,63 @@ export function classifyFailure(
 /* The worker                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Did the learner's program touch the filesystem?
+ *
+ * ## Why this exists
+ *
+ * The in-memory filesystem is built once, at init, and every Run after that
+ * shares it. Verified in a real browser: a program that writes `planted.txt`
+ * finds it again on the next Run, and a program that opens
+ * `include/bits/stdc++.h` for writing can put `#error` in it and break every
+ * compile that follows until the page is reloaded.
+ *
+ * That is NOT a sandbox escape and it was checked rather than assumed. The
+ * same session also proved the host filesystem is unreachable (`/etc/passwd`
+ * and four others: denied), `system` does not link, `socket` is not even
+ * declared, and the environment is empty. The memfs lives in one Worker, in
+ * one tab, for one learner; nothing in it can reach the host, the page, or
+ * another child.
+ *
+ * What it is, is a footgun with a baffling symptom: the compiler starts
+ * complaining about a header the learner never opened, in a lesson unrelated
+ * to the one where they experimented, and the only cure is a reload nobody
+ * would think to try. It also quietly breaks the promise Run makes — that it
+ * shows you what YOUR program does — because the second run of the same source
+ * can behave differently from the first.
+ *
+ * ## Why "any open at all" is the right trigger
+ *
+ * Decoding WASI's `oflags` and `fs_rights_base` to distinguish reads from
+ * writes would couple this file to the vendored ABI for no benefit. Year 1
+ * teaches no file I/O whatsoever — `ifstream` and `ofstream` appear nowhere in
+ * the curriculum, and stdin/stdout/stderr are already-open descriptors that
+ * never call `path_open`. So for every real lesson this flag is false and
+ * costs nothing, and the only learners who pay for a worker recycle are the
+ * ones who went looking. Over-recycling is a warm restart; under-recycling is
+ * the bug.
+ */
+function watchForFileAccess(a: WasmClangApi): { touched: () => boolean; release: () => void } {
+  const exports = a.memfs.exports;
+  const original = exports.path_open;
+  if (typeof original !== "function") {
+    /* The vendored memfs changed shape. Report "touched" rather than pretend
+       to know: a false recycle is cheap, a missed one is the defect. */
+    return { touched: () => true, release: () => {} };
+  }
+  let seen = false;
+  exports.path_open = (...args: unknown[]) => {
+    seen = true;
+    return (original as (...a: unknown[]) => unknown).apply(exports, args);
+  };
+  return {
+    touched: () => seen,
+    release: () => {
+      exports.path_open = original;
+    },
+  };
+}
+
 interface WasmClangApi {
   ready: Promise<unknown>;
   clangCommonArgs: string[];
@@ -191,6 +251,10 @@ interface WasmClangApi {
     setStdinStr(s: string): void;
     addFile(path: string, contents: string): void;
     getFileContents(path: string): Uint8Array;
+    /* The memfs wasm instance's own exports. `shared.js` spreads these into the
+       `wasi_unstable` import object of every program it runs, which is what
+       makes `path_open` interceptable from here. */
+    exports: Record<string, unknown>;
   };
   compile(o: { input: string; contents: string; obj: string }): Promise<unknown>;
   link(obj: string, wasm: string): Promise<unknown>;
@@ -245,13 +309,19 @@ async function run(msg: Extract<WorkerInbound, { kind: "run" }>): Promise<void> 
 
   if (!api) {
     post({ kind: "result", id: msg.id, status: "runtime_unavailable",
-           stdout: "", stderr: "", truncated: false, runtimeMs: 0 });
+           stdout: "", stderr: "", truncated: false, runtimeMs: 0,
+           filesystemTouched: false });
     return;
   }
 
+  /* Set by the run phase. A compile that never reached `api.run` cannot have
+     let the learner's code near the filesystem, so it stays false. */
+  let filesystemTouched = false;
+
   const done = (status: LocalExecutionStatus, stdout: string, stderr: string) =>
     post({ kind: "result", id: msg.id, status, stdout, stderr,
-           truncated: sink?.truncated ?? false, runtimeMs: Date.now() - started });
+           truncated: sink?.truncated ?? false, runtimeMs: Date.now() - started,
+           filesystemTouched });
 
   /*
    * Three explicit steps rather than the reference's `compileLinkRun`.
@@ -290,10 +360,16 @@ async function run(msg: Extract<WorkerInbound, { kind: "run" }>): Promise<void> 
       return done("runtime_unavailable", "", String(err));
     }
 
+    /* Watch only the learner's program. The compile and link phases above open
+       dozens of sysroot headers legitimately, and watching those would recycle
+       the worker on every single Run. */
+    const watch = watchForFileAccess(api);
     try {
       await api.run(mod, "main.wasm");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      filesystemTouched = watch.touched();
+      watch.release();
       if (sink.truncated) return done("output_limit_exceeded", sink.programOutput(), "");
       /* `ProcExit` with a non-zero code is the program's own `return 1`, not a
          crash of ours. Everything else — a trap, an unhandled exception, a
@@ -301,6 +377,8 @@ async function run(msg: Extract<WorkerInbound, { kind: "run" }>): Promise<void> 
       if (/exited with code 0\b/.test(message)) return done("ok", sink.programOutput(), "");
       return done("runtime_error", sink.programOutput(), message);
     }
+    filesystemTouched = watch.touched();
+    watch.release();
 
     void compilerText;
     return done("ok", sink.programOutput(), "");

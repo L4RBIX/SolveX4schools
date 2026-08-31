@@ -25,14 +25,48 @@ import { CodePanel } from "./primitives";
  *
  * ## Why it stays small
  *
- * A beginner meeting `//` and `%` for the first time does not need breakpoints,
+ * A beginner meeting `/` and `%` for the first time does not need breakpoints,
  * a call stack or an editor. Those are for people who already know what a step
  * IS. The three controls here are the entire interaction surface.
+ *
+ * ## What the move to C++17 changed here
+ *
+ * More than the syntax, which is why this file is not a find-and-replace of
+ * `//` with `/`.
+ *
+ *   - **The program on screen is the whole program.** In Python the trace was
+ *     four self-contained lines. In C++ those four lines do not compile, and a
+ *     learner who has `#include <iostream>` and `int main()` in their own
+ *     editor must not be shown a demonstration that has neither. The frame is
+ *     rendered and the line numbers are the real ones; the frame simply has no
+ *     step of its own, because `docs/cpp17/CPP17_PEDAGOGY.md` gives it rather
+ *     than teaching it.
+ *   - **Variables have a declared type**, and the panel says so. `n` is not
+ *     "17", it is `int n = 17`, and the type is the reason the next two lines
+ *     answer 3 and 2 instead of 3.4.
+ *   - **The arithmetic is different arithmetic.** `Math.floor` was correct for
+ *     Python's `//` and is WRONG for C++'s `/`: they agree on non-negative
+ *     operands and disagree on every negative one (`-7 / 2` is `-3`, not `-4`).
+ *     `truncate` below is C++'s rule, so the visualiser cannot teach Python's
+ *     answer the first time somebody hands it a negative.
+ *   - **`int` has an edge, and it is silent.** A config outside the 32-bit
+ *     signed range would render a program declaring `int n` beside a value
+ *     `int n` cannot hold. That is refused, not clamped and not printed.
  */
 
 export interface StepVariable {
   name: string;
   value: string;
+  /**
+   * The C++ type it was declared with, rendered ahead of the name.
+   *
+   * Optional so an older caller that only knows `{ name, value }` still type
+   * checks, but the September trace always sets it. In Python a variable was
+   * just a name with a value in it; in C++ the declaration is the whole reason
+   * `17 / 5` answers `3`, and a panel that shows `n = 17` without the `int`
+   * has hidden the operative fact.
+   */
+  type?: string;
 }
 
 export interface ExecutionStep {
@@ -63,11 +97,35 @@ export interface StepProgram {
 }
 
 /**
+ * What a C++17 `int` can hold. Anything outside it is not an `int`.
+ *
+ * The programme's own audit rule: «if a task's stated bounds can exceed
+ * 2^31−1, either it comes after l6 or its bounds shrink. Never a task that
+ * overflows silently.» A visualiser is a task like any other, so a config it
+ * cannot honestly draw is refused rather than drawn wrong.
+ */
+const INT_MAX = 2147483647;
+const INT_MIN = -2147483648;
+
+/**
+ * The frame, exactly as the learner has it on screen.
+ *
+ * Line for line the shape every September program in the curriculum uses —
+ * `#include`, `using namespace std;`, blank, `int main() {`, body, `return 0;`,
+ * `}`. `BODY_FIRST_LINE` is where the body starts, so the trace's line numbers
+ * are derived from the frame rather than counted by hand and then drifting from
+ * it the first time the frame gains a line.
+ */
+const PROLOGUE = ["#include <iostream>", "using namespace std;", "", "int main() {"];
+const EPILOGUE = ["    return 0;", "}"];
+const BODY_FIRST_LINE = PROLOGUE.length + 1;
+
+/**
  * The trace, derived from the block's `config`.
  *
- * `{ total: 17, groups: 5 }` walks the four lines the lesson is about — two
- * assignments, then `//` and `%` — but nothing here is specific to 17 and 5,
- * so a later block can hand it a different pair and get a correct trace.
+ * `{ total: 17, groups: 5 }` walks the four body lines the lesson is about —
+ * two declarations, then `/` and `%` — but nothing here is specific to 17 and
+ * 5, so a later block can hand it a different pair and get a correct trace.
  *
  * Returns null rather than inventing a program when the config cannot be read.
  * A visualiser that quietly falls back to somebody else's numbers teaches the
@@ -79,44 +137,82 @@ export function buildStepProgram(
 ): StepProgram | null {
   const total = asInteger(config?.total);
   const groups = asInteger(config?.groups);
-  // A zero divisor has no story to tell, and the Python being imitated would
-  // raise rather than print, so refusing is the only truthful option.
-  if (total === null || groups === null || total < 0 || groups <= 0) return null;
 
-  const quotient = Math.floor(total / groups);
+  /*
+   * Three refusals, and they are refusals for three different reasons.
+   *
+   * `groups === 0` is the one that changed with the language. Python raised
+   * `ZeroDivisionError`, which was at least a definite thing to draw. In C++
+   * dividing by zero is UNDEFINED BEHAVIOUR — the program may print anything,
+   * print nothing, or not finish — so there is no honest trace of it at all,
+   * and the pedagogy is explicit that such tasks are re-authored to guard the
+   * divisor rather than translated.
+   *
+   * `total < 0` stays refused, but not for a language reason: `L.stepQuotient`
+   * narrates the answer as «столько достанется каждому», and negative candy is
+   * not a story. The ARITHMETIC below is correct for negatives regardless, so
+   * relaxing this later needs new wording and nothing else.
+   *
+   * Out of `int` range is refused because the program on screen says `int n`.
+   */
+  if (total === null || groups === null) return null;
+  if (groups <= 0 || total < 0) return null;
+  if (!isInt32(total) || !isInt32(groups)) return null;
+
+  /* C++ truncates toward zero; Python floored. They agree here — `total` is
+     non-negative — and `truncate` is used anyway, so the day the guard above
+     is relaxed this does not quietly start teaching `-7 / 2 === -4`. */
+  const quotient = truncate(total, groups);
+  /* JavaScript's `%` already takes the sign of the dividend, which is C++'s
+     rule too: `-7 % 2` is `-1` in both, and `1` only in Python. */
   const remainder = total % groups;
-  const n: StepVariable = { name: "n", value: String(total) };
-  const k: StepVariable = { name: "k", value: String(groups) };
+
+  const n: StepVariable = { name: "n", value: String(total), type: "int" };
+  const k: StepVariable = { name: "k", value: String(groups), type: "int" };
+
+  const body = [
+    `    int n = ${total};`,
+    `    int k = ${groups};`,
+    "    cout << n / k << endl;",
+    "    cout << n % k << endl;",
+  ];
 
   return {
     /* The same program the learner writes for themselves four blocks later at
-       m1.l3.b5, down to the variable names. Stepping through one shape and then
-       being asked for another would waste the demonstration. */
-    code: [`n = ${total}`, `k = ${groups}`, "print(n // k)", "print(n % k)"].join("\n"),
+       m1.l3.b5, down to the variable names AND the frame around them. Stepping
+       through one shape and then being asked for another would waste the
+       demonstration — and in C++ the frame is part of the shape. */
+    code: [...PROLOGUE, ...body, ...EPILOGUE].join("\n"),
     steps: [
       {
-        line: 1,
+        /* The frame gets no step of its own. `#include`, `using namespace` and
+           `int main()` are GIVEN in September, not taught, and a first step
+           reading "a preprocessor directive ran" would turn the first press of
+           Next into the vocabulary lecture the pedagogy exists to avoid. The
+           numbers are still the real line numbers, so the highlight lands on
+           the line the learner would count to. */
+        line: BODY_FIRST_LINE,
         vars: [n],
         output: [],
         wrote: "n",
         note: L.stepAssign("n", n.value),
       },
       {
-        line: 2,
+        line: BODY_FIRST_LINE + 1,
         vars: [n, k],
         output: [],
         wrote: "k",
         note: L.stepAssign("k", k.value),
       },
       {
-        line: 3,
+        line: BODY_FIRST_LINE + 2,
         vars: [n, k],
         output: [String(quotient)],
         printed: true,
         note: L.stepQuotient(total, groups, quotient),
       },
       {
-        line: 4,
+        line: BODY_FIRST_LINE + 3,
         vars: [n, k],
         output: [String(quotient), String(remainder)],
         printed: true,
@@ -131,6 +227,24 @@ function asInteger(value: unknown): number | null {
   const n =
     typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(n) ? n : null;
+}
+
+/** Whether a whole number fits the `int` the rendered program declares. */
+function isInt32(value: number): boolean {
+  return value >= INT_MIN && value <= INT_MAX;
+}
+
+/**
+ * `a / b` on two C++ `int`s.
+ *
+ * Truncation toward zero, not flooring. This is one of the eight places where
+ * C++ and the Python this course used to teach produce DIFFERENT ANSWERS
+ * rather than different syntax: `7 / 2` is `3` in both, and `-7 / 2` is `-3`
+ * here against Python's `-4`. Verified on both engines — see
+ * `docs/cpp17/CPP17_JUDGE_PARITY.md`.
+ */
+function truncate(a: number, b: number): number {
+  return Math.trunc(a / b);
 }
 
 export function StepExecution({
@@ -152,7 +266,9 @@ export function StepExecution({
       {/* The announcement, said once, in the order a sighted learner takes it
           in. The three visible pieces sit either side of the code panel and a
           live region cannot span them without swallowing the program too —
-          which would re-read all four lines of Python on every press. */}
+          which would re-read the whole program, frame included, on every
+          press. That was four lines under Python and is ten under C++, so the
+          reason this region excludes the code got stronger, not weaker. */}
       <span role="status" aria-live="polite" className="sr-only">
         {t(L.stepCounter(at + 1, program.steps.length), locale)}.{" "}
         {t(L.stepLineRan, locale)} {step.line}. {t(step.note, locale)}
@@ -191,6 +307,12 @@ export function StepExecution({
                       : "border-b-fg/10 bg-b-fg/[0.03]",
                   )}
                 >
+                  {/* The declared type, ahead of the name, exactly as the line
+                      above declared it. Dimmed rather than coloured: it is
+                      context for the value, not a second thing to read. */}
+                  {v.type ? (
+                    <span className="text-b-fg/40">{v.type}</span>
+                  ) : null}
                   <span className="text-b-green-2">{v.name}</span>
                   <span className="text-b-fg/30">=</span>
                   <span className="text-b-fg">{v.value}</span>

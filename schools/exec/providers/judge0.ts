@@ -2,8 +2,11 @@ import "server-only";
 import { recordJudge0Request, type Judge0RequestKind } from "@schools/ops/judge0-usage";
 import { config } from "@schools/config";
 import {
+  JUDGE0_CPP_NAME,
+  MIN_GNU_CXX17_MAJOR,
+} from "@schools/execution/cpp-runtime";
+import {
   EXECUTION_LIMITS,
-  looksLikeCompileError,
   type CodeExecutionProvider,
   type ExecutionRequest,
   type ExecutionResult,
@@ -21,8 +24,8 @@ import {
  *
  * ## The cost model, which is the reason for half the decisions below
  *
- * RUN is Pyodide in the learner's browser and does not come through here.
- * Twenty presses of Run cost zero RapidAPI requests; only SUBMIT spends money.
+ * RUN is the browser's own compiler and does not come through here. Twenty
+ * presses of Run cost zero RapidAPI requests; only SUBMIT spends money.
  * That is not an optimisation to be revisited when someone wants a faster Run —
  * it is what makes a metered judge affordable for a class at all.
  *
@@ -62,10 +65,13 @@ import {
  *
  * No RapidAPI key exists in this repository and nothing in this file has ever
  * spoken to `judge0-ce.p.rapidapi.com`. The wire shapes are written from
- * Judge0's published API; which Python the plan exposes, what its ceilings on
- * `cpu_time_limit` and `memory_limit` are, whether `POST /submissions/batch` is
- * available, and what the rate limit actually is are all UNKNOWN until someone
- * holds a key. Where that matters, the code fails loudly rather than guessing.
+ * Judge0's published API. What HAS since been measured against a real key is
+ * narrow and is recorded in `docs/cpp17/CPP17_JUDGE_PARITY.md`: the C++
+ * catalogue, that `language_id 105` is GCC 14.1 and reports `__cplusplus`
+ * 201703 with no flag, and that `compiler_options` is refused with HTTP 403 on
+ * this plan. Still UNKNOWN: the ceilings on `cpu_time_limit` and `memory_limit`,
+ * whether `POST /submissions/batch` is available, and what the rate limit
+ * actually is. Where that matters, the code fails loudly rather than guessing.
  *
  * ## Residency
  *
@@ -362,13 +368,13 @@ export function resetJudge0GateForTests(): void {
 /** What we found, and can therefore honestly claim, about the interpreter. */
 export interface Judge0Language {
   id: number;
-  /** Judge0's own name for it, verbatim — e.g. `Python (3.11.2)`. */
+  /** Judge0's own name for it, verbatim — e.g. `C++ (GCC 14.1.0)`. */
   name: string;
   /**
    * The version parsed out of `name`, or `null` when it could not be read.
    *
    * `null` is a real answer and is what an operator override produces: an id
-   * with no name behind it means nothing in this system knows which interpreter
+   * with no name behind it means nothing in this system knows which compiler
    * produced a learner's evidence.
    */
   version: string | null;
@@ -377,15 +383,28 @@ export interface Judge0Language {
 }
 
 /**
- * `Python (3.11.2)` and nothing else.
+ * What the judge has to be offering, and why the rule is this narrow.
  *
- * Anchored on purpose, so `Python for ML (3.11.2)` does NOT match. That runtime
- * ships numpy and friends, and `schools/execution/python-policy.ts` enforces
- * "standard library only" BY ABSENCE — the judge simply not having numpy is the
- * whole mechanism. Silently landing on a runtime with it preinstalled would
- * turn a real guarantee into a preference, and would do it invisibly.
+ * The catalogue on this plan holds five C++ entries and exactly one of them can
+ * run this course:
+ *
+ *     52  C++ (GCC 7.4.0)     default gnu++14  — unusable
+ *     53  C++ (GCC 8.3.0)     default gnu++14  — unusable
+ *     54  C++ (GCC 9.2.0)     default gnu++14  — unusable
+ *     76  C++ (Clang 7.0.1)   default gnu++14  — unusable
+ *    105  C++ (GCC 14.1.0)    default gnu++17  — this one
+ *
+ * `compiler_options` is refused with HTTP 403 here, so "unusable" is literal
+ * rather than inconvenient: there is no way to ask the other four for C++17.
+ * A submission routed to one of them would reject the syntax the course teaches
+ * and the learner would read it as their own program being wrong.
+ *
+ * So the matcher is anchored to the GCC family and the version is checked
+ * against `MIN_GNU_CXX17_MAJOR`, and both halves matter. Matching by family
+ * alone would land on GCC 7; matching `C++` alone would land on Clang 7. See
+ * `schools/execution/cpp-runtime.ts` for where those two constants live and
+ * `docs/cpp17/CPP17_JUDGE_PARITY.md` for the measurement behind them.
  */
-const PYTHON_3_NAME = /^Python\s*\((3(?:\.\d+)*)\)$/;
 
 const LANGUAGE_KEY = Symbol.for("solvex.exec.judge0.language");
 type GlobalWithLanguage = typeof globalThis & {
@@ -409,7 +428,7 @@ export interface Judge0Options {
   host: string;
   /** Where requests go. Normally `https://` + host. */
   baseUrl: string;
-  /** Operator override for the Python language id. Skips discovery entirely. */
+  /** Operator override for the C++ language id. Skips discovery entirely. */
   languageId?: number;
   maxConcurrentRequests: number;
   /** First poll delay; it backs off from here. */
@@ -541,26 +560,31 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
   /* ---------------------------------------------------------------------- */
 
   /**
-   * Which Judge0 language id is Python 3 — asked once per process, of the judge.
+   * Which Judge0 language id is a C++17-capable GCC — asked once per process,
+   * of the judge.
    *
-   * **Not hardcoded, deliberately.** The id for Python differs between Judge0
-   * deployments and moves as the hosted catalogue is rebuilt; a constant `71`
-   * copied out of a blog post is how a submission ends up running under Python
-   * 2.7 and reporting a print statement as a syntax error.
+   * **Not hardcoded, deliberately.** The id differs between Judge0 deployments
+   * and moves as the hosted catalogue is rebuilt; a constant copied out of a
+   * blog post is how a submission ends up on GCC 7 and reports structured
+   * bindings as a syntax error. `MEASURED_JUDGE0_CPP_LANGUAGE_ID` records what
+   * this deployment answered so a probe can compare, and nothing submits with
+   * it.
    *
    * A failure here is a PROVIDER ERROR, never a fallback to a guess. A judge
    * that cannot tell us what it runs is a judge whose results we cannot
-   * attribute to an interpreter, and evidence recorded about a child under an
-   * unknown runtime is worth less than no evidence at all.
+   * attribute to a compiler, and evidence recorded about a child under an
+   * unknown toolchain is worth less than no evidence at all. That is also why
+   * `discoverLanguage` refuses an old GCC outright rather than taking the best
+   * of a bad catalogue: see its own comment.
    *
    * ## The version, honestly
    *
-   * Local Run is Pyodide, which reports Python 3.14.2, and SUBMIT via Piston is
-   * pinned at `PYTHON_RUNTIME.version`. What Judge0 CE on RapidAPI actually
-   * exposes is **UNKNOWN** — nothing in this repository has ever asked it. This
-   * function reports what it found rather than what we would like it to be, so
-   * that whoever first runs it against a real key can see the mismatch instead
-   * of assuming parity.
+   * Local Run is Clang 8.0.1 targeting wasm32-wasi with `-std=c++17` passed
+   * explicitly; this side is GCC, relying on its default. They are two
+   * compilers six years apart and the evidence that they agree on the
+   * curriculum's surface is a manual pass recorded in
+   * `docs/cpp17/CPP17_JUDGE_PARITY.md`, not a property this function can
+   * assert. It reports what it found rather than what we would like it to be.
    */
   async language(signal?: AbortSignal, deadline?: number): Promise<Judge0Language> {
     const override = this.options.languageId;
@@ -602,12 +626,30 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
     }
 
     const candidates: Judge0Language[] = [];
+    /* Kept only to tell two failures apart below: a judge with no C++ at all is
+       a different problem from a judge whose C++ is all too old to be told
+       which standard to use. */
+    let rejectedForAge = 0;
+
     for (const entry of body) {
       if (typeof entry !== "object" || entry === null) continue;
       const record = entry as { id?: unknown; name?: unknown };
       if (typeof record.id !== "number" || typeof record.name !== "string") continue;
-      const match = PYTHON_3_NAME.exec(record.name.trim());
+      const match = JUDGE0_CPP_NAME.exec(record.name.trim());
       if (!match) continue;
+
+      /* The floor, and it is a REFUSAL rather than a preference.
+         `compiler_options` is 403 on this plan, so a GCC older than 11 cannot
+         be asked for `-std=c++17`; it would compile the course's own syntax as
+         C++14 and report the learner wrong for writing what they were taught.
+         Silently taking it because it was the only C++ on offer is the exact
+         shape of failure this whole function exists to prevent. */
+      const major = Number.parseInt(match[1].split(".")[0], 10);
+      if (!Number.isFinite(major) || major < MIN_GNU_CXX17_MAJOR) {
+        rejectedForAge += 1;
+        continue;
+      }
+
       candidates.push({
         id: record.id,
         name: record.name.trim(),
@@ -617,12 +659,18 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
     }
 
     if (candidates.length === 0) {
-      throw new Judge0Failure("provider_error", "the judge offers no Python 3 runtime");
+      throw new Judge0Failure(
+        "provider_error",
+        rejectedForAge > 0
+          ? "the judge offers no GCC new enough to default to C++17, and this plan " +
+            "refuses compiler_options, so the standard cannot be requested"
+          : "the judge offers no GNU C++ runtime",
+      );
     }
 
     /* Highest version wins, compared numerically rather than as strings —
-       "3.9" must not beat "3.11". Newest is the right default for a curriculum
-       whose local half runs a current CPython; an operator who needs a
+       "9.2" must not beat "14.1". Newest is the right default for a course
+       whose browser half is C++17 throughout; an operator who needs a
        different one has `JUDGE0_LANGUAGE_ID`. */
     candidates.sort((a, b) => compareVersions(b.version ?? "", a.version ?? ""));
     return candidates[0];
@@ -657,15 +705,25 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
          and the mechanism behind CVE-2024-29021 (SSRF out of the sandbox into
          Judge0's own Postgres). We send it explicitly on every submission
          rather than trusting a hosted deployment's configuration. It also
-         matters pedagogically: `schools/execution/python-policy.ts` enforces
-         "standard library only" by the judge having no network to pip from. */
+         matters pedagogically: `schools/execution/cpp-runtime.ts` enforces
+         "standard library only" by the judge having nothing to fetch a library
+         from. */
       enable_network: false,
 
       /* Explicit, because the default flipping would be invisible and fatal:
-         merged stderr would put a warning line into the stdout our checker
+         merged stderr would put a compiler warning into the stdout our checker
          compares, and a program that printed the right answer would be marked
-         wrong for something CPython wrote to the other stream. */
+         wrong for something the toolchain wrote to the other stream. */
       redirect_stderr_to_stdout: false,
+
+      /* `compiler_options` is NOT here, and cannot be.
+         It is refused with HTTP 403 on this RapidAPI plan — measured, not
+         assumed. The standard therefore has to come from the compiler's own
+         default, which is the entire reason `discoverLanguage` insists on
+         GCC 11 or newer: `gnu++17` by default is the only way this product
+         gets C++17 out of this judge. If a future plan allows the field, the
+         floor can be relaxed — but not before, and not by adding the option
+         here and hoping. */
 
       /* `expected_output` is NOT here and must never be. See the file header:
          SolveX's checker is authoritative, and the answer key does not go to a
@@ -824,16 +882,20 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
       case JUDGE0.TIME_LIMIT_EXCEEDED:
         return { ...base, status: "time_limit_exceeded" };
 
-      /* Python has no compile stage, so this arrives only for languages that do
-         — but if it ever does, the compiler's own output is the useful text and
-         Judge0 puts it in its own field. */
+      /* The ordinary way a C++ mistake arrives. Judge0 puts the compiler's own
+         diagnostics in `compile_output`, its own field, rather than on stderr —
+         so this is STRUCTURAL evidence that the program never ran, and no
+         heuristic over error prose is needed on any path (see the note where
+         `looksLikeCompileError` used to be, in `../provider.ts`).
+         The diagnostics are the useful text here, so they take the place of a
+         stderr that is empty anyway. */
       case JUDGE0.COMPILATION_ERROR: {
         const compiled = cap(rawStdout, compileOutput || rawStderr);
         return { ...base, stdout: compiled.stdout, stderr: compiled.stderr, status: "compile_error" };
       }
 
       /* SIGXFSZ: the program wrote more than the judge allows.
-         `ExecutionStatus` has no output-limit member — the local Pyodide runtime
+         `ExecutionStatus` has no output-limit member — the browser runtime
          has `output_limit_exceeded` and the server side deliberately does not,
          a divergence recorded in `tests/execution/parity-fixtures.ts`. So this
          lands on `runtime_error`, which is at least honest about the half that
@@ -850,9 +912,10 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
       case JUDGE0.RUNTIME_ERROR_OTHER: {
         /* Judge0 CE has no memory-limit status of its own: a program killed on
            `memory_limit` surfaces as one of these signals with the reason in
-           `message`, and CPython's own `MemoryError` surfaces as an ordinary
-           non-zero exit. Both are the learner's program asking for more memory
-           than it may have, which is what `memory_limit_exceeded` means. The
+           `message`, and a C++ program whose allocation fails surfaces as an
+           uncaught `std::bad_alloc` — an ordinary abort. Both are the learner's
+           program asking for more memory than it may have, which is what
+           `memory_limit_exceeded` means. The
            heuristic is narrow and both branches are evidence either way, so
            getting it wrong costs precision, not truthfulness. */
         /* Also base64 under this flag. Read raw it would never match
@@ -862,17 +925,16 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
         if (looksLikeMemoryLimit(b64decode(submission.message), rawStderr)) {
           return { ...base, status: "memory_limit_exceeded" };
         }
-        /* CPython reports a SyntaxError before running a single line, so a
-           missing bracket arrives here as a RUNTIME failure with `SyntaxError`
-           on stderr — the exact trap Piston fell into. The predicate is the
-           SHARED one from the port, imported rather than reimplemented, so two
-           judges cannot reach different conclusions about one missing bracket
-           and a learner is not told their program crashed when it never
-           started. */
-        return {
-          ...base,
-          status: looksLikeCompileError(out.stderr) ? "compile_error" : "runtime_error",
-        };
+        /* A non-zero exit or a signal from a program that DID compile — the
+           judge would have answered status 6 otherwise. So this is the
+           learner's program crashing, and there is nothing to guess: a C++
+           compile error cannot reach this branch.
+           This used to consult a shared `looksLikeCompileError` heuristic over
+           stderr, which existed because CPython reports a SyntaxError as an
+           ordinary non-zero exit. With a real compile stage that reading would
+           now be a liability rather than a safeguard — a program that prints
+           the word `error:` would be reported as never having started. */
+        return { ...base, status: "runtime_error" };
       }
 
       /* Judge0's own bad day. NOT the learner's, so nothing here is recorded
@@ -1210,18 +1272,18 @@ function b64decode(value: unknown): string {
 /**
  * Did the judge kill this for memory?
  *
- * Narrow on purpose. `MemoryError` is CPython's own, raised when an allocation
- * fails; "memory limit exceeded" is isolate's wording when the cgroup ceiling
- * is hit. Anything vaguer would start reading ordinary crashes as memory
- * failures, and both readings are learner evidence anyway — so the cost of
- * being conservative is a less precise message, and the cost of being greedy is
- * a wrong one.
+ * Narrow on purpose. `std::bad_alloc` is the C++ runtime's own, thrown when an
+ * allocation fails and printed by the default terminate handler; "memory limit
+ * exceeded" is isolate's wording when the cgroup ceiling is hit. Anything
+ * vaguer would start reading ordinary crashes as memory failures, and both
+ * readings are learner evidence anyway — so the cost of being conservative is a
+ * less precise message, and the cost of being greedy is a wrong one.
  */
 function looksLikeMemoryLimit(message: string, stderr: string): boolean {
-  return /memory limit/i.test(message) || /\bMemoryError\b/.test(stderr);
+  return /memory limit/i.test(message) || /\bbad_alloc\b/.test(stderr);
 }
 
-/** `3.11` beats `3.9`. String comparison gets that backwards. */
+/** `14.1` beats `9.2`. String comparison gets that backwards. */
 function compareVersions(a: string, b: string): number {
   const left = a.split(".").map((n) => Number.parseInt(n, 10) || 0);
   const right = b.split(".").map((n) => Number.parseInt(n, 10) || 0);

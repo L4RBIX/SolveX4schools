@@ -1,5 +1,6 @@
 import "server-only";
 import { config, trustedProviderConfigured } from "@schools/config";
+import { CPP_STANDARD_MACRO } from "@schools/execution/cpp-runtime";
 import { redactUrl } from "./admin-gate";
 import { counterSnapshot } from "./counters";
 import { providerQuota, type ProviderQuota } from "./provider-quota";
@@ -21,7 +22,7 @@ import { providerQuota, type ProviderQuota } from "./provider-quota";
  * ## Why it lives here rather than in `health.ts`
  *
  * Because two surfaces need it. The admin health report needs it to answer "is
- * the judge up", and the execution dev lab needs it to answer "what interpreter
+ * the judge up", and the execution dev lab needs it to answer "what compiler
  * am I being compared against". Building it twice would produce two answers to
  * the same question, and the one people would believe is whichever one was
  * green.
@@ -54,8 +55,9 @@ export interface MeteredJudgeConfig {
    * `JUDGE0_LANGUAGE_ID`, when an operator pinned one.
    *
    * Not a secret and worth stating plainly: a pinned id means nothing in this
-   * system knows WHICH interpreter produced a learner's evidence, because the
-   * name and version only come back from discovery.
+   * system knows WHICH compiler produced a learner's evidence, because the name
+   * and version only come back from discovery — and it means the GCC-11 floor
+   * that guarantees a `gnu++17` default was never applied.
    */
   pinnedLanguageId: number | null;
   /** The process-wide ceiling on submissions in flight. */
@@ -164,18 +166,18 @@ export function trustedJudgeConfig(): TrustedJudgeConfig {
 /* The paid half: what happens when we actually call it                        */
 /* -------------------------------------------------------------------------- */
 
-/** The interpreter the judge says it will use, as far as it can be established. */
+/** The compiler the judge says it will use, as far as it can be established. */
 export interface DiscoveredRuntime {
   /** The language id the judge will be sent. */
   id: number;
-  /** The judge's own name for it, verbatim — e.g. `Python (3.11.2)`. */
+  /** The judge's own name for it, verbatim — e.g. `C++ (GCC 14.1.0)`. */
   name: string;
   /**
    * The version parsed out of that name, or `null` when nothing knows it.
    *
    * `null` is what an operator override produces, and it is a real answer with
-   * a real consequence: a learner's evidence was produced by an interpreter
-   * this system cannot name.
+   * a real consequence: a learner's evidence was produced by a compiler this
+   * system cannot name.
    */
   version: string | null;
   /** `true` when the id came from `JUDGE0_LANGUAGE_ID` and not from the judge. */
@@ -201,11 +203,19 @@ export interface JudgeProbe {
    * provider response body.
    */
   runtimeProblem: string | null;
-  /** `print(1)`, run through the real provider on the real path. */
+  /** The canary program, run through the real provider on the real path. */
   execution: {
     /** The port's `ExecutionStatus`, as a string. Judge0 ids never reach here. */
     status: string;
-    /** Did it print `1`? The only assertion this probe makes about Python. */
+    /**
+     * Did the judge answer with the standard this course requires?
+     *
+     * The canary prints `__cplusplus`, so this is `true` only when the judge
+     * compiled as C++17. A probe that asserted nothing about the standard would
+     * go green against a GCC 9 that rejects every lesson from October onwards —
+     * a probe that keeps passing while pointed at the wrong compiler is worse
+     * than one that fails, because it is the thing people check first.
+     */
     ok: boolean;
     /** As the judge measured it. */
     timeMs: number;
@@ -265,7 +275,8 @@ const NOT_ATTEMPTED = (why: string, ranAt: string): JudgeProbe => ({
  * Costs, against Judge0: one `GET /languages` on the first probe of a process
  * (discovery is cached afterwards), one `POST /submissions`, and one poll per
  * round until it answers. Three or four requests in the ordinary case, and
- * that is why nothing calls this on a timer.
+ * that is why nothing calls this on a timer. A compile makes the polls a little
+ * more likely than an interpreted run did; it does not change the shape.
  *
  * Never throws. Every failure is a field.
  */
@@ -305,16 +316,19 @@ export async function probeTrustedJudge(): Promise<JudgeProbe> {
     reachable = discovery.reachable;
   } else {
     runtimeProblem =
-      `The ${cfg.provider} provider does not report which interpreter it will use. ` +
+      `The ${cfg.provider} provider does not report which compiler it will use. ` +
       "The version this system claims for it is the written-down number in " +
-      "schools/execution/python-policy.ts, which nothing verifies at runtime.";
+      "schools/execution/cpp-runtime.ts, which nothing verifies at runtime. For " +
+      "piston that number carries an open question of its own: which standard " +
+      "its c++ run script compiles with has never been checked against a real " +
+      "host, and the canary below is the thing that would answer it.";
   }
 
   let execution: JudgeProbe["execution"] = null;
   let executionProblem: string | null = null;
 
   if (runtimeProblem !== null && reachable === false) {
-    /* Discovery already proved the judge will not talk to us. A `print(1)` would
+    /* Discovery already proved the judge will not talk to us. The canary would
        fail identically and cost another request to say so. */
     executionProblem =
       "Skipped: the judge could not be reached for language discovery, so a " +
@@ -392,10 +406,12 @@ async function discoverRuntime(): Promise<{
         },
         /* Not an error, and still worth a sentence. A pinned id is a decision
            somebody made, and its cost is that this report cannot say which
-           Python a learner was graded on. */
+           compiler a learner was graded on — nor whether it defaults to
+           `gnu++17`, which is the check discovery exists to perform. */
         problem:
           "JUDGE0_LANGUAGE_ID is set, so discovery was skipped and the judge was not " +
-          "asked which interpreter this id is. Unset it to have the runtime named.",
+          "asked which compiler this id is, or whether it is new enough to compile " +
+          "C++17 without a flag this plan refuses. Unset it to have both checked.",
         /* NOT `true`. An override makes no request at all, so nothing here has
            reached anything — claiming reachable would be reporting a network
            fact we did not observe, and it would survive even when the
@@ -437,14 +453,38 @@ function discoveryProblem(err: unknown): string {
 }
 
 /**
- * `print(1)`, through the real provider on the real path.
+ * The canary, through the real provider on the real path.
  *
  * Through `getExecutionProvider` on purpose, decorators and all: a probe that
  * bypassed the size guard and the counters would be exercising a code path no
- * learner uses. Deliberately trivial — the question is "did the judge answer",
- * not "does Python work", and a heavier program only makes it slower and more
- * expensive.
+ * learner uses.
+ *
+ * ## Why it prints `__cplusplus` rather than `1`
+ *
+ * The old probe ran `print(1)` and asked whether the judge said `1`. Ported
+ * naively that becomes a C++ program printing `1`, which is a strictly worse
+ * test than it looks: **every** C++ compiler in Judge0's catalogue passes it,
+ * including the three GCCs that default to `gnu++14` and would reject the
+ * language from October onwards. The probe would stay green while pointed at a
+ * compiler that cannot run the course, which is the failure mode a probe exists
+ * to prevent rather than to demonstrate.
+ *
+ * So the canary answers the only question worth a paid request: *did this judge
+ * compile my program as C++17?* `__cplusplus` is the compiler's own answer, it
+ * costs the same one submission, and `201703` is a value nothing else produces.
+ * `compiler_options` is refused with HTTP 403 on this plan, so the macro is
+ * also the ONLY way to find out — there is no flag to send and no field to read.
+ *
+ * Still deliberately trivial: no input, no allocation, one line of output.
  */
+export const JUDGE_CANARY_SOURCE = [
+  "#include <iostream>",
+  "int main(){ std::cout << __cplusplus; }",
+].join("\n");
+
+/** What the canary must print. Anything else is a judge this course cannot use. */
+const JUDGE_CANARY_EXPECTED = String(CPP_STANDARD_MACRO);
+
 async function runTrivialProgram(): Promise<{
   execution: JudgeProbe["execution"];
   problem: string | null;
@@ -456,13 +496,19 @@ async function runTrivialProgram(): Promise<{
       return { execution: null, problem: "There is no trusted provider to call." };
     }
     const result = await provider.run({
-      language: "python3",
-      sourceCode: "print(1)",
+      language: "cpp17",
+      sourceCode: JUDGE_CANARY_SOURCE,
       stdin: "",
-      timeLimitMs: 3_000,
+      /* Longer than the old 3 s, because this one COMPILES. A cold GCC on a
+         rented judge is comfortably under a second, but a budget that fitted an
+         interpreter starting up is not a budget for a toolchain, and a probe
+         timing out on its own ceiling would be reported as the judge being
+         down. */
+      timeLimitMs: 5_000,
       memoryLimitMb: 64,
     });
-    const ok = result.status === "ok" && result.stdout.trim() === "1";
+    const printed = result.stdout.trim();
+    const ok = result.status === "ok" && printed === JUDGE_CANARY_EXPECTED;
     return {
       execution: {
         status: result.status,
@@ -471,10 +517,17 @@ async function runTrivialProgram(): Promise<{
         infrastructure: result.infrastructureError,
       },
       problem: result.infrastructureError
-        ? `The judge did not answer a trivial program: ${result.status}.`
+        ? `The judge did not answer the canary program: ${result.status}.`
         : ok
           ? null
-          : `The judge answered a trivial program with ${result.status} rather than a 1.`,
+          : result.status === "ok"
+            ? `The judge compiled the canary but reported __cplusplus as ` +
+              `${printed || "nothing at all"} rather than ${JUDGE_CANARY_EXPECTED}. It is ` +
+              "running, and it is not running C++17 — every lesson using a C++17 " +
+              "feature will be marked wrong. This plan refuses compiler_options, so " +
+              "the fix is a newer compiler on the judge, not a flag."
+            : `The judge answered the canary with ${result.status} rather than ` +
+              `${JUDGE_CANARY_EXPECTED}.`,
     };
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);

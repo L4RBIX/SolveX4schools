@@ -534,17 +534,18 @@ export async function POST(request: Request) {
    * browser's word rather than re-derived — trust, the hint ceiling, episode
    * ownership and the verdict are all recomputed server-side. Unguarded, a
    * `lastRun` posted alongside a multiple-choice block made the system prompt
-   * assert "The learner pressed Run. Python executed IN THEIR OWN BROWSER"
-   * about a quiz question, and a reported `runtime_unavailable` had Nova
-   * apologise for a runtime that block never loads.
+   * assert that their C++ was compiled and executed in their own browser about
+   * a quiz question, and a reported `runtime_unavailable` had Nova apologise
+   * for a toolchain that block never loads.
    *
    * The condition is the same one `RunPanel` is mounted on: a block with
    * `code` in it is a block with an editor.
    *
    * This is the second half of "Nova can see the screen". `draft` carries what
-   * the learner TYPED; this carries what Python SAID about it — the traceback
-   * in `stderr` is the whole answer to «Почему ошибка?», and without it the
-   * tutor is reduced to asking which error they got.
+   * the learner TYPED; this carries what the COMPILER said about it — and in
+   * C++ that is usually the whole conversation. The diagnostic in `stderr` is
+   * the answer to «Почему ошибка?», it is in English, and the learner cannot
+   * read it; without it the tutor is reduced to asking which error they got.
    */
   const runnable = "code" in block || "cases" in block;
   const execution = executionContextFor({
@@ -563,11 +564,16 @@ export async function POST(request: Request) {
       blockPrompt: "prompt" in block ? block.prompt[locale] : target.lesson.title[locale],
       blockCode: "code" in block && typeof block.code === "string" ? block.code : undefined,
       skills: block.skillRefs,
-      /* Which Python this learner has actually been shown, computed by walking
-         the curriculum in teaching order up to this block. Null only if the id
-         resolves to a block outside that walk, in which case the prompt is built
-         exactly as it was before — degraded, never blocked. */
+      /* Which constructs this learner has actually been shown, computed by
+         walking the curriculum in teaching order up to this block. Null only if
+         the id resolves to a block outside that walk, in which case the prompt
+         is built exactly as it was before — degraded, never blocked. */
       capability: capabilityFor(block.id),
+      /* Where in the nine months they are, for the C++17 sequence gate in
+         `@schools/nova/cpp17`. The id, not a derived position: the prompt
+         builder owns that derivation, so the dev lab and the tests get the same
+         answer as production without restating the parsing. */
+      blockId: block.id,
       directive,
       grant,
       briefOffTopic: safety.verdict === "ALLOW_BRIEF_OFFTOPIC",
@@ -597,9 +603,10 @@ export async function POST(request: Request) {
      * the programme rules out handing over at any hint level.
      *
      * Added WHOLE rather than line by line, and that granularity is the point.
-     * `n = int(input())` is both the first line of half the reference solutions
+     * `cin >> n;` is both the first body line of half the reference solutions
      * in September and the idiom the month exists to teach — forbidding it
-     * line-wise would gag Nova on the curriculum itself. Matching the complete
+     * line-wise would gag Nova on the curriculum itself, and on the frame the
+     * course hands the learner already written. Matching the complete
      * program catches verbatim reproduction and nothing else; the shape check
      * in `validate.ts` (`code.wholeProgram`) is what catches a solution
      * rewritten rather than copied. */

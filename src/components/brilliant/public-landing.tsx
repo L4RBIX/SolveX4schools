@@ -10,6 +10,7 @@ import { SolveXWordmark } from "./app/school-chrome";
 import { useLocale } from "@/components/sx/i18n";
 import { LocaleToggle } from "./locale-toggle";
 import type { Locale } from "@schools/curriculum/types";
+import { YEAR_ONE_LANGUAGE_LABEL } from "@schools/curriculum/source-of-truth";
 
 /**
  * The public site.
@@ -38,8 +39,22 @@ import type { Locale } from "@schools/curriculum/types";
 
 const ORIGIN = "/assets/original/brilliant/brilliant.org";
 
-/* The Computer Science clip. Each row seeks to a different point in its 17.4s
-   runtime — three rows opening on the same frame reads as a mistake. */
+/*
+ * The Computer Science clip. Each row seeks to a different point in its 17.4s
+ * runtime — three rows opening on the same frame reads as a mistake.
+ *
+ * RELEASE BLOCKER, art not code: this clip is Brilliant's, and its second scene
+ * is a Python lesson — `print(...)`, `else:`, `and`, `False` — captioned
+ * "Python" in display type. Its poster frame IS that scene, so until autoplay
+ * starts, all three rows of a landing page for a C++17 course show the word
+ * Python at a parent. Row two (`startAt: 6`) then opens inside it.
+ *
+ * Not fixed here on purpose. Replacing Brilliant-derived artwork is reserved to
+ * the owner, and re-seeking the rows past the Python scene would hide the
+ * caption while leaving the poster — a fix that looks like one and is not. The
+ * honest repair is our own footage, the same way the hero card below already
+ * has its own.
+ */
 const CS = {
   webm: `${ORIGIN}/videos/homepage/courses/cs-refresh.webm`,
   poster: `${ORIGIN}/videos/homepage/courses/posters/cs-refresh.png`,
@@ -58,7 +73,7 @@ const COPY: Record<Locale, {
     navStart: "Оқуды бастау",
     heroHeading: "Есеп шығару арқылы бағдарламалауды үйрен",
     heroBody:
-      "9-сыныпқа арналған тоғыз айлық спорттық бағдарламалау бағдарламасы. Қысқа түсіндіру — және бірден практика. Уақыттың 70 пайызы есеп шығаруға кетеді.",
+      `9-сыныпқа арналған тоғыз айлық спорттық бағдарламалау бағдарламасы. ${YEAR_ONE_LANGUAGE_LABEL} тілінде, нөлден бастап. Қысқа түсіндіру — және бірден практика. Уақыттың 70 пайызы есеп шығаруға кетеді.`,
     heroPrimary: "Оқуды бастау",
     heroSecondary: "Мектептерге",
     novaHeading: "Nova — сенің көмекшің",
@@ -96,7 +111,7 @@ const COPY: Record<Locale, {
     navStart: "Начать обучение",
     heroHeading: "Учись программировать, решая задачи",
     heroBody:
-      "Девятимесячная программа спортивного программирования для 9 класса. Короткое объяснение — и сразу практика. 70 процентов времени уходит на решение задач.",
+      `Девятимесячная программа спортивного программирования для 9 класса. На ${YEAR_ONE_LANGUAGE_LABEL}, с нуля. Короткое объяснение — и сразу практика. 70 процентов времени уходит на решение задач.`,
     heroPrimary: "Начать обучение",
     heroSecondary: "Для школ",
     novaHeading: "Nova — твой помощник",
@@ -164,11 +179,18 @@ export function PublicLanding() {
           fixed pill bar (16px inset + 56px tall). */}
       <div className="bg-b-paper pt-[72px]">
         <Hero
-          /* A real SolveX lesson: the task, the code being written, Python
-             running in the browser, and the check going green. The three
-             feature rows below keep the reference footage — only this card,
-             which is the page's claim about what you are signing up for,
-             shows our own product. */
+          /* A real SolveX lesson: the task, the code being written, the
+             program compiling and running in the browser, and the check going
+             green. The three feature rows below keep the reference footage —
+             only this card, which is the page's claim about what you are
+             signing up for, shows our own product.
+
+             RELEASE BLOCKER, art not code: this recording predates the move to
+             C++17. Its frame shows `print((int(a) + int(b) - 1) % 7 + 1)` and
+             the caption «Бағдарламаң input() арқылы оқитын мәтін», so the one
+             card that claims to show OUR product shows a Python one. It needs
+             re-recording against a C++ lesson; nothing in this file can fix
+             it. */
           clip={{
             webm: "/videos/solvex/lesson-coding.webm",
             poster: "/videos/solvex/lesson-coding.png",

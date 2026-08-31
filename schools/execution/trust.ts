@@ -3,12 +3,12 @@
  *
  * ## The distinction this file exists to make unforgeable
  *
- * A learner presses Run and Python executes — in their own browser, under
- * Pyodide, on a runtime they can open DevTools and edit. It is real Python and
- * the output is genuinely useful; it is also a claim made by the party being
- * assessed. A learner presses Submit and the same source runs on our server
- * against cases they have never seen. Those two results can be byte-identical
- * and they are not the same kind of fact.
+ * A learner presses Run and their C++ is compiled and executed — in their own
+ * browser, by a WebAssembly clang, on a runtime they can open DevTools and
+ * edit. It is a real compiler and the output is genuinely useful; it is also a
+ * claim made by the party being assessed. A learner presses Submit and the same
+ * source runs on our server against cases they have never seen. Those two
+ * results can be byte-identical and they are not the same kind of fact.
  *
  * Everything downstream — Learning Intelligence, the assessment, a contest
  * result, the sentence a teacher reads — depends on never confusing them. So
@@ -18,9 +18,14 @@
  * ## Why it is not derived from the status
  *
  * The tempting shortcut is `status === "ok" → trusted`. That is exactly the bug:
- * a Pyodide run that prints the right answer has `status: "ok"` and is worth
+ * a browser run that prints the right answer has `status: "ok"` and is worth
  * nothing as evidence. Trust is a property of the EXECUTOR, not of the outcome,
  * so it is set where the execution happened and carried, never recomputed.
+ *
+ * Nothing in this file knows or cares which language ran. The engine underneath
+ * it changed from CPython to a C++ toolchain without a single value below
+ * moving, which is the property that made the migration safe rather than a
+ * coincidence worth noticing.
  *
  * Kept free of `server-only` deliberately: the worker and the lesson player
  * need these types, and the safety comes from the server refusing to accept a
@@ -29,9 +34,10 @@
 
 export type ExecutionTrust =
   /**
-   * Ran in the learner's browser. Real Python, real output, and entirely under
-   * the control of the person being measured. Good for feedback, iteration and
-   * context for Nova. Never sufficient on its own for independent evidence.
+   * Ran in the learner's browser. A real compiler, real output, and entirely
+   * under the control of the person being measured. Good for feedback,
+   * iteration and context for Nova. Never sufficient on its own for independent
+   * evidence.
    */
   | "client_local"
   /**
@@ -46,12 +52,26 @@ export type ExecutionTrust =
  * Deliberately a separate union from the server's `ExecutionStatus` rather than
  * a reuse of it. They overlap heavily and they are not the same domain: the
  * browser has no memory cgroup and no judge that can be unreachable, and it has
- * a failure mode the server does not — the runtime itself failing to load.
+ * a failure mode the server does not — the toolchain itself failing to load.
  * Sharing one union would mean every server switch growing a case it can never
  * see, and every client switch growing three.
  */
 export type LocalExecutionStatus =
   | "ok"
+  /**
+   * The program did not compile.
+   *
+   * The name is from the Python era and is now a misnomer: clang reports a
+   * missing semicolon, a type error and an unknown identifier all through this
+   * member, and only the first is a syntax error in any strict sense. It is
+   * KEPT rather than renamed because renaming it is a change to the trust
+   * boundary's own vocabulary — a union every producer and consumer of a local
+   * result switches on, including code outside this subsystem — and the
+   * execution engine changing is not a licence to move it. The server's
+   * counterpart is `compile_error`; the correspondence is written down in
+   * `tests/execution/parity-fixtures.ts`, which is the right place for a
+   * rename to start.
+   */
   | "syntax_error"
   | "runtime_error"
   /** The learner's program was still running when the local budget expired. */
@@ -59,7 +79,7 @@ export type LocalExecutionStatus =
   /** The learner's program printed past the local cap. */
   | "output_limit_exceeded"
   /**
-   * Pyodide did not start, or the worker died.
+   * The toolchain did not start, or the worker died.
    *
    * NOT a statement about the learner's program — it is the local equivalent of
    * `provider_error`, and it must never be recorded as something they did.
@@ -91,9 +111,9 @@ export interface LocalRunResult {
 /**
  * Does this outcome say something about the learner?
  *
- * `runtime_unavailable` does not: Pyodide failing to download is our problem, in
- * the same way a dead judge is. The two systems use the same rule so that
- * neither can quietly become the exception.
+ * `runtime_unavailable` does not: the compiler failing to download is our
+ * problem, in the same way a dead judge is. The two systems use the same rule so
+ * that neither can quietly become the exception.
  */
 export function isLearnerOutcome(status: LocalExecutionStatus): boolean {
   return status !== "runtime_unavailable";
@@ -106,7 +126,7 @@ export function isLearnerOutcome(status: LocalExecutionStatus): boolean {
  * the learner's whole working surface: five seconds of a frozen-feeling Run
  * button is worse than being told quickly that the program did not finish, and
  * a local run is not evidence, so cutting it early costs nothing but a retry.
- * `while True: pass` must stop being a mystery within a couple of seconds.
+ * `while (true) {}` must stop being a mystery within a couple of seconds.
  *
  * The output cap matches the server's 64 KiB exactly, and that is not a
  * coincidence to be tidied away: a program whose output is truncated locally

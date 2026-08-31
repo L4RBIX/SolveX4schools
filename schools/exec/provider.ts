@@ -9,8 +9,18 @@ import "server-only";
  */
 
 export interface ExecutionRequest {
-  /** Only `python3` for year one. The curriculum teaches Python. */
-  language: "python3";
+  /**
+   * Only `cpp17` for year one. The curriculum teaches C++17.
+   *
+   * A one-member union rather than a `string`, deliberately. The port used to
+   * say `python3` and every provider translated it; if it said `string` a
+   * caller could ask for a language no provider can honestly supply and find
+   * out from a learner's failed submission. Adding a second language means
+   * adding it here, which makes every provider's `switch` a compile error until
+   * someone decides what that provider does with it — see
+   * `schools/execution/cpp-runtime.ts` for the vendor spellings this maps to.
+   */
+  language: "cpp17";
   sourceCode: string;
   stdin: string;
   timeLimitMs: number;
@@ -112,29 +122,33 @@ export interface ExecutionResult {
   providerId: string;
 }
 
-/**
- * Did this stderr come from a program that never ran at all?
+/*
+ * ## The predicate that used to live here, and why it is gone
  *
- * CPython reports a syntax error before executing a single line, so "your
- * program did not compile" and "your program crashed while running" are
- * genuinely different events — and they are different things to say to a
- * fourteen-year-old, who needs to look at their punctuation in one case and
- * their logic in the other.
+ * `looksLikeCompileError(stderr)` matched `/SyntaxError|IndentationError|
+ * TabError/` and existed because Python has no compile STAGE: CPython refuses a
+ * file before executing a line of it, but it says so on stderr with a non-zero
+ * exit, which is indistinguishable from a crash unless something reads the
+ * prose. Both providers had to read the same prose or `EXEC_PROVIDER=local` and
+ * `EXEC_PROVIDER=piston` would give a learner different words for one missing
+ * bracket, so the guess was shared rather than duplicated.
  *
- * It lives here rather than in a provider because BOTH providers have to reach
- * the same answer about the same program. They did not: the local subprocess
- * matched this pattern and Piston did not, so flipping `EXEC_PROVIDER` from
- * `local` to `piston` silently changed the message a learner got for a missing
- * bracket. One predicate, imported twice, cannot drift.
+ * C++ has a compile stage, and every engine reports it structurally:
  *
- * Known imprecision, shared deliberately: a program that catches a SyntaxError
- * at runtime and prints it — `eval("(")` — is read as a compile error. Both
- * providers agree on that too, which is worth more than either being subtly
- * cleverer than the other.
+ *   - Judge0 answers status id 6, `COMPILATION_ERROR`, with the diagnostics in
+ *     `compile_output` — its own field, not stderr.
+ *   - Piston populates `body.compile` with a non-zero code.
+ *   - The local provider compiles and links as a separate child process, and
+ *     only runs the binary if that succeeded.
+ *   - The browser compiles with clang and links with lld before it executes.
+ *
+ * So "did not compile" is now OBSERVED on all four, and a heuristic over
+ * diagnostic text would be strictly worse: `error:` appears in plenty of
+ * programs' own runtime output, and a learner printing it would be told their
+ * program never started. The distinction the old comment defended — punctuation
+ * versus logic, which really are different afternoons for a fourteen-year-old —
+ * is preserved exactly, by evidence instead of by pattern.
  */
-export function looksLikeCompileError(stderr: string): boolean {
-  return /SyntaxError|IndentationError|TabError/.test(stderr);
-}
 
 /**
  * Is the JUDGE at fault?
@@ -186,7 +200,7 @@ export interface CodeExecutionProvider {
    *
    * Two things call a provider: SUBMIT, which must be trusted and is worth
    * paying for, and `/api/exec/run` — the Run fallback for a browser that
-   * cannot load Pyodide. Until a metered judge existed those were the same
+   * cannot load the compiler. Until a metered judge existed those were the same
    * kind of call. With Judge0 CE on RapidAPI they are not, and the arithmetic
    * is not close:
    *
@@ -252,8 +266,8 @@ export const EXECUTION_LIMITS = {
   /** Beyond this the output is not a result, it is a print statement in a loop. */
   maxOutputBytes: 64 * 1024,
   /**
-   * 64 KiB of source — roughly 1,600 lines of ordinary Python at 40 bytes a
-   * line, or 800 if it is commented in Kazakh at two bytes a character.
+   * 64 KiB of source — roughly 1,600 lines of ordinary C++ at 40 bytes a line,
+   * or 800 if it is commented in Kazakh at two bytes a character.
    *
    * Grade 9 does not write 1,600 lines. The longest reference solution in the
    * approved programme is under 20, and the longest thing a learner plausibly

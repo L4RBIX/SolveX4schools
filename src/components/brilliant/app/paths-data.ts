@@ -5,6 +5,13 @@
  *
  * `starred` marks the two rows the account had saved — the original renders
  * those under "Your learning paths" and the rest under "Other learning paths".
+ *
+ * The Python in here is Brilliant's, not ours. "Thinking in Python" is a real
+ * course on a real site, this tree is a verbatim reproduction of it, and
+ * `/brilliant/**` 404s outside development (`tests/school/routes.test.ts`). A
+ * migration that renamed it to C++ would break the only baseline the product's
+ * own pages are measured against, and would put a course name on a page that
+ * the site it copies does not have. Leave it.
  */
 
 const CAT = "/assets/original/brilliant/ds055uzetaobb.cloudfront.net/category-images";

@@ -55,21 +55,33 @@ import type { LessonBlock } from "../../types";
  * VISIBLE, so the learner meets the boundary before a hidden case judges them
  * on it.
  *
- * ## The `[end, start]` trick, and why it is the lesson rather than a hack
+ * ## The `{end, start}` trick, and why it is the lesson rather than a hack
  *
- * `sorted()` and `.sort()` arrived in December with no `key=`, and `lambda` is
- * not in this course at all. So sorting by finishing time is done by storing
- * the pair the other way round: `a.append([e, s])`, and `.sort()` — which
- * compares the first entries, then the second — orders by end. That is not a
- * workaround for a missing feature; it is the lesson's own claim made
+ * `sort` arrived in December with no comparator, and a lambda is not something
+ * this course asks a learner to write. So sorting by finishing time is done by
+ * storing the pair the other way round: `a.push_back({e, s})`, and `sort` —
+ * which compares `.first` and only then `.second` — orders by end. That is not
+ * a workaround for a missing feature; it is the lesson's own claim made
  * executable. Reordering the pair changes what "first" means, which is exactly
  * what `b1` says in words and `b3` versus `b5` shows in two programs that
  * differ only in that.
  *
- * Constructs: nothing new arrives. A list whose elements are two-element lists
- * is October's list literal applied twice and October's `[i]` applied twice,
- * and `b1` names both out loud the first time they appear, per the authoring
- * contract's rule 6.
+ * Constructs: nothing new arrives. `pair<int, int>` and `.first` / `.second`
+ * are March's, `vector` and `push_back` are October's, `sort` is December's,
+ * and `b1` names the pair's two halves out loud the first time they appear,
+ * per the authoring contract's rule 6.
+ *
+ * ## The C++17 migration, and what it changed
+ *
+ * Nothing about the numbers. Every case in this file survives the language
+ * change unaltered, because every quantity here is a small count: `n ≤ 1000`,
+ * times `≤ 1000`, and `b9`'s money and prices `≤ 1000000` with the purse only
+ * ever shrinking. Nothing in the lesson can pass 2^31−1, so `int` is honest
+ * throughout and no `long long` appears.
+ *
+ * What did change is the shape of the pair. Python's `[e, s]` and `p[0]` become
+ * `pair<int, int>` and `p.first`, and the prompts say so, because a prompt that
+ * describes an index into a pair would describe something that does not exist.
  *
  * ## Programs, and why no two of them are the same program
  *
@@ -84,7 +96,7 @@ import type { LessonBlock } from "../../types";
  *   b3   the EARLIEST-START rule, hard-coded, prints a count
  *   b5   the earliest-END rule, hard-coded and pre-sorted, prints the final
  *        `last` — no counter anywhere in it
- *   b6   reads pre-sorted input, prints `yes`/`no` per class — no list, no sort
+ *   b6   reads pre-sorted input, prints `yes`/`no` per class — no vector, no sort
  *   b7   reads input, sorts, prints the chosen classes' END times, one per line
  *   b8   reads input, sorts, prints ONE number — the count   ← learner writes it
  *   b8s  b8 from a starter that prints the earliest finishing time
@@ -102,10 +114,10 @@ import type { LessonBlock } from "../../types";
  *
  * Of the authoring contract's three honest options, this file takes
  * **option 2 — state it as guidance and grade the answer**. Nowhere does a
- * prompt say "you must sort by end time" or "you must use `.sort()`": output
+ * prompt say "you must sort by end time" or "you must use `sort`": output
  * comparison cannot see either, and `b8`'s answer is a single number that only
  * a correct choice produces, so any method that gets it right deserves to pass.
- * The `[end, start]` idea is offered as advice in `b1` and `b2` and is never
+ * The `{end, start}` idea is offered as advice in `b1` and `b2` and is never
  * dressed up as a rule the machine is checking. `b9` goes further and does not
  * even name its rule — the learner is asked to propose one and to try to break
  * it, which is the month's whole point and is graded on the count it produces.
@@ -164,14 +176,32 @@ export const M8_L1: LessonBlock[] = [
     },
     /* Two ideas, and the order matters: first that a rule is a claim to be
        tested (the month's own «қарсы мысал іздеу дағдысы»), then that sorting
-       is what fixes the meaning of "first". The list-of-lists and the double
-       index are named here because this is where they first appear, and
-       `.sort()` is recalled from December rather than assumed. */
+       is what fixes the meaning of "first". `pair` and `.first` / `.second` are
+       recalled from March and `sort` from December, because this is where the
+       two meet for the first time. */
     body: {
-      kk: "Кейбір есептерде шешім қадам-қадаммен жиналады, ал әр қадамда бірнеше нұсқа болады. Ең қарапайым идея — әр қадамда ең тиімді болып КӨРІНГЕН нұсқаны алу. Осындай ережені ашкөз ереже деп атайды.\n\nБірақ мұндай ереже — дайын жауап емес, ұсыныс. «Ең тиімдісі» деген сөздің өзі есепке байланысты: ең ертесі ме, ең қысқасы ма, ең арзаны ма? Әр ұсыныс шын мәнінде ең жақсы жауапқа жеткізеді ме — оны тексеру керек. Тексерудің ең қысқа жолы: ереже жаңылысатын шағын мысал іздеу.\n\n«Бірінші» деген сөздің нені білдіретінін реттеу шешеді. Желтоқсанда ашылған `sort()` тізімді реттейді, ал тізімнің элементтері өздері де тізім бола алады: `[[9, 1], [5, 2]]` — екі жұптан тұратын тізім. `sort()` алдымен әр жұптың БІРІНШІ санын салыстырады, олар тең болса ғана екіншісіне көшеді. Жұптың ішіндегі санға `b[0][0]` түрінде жетесің: бірінші индекс жұпты, екіншісі сол жұптағы санды таңдайды.\n\nОсыдан пайдалы амал шығады: жұпты қай ретпен жинасаң, `sort()` соны бірінші деп санайды. Аяқталу уақыты бойынша реттегің келсе, жұпты `[аяқталу, басталу]` түрінде жинайсың.",
-      ru: "В некоторых задачах решение собирается шаг за шагом, и на каждом шаге есть несколько вариантов. Самая простая идея — брать на каждом шаге тот вариант, который КАЖЕТСЯ самым выгодным. Такое правило называют жадным.\n\nНо такое правило — не готовый ответ, а предложение. Само слово «самый выгодный» зависит от задачи: самый ранний? самый короткий? самый дешёвый? Приводит ли предложенное правило к действительно лучшему ответу — это нужно проверять. Самый короткий способ проверки: искать небольшой пример, на котором правило ошибается.\n\nЧто означает слово «первый», решает сортировка. Появившийся в декабре `sort()` упорядочивает список, а элементами списка могут быть сами списки: `[[9, 1], [5, 2]]` — это список из двух пар. `sort()` сравнивает сначала ПЕРВЫЕ числа пар и переходит ко вторым, только если первые равны. До числа внутри пары добираешься так: `b[0][0]` — первый индекс выбирает пару, второй выбирает число в ней.\n\nОтсюда следует полезный приём: в каком порядке ты сложишь пару, то `sort()` и будет считать первым. Хочешь упорядочить по времени окончания — складывай пару как `[окончание, начало]`.",
+      kk: "Кейбір есептерде шешім қадам-қадаммен жиналады, ал әр қадамда бірнеше нұсқа болады. Ең қарапайым идея — әр қадамда ең тиімді болып КӨРІНГЕН нұсқаны алу. Осындай ережені ашкөз ереже деп атайды.\n\nБірақ мұндай ереже — дайын жауап емес, ұсыныс. «Ең тиімдісі» деген сөздің өзі есепке байланысты: ең ертесі ме, ең қысқасы ма, ең арзаны ма? Әр ұсыныс шын мәнінде ең жақсы жауапқа жеткізеді ме — оны тексеру керек. Тексерудің ең қысқа жолы: ереже жаңылысатын шағын мысал іздеу.\n\n«Бірінші» деген сөздің нені білдіретінін реттеу шешеді. Желтоқсанда ашылған `sort` тізбекті реттейді, ал наурызда `pair<int, int>` — екі санды бір затқа байлайтын жұп — кездескен. Жұптағы бірінші санға `p.first`, екіншісіне `p.second` деп жетесің. `sort` жұптарды салыстырғанда алдымен `first` мәндерін қарайды, олар тең болса ғана `second`-қа көшеді.\n\nОсыдан пайдалы амал шығады: жұпты қай ретпен жинасаң, `sort` соны бірінші деп санайды. Аяқталу уақыты бойынша реттегің келсе, жұпты `{аяқталу, басталу}` түрінде жинайсың.",
+      ru: "В некоторых задачах решение собирается шаг за шагом, и на каждом шаге есть несколько вариантов. Самая простая идея — брать на каждом шаге тот вариант, который КАЖЕТСЯ самым выгодным. Такое правило называют жадным.\n\nНо такое правило — не готовый ответ, а предложение. Само слово «самый выгодный» зависит от задачи: самый ранний? самый короткий? самый дешёвый? Приводит ли предложенное правило к действительно лучшему ответу — это нужно проверять. Самый короткий способ проверки: искать небольшой пример, на котором правило ошибается.\n\nЧто означает слово «первый», решает сортировка. Появившийся в декабре `sort` упорядочивает последовательность, а в марте встретилась пара `pair<int, int>` — два числа, связанные в один предмет. До первого числа пары добираешься через `p.first`, до второго — через `p.second`. Сравнивая пары, `sort` сначала смотрит на `first` и переходит к `second`, только если первые равны.\n\nОтсюда следует полезный приём: в каком порядке ты сложишь пару, то `sort` и будет считать первым. Хочешь упорядочить по времени окончания — складывай пару как `{окончание, начало}`.",
     },
-    code: "b = [[9, 1], [5, 2], [7, 0]]\nb.sort()\nprint(b)\nprint(b[0][0])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<pair<int, int>> b;\n" +
+      "    b.push_back({9, 1});\n" +
+      "    b.push_back({5, 2});\n" +
+      "    b.push_back({7, 0});\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    for (int i = 0; i < 3; i++) {\n" +
+      "        cout << b[i].first << \" \" << b[i].second << endl;\n" +
+      "    }\n" +
+      "    cout << b[0].first;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m8.l1.b2",
@@ -216,11 +246,31 @@ export const M8_L1: LessonBlock[] = [
         ru: "Один пример обрушил два предложения: 2 < 3, значит ни первое, ни второе не дают лучшего ответа. Запомни: контрпример может ОПРОВЕРГНУТЬ правило, но ни один пример не может его доказать. Третье предложение выиграло на этом примере — это ещё не значит, что оно верно всегда. Разницу между доказательством и уверенностью разберём на следующем уроке.",
       },
       {
-        kk: "Таңдауды біз қолмен жасадық. Бағдарламаға алдымен бір нәрсе керек: сабақтарды аяқталу уақыты бойынша қатарға тұрғызу. Ол үшін әр сабақты `[аяқталу, басталу]` жұбы етіп жинап, `sort()` шақырамыз — төмендегі код дәл осыны істейді, таңдау циклін өзің келесі карточкаларда жүргізесің.",
-        ru: "Выбор мы сделали руками. Программе сначала нужно другое: выстроить занятия по времени окончания. Для этого складываем каждое занятие парой `[окончание, начало]` и вызываем `sort()` — код ниже делает ровно это, а цикл выбора ты проведёшь сам на следующих карточках.",
+        kk: "Таңдауды біз қолмен жасадық. Бағдарламаға алдымен бір нәрсе керек: сабақтарды аяқталу уақыты бойынша қатарға тұрғызу. Ол үшін әр сабақты `{аяқталу, басталу}` жұбы етіп жинап, `sort` шақырамыз — төмендегі код дәл осыны істейді, таңдау циклін өзің келесі карточкаларда жүргізесің.",
+        ru: "Выбор мы сделали руками. Программе сначала нужно другое: выстроить занятия по времени окончания. Для этого складываем каждое занятие парой `{окончание, начало}` и вызываем `sort` — код ниже делает ровно это, а цикл выбора ты проведёшь сам на следующих карточках.",
       },
     ],
-    code: "a = [[6, 0], [4, 1], [8, 4], [5, 3], [12, 8]]\na.sort()\nfor p in a:\n    print(p[1], p[0])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    a.push_back({6, 0});\n" +
+      "    a.push_back({4, 1});\n" +
+      "    a.push_back({8, 4});\n" +
+      "    a.push_back({5, 3});\n" +
+      "    a.push_back({12, 8});\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    for (int i = 0; i < 5; i++) {\n" +
+      "        cout << a[i].second << \" \" << a[i].first << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
       kk: "Экранға сабақтар аяқталу уақыты бойынша реттеліп шығады, әр жолда «басталу аяқталу»: 1 4 / 3 5 / 0 6 / 4 8 / 8 12. Ал қолмен табылған жауап — 3 сабақ.",
       ru: "На экран занятия выводятся упорядоченными по времени окончания, в каждой строке «начало окончание»: 1 4 / 3 5 / 0 6 / 4 8 / 8 12. А найденный вручную ответ — 3 занятия.",
@@ -236,19 +286,34 @@ export const M8_L1: LessonBlock[] = [
        what its author hoped, so the prompt states the rule neutrally and never
        hints that anything is amiss. */
     prompt: {
-      kk: "Бұл бағдарлама «ең ерте басталатынын ал» ережесін орындайды. Тізімнің әр элементі — `[басталу, аяқталу]` жұбы, ал `last` — таңдалған соңғы сабақтың аяқталу уақыты. Сабақтар: 0-5, 1-3, 3-6, 6-9. Экранға не шығады?",
-      ru: "Эта программа выполняет правило «бери то, что начинается раньше всех». Каждый элемент списка — пара `[начало, окончание]`, а `last` — время окончания последнего выбранного занятия. Занятия: 0-5, 1-3, 3-6, 6-9. Что появится на экране?",
+      kk: "Бұл бағдарлама «ең ерте басталатынын ал» ережесін орындайды. Тізбектің әр элементі — `{басталу, аяқталу}` жұбы, яғни `a[i].first` — басталу, `a[i].second` — аяқталу уақыты; ал `last` — таңдалған соңғы сабақтың аяқталу уақыты. Сабақтар: 0-5, 1-3, 3-6, 6-9. Экранға не шығады?",
+      ru: "Эта программа выполняет правило «бери то, что начинается раньше всех». Каждый элемент последовательности — пара `{начало, окончание}`, то есть `a[i].first` — начало, а `a[i].second` — окончание; `last` же — время окончания последнего выбранного занятия. Занятия: 0-5, 1-3, 3-6, 6-9. Что появится на экране?",
     },
     code:
-      "a = [[0, 5], [1, 3], [3, 6], [6, 9]]\n" +
-      "a.sort()\n" +
-      "last = 0\n" +
-      "cnt = 0\n" +
-      "for p in a:\n" +
-      "    if p[0] >= last:\n" +
-      "        cnt = cnt + 1\n" +
-      "        last = p[1]\n" +
-      "print(cnt)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    a.push_back({0, 5});\n" +
+      "    a.push_back({1, 3});\n" +
+      "    a.push_back({3, 6});\n" +
+      "    a.push_back({6, 9});\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int last = 0;\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        if (a[i].first >= last) {\n" +
+      "            cnt = cnt + 1;\n" +
+      "            last = a[i].second;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "2",
     options: ["1", "2", "3", "4"],
     diagnosticMapping: {
@@ -326,31 +391,47 @@ export const M8_L1: LessonBlock[] = [
     sourceType: "product-authored",
     /* No counter in this program at all: its only job is `last`, so that the
        count stays something the learner produces themselves in b8. The steps
-       are recorded at the loop header, which means the value written on line i
-       is the one carried INTO that iteration — the single update at i = 4 is
-       then visible only to someone who actually compared a[3][1] with 4. Two of
-       the six decisions are the touching boundary (4 >= 4 and 8 >= 8), which is
-       the whole reason this data was chosen. */
+       are recorded at the loop header, which means the value written on line 15
+       is the one carried INTO that iteration — the single update at i = 3 is
+       then visible only to someone who actually compared a[3].second with 4.
+       Two of the six decisions are the touching boundary (4 >= 4 and 8 >= 8),
+       which is the whole reason this data was chosen. */
     prompt: {
-      kk: "Бағдарлама «ең ерте аяқталатынын ал» ережесін орындайды. Тізім аяқталу уақыты бойынша реттеліп қойылған, ал әр элемент — `[аяқталу, басталу]` жұбы: `a[i][0]` — аяқталу, `a[i][1]` — басталу. `last` — таңдалған соңғы сабақтың аяқталу уақыты, басында 0. Сабақ дәл `last` сәтінде бастала алады: бұл қабаттасу емес. Бағдарламаны қағазда қадамдап орында: цикл басына оралған сайын `i` мен `last`-тың сол сәттегі мәнін жаз.",
-      ru: "Программа выполняет правило «бери то, что заканчивается раньше всех». Список уже упорядочен по времени окончания, а каждый элемент — пара `[окончание, начало]`: `a[i][0]` — окончание, `a[i][1]` — начало. `last` — время окончания последнего выбранного занятия, в начале 0. Занятие может начаться ровно в момент `last`: это не пересечение. Выполни программу по шагам на бумаге: каждый раз, когда управление возвращается к заголовку цикла, записывай текущие значения `i` и `last`.",
+      kk: "Бағдарлама «ең ерте аяқталатынын ал» ережесін орындайды. Тізбек аяқталу уақыты бойынша реттеліп қойылған, ал әр элемент — `{аяқталу, басталу}` жұбы: `a[i].first` — аяқталу, `a[i].second` — басталу. `last` — таңдалған соңғы сабақтың аяқталу уақыты, басында 0. Сабақ дәл `last` сәтінде бастала алады: бұл қабаттасу емес. Бағдарламаны қағазда қадамдап орында: цикл басына (15-жол) оралған сайын `i` мен `last`-тың сол сәттегі мәнін жаз.",
+      ru: "Программа выполняет правило «бери то, что заканчивается раньше всех». Последовательность уже упорядочена по времени окончания, а каждый элемент — пара `{окончание, начало}`: `a[i].first` — окончание, `a[i].second` — начало. `last` — время окончания последнего выбранного занятия, в начале 0. Занятие может начаться ровно в момент `last`: это не пересечение. Выполни программу по шагам на бумаге: каждый раз, когда управление возвращается к заголовку цикла (строка 15), записывай текущие значения `i` и `last`.",
     },
     code:
-      "a = [[4, 1], [5, 3], [6, 0], [8, 4], [9, 7], [12, 8]]\n" +
-      "last = 0\n" +
-      "for i in range(len(a)):\n" +
-      "    if a[i][1] >= last:\n" +
-      "        last = a[i][0]\n" +
-      "print(last)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    a.push_back({4, 1});\n" +
+      "    a.push_back({5, 3});\n" +
+      "    a.push_back({6, 0});\n" +
+      "    a.push_back({8, 4});\n" +
+      "    a.push_back({9, 7});\n" +
+      "    a.push_back({12, 8});\n" +
+      "    int last = 0;\n" +
+      "    for (int i = 0; i < 6; i++) {\n" +
+      "        if (a[i].second >= last) {\n" +
+      "            last = a[i].first;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << last;\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 2, vars: { last: "0" } },
-      { line: 3, vars: { i: "0", last: "0" } },
-      { line: 3, vars: { i: "1", last: "4" } },
-      { line: 3, vars: { i: "2", last: "4" } },
-      { line: 3, vars: { i: "3", last: "4" } },
-      { line: 3, vars: { i: "4", last: "8" } },
-      { line: 3, vars: { i: "5", last: "8" } },
-      { line: 6, vars: { last: "12" } },
+      { line: 14, vars: { last: "0" } },
+      { line: 15, vars: { i: "0", last: "0" } },
+      { line: 15, vars: { i: "1", last: "4" } },
+      { line: 15, vars: { i: "2", last: "4" } },
+      { line: 15, vars: { i: "3", last: "4" } },
+      { line: 15, vars: { i: "4", last: "8" } },
+      { line: 15, vars: { i: "5", last: "8" } },
+      { line: 20, vars: { last: "12" } },
     ],
   },
   {
@@ -362,23 +443,33 @@ export const M8_L1: LessonBlock[] = [
        comparison lets a class start at the exact moment the room frees up, and
        WHICH of the two times becomes the new `last`. A learner who writes `s`
        into the second blank gets a program that runs and lies, which is why the
-       first blank alone would not be enough. There is no list and no sort here
+       first blank alone would not be enough. There is no vector and no sort here
        — the input is promised sorted — so the completed program is nobody
        else's answer. */
     prompt: {
-      kk: "Бағдарлама әр сабақ туралы шешімді бірден шығарады: `yes` — сабақ өтеді, `no` — өтпейді (тек осы екі ағылшын сөзі шығады). Бірінші жолда n саны — сабақтар саны, келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі. Сабақтар аяқталу уақыты бойынша реттеліп берілген деп кепілдік беріледі, сондықтан тізім де, реттеу де керек емес. `last` — таңдалған соңғы сабақтың аяқталу уақыты. Сабақ дәл `last` сәтінде бастала алады: бұл қабаттасу емес. Екі орынды толтыр. Мысалы, 3 сабақ `1 4`, `3 5`, `4 8` берілсе, жауап `yes`, `no`, `yes` болады.",
-      ru: "Программа сразу печатает решение по каждому занятию: `yes` — занятие проводится, `no` — не проводится (выводятся только эти два английских слова). В первой строке дано число n — количество занятий, в следующих n строках через пробел даны время начала и время окончания каждого занятия. Гарантируется, что занятия даны упорядоченными по времени окончания, поэтому ни список, ни сортировка не нужны. `last` — время окончания последнего выбранного занятия. Занятие может начаться ровно в момент `last`: это не пересечение. Заполни два пропуска. Например, для трёх занятий `1 4`, `3 5`, `4 8` ответ будет `yes`, `no`, `yes`.",
+      kk: "Бағдарлама әр сабақ туралы шешімді бірден шығарады: `yes` — сабақ өтеді, `no` — өтпейді (тек осы екі ағылшын сөзі шығады). Бірінші жолда n саны — сабақтар саны, келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі. Сабақтар аяқталу уақыты бойынша реттеліп берілген деп кепілдік беріледі, сондықтан не тізбек, не реттеу керек емес. `last` — таңдалған соңғы сабақтың аяқталу уақыты. Сабақ дәл `last` сәтінде бастала алады: бұл қабаттасу емес. Екі орынды толтыр. Мысалы, 3 сабақ `1 4`, `3 5`, `4 8` берілсе, жауап `yes`, `no`, `yes` болады.",
+      ru: "Программа сразу печатает решение по каждому занятию: `yes` — занятие проводится, `no` — не проводится (выводятся только эти два английских слова). В первой строке дано число n — количество занятий, в следующих n строках через пробел даны время начала и время окончания каждого занятия. Гарантируется, что занятия даны упорядоченными по времени окончания, поэтому ни последовательность, ни сортировка не нужны. `last` — время окончания последнего выбранного занятия. Занятие может начаться ровно в момент `last`: это не пересечение. Заполни два пропуска. Например, для трёх занятий `1 4`, `3 5`, `4 8` ответ будет `yes`, `no`, `yes`.",
     },
     template:
-      "n = int(input())\n" +
-      "last = 0\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    if s ___ last:\n" +
-      '        print("yes")\n' +
-      "        last = ___\n" +
-      "    else:\n" +
-      '        print("no")',
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    int last = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        if (s ___ last) {\n" +
+      "            cout << \"yes\" << endl;\n" +
+      "            last = ___;\n" +
+      "        } else {\n" +
+      "            cout << \"no\" << endl;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: ">=" },
       { id: "f2", answer: "e" },
@@ -394,43 +485,71 @@ export const M8_L1: LessonBlock[] = [
        one number and the counter is still the learner's to write.
 
        The defect is one line, but repairing it is not one character, and the
-       prompt says so: swapping the pair changes what every index in the loop
-       means. Hiding that would teach that bugs are typos. */
+       prompt says so: swapping the pair changes what `.first` and `.second`
+       mean everywhere in the loop. Hiding that would teach that bugs are typos. */
     prompt: {
-      kk: "Бағдарлама бір бөлмеде өтетін қабаттаспайтын сабақтарды таңдап, таңдалғандардың аяқталу уақытын әр жолға бір-бірден шығаруы керек. Ол «ең ерте аяқталатынын ал» ережесін орындайтын болып жазылған, бірақ шын мәнінде басқа ережені орындап тұр. Бірінші жолда n, келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі; сабақтар кез келген ретпен келуі мүмкін. Сабақ дәл алдыңғысы аяқталған сәтте бастала алады. `4 / 0 8 / 2 5 / 5 7 / 7 10` енгізуінде дұрыс жауап — 5, 7, 10, ал бағдарлама тек 8 шығарады. Қай жол кінәлі? Ескерту: сол жолды түзеткенде жұптағы екі санның орны ауысады, сондықтан циклдегі индекстерді де соған сай өзгерту керек.",
-      ru: "Программа должна выбрать непересекающиеся занятия для одного кабинета и вывести время окончания каждого выбранного, по одному в строке. Она написана так, будто выполняет правило «бери то, что заканчивается раньше всех», но на деле выполняет другое правило. В первой строке дано n, в следующих n строках через пробел — время начала и окончания каждого занятия; занятия могут идти в любом порядке. Занятие может начаться ровно в момент окончания предыдущего. На вводе `4 / 0 8 / 2 5 / 5 7 / 7 10` правильный ответ — 5, 7, 10, а программа выводит только 8. Какая строка виновата? Учти: при исправлении этой строки два числа в паре меняются местами, поэтому индексы в цикле тоже нужно поправить.",
+      kk: "Бағдарлама бір бөлмеде өтетін қабаттаспайтын сабақтарды таңдап, таңдалғандардың аяқталу уақытын әр жолға бір-бірден шығаруы керек. Ол «ең ерте аяқталатынын ал» ережесін орындайтын болып жазылған, бірақ шын мәнінде басқа ережені орындап тұр. Бірінші жолда n, келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі; сабақтар кез келген ретпен келуі мүмкін. Сабақ дәл алдыңғысы аяқталған сәтте бастала алады. `4 / 0 8 / 2 5 / 5 7 / 7 10` енгізуінде дұрыс жауап — 5, 7, 10, ал бағдарлама тек 8 шығарады. Қай жол кінәлі? Ескерту: сол жолды түзеткенде жұптағы екі санның орны ауысады, сондықтан циклдегі `.first` пен `.second`-ты да соған сай өзгерту керек.",
+      ru: "Программа должна выбрать непересекающиеся занятия для одного кабинета и вывести время окончания каждого выбранного, по одному в строке. Она написана так, будто выполняет правило «бери то, что заканчивается раньше всех», но на деле выполняет другое правило. В первой строке дано n, в следующих n строках через пробел — время начала и окончания каждого занятия; занятия могут идти в любом порядке. Занятие может начаться ровно в момент окончания предыдущего. На вводе `4 / 0 8 / 2 5 / 5 7 / 7 10` правильный ответ — 5, 7, 10, а программа выводит только 8. Какая строка виновата? Учти: при исправлении этой строки два числа в паре меняются местами, поэтому `.first` и `.second` в цикле тоже нужно поправить.",
     },
     code:
-      "n = int(input())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    a.append([s, e])\n" +
-      "a.sort()\n" +
-      "last = 0\n" +
-      "for p in a:\n" +
-      "    if p[0] >= last:\n" +
-      "        print(p[1])\n" +
-      "        last = p[1]",
-    buggyLine: 5,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        a.push_back({s, e});\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int last = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i].first >= last) {\n" +
+      "            cout << a[i].second << endl;\n" +
+      "            last = a[i].second;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 14,
     symptomInput: "4\n0 8\n2 5\n5 7\n7 10",
     fixedCode:
-      "n = int(input())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    a.append([e, s])\n" +
-      "a.sort()\n" +
-      "last = 0\n" +
-      "for p in a:\n" +
-      "    if p[1] >= last:\n" +
-      "        print(p[0])\n" +
-      "        last = p[0]",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        a.push_back({e, s});\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int last = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i].second >= last) {\n" +
+      "            cout << a[i].first << endl;\n" +
+      "            last = a[i].first;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     diagnosticMapping: {
-      "6": {
+      "16": {
         failureClass: "sort_blamed_instead_of_key",
         justification:
-          "Алтыншы жолда `a.sort()` тұр, ал ол өз жұмысын дұрыс істейді: тізімді реттейді. Мәселе — нені реттейтінінде, ал оны бесінші жолда жиналған жұптың реті шешеді. Бұл жолды таңдау реттеу мен реттеу белгісін ажыратпағанды білдіреді.",
+          "16-жолда `sort` тұр, ал ол өз жұмысын дұрыс істейді: тізбекті реттейді. Мәселе — нені реттейтінінде, ал оны 14-жолда жиналған жұптың реті шешеді. Бұл жолды таңдау реттеу мен реттеу белгісін ажыратпағанды білдіреді.",
       },
     },
   },
@@ -446,19 +565,33 @@ export const M8_L1: LessonBlock[] = [
       ru: "В школе всего один свободный кабинет. В первой строке дано число n — количество поданных заявок на занятия (1 ≤ n ≤ 1000). В следующих n строках через пробел даны время начала и окончания каждого занятия: 0 ≤ начало < окончание ≤ 1000. Занятия идут в произвольном порядке. Выведи, сколько занятий МАКСИМУМ можно провести так, чтобы их времена не пересекались — ответ одно число. Одно занятие может начаться ровно в тот момент, когда закончилось другое: такие два считаются непересекающимися. Например, при `4` и `1 3`, `2 5`, `4 7`, `6 8` ответ 2.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    a.append([e, s])\n" +
-      "a.sort()\n" +
-      "last = 0\n" +
-      "cnt = 0\n" +
-      "for p in a:\n" +
-      "    if p[1] >= last:\n" +
-      "        cnt = cnt + 1\n" +
-      "        last = p[0]\n" +
-      "print(cnt)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        a.push_back({e, s});\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int last = 0;\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i].second >= last) {\n" +
+      "            cnt = cnt + 1;\n" +
+      "            last = a[i].first;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
     /* Every case was chosen against a named wrong program and every one of them
        was run against that program — see the file header for the full table.
        Case 2 is visible on purpose: it is the touching boundary, and the
@@ -489,31 +622,57 @@ export const M8_L1: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Мектепте бір ғана бос бөлме бар. Бірінші жолда n саны — өтініш берген сабақтар саны (1 ≤ n ≤ 1000). Келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі: 0 ≤ басталу < аяқталу ≤ 1000. Сабақтар кез келген ретпен келеді. Төмендегі дайын бағдарлама сабақтарды аяқталу уақыты бойынша реттеп, ең ерте аяқталатынының уақытын шығарады. Оны өзгерт: уақыттары қабаттаспайтындай етіп ЕҢ КӨП дегенде неше сабақ өткізуге болатынын шығарсын — жауап бір ғана сан. Бір сабақ екіншісі аяқталған дәл сол сәтте бастала алады: мұндай екеуі қабаттаспайды. Жұптағы `p[0]` — аяқталу, `p[1]` — басталу уақыты. Мысалы, `4` және `1 3`, `2 5`, `4 7`, `6 8` берілсе, жауап 2.",
-      ru: "В школе всего один свободный кабинет. В первой строке дано число n — количество поданных заявок (1 ≤ n ≤ 1000). В следующих n строках через пробел даны время начала и окончания каждого занятия: 0 ≤ начало < окончание ≤ 1000. Занятия идут в произвольном порядке. Готовая программа ниже упорядочивает занятия по времени окончания и выводит время того, которое заканчивается раньше всех. Измени её так, чтобы она выводила, сколько занятий МАКСИМУМ можно провести без пересечений по времени — ответ одно число. Одно занятие может начаться ровно в тот момент, когда закончилось другое: такие два не пересекаются. В паре `p[0]` — окончание, `p[1]` — начало. Например, при `4` и `1 3`, `2 5`, `4 7`, `6 8` ответ 2.",
+      kk: "Мектепте бір ғана бос бөлме бар. Бірінші жолда n саны — өтініш берген сабақтар саны (1 ≤ n ≤ 1000). Келесі n жолда әр сабақтың басталу және аяқталу уақыты бос орынмен беріледі: 0 ≤ басталу < аяқталу ≤ 1000. Сабақтар кез келген ретпен келеді. Төмендегі дайын бағдарлама сабақтарды аяқталу уақыты бойынша реттеп, ең ерте аяқталатынының уақытын шығарады. Оны өзгерт: уақыттары қабаттаспайтындай етіп ЕҢ КӨП дегенде неше сабақ өткізуге болатынын шығарсын — жауап бір ғана сан. Бір сабақ екіншісі аяқталған дәл сол сәтте бастала алады: мұндай екеуі қабаттаспайды. Жұптағы `a[i].first` — аяқталу, `a[i].second` — басталу уақыты. Мысалы, `4` және `1 3`, `2 5`, `4 7`, `6 8` берілсе, жауап 2.",
+      ru: "В школе всего один свободный кабинет. В первой строке дано число n — количество поданных заявок (1 ≤ n ≤ 1000). В следующих n строках через пробел даны время начала и окончания каждого занятия: 0 ≤ начало < окончание ≤ 1000. Занятия идут в произвольном порядке. Готовая программа ниже упорядочивает занятия по времени окончания и выводит время того, которое заканчивается раньше всех. Измени её так, чтобы она выводила, сколько занятий МАКСИМУМ можно провести без пересечений по времени — ответ одно число. Одно занятие может начаться ровно в тот момент, когда закончилось другое: такие два не пересекаются. В паре `a[i].first` — окончание, `a[i].second` — начало. Например, при `4` и `1 3`, `2 5`, `4 7`, `6 8` ответ 2.",
     },
     code:
-      "n = int(input())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    a.append([e, s])\n" +
-      "a.sort()\n" +
-      "print(a[0][0])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        a.push_back({e, s});\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    cout << a[0].first;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n = int(input())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    s, e = map(int, input().split())\n" +
-      "    a.append([e, s])\n" +
-      "a.sort()\n" +
-      "last = 0\n" +
-      "cnt = 0\n" +
-      "for p in a:\n" +
-      "    if p[1] >= last:\n" +
-      "        cnt = cnt + 1\n" +
-      "        last = p[0]\n" +
-      "print(cnt)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <utility>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<pair<int, int>> a;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int s, e;\n" +
+      "        cin >> s >> e;\n" +
+      "        a.push_back({e, s});\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int last = 0;\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i].second >= last) {\n" +
+      "            cnt = cnt + 1;\n" +
+      "            last = a[i].first;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\n1 3\n2 5\n4 7\n6 8", expectedOutput: "2" },
       { input: "3\n0 4\n4 8\n8 12", expectedOutput: "3" },
@@ -539,21 +698,40 @@ export const M8_L1: LessonBlock[] = [
 
        The prompt does not name the rule. Handing over "cheapest first" would
        turn the one card where the learner gets to propose something into
-       another exercise in following instructions. */
+       another exercise in following instructions.
+
+       Bounds and `int`: the purse is at most 1000000 and only ever shrinks, so
+       no sum here can approach 2^31−1 and nothing needs widening. */
     prompt: {
       kk: "Мектеп жәрмеңкесінде n кітап сатылады, әр кітап бір-ақ дана. Бірінші жолда екі сан: n — кітап саны (1 ≤ n ≤ 1000) және s — қалтаңдағы ақша (0 ≤ s ≤ 1000000). Екінші жолда бос орынмен бөлініп n кітаптың бағасы беріледі, әр баға 1-ден 1000000-ға дейінгі бүтін сан. Ақшаң жеткенше кітап аласың. Ең көп дегенде неше кітап ала алатыныңды шығар — жауап бір ғана сан. Мысалы, `3 6` және `4 3 3` берілсе, жауап 2. Алдымен өзіңе бір ереже ұсын, сосын оны бұзатын шағын мысал табуға тырыс — таппасаң, ереже осы есепке жарайды.",
       ru: "На школьной ярмарке продаётся n книг, каждая в одном экземпляре. В первой строке два числа: n — количество книг (1 ≤ n ≤ 1000) и s — сколько у тебя денег (0 ≤ s ≤ 1000000). Во второй строке через пробел даны цены n книг, каждая цена — целое число от 1 до 1000000. Ты покупаешь книги, пока хватает денег. Выведи, сколько книг ты можешь купить максимум — ответ одно число. Например, при `3 6` и `4 3 3` ответ 2. Сначала предложи себе правило, а потом попробуй найти небольшой пример, который его ломает: если не найдёшь, правило для этой задачи годится.",
     },
     referenceSolution:
-      "n, s = map(int, input().split())\n" +
-      "p = list(map(int, input().split()))\n" +
-      "p.sort()\n" +
-      "cnt = 0\n" +
-      "for x in p:\n" +
-      "    if x <= s:\n" +
-      "        s = s - x\n" +
-      "        cnt = cnt + 1\n" +
-      "print(cnt)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, s;\n" +
+      "    cin >> n >> s;\n" +
+      "    vector<int> p;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        p.push_back(x);\n" +
+      "    }\n" +
+      "    sort(p.begin(), p.end());\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (p[i] <= s) {\n" +
+      "            s = s - p[i];\n" +
+      "            cnt = cnt + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 6\n4 3 3", expectedOutput: "2" },
       { input: "4 10\n1 2 3 4", expectedOutput: "4" },

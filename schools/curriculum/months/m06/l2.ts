@@ -39,15 +39,37 @@ import type { LessonBlock } from "../../types";
  * options, `m6.l2.b6` takes the first — **make the output impossible without
  * it**. The program prints its verdict *and* the number of pairs it examined,
  * so the early exit is a visible number, and the cases pin it: the untouched
- * program fails on `1 2 3 4 5 / 3`, and the half-done version with only the
- * inner `break` fails on `8 1 1 1 1 1 1 / 9`. Nothing structural is asserted
- * and then left ungraded.
+ * program fails on `5 / 1 2 3 4 5 / 3`, and the half-done version with only the
+ * inner `break` fails on `7 / 8 1 1 1 1 1 1 / 9`. Nothing structural is
+ * asserted and then left ungraded.
  *
- * Python used here is October's and November's: `while`, `for`, `range`,
- * `break`, list literals, `len`, indexing, `list(map(int, input().split()))`.
- * No `sorted`, no function definitions, no `**` — the growth figures are
- * printed as plain multiplication so that the recursion lessons still own the
- * power problem.
+ * ## What the C++ migration changed here, and why
+ *
+ * Two things, both forced by the language rather than chosen:
+ *
+ * 1. **Every list input now states its length first.** Python's
+ *    `list(map(int, input().split()))` consumes a LINE, so a program could read
+ *    "a list, then one more number" with no count. `cin >>` reads tokens and
+ *    cannot see where a line ends, so `b5` and `b6` take `n` on the first line
+ *    and the list on the second. The cases were rewritten accordingly. It is
+ *    also the format every judge actually uses.
+ * 2. **`b1` counts in `long long` and says so.** `n * n * n` at n = 10 000 is
+ *    1 000 000 000 000, which does not fit in `int` — in Python the number
+ *    simply grows, in C++ it wraps and prints something false. The card is
+ *    about magnitudes, so a silently wrong magnitude on it would be the worst
+ *    possible defect. September's l6 taught `long long` for exactly this.
+ *
+ * The growth table itself did NOT need re-deriving: this lesson already
+ * measures against ~10⁸ steps per second, which is the C++ figure, so n·n to
+ * 10 000, n·n·n to 400, 2ⁿ to about 22 and n! to about 10 all still hold. The
+ * verdicts in `b2` (30 000² = 9 · 10⁸, about nine seconds) and `b7` (500³ =
+ * 1.25 · 10⁸, just past one second) were recomputed against the same figure
+ * and are unchanged.
+ *
+ * C++ used here is October's and November's: `while`, `for`, `break`,
+ * `vector<int>`, indexing, `cin >>`. No `sort`, no functions of the learner's
+ * own — the growth figures are printed as plain multiplication so that the
+ * recursion lessons still own the power problem.
  *
  * Output tokens are English throughout — `too many` / `ok` in b3, `yes` / `no`
  * in b6 — and both prompts name them, so a Russian-track learner reasons about
@@ -63,6 +85,11 @@ export const M6_L2: LessonBlock[] = [
      * The code prints two magnitudes for the SAME n, which is the point that
      * survives: at n = 10 000 the pair loop sits exactly on the one-second
      * edge and the triple loop is nearly three hours away from it.
+     *
+     * `long long` is not decoration here. `n * n * n` is 10¹², and an `int`
+     * would wrap to a smaller number — a card about magnitudes printing a wrong
+     * magnitude is the one defect it cannot afford, so the type is stated in
+     * the body as part of the lesson rather than left in the code.
      */
     id: "m6.l2.b1",
     type: "concept",
@@ -81,7 +108,8 @@ export const M6_L2: LessonBlock[] = [
         "• n · n · n — үш кірістірілген цикл, барлық үштік. n шамамен 400-ге дейін.\n" +
         "• Еселеніп өсу: әр элемент не алынады, не алынбайды. n шамамен 22-ге дейін, себебі 22 элементтен 4 194 304 түрлі жиынтық құралады.\n" +
         "• Барлық реттеуді қарау (n!). n шамамен 10-ға дейін, себебі 10 элементті 3 628 800 түрлі ретпен қоюға болады.\n\n" +
-        "Бұл кестені жаттаудың қажеті жоқ. n-ді өрнекке қойып, шыққан санды 100 000 000-мен салыстырсаң болғаны. Төмендегі бағдарлама n = 10 000 үшін дәл соны істейді: бірінші сан — жұптарды қарау, екіншісі — үштіктерді қарау. Бірінші сан шекте дәл тұр, ал екіншісі одан он мың есе үлкен — ол шамамен үш сағат.",
+        "Бұл кестені жаттаудың қажеті жоқ. n-ді өрнекке қойып, шыққан санды 100 000 000-мен салыстырсаң болғаны. Төмендегі бағдарлама n = 10 000 үшін дәл соны істейді: бірінші сан — жұптарды қарау, екіншісі — үштіктерді қарау. Бірінші сан шекте дәл тұр, ал екіншісі одан он мың есе үлкен — ол шамамен үш сағат.\n\n" +
+        "Кодтағы `long long` кездейсоқ емес. Екінші сан 1 000 000 000 000-ға тең, ал ол `int`-ке сыймайды: қыркүйекте көргеніміздей, `int` шамамен 2 000 000 000-нан асқанда мән «айналып» кетеді де, экранға мүлде басқа сан шығады. Шама туралы карточка жалған шама көрсетпеуі тиіс, сондықтан мұнда үлкенірек түр алынған.",
       ru:
         "Компьютер выполняет примерно 100 000 000 простых шагов в секунду. На задачу обычно даётся одна-две секунды. Значит, если число шагов решения заметно превышает 100 000 000, оно не уложится по времени — даже когда код написан правильно.\n\n" +
         "Если знать, как растёт число шагов перебора при росте n, можно сказать, годится решение или нет, ещё не написав ни строчки кода. Основных видов четыре:\n\n" +
@@ -89,9 +117,19 @@ export const M6_L2: LessonBlock[] = [
         "• n · n · n — три вложенных цикла, все тройки. Примерно до n = 400.\n" +
         "• Удвоение: каждый элемент либо берём, либо нет. Примерно до n = 22, потому что из 22 элементов получается 4 194 304 разных набора.\n" +
         "• Перебор всех перестановок (n!). Примерно до n = 10, потому что 10 элементов можно расставить 3 628 800 способами.\n\n" +
-        "Заучивать эту таблицу не нужно. Подставь n в выражение и сравни полученное число со 100 000 000. Программа ниже делает ровно это для n = 10 000: первое число — перебор пар, второе — перебор троек. Первое стоит ровно на пределе, а второе больше него в десять тысяч раз — это около трёх часов.",
+        "Заучивать эту таблицу не нужно. Подставь n в выражение и сравни полученное число со 100 000 000. Программа ниже делает ровно это для n = 10 000: первое число — перебор пар, второе — перебор троек. Первое стоит ровно на пределе, а второе больше него в десять тысяч раз — это около трёх часов.\n\n" +
+        "Слово `long long` в коде стоит не случайно. Второе число равно 1 000 000 000 000, а в `int` оно не помещается: как мы видели в сентябре, после примерно 2 000 000 000 значение «заворачивается» и на экран выходит совсем другое число. Карточка про порядок величин не имеет права показать неверный порядок, поэтому здесь взят тип побольше.",
     },
-    code: "n = 10000\n" + "print(n * n)\n" + "print(n * n * n)",
+    code:
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    long long n = 10000;\n" +
+      "    cout << n * n << endl;\n" +
+      "    cout << n * n * n;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -167,6 +205,11 @@ export const M6_L2: LessonBlock[] = [
      * budget, which is close enough that guessing from the shape alone does not
      * work — the table says n! survives to about 10, and 12 is just past it.
      *
+     * `variants` is a `long long`. 12! does fit in an `int` with room to spare,
+     * but the card is about a number growing out of control and a counter that
+     * could itself overflow on the next value would be teaching the wrong
+     * lesson accidentally.
+     *
      * The tokens are English and both prompts name them.
      */
     id: "m6.l2.b3",
@@ -178,16 +221,24 @@ export const M6_L2: LessonBlock[] = [
       ru: "Мы хотим перебрать все порядки, в которых можно поставить n учеников в ряд, — таких вариантов n!. Программа считает число вариантов для n = 12 и сравнивает его с секундным пределом. Что появится на экране — надпись `too many` или `ok`?",
     },
     code:
-      "n = 12\n" +
-      "variants = 1\n" +
-      "i = 2\n" +
-      "while i <= n:\n" +
-      "    variants = variants * i\n" +
-      "    i = i + 1\n" +
-      "if variants > 100000000:\n" +
-      '    print("too many")\n' +
-      "else:\n" +
-      '    print("ok")',
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 12;\n" +
+      "    long long variants = 1;\n" +
+      "    int i = 2;\n" +
+      "    while (i <= n) {\n" +
+      "        variants = variants * i;\n" +
+      "        i = i + 1;\n" +
+      "    }\n" +
+      "    if (variants > 100000000) {\n" +
+      "        cout << \"too many\";\n" +
+      "    } else {\n" +
+      "        cout << \"ok\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     answer: "too many",
     options: ["too many", "ok", "479001600"],
     diagnosticMapping: {
@@ -216,6 +267,12 @@ export const M6_L2: LessonBlock[] = [
      * The prompt does not name the answer; the list is visible, so the position
      * of 250 is visible, but the count of examined elements is not, and neither
      * is the fact that `i` never reaches 3.
+     *
+     * `int n = a.size();` is the recipe this month uses whenever a length is
+     * needed as a number: `a.size()` is not an `int`, and writing the length
+     * into an `int` once, on its own line, keeps every comparison after it
+     * plain. It also lets `i` live outside the loop, which is what makes the
+     * last row of this trace answerable at all.
      */
     id: "m6.l2.b4",
     type: "trace_code",
@@ -226,26 +283,36 @@ export const M6_L2: LessonBlock[] = [
       ru: "Программа ищет в списке первый элемент, больший 100, и останавливается, как только находит его. Переменная `steps` копит число просмотренных элементов. Выполни программу пошагово, как на бумаге: после каждой указанной строки запиши значения `steps`, `found` и `i`. В списке 8 элементов — сколько из них цикл успел просмотреть?",
     },
     code:
-      "a = [3, 9, 250, 7, 8, 1, 6, 4]\n" +
-      "steps = 0\n" +
-      "found = -1\n" +
-      "i = 0\n" +
-      "while i < len(a):\n" +
-      "    steps = steps + 1\n" +
-      "    if a[i] > 100:\n" +
-      "        found = i\n" +
-      "        break\n" +
-      "    i = i + 1\n" +
-      "print(found, steps)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {3, 9, 250, 7, 8, 1, 6, 4};\n" +
+      "    int n = a.size();\n" +
+      "    int steps = 0;\n" +
+      "    int found = -1;\n" +
+      "    int i = 0;\n" +
+      "    while (i < n) {\n" +
+      "        steps = steps + 1;\n" +
+      "        if (a[i] > 100) {\n" +
+      "            found = i;\n" +
+      "            break;\n" +
+      "        }\n" +
+      "        i = i + 1;\n" +
+      "    }\n" +
+      "    cout << found << \" \" << steps;\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 4, vars: { steps: "0", found: "-1", i: "0" } },
-      { line: 6, vars: { steps: "1", found: "-1", i: "0" } },
-      { line: 10, vars: { steps: "1", found: "-1", i: "1" } },
-      { line: 6, vars: { steps: "2", found: "-1", i: "1" } },
-      { line: 10, vars: { steps: "2", found: "-1", i: "2" } },
-      { line: 6, vars: { steps: "3", found: "-1", i: "2" } },
-      { line: 8, vars: { steps: "3", found: "2", i: "2" } },
-      { line: 11, vars: { steps: "3", found: "2", i: "2" } },
+      { line: 11, vars: { steps: "0", found: "-1", i: "0" } },
+      { line: 13, vars: { steps: "1", found: "-1", i: "0" } },
+      { line: 18, vars: { steps: "1", found: "-1", i: "1" } },
+      { line: 13, vars: { steps: "2", found: "-1", i: "1" } },
+      { line: 18, vars: { steps: "2", found: "-1", i: "2" } },
+      { line: 13, vars: { steps: "3", found: "-1", i: "2" } },
+      { line: 15, vars: { steps: "3", found: "2", i: "2" } },
+      { line: 20, vars: { steps: "3", found: "2", i: "2" } },
     ],
   },
   {
@@ -257,47 +324,78 @@ export const M6_L2: LessonBlock[] = [
      * counted.
      *
      * symptomInput is mandatory here: the fallback probe feeds one number, and
-     * this program reads a list and then a limit, so without it the two
-     * programs would both crash identically and the defect would read as "no
+     * this program reads a count, a list and then a limit, so without it the
+     * two programs would both sit waiting and the defect would read as "no
      * difference".
      *
-     * No diagnosticMapping. A learner who names line 7 — the `break` itself —
-     * may believe the early exit should be removed altogether, or may believe
-     * it sits in the wrong place in the body. Two repairs, two causes, so the
-     * engine asks instead of telling them which one they meant.
+     * The input format gained a leading `n`, which the C++ migration forces:
+     * `cin >>` reads tokens, not lines, so "a list on one line and one more
+     * number after it" is not something a program can take apart without being
+     * told how many numbers the list has.
+     *
+     * No diagnosticMapping. A learner who names the `break` line may believe
+     * the early exit should be removed altogether, or may believe it sits in
+     * the wrong place in the body. Two repairs, two causes, so the engine asks
+     * instead of telling them which one they meant.
      */
     id: "m6.l2.b5",
     type: "find_bug",
     skillRefs: ["enumerate.all", "debug.boundary", "loops.while"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Тізім өспелі ретпен берілген, келесі жолда `limit` саны тұр. Бағдарлама `limit`-тен аспайтын, яғни `limit`-ке тең немесе одан кіші элементтердің санын шығаруы керек. Тізім өспелі болғандықтан, бірінші артық элементтен кейін қалғанын қараудың мәні жоқ — `break` сол үшін тұр. Бірақ `1 3 5 7 9` тізімі мен `limit = 5` берілгенде бағдарлама 3-тің орнына 2 шығарады. Қай жол кінәлі және неге?",
-      ru: "Список дан по возрастанию, в следующей строке стоит число `limit`. Программа должна вывести количество элементов, не превышающих `limit`, то есть равных `limit` или меньших. Так как список возрастает, после первого слишком большого элемента остальные смотреть незачем — ради этого и стоит `break`. Но на списке `1 3 5 7 9` при `limit = 5` программа выводит 2 вместо 3. Какая строка виновата и почему?",
+      kk: "Бірінші жолда n саны, екінші жолда өспелі ретпен n бүтін сан, үшінші жолда `limit` тұр. Бағдарлама `limit`-тен аспайтын, яғни `limit`-ке тең немесе одан кіші элементтердің санын шығаруы керек. Тізім өспелі болғандықтан, бірінші артық элементтен кейін қалғанын қараудың мәні жоқ — `break` сол үшін тұр. Бірақ n = 5, тізім `1 3 5 7 9` және `limit = 5` берілгенде бағдарлама 3-тің орнына 2 шығарады. Қай жол кінәлі және неге?",
+      ru: "В первой строке дано n, во второй — n целых чисел по возрастанию, в третьей — число `limit`. Программа должна вывести количество элементов, не превышающих `limit`, то есть равных `limit` или меньших. Так как список возрастает, после первого слишком большого элемента остальные смотреть незачем — ради этого и стоит `break`. Но при n = 5, списке `1 3 5 7 9` и `limit = 5` программа выводит 2 вместо 3. Какая строка виновата и почему?",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "limit = int(input())\n" +
-      "count = 0\n" +
-      "i = 0\n" +
-      "while i < len(a):\n" +
-      "    if a[i] >= limit:\n" +
-      "        break\n" +
-      "    count = count + 1\n" +
-      "    i = i + 1\n" +
-      "print(count)",
-    buggyLine: 6,
-    symptomInput: "1 3 5 7 9\n5",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int limit;\n" +
+      "    cin >> limit;\n" +
+      "    int count = 0;\n" +
+      "    int i = 0;\n" +
+      "    while (i < n) {\n" +
+      "        if (a[i] >= limit) {\n" +
+      "            break;\n" +
+      "        }\n" +
+      "        count = count + 1;\n" +
+      "        i = i + 1;\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 15,
+    symptomInput: "5\n1 3 5 7 9\n5",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "limit = int(input())\n" +
-      "count = 0\n" +
-      "i = 0\n" +
-      "while i < len(a):\n" +
-      "    if a[i] > limit:\n" +
-      "        break\n" +
-      "    count = count + 1\n" +
-      "    i = i + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int limit;\n" +
+      "    cin >> limit;\n" +
+      "    int count = 0;\n" +
+      "    int i = 0;\n" +
+      "    while (i < n) {\n" +
+      "        if (a[i] > limit) {\n" +
+      "            break;\n" +
+      "        }\n" +
+      "        count = count + 1;\n" +
+      "        i = i + 1;\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -312,7 +410,7 @@ export const M6_L2: LessonBlock[] = [
      *   · submitting the program unchanged prints «yes 10» on the first case,
      *     where the answer is «yes 1»;
      *   · adding only the inner `break` and forgetting the outer one prints
-     *     «yes 7» on `8 1 1 1 1 1 1 / 9`, where the answer is «yes 1»;
+     *     «yes 7» on `7 / 8 1 1 1 1 1 1 / 9`, where the answer is «yes 1»;
      *   · adding only the outer one prints «yes 4» on that same first case;
      *   · moving the `break` above `checked = checked + 1` prints «yes 0».
      *
@@ -322,13 +420,17 @@ export const M6_L2: LessonBlock[] = [
      * The last two cases exist because a first draft of this block could be
      * passed by a cut-off that is not valid at all. The list is NOT sorted, so
      * abandoning the search because one pair overshoots the target is wrong —
-     * yet with the first five cases alone, `if a[i] + a[j] > target: break`
-     * passed every one of them. `9 9 1 2 / 3` puts the matching pair after two
-     * overshooting ones, and `100 1 2 5 / 3` makes an outer-loop `break` on a
-     * too-large `a[i]` answer «no» to a list that plainly contains the pair.
+     * yet with the first five cases alone, `if (a[i] + a[j] > target) break;`
+     * passed every one of them. `4 / 9 9 1 2 / 3` puts the matching pair after
+     * two overshooting ones, and `4 / 100 1 2 5 / 3` makes an outer-loop
+     * `break` on a too-large `a[i]` answer «no» to a list that plainly contains
+     * the pair.
      *
-     * `1 2 3 4 5 / 9` is the pair that only matches on the very LAST
-     * combination, and `3 / 5` is the list with no pairs at all.
+     * `5 / 1 2 3 4 5 / 9` is the pair that only matches on the very LAST
+     * combination, and `1 / 3 / 5` is the list with no pairs at all.
+     *
+     * The leading `n` on the first line is the C++ input format this month
+     * uses everywhere: `cin >>` cannot find the end of a line by itself.
      */
     id: "m6.l2.b6",
     type: "modify_code",
@@ -336,50 +438,81 @@ export const M6_L2: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 9,
     prompt: {
-      kk: "Бағдарлама тізімде қосындысы `target`-ке тең екі санның бар-жоғын тексереді. Ол екі мән шығарады: `yes` немесе `no` деген жауапты және қаралған жұптардың санын. Қазір бағдарлама жауапты тапқаннан кейін де қалған жұптарды түгел қарап шығады. Оны ерте тоқтайтын етіп өзгерт: жұп табылған бойда ішкі цикл де, сыртқы цикл де үзілсін. `yes` / `no` жауабы ешбір енгізуде өзгермеуі керек, ал екінші сан — қаралған жұптардың саны — жауап ерте табылған жерде азаюы тиіс.",
-      ru: "Программа проверяет, есть ли в списке два числа с суммой `target`. Она выводит два значения: ответ `yes` или `no` и количество просмотренных пар. Сейчас программа продолжает перебирать оставшиеся пары даже после того, как ответ найден. Переделай её так, чтобы она останавливалась раньше: как только пара найдена, должны прерваться и внутренний, и внешний цикл. Ответ `yes` / `no` не должен измениться ни на одном вводе, а второе число — количество просмотренных пар — должно уменьшиться там, где ответ находится рано.",
+      kk: "Бағдарлама тізімде қосындысы `target`-ке тең екі санның бар-жоғын тексереді. Кіріс: бірінші жолда n, екінші жолда n бүтін сан, үшінші жолда `target`. Ол екі мән шығарады: `yes` немесе `no` деген жауапты және қаралған жұптардың санын. Қазір бағдарлама жауапты тапқаннан кейін де қалған жұптарды түгел қарап шығады. Оны ерте тоқтайтын етіп өзгерт: жұп табылған бойда ішкі цикл де, сыртқы цикл де үзілсін. `yes` / `no` жауабы ешбір енгізуде өзгермеуі керек, ал екінші сан — қаралған жұптардың саны — жауап ерте табылған жерде азаюы тиіс.",
+      ru: "Программа проверяет, есть ли в списке два числа с суммой `target`. Ввод: в первой строке n, во второй — n целых чисел, в третьей — `target`. Она выводит два значения: ответ `yes` или `no` и количество просмотренных пар. Сейчас программа продолжает перебирать оставшиеся пары даже после того, как ответ найден. Переделай её так, чтобы она останавливалась раньше: как только пара найдена, должны прерваться и внутренний, и внешний цикл. Ответ `yes` / `no` не должен измениться ни на одном вводе, а второе число — количество просмотренных пар — должно уменьшиться там, где ответ находится рано.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "target = int(input())\n" +
-      "found = 0\n" +
-      "checked = 0\n" +
-      "for i in range(len(a)):\n" +
-      "    for j in range(i + 1, len(a)):\n" +
-      "        checked = checked + 1\n" +
-      "        if a[i] + a[j] == target:\n" +
-      "            found = 1\n" +
-      "if found == 1:\n" +
-      '    print("yes", checked)\n' +
-      "else:\n" +
-      '    print("no", checked)',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int target;\n" +
+      "    cin >> target;\n" +
+      "    int found = 0;\n" +
+      "    int checked = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            checked = checked + 1;\n" +
+      "            if (a[i] + a[j] == target) {\n" +
+      "                found = 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (found == 1) {\n" +
+      "        cout << \"yes \" << checked;\n" +
+      "    } else {\n" +
+      "        cout << \"no \" << checked;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "target = int(input())\n" +
-      "found = 0\n" +
-      "checked = 0\n" +
-      "for i in range(len(a)):\n" +
-      "    for j in range(i + 1, len(a)):\n" +
-      "        checked = checked + 1\n" +
-      "        if a[i] + a[j] == target:\n" +
-      "            found = 1\n" +
-      "            break\n" +
-      "    if found == 1:\n" +
-      "        break\n" +
-      "if found == 1:\n" +
-      '    print("yes", checked)\n' +
-      "else:\n" +
-      '    print("no", checked)',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int target;\n" +
+      "    cin >> target;\n" +
+      "    int found = 0;\n" +
+      "    int checked = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            checked = checked + 1;\n" +
+      "            if (a[i] + a[j] == target) {\n" +
+      "                found = 1;\n" +
+      "                break;\n" +
+      "            }\n" +
+      "        }\n" +
+      "        if (found == 1) {\n" +
+      "            break;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (found == 1) {\n" +
+      "        cout << \"yes \" << checked;\n" +
+      "    } else {\n" +
+      "        cout << \"no \" << checked;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
-      { input: "1 2 3 4 5\n3", expectedOutput: "yes 1" },
-      { input: "4 7 2 9\n100", expectedOutput: "no 6" },
-      { input: "2 4 6 8 20\n10", expectedOutput: "yes 3", hidden: true },
-      { input: "1 2 3 4 5\n9", expectedOutput: "yes 10", hidden: true },
-      { input: "8 1 1 1 1 1 1\n9", expectedOutput: "yes 1", hidden: true },
-      { input: "3\n5", expectedOutput: "no 0", hidden: true },
-      { input: "5 5\n10", expectedOutput: "yes 1", hidden: true },
-      { input: "9 9 1 2\n3", expectedOutput: "yes 6", hidden: true },
-      { input: "100 1 2 5\n3", expectedOutput: "yes 4", hidden: true },
+      { input: "5\n1 2 3 4 5\n3", expectedOutput: "yes 1" },
+      { input: "4\n4 7 2 9\n100", expectedOutput: "no 6" },
+      { input: "5\n2 4 6 8 20\n10", expectedOutput: "yes 3", hidden: true },
+      { input: "5\n1 2 3 4 5\n9", expectedOutput: "yes 10", hidden: true },
+      { input: "7\n8 1 1 1 1 1 1\n9", expectedOutput: "yes 1", hidden: true },
+      { input: "1\n3\n5", expectedOutput: "no 0", hidden: true },
+      { input: "2\n5 5\n10", expectedOutput: "yes 1", hidden: true },
+      { input: "4\n9 9 1 2\n3", expectedOutput: "yes 6", hidden: true },
+      { input: "4\n100 1 2 5\n3", expectedOutput: "yes 4", hidden: true },
     ],
   },
   {
@@ -388,7 +521,8 @@ export const M6_L2: LessonBlock[] = [
      * it stop fitting». The steps are read straight off the three loops, and n
      * is offered in hundreds so the answer is a single value rather than a
      * region — 400 · 400 · 400 = 64 000 000 still fits, 500 · 500 · 500 =
-     * 125 000 000 does not.
+     * 125 000 000 does not. Recomputed for C++ against the same ~10⁸ figure the
+     * lesson has used throughout, and unchanged by it.
      *
      * The program is deliberately a silly one: the largest sum of three numbers
      * from 1..n is 3n and needs no loops at all. Nobody is asked to fix that
@@ -404,14 +538,23 @@ export const M6_L2: LessonBlock[] = [
       ru: "Эта программа перебирает все тройки чисел от 1 до n, то есть делает примерно n · n · n шагов. Компьютер выполняет около 100 000 000 шагов в секунду. Значение n берётся только сотнями: 100, 200, 300, 400, 500, … Напиши в качестве теста наименьшее из них, при котором программа перестаёт укладываться в секунду.",
     },
     code:
-      "n = int(input())\n" +
-      "best = 0\n" +
-      "for a in range(1, n + 1):\n" +
-      "    for b in range(1, n + 1):\n" +
-      "        for c in range(1, n + 1):\n" +
-      "            if a + b + c > best:\n" +
-      "                best = a + b + c\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    int best = 0;\n" +
+      "    for (int a = 1; a <= n; a++) {\n" +
+      "        for (int b = 1; b <= n; b++) {\n" +
+      "            for (int c = 1; c <= n; c++) {\n" +
+      "                if (a + b + c > best) best = a + b + c;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     breakingInputs: ["500"],
   },
   {
@@ -428,13 +571,13 @@ export const M6_L2: LessonBlock[] = [
      *
      *   · «1 2 3» answers 0, killing a count that ignores the condition;
      *   · «1 -1 0» answers 1, killing the version that runs all three loops
-     *     over range(n) and counts each triple six times (it answers 6);
+     *     from 0 and counts each triple six times (it answers 6);
      *   · «0 0 0 0 0 0» answers 20, killing anything that counts pairs (15) or
      *     ordered triples (120);
      *   · «7 1 2 -3» has its only triple at the LAST three positions, killing
-     *     an inner loop written `range(j + 1, n - 1)`;
+     *     an inner loop bounded `k < n - 1`;
      *   · «1 -1 0 9 9» has its only triple at the FIRST three, killing an outer
-     *     loop written `range(1, n)`;
+     *     loop that starts at 1;
      *   · the two duplicate-heavy lists check that equal values at different
      *     positions are counted as different triples.
      */
@@ -450,19 +593,30 @@ export const M6_L2: LessonBlock[] = [
     pdfPage: 9,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бірінші жолда n саны беріледі (3 ≤ n ≤ 60), екінші жолда бос орынмен бөлінген n бүтін сан. Қосындысы 0-ге тең үштіктердің санын шығар. Үштік деп үш түрлі орында тұрған үш санды айтамыз, олардың реті ескерілмейді. n ≤ 60 болғандықтан үштіктердің жалпы саны 34 220-дан аспайды, ал бұл секундтық 100 000 000 шектен әлдеқайда аз — сондықтан мұнда барлық үштікті қарап шығу толық орынды шешім.",
-      ru: "В первой строке дано число n (3 ≤ n ≤ 60), во второй — n целых чисел через пробел. Выведи количество троек с суммой 0. Тройка — это три числа на трёх разных позициях, порядок не учитывается. Так как n ≤ 60, всего троек не больше 34 220, а это намного меньше секундного предела в 100 000 000 — поэтому перебрать здесь все тройки вполне уместно.",
+      kk: "Бірінші жолда n саны беріледі (3 ≤ n ≤ 60), екінші жолда бос орынмен бөлінген n бүтін сан (әрқайсысы −1000 мен 1000 аралығында). Қосындысы 0-ге тең үштіктердің санын шығар. Үштік деп үш түрлі орында тұрған үш санды айтамыз, олардың реті ескерілмейді. n ≤ 60 болғандықтан үштіктердің жалпы саны 34 220-дан аспайды, ал бұл секундтық 100 000 000 шектен әлдеқайда аз — сондықтан мұнда барлық үштікті қарап шығу толық орынды шешім.",
+      ru: "В первой строке дано число n (3 ≤ n ≤ 60), во второй — n целых чисел через пробел (каждое от −1000 до 1000). Выведи количество троек с суммой 0. Тройка — это три числа на трёх разных позициях, порядок не учитывается. Так как n ≤ 60, всего троек не больше 34 220, а это намного меньше секундного предела в 100 000 000 — поэтому перебрать здесь все тройки вполне уместно.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "count = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        for k in range(j + 1, n):\n" +
-      "            if a[i] + a[j] + a[k] == 0:\n" +
-      "                count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int count = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            for (int k = j + 1; k < n; k++) {\n" +
+      "                if (a[i] + a[j] + a[k] == 0) count = count + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3\n1 -1 0", expectedOutput: "1" },
       { input: "3\n1 2 3", expectedOutput: "0" },
@@ -501,15 +655,26 @@ export const M6_L2: LessonBlock[] = [
       ru: "В первой строке дано число n (3 ≤ n ≤ 60), во второй — n целых чисел. Нужно вывести количество троек с суммой 0. Так как n ≤ 60, троек не больше 34 220, поэтому перебрать все допустимо. Каркас программы готов — заполни три места. Помни: каждая тройка должна посчитаться ровно один раз.",
     },
     template:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "count = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(___, n):\n" +
-      "        for k in range(___, n):\n" +
-      "            if a[i] + a[j] + a[k] ___ 0:\n" +
-      "                count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int count = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = ___; j < n; j++) {\n" +
+      "            for (int k = ___; k < n; k++) {\n" +
+      "                if (a[i] + a[j] + a[k] ___ 0) count = count + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "i + 1", alternatives: ["i+1"] },
       { id: "f2", answer: "j + 1", alternatives: ["j+1"] },

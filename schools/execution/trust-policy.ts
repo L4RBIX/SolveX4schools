@@ -5,7 +5,7 @@ import type { ExecutionTrust } from "./trust";
  *
  * ## Why this is one file and not a condition in each component
  *
- * "May a Pyodide pass count here?" is the single most consequential question in
+ * "May a browser pass count here?" is the single most consequential question in
  * the execution subsystem, and it has a different answer for a guided lesson
  * step than for a monthly check. Answered inline, it gets answered eight times
  * by eight people, and the seventh one — under deadline, on the contest screen
@@ -37,7 +37,7 @@ export type ExecutionSurface =
   | "final_tournament";
 
 export interface SurfacePolicy {
-  /** May a local Pyodide result settle this surface at all? */
+  /** May a local browser result settle this surface at all? */
   localRunAllowed: boolean;
   /**
    * The trust a CHECK on this surface must carry to count.
@@ -149,7 +149,7 @@ export function surfaceForBlock(input: {
    * a measure of evidence. This asks how much a browser-reported pass can be
    * trusted — a measure of integrity. They do not have to agree, and they do
    * not: 100 blocks that `isIndependent` counts sit on `lesson_guided`, where
-   * a local Pyodide pass settles them.
+   * a local browser pass settles them.
    *
    * The comment here used to justify this rule BY that count — "the programme
    * counts these toward its «~100 толық дербес шешім», so they are the evidence

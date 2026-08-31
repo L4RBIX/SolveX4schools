@@ -135,17 +135,85 @@ const UNSAFE_OUTPUT: RegExp[] = [
 ];
 
 /**
- * A Python line, recognised by shape.
+ * A C++ line, recognised by shape.
  *
- * Deliberately conservative: it counts lines that are unambiguously statements,
- * so prose that happens to contain a word like `print` is not code and a
- * fenced block of real statements is.
+ * ## What this replaced, and why the old one had gone blind
+ *
+ * This was a Python matcher: `print(`, `def `, `elif`, a colon at the end of a
+ * block header. Against a C++17 course it recognises almost nothing a model
+ * would actually hand over — `cout << a + b;` matched none of its alternatives —
+ * so the code-line budget, which is the mechanism that stops a level-1 hint
+ * containing the answer, was counting zero lines in every reply. The ceiling was
+ * still computed, still logged, and enforced nothing.
+ *
+ * ## Conservative in the same direction as before
+ *
+ * It counts lines that are unambiguously STATEMENTS, so prose that happens to
+ * contain the word `int` is not code and a fenced block of real statements is.
+ * The C++ signals that carry that weight:
+ *
+ *   - a stream statement — `cout << x;`, `cin >> a >> b;`
+ *   - a declaration with a type — `int n;`, `long long s = 0;`, `double x = 1.5;`
+ *   - a block header with a parenthesised condition — `if (a > b) {`, `while (n) {`
+ *   - a function definition or a `return`
+ *   - a preprocessor directive or `using namespace`
+ *   - a plain assignment or compound assignment ending in `;`
+ *
+ * The trailing `;` is required on the statement forms and is what keeps the
+ * false-positive rate near where the Python version had it: a sentence about a
+ * variable does not end in a semicolon, and Kazakh and Russian prose never does.
+ *
+ * A block header is matched WITHOUT a semicolon, because `if (a > b) {` is a
+ * line of the answer whether or not the brace is on it. `for (...)` is included
+ * for the same reason even though September never teaches it — the validator's
+ * job is to notice code, not to agree with the syllabus.
  */
-const PYTHON_LINE =
-  /^\s*(?:(?:if|elif|while|for|def|class|with|try|except|else|finally)\b.*:\s*$|(?:print|input|int|str|float|len|range|abs|sum|min|max|round)\s*\(|[A-Za-z_]\w*\s*(?:[+\-*/%]?=)\s*.+|return\b|import\s+\w+|from\s+\w+\s+import\b)/;
+const CPP_LINE = new RegExp(
+  [
+    "^\\s*(?:",
+    /* Streams. The workhorse: nearly every line of a September answer is one. */
+    "(?:std::)?c(?:out|err)\\s*<<.*;\\s*$",
+    "|(?:std::)?cin\\s*>>.*;\\s*$",
+    /* A declaration with a real type, optionally initialised. `unsigned`,
+       `const` and `std::` prefixes are tolerated so a model that writes them
+       does not slip under the budget. */
+    "|(?:const\\s+)?(?:unsigned\\s+)?(?:int|long\\s+long|long|short|double|float|char|bool|auto|string|std::string|vector<[^>]*>|std::vector<[^>]*>)\\s+[A-Za-z_][^;]*;\\s*$",
+    /* Block headers.
+       Neither a semicolon nor a closing brace is required, and the line is not
+       anchored at the end: `if (a % b == 0) cout << "YES";` is one line, it is
+       the September acceptance bar's own shape, and an alternative that
+       insisted on `) {` at the end of the line missed it entirely. */
+    "|(?:if|else\\s+if|while|for|switch|do)\\s*\\(",
+    "|else\\s*\\{?\\s*$",
+    /* A function definition, including `int main()`. */
+    "|(?:[A-Za-z_]\\w*\\s+)+[A-Za-z_]\\w*\\s*\\([^;]*\\)\\s*\\{\\s*$",
+    /* return, with or without a value. */
+    "|return\\b[^;]*;\\s*$",
+    /* The frame's own lines. */
+    "|#\\s*include\\b",
+    "|using\\s+namespace\\s+\\w+\\s*;\\s*$",
+    /* Assignment and compound assignment. */
+    "|[A-Za-z_]\\w*\\s*(?:\\[[^\\]]*\\])?\\s*(?:[+\\-*/%]?=|\\+\\+|--)\\s*[^=].*;\\s*$",
+    "|[A-Za-z_]\\w*\\s*(?:\\+\\+|--)\\s*;\\s*$",
+    ")",
+  ].join(""),
+);
 
-/** Lines that are code but carry no answer: a bare comment, a closing bracket. */
-const TRIVIAL_LINE = /^\s*(?:#.*|\)|\]|\}|else\s*:|pass)\s*$/;
+/**
+ * Lines that are code but carry no answer.
+ *
+ * A bare comment, a closing brace or bracket, a lone `else {`, and — new for
+ * C++ — the two lines of ceremony every single September program on screen
+ * already contains. `#include <iostream>` and `using namespace std;` are the
+ * frame the course GIVES the learner; counting them against the hint budget
+ * would mean a tutor could not quote the code already in front of them, which
+ * is the opposite of the thing the budget protects.
+ *
+ * `int main() {`, `return 0;` and the closing brace are trivial for the same
+ * reason — they are on screen, given, and identical in every program.
+ */
+const TRIVIAL_LINE =
+  /^\s*(?:\/\/.*|\/\*.*|\*.*|\)|\]|\};?|\{|else\s*\{?|#\s*include\s*<(?:iostream|bits\/stdc\+\+\.h)>|using\s+namespace\s+std\s*;|int\s+main\s*\(\s*\)\s*\{?|return\s+0\s*;)\s*$/;
 
 interface CodeShape {
   /** Non-trivial statement lines, inside fences and out. */
@@ -162,12 +230,31 @@ export function inspectCode(text: string): CodeShape {
      will simply indent instead, so every line is examined either way. */
   const lines = text
     .split("\n")
-    .filter((l) => PYTHON_LINE.test(l) && !TRIVIAL_LINE.test(l));
+    .filter((l) => CPP_LINE.test(l) && !TRIVIAL_LINE.test(l));
 
   const body = lines.join("\n");
-  const wholeProgram =
-    /\binput\s*\(/.test(body) && /\bprint\s*\(/.test(body) ||
-    (/\bdef\s+\w+\s*\(/.test(body) && /\breturn\b/.test(body));
+  /*
+   * A finished task, recognised by what it DOES rather than by how long it is.
+   *
+   * The September shape is: read something, and report something. Three lines
+   * that do both are a complete answer to nearly every task in the month, and
+   * the line budget says nothing about that — which is why this check exists
+   * separately from the count.
+   *
+   * `int main` counts on its own for the same reason it did in Python for
+   * `def`: a reply that contains a whole `main` has handed over a program, not
+   * pointed at a line. The frame is on the learner's screen already, so a model
+   * that reproduces it is reproducing it around something.
+   *
+   * The `cin`/`cout` pair is the direct translation of the old
+   * `input()` + `print()` test and catches the answer given WITHOUT the frame,
+   * which is the commoner leak: the learner has the frame, so the two body
+   * lines are the whole thing they were missing.
+   */
+  const reads = /\b(?:std::)?cin\s*>>/.test(body);
+  const reports = /\b(?:std::)?cout\s*<</.test(body);
+  const hasMain = /\bint\s+main\s*\(/.test(body);
+  const wholeProgram = (reads && reports) || hasMain;
 
   return { lines: lines.length, wholeProgram, fenced };
 }

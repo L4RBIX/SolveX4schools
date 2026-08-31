@@ -14,12 +14,12 @@ import {
  * ## The gap this closes
  *
  * Every other execution number in this product is a server number, because
- * until Pyodide there was no other kind. Local Run changed that: the primary
- * path a learner uses now runs entirely inside their laptop and touches no
- * route, so a school where CPython fails to download produces **exactly the
- * same server-side telemetry as a school where every lesson went perfectly** —
- * zero `exec.requests`, zero errors, silence. The failure is invisible in the
- * place people look.
+ * until the browser could run code there was no other kind. Local Run changed
+ * that: the primary path a learner uses now runs entirely inside their laptop
+ * and touches no route, so a school where the compiler fails to download
+ * produces **exactly the same server-side telemetry as a school where every
+ * lesson went perfectly** — zero `exec.requests`, zero errors, silence. The
+ * failure is invisible in the place people look.
  *
  * This module is the smallest thing that makes it visible: a boot outcome per
  * page session, in memory, with a denominator.
@@ -32,9 +32,9 @@ import {
  * which has no field of that shape for anything to be smuggled into.
  *
  * The cost of that restraint is real and worth naming: when a school reports
- * "Python does not work", these counters say WHICH of three things broke and
- * how widely, and they cannot say on which machine or for whom. Answering that
- * requires standing next to the laptop, which is the trade.
+ * "the Run button does not work", these counters say WHICH of three things
+ * broke and how widely, and they cannot say on which machine or for whom.
+ * Answering that requires standing next to the laptop, which is the trade.
  *
  * ## In memory, like every other counter here
  *
@@ -60,10 +60,10 @@ import {
  * the rate is then an undercount. It is not per-IP because a school is one NAT
  * gateway — the same reason `schools/lib/rate-limit.ts` refuses IP buckets.
  *
- * Sized against reality rather than roundness: eighteen learners booting Python
- * a few times an hour is single digits per minute, and a whole class opening a
- * lesson at 09:00 on the same bell is perhaps forty. 240 leaves an order of
- * magnitude of headroom and still caps the damage.
+ * Sized against reality rather than roundness: eighteen learners booting the
+ * compiler a few times an hour is single digits per minute, and a whole class
+ * opening a lesson at 09:00 on the same bell is perhaps forty. 240 leaves an
+ * order of magnitude of headroom and still caps the damage.
  */
 const SIGNALS_PER_MINUTE = 240;
 
@@ -147,7 +147,7 @@ export type SignalOutcome = "counted" | "dropped";
  * So an unauthenticated caller posting a few hundred
  * `{"outcome":"unavailable","reason":"boot_failed"}` a minute could hold the
  * admin health endpoint red indefinitely and make it print a fabricated
- * narrative about learners whose Python never started. The teacher view never
+ * narrative about learners whose compiler never started. The teacher view never
  * reads `hybrid.status`, which is what would make it deceptive rather than
  * merely noisy: the monitor screams while the teacher's page stays green.
  *
@@ -283,7 +283,7 @@ const MIN_SIGNALS_TO_JUDGE = 5;
  *
  * Half is deliberately high. A school with a lab of ten-year-old machines will
  * sit at a steady non-zero rate forever, and that is not an outage; a rate over
- * half means the learners who CAN run Python are the minority, which is a
+ * half means the learners who CAN run code are the minority, which is a
  * different sentence.
  */
 const BROKEN_RATE = 0.5;
@@ -292,7 +292,7 @@ export interface LocalRuntimeAvailability {
   /** ISO time this process started counting. Every number below is since then. */
   since: string;
   windowSeconds: number;
-  /** Browsers that got a working CPython. The denominator. */
+  /** Browsers that got a working compiler. The denominator. */
   ready: number;
   /** Browsers that did not. Never attributed to a learner. */
   unavailable: number;

@@ -14,6 +14,27 @@
  * is the functions month; `search-fundamentals` really is the binary-search
  * month. Where no honest match existed the closest concept was used and the
  * reason is written down, so a later replacement knows what the slot means.
+ *
+ * ## One slot depicts the wrong language
+ *
+ * February — `MONTH_ART[6]`, recursion — is drawn by
+ * `Recursion_in_Python_1-FEJb29.png`, and that file is not neutral chapter art:
+ * it is a purple SNAKE at a laptop, Python's mascot, on a course that teaches
+ * C++17. It is the only asset in this registry that names or depicts a
+ * programming language at all, and it reaches a learner on `/home`, `/program`
+ * and `/course/6`.
+ *
+ * It is NOT swapped here. Brilliant-derived artwork is the owner's to replace,
+ * and quietly repointing the slot at a different downloaded illustration would
+ * hide the problem rather than fix it — the same picture would still be in the
+ * tree, and the brief for the replacement would be lost. So the slot keeps its
+ * `intent`, gains a `wrongLanguage` flag, and `pythonArtNeedingReplacement`
+ * below makes the list assertable rather than a comment nobody reads.
+ *
+ * The identical finding is recorded a second time in
+ * `schools/assets/registry.ts` (`month-art-6`), which already carries
+ * `replacementNeeded: true` for every slot in this file. That registry is the
+ * release gate; this flag is so a reader of THIS file learns it too.
  */
 
 const CH = "/assets/original/brilliant/ds055uzetaobb.cloudfront.net/brioche/chapter";
@@ -23,13 +44,21 @@ const CAT = "/assets/original/brilliant/ds055uzetaobb.cloudfront.net/category-im
 /** Programme-level art, used on the learning-path row. */
 export const PROGRAMME_ART = `${CAT}/Computer_Science-JEbqeF.png`;
 
-/**
- * Month art. Indexed 1–9, September to May.
- *
- * `intent` records what the slot is *for*, so replacement artwork can be
- * commissioned against a brief rather than guessed at.
- */
-export const MONTH_ART: Record<number, { src: string; intent: string }> = {
+export interface MonthArt {
+  src: string;
+  /** What the slot is *for*, so replacement art can be briefed, not guessed. */
+  intent: string;
+  /**
+   * The illustration depicts a programming language that is not the one taught.
+   *
+   * Set only where it is true, so the absence of the flag is not a claim. Read
+   * by `pythonArtNeedingReplacement()`.
+   */
+  wrongLanguage?: string;
+}
+
+/** Month art. Indexed 1–9, September to May. */
+export const MONTH_ART: Record<number, MonthArt> = {
   1: {
     src: `${CH}/logical-languages-PaiPd6.png`,
     intent: "reading input, computing, and choosing an answer with a condition",
@@ -51,8 +80,12 @@ export const MONTH_ART: Record<number, { src: string; intent: string }> = {
     intent: "halving a search space; converging boundaries",
   },
   6: {
+    // The file name says Python and so does the drawing: it is the Python
+    // snake, coiled around a laptop. Kept until the owner replaces the
+    // artwork; flagged so the release gate and any reader can see it.
     src: `${CH}/Recursion_in_Python_1-FEJb29.png`,
     intent: "recursion — a call tree unfolding and folding back",
+    wrongLanguage: "Python — the drawing is the Python snake mascot",
   },
   7: {
     // Clustering is the closest available concept: connected regions on a grid
@@ -100,6 +133,33 @@ export function lessonArt(lessonId: string, monthIndex: number): string {
 
 /** Art for the monthly assessment node. Deliberately distinct from a lesson. */
 export const ASSESSMENT_ART = `${CH}/foundation-puzzles-long-set-gYC4xn.png`;
+
+/**
+ * Every month slot whose artwork depicts a language this course does not teach.
+ *
+ * A function rather than a constant so it cannot drift from `MONTH_ART`: add a
+ * Python-shaped illustration and it appears here without anybody remembering to
+ * list it. Empty is the goal state, and empty is what it will return once the
+ * artwork is replaced.
+ */
+export function pythonArtNeedingReplacement(): {
+  monthIndex: number;
+  src: string;
+  intent: string;
+  depicts: string;
+}[] {
+  const out: { monthIndex: number; src: string; intent: string; depicts: string }[] = [];
+  for (const [index, art] of Object.entries(MONTH_ART)) {
+    if (art.wrongLanguage === undefined) continue;
+    out.push({
+      monthIndex: Number(index),
+      src: art.src,
+      intent: art.intent,
+      depicts: art.wrongLanguage,
+    });
+  }
+  return out;
+}
 
 /** The full-bleed scene image the lesson player's opening page uses. */
 export const SCENE_SETTER =

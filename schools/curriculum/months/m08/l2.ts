@@ -44,6 +44,30 @@ import type { LessonBlock } from "../../types";
  * a proof, it only means the counterexample is not small. That sentence is what
  * `b10` then asks the learner to act on.
  *
+ * ## The C++17 migration: what changed, and what did not
+ *
+ * **No number changed.** Every quantity in this lesson is tiny — sums to 40,
+ * four items, coin counts under 41 — so nothing here can approach 2^31−1 and
+ * `int` is honest everywhere. No `long long` appears and no expected output
+ * moved.
+ *
+ * **The input format did.** Three programs used to read «a line of numbers»
+ * whose length was implied by the line break. C++ has no beginner-safe way to
+ * do that — `cin >>` does not know where a line ends — so `b3` and `b5` now
+ * read a COUNT first and then that many numbers, on three lines instead of two.
+ * Their prompts say so and their `breakingInputs` carry the count. `b6`, `b9`
+ * and `b9s` needed nothing: their lengths were always fixed at 4 and 3.
+ *
+ * **One off-by-one is genuinely gone.** `b9s`'s first blank used to be `41`,
+ * because Python's `range(1, 41)` stops one short of its bound. C++'s loop is
+ * written `n <= 40` and the blank is now the stated upper end itself. That
+ * makes one of the five blanks easier; it is not hidden, and the other four are
+ * unchanged.
+ *
+ * **Timing is re-derived, and nothing needed moving.** The exhaustive sweep in
+ * `b9` is at most about 200 000 additions over the whole run, and `b6` checks
+ * 16 subsets. Both were far inside Python's budget and are far inside C++'s.
+ *
  * ## Requirements a checker cannot see: option 1, and it genuinely applies
  *
  * "Your solution must use brute force" is exactly the unenforceable rule the
@@ -78,13 +102,14 @@ import type { LessonBlock } from "../../types";
  * - `b9s` is `b9`'s support twin: its filled template IS `b9`'s solution, which
  *   is the substitution mechanism p.6 asks for, and no learner receives both.
  *
- * ## No new Python
+ * ## No new C++
  *
- * April introduces no construct. `sorted` is December's, the nested loops are
- * October's, `break` is October's. The DP table — `dp = [0] * (n + 1)` — is
- * deliberately NOT here: `m8.l3` introduces it, and a table would answer the
- * coin question by a method this lesson has not earned yet. Every "true best"
- * below is an honest enumeration.
+ * April introduces no construct here. `vector<int>` and `push_back` are
+ * October's, `sort` is December's, the nested loops are October's, `break` is
+ * October's, `cin >>` inside a counted loop is September's and October's. The
+ * DP table — `vector<int> dp(n + 1, 0);` — is deliberately NOT here: `m8.l3`
+ * introduces it, and a table would answer the coin question by a method this
+ * lesson has not earned yet. Every "true best" below is an honest enumeration.
  *
  * ## What is left to the other lessons
  *
@@ -150,12 +175,31 @@ export const M8_L2: LessonBlock[] = [
         ru: "Самый короткий способ — 3 + 3, две монеты. Правило взяло три, а хватает двух. Значит, правило сломано. То, что на монетах 1, 5, 10, 25 оно всегда работает верно, теперь ничего не спасает: одного контрпримера достаточно.",
       },
       {
-        kk: "Дәл осындай тексеруді машина да істей алады. 6 үшін төрттіктің саны 0 не 1, үштіктің саны 0, 1 не 2, ал қалғанын бірліктермен толтырамыз. Ақпанда істегеніміздей, барлық нұсқаны аралап шығып, ең кіші жалпы санды сақтаймыз. `best = -1` дегеніміз «әзірше бірде-бір нұсқа қаралмады».",
-        ru: "Такую же проверку умеет делать и машина. Для 6 число четвёрок равно 0 или 1, число троек — 0, 1 или 2, а остаток добираем единицами. Как и в феврале, перебираем все варианты и запоминаем наименьшее общее число. Запись `best = -1` означает «пока не рассмотрен ни один вариант».",
+        kk: "Дәл осындай тексеруді машина да істей алады. 6 үшін төрттіктің саны 0 не 1, үштіктің саны 0, 1 не 2, ал қалғанын бірліктермен толтырамыз. Ақпанда істегеніміздей, барлық нұсқаны аралап шығып, ең кіші жалпы санды сақтаймыз. `int best = -1;` дегеніміз «әзірше бірде-бір нұсқа қаралмады».",
+        ru: "Такую же проверку умеет делать и машина. Для 6 число четвёрок равно 0 или 1, число троек — 0, 1 или 2, а остаток добираем единицами. Как и в феврале, перебираем все варианты и запоминаем наименьшее общее число. Запись `int best = -1;` означает «пока не рассмотрен ни один вариант».",
       },
     ],
     code:
-      "best = -1\nfor k in range(2):\n    for j in range(3):\n        rest = 6 - 4 * k - 3 * j\n        if rest >= 0:\n            total = k + j + rest\n            if best == -1 or total < best:\n                best = total\nprint(best)",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int best = -1;\n" +
+      "    for (int k = 0; k < 2; k++) {\n" +
+      "        for (int j = 0; j < 3; j++) {\n" +
+      "            int rest = 6 - 4 * k - 3 * j;\n" +
+      "            if (rest >= 0) {\n" +
+      "                int total = k + j + rest;\n" +
+      "                if (best == -1 || total < best) {\n" +
+      "                    best = total;\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
       kk: "Бағдарлама 2 шығарады. Ашкөз ереже үш монета алды, ал шын ең аз саны — екеу.",
       ru: "Программа выводит 2. Жадное правило взяло три монеты, а настоящий минимум — две.",
@@ -174,6 +218,9 @@ export const M8_L2: LessonBlock[] = [
      * multiple of the largest works, which is the pattern a learner who has
      * understood `b2` will reach for.
      *
+     * The input is three lines rather than two: C++ cannot be told where a line
+     * of numbers ends, so the count comes first. The witnesses carry it.
+     *
      * The prompt asks for the better combination as well as the input, because
      * an input alone is a guess and a teacher cannot tell the two apart.
      */
@@ -183,12 +230,35 @@ export const M8_L2: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бұл бағдарлама бірінші жолдан монеталардың номиналдарын (өсу ретімен, ең кішісі әрқашан 1), екінші жолдан соманы оқиды. Ол ашкөз ережені орындайды: әрқашан сыятын ең үлкен монетаны алады, сосын неше монета алғанын шығарады.\n\n`1 5 10 25`\n`30`\n\nүшін ол 2 шығарады — дұрыс жауап, әрі осы жиында оны сындыратын сома әлі ешкім таппаған. Ал сен басқа жиынды тап: бағдарлама шын қажеттіден КӨП монета алатын кіріс жаз. Шарттар: монета саны 4-тен аспасын, әр номинал 20-дан, сома да 20-дан аспасын, ең кіші номинал 1 болсын. 1, 3, 4 жиыны есептелмейді — ол жоғарыда талданды. Кірістің қасына аз монетамен жинаудың нақты тәсілін де жаз.",
-      ru: "Эта программа читает из первой строки номиналы монет (в порядке возрастания, самый маленький всегда 1), из второй — сумму. Она выполняет жадное правило: всегда берёт самую крупную монету, которая помещается, а затем печатает, сколько монет взяла.\n\n`1 5 10 25`\n`30`\n\nздесь она выводит 2 — верный ответ, и на этом наборе до сих пор никто не нашёл суммы, которая её ломает. А ты найди другой набор: напиши ввод, на котором программа берёт БОЛЬШЕ монет, чем нужно. Условия: монет не больше четырёх, каждый номинал не больше 20, сумма тоже не больше 20, самый маленький номинал равен 1. Набор 1, 3, 4 не засчитывается — он разобран выше. Рядом с вводом напиши и сам способ собрать сумму меньшим числом монет.",
+      kk: "Бұл бағдарлама бірінші жолдан k санын — монета номиналдарының санын, екінші жолдан сол k номиналды (өсу ретімен, ең кішісі әрқашан 1), үшінші жолдан соманы оқиды. Ол ашкөз ережені орындайды: әрқашан сыятын ең үлкен монетаны алады, сосын неше монета алғанын шығарады.\n\n`4`\n`1 5 10 25`\n`30`\n\nүшін ол 2 шығарады — дұрыс жауап, әрі осы жиында оны сындыратын сома әлі ешкім таппаған. Ал сен басқа жиынды тап: бағдарлама шын қажеттіден КӨП монета алатын кіріс жаз. Шарттар: монета саны 4-тен аспасын, әр номинал 20-дан, сома да 20-дан аспасын, ең кіші номинал 1 болсын. 1, 3, 4 жиыны есептелмейді — ол жоғарыда талданды. Кірістің қасына аз монетамен жинаудың нақты тәсілін де жаз.",
+      ru: "Эта программа читает из первой строки число k — количество номиналов, из второй — сами k номиналов (в порядке возрастания, самый маленький всегда 1), из третьей — сумму. Она выполняет жадное правило: всегда берёт самую крупную монету, которая помещается, а затем печатает, сколько монет взяла.\n\n`4`\n`1 5 10 25`\n`30`\n\nздесь она выводит 2 — верный ответ, и на этом наборе до сих пор никто не нашёл суммы, которая её ломает. А ты найди другой набор: напиши ввод, на котором программа берёт БОЛЬШЕ монет, чем нужно. Условия: монет не больше четырёх, каждый номинал не больше 20, сумма тоже не больше 20, самый маленький номинал равен 1. Набор 1, 3, 4 не засчитывается — он разобран выше. Рядом с вводом напиши и сам способ собрать сумму меньшим числом монет.",
     },
     code:
-      "c = list(map(int, input().split()))\nn = int(input())\nrest = n\ntaken = 0\nfor k in range(len(c) - 1, -1, -1):\n    taken = taken + rest // c[k]\n    rest = rest % c[k]\nprint(taken)",
-    breakingInputs: ["1 4 5\n8", "1 5 6\n10", "1 6 10\n12"],
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    vector<int> c;\n" +
+      "    for (int i = 0; i < k; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        c.push_back(x);\n" +
+      "    }\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    int rest = n;\n" +
+      "    int taken = 0;\n" +
+      "    for (int i = k - 1; i >= 0; i--) {\n" +
+      "        taken = taken + rest / c[i];\n" +
+      "        rest = rest % c[i];\n" +
+      "    }\n" +
+      "    cout << taken;\n" +
+      "    return 0;\n" +
+      "}",
+    breakingInputs: ["3\n1 4 5\n8", "3\n1 5 6\n10", "3\n1 6 10\n12"],
   },
   {
     /*
@@ -212,7 +282,25 @@ export const M8_L2: LessonBlock[] = [
       ru: "То же самое жадное правило, только монеты и сумма уже вписаны в программу. Сумму 10 на самом деле можно собрать тремя монетами: 4 + 3 + 3. А что напечатает программа? Выполни её по шагам на бумаге и напиши не то, что правилу СЛЕДОВАЛО БЫ сделать, а то, что она действительно выведет.",
     },
     code:
-      "c = [1, 3, 4]\nn = 10\nrest = n\ntaken = 0\nfor k in range(2, -1, -1):\n    taken = taken + rest // c[k]\n    rest = rest % c[k]\nprint(taken)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> c;\n" +
+      "    c.push_back(1);\n" +
+      "    c.push_back(3);\n" +
+      "    c.push_back(4);\n" +
+      "    int n = 10;\n" +
+      "    int rest = n;\n" +
+      "    int taken = 0;\n" +
+      "    for (int i = 2; i >= 0; i--) {\n" +
+      "        taken = taken + rest / c[i];\n" +
+      "        rest = rest % c[i];\n" +
+      "    }\n" +
+      "    cout << taken;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "4",
     options: ["3", "4", "5", "10"],
     diagnosticMapping: {
@@ -234,6 +322,8 @@ export const M8_L2: LessonBlock[] = [
      * the prompt (3 3 4 into 10) fills the bag exactly, so the card opens with
      * the rule succeeding — a proposal nobody has seen succeed is not a
      * proposal, it is a straw man.
+     *
+     * Three lines rather than two, for the same reason as `b3`.
      */
     id: "m8.l2.b5",
     type: "test_case",
@@ -241,12 +331,39 @@ export const M8_L2: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Екінші ұсыныс, енді басқа есеп. Бірінші жолда заттардың салмағы (кез келген ретпен), екінші жолда сөмкенің сыйымдылығы беріледі. Ереже: сыятын ең ауыр затты ал, содан кейін қалғандарының ішінен тағы сыятын ең ауырын ал, солай жалғастыр. Бағдарлама сөмкеге салынған жалпы салмақты шығарады.\n\n`3 3 4`\n`10`\n\nүшін ол 10 шығарады — сөмке тап-толық. Осы ережені сындыратын кіріс жаз: дәл сол заттардан сөмкені ауырырақ толтыруға болатын болсын. Шарттар: зат саны 4-тен аспасын, әр салмақ пен сыйымдылық 20-дан аспасын. Қай заттарды алған дұрыс болатынын және жалпы салмағы қанша шығатынын да жаз.",
-      ru: "Второе предложение, теперь на другой задаче. В первой строке даны веса предметов (в произвольном порядке), во второй — вместимость рюкзака. Правило: возьми самый тяжёлый предмет, который помещается, затем из оставшихся снова самый тяжёлый, который помещается, и так далее. Программа выводит суммарный вес того, что уложено.\n\n`3 3 4`\n`10`\n\nздесь она выводит 10 — рюкзак заполнен ровно под завязку. Придумай ввод, который ломает это правило: из тех же предметов рюкзак можно набить тяжелее. Условия: предметов не больше четырёх, каждый вес и вместимость не больше 20. Напиши также, какие предметы стоило взять и какой суммарный вес получается.",
+      kk: "Екінші ұсыныс, енді басқа есеп. Бірінші жолда k саны — заттар саны, екінші жолда сол k заттың салмағы (кез келген ретпен), үшінші жолда сөмкенің сыйымдылығы беріледі. Ереже: сыятын ең ауыр затты ал, содан кейін қалғандарының ішінен тағы сыятын ең ауырын ал, солай жалғастыр. Бағдарлама сөмкеге салынған жалпы салмақты шығарады.\n\n`3`\n`3 3 4`\n`10`\n\nүшін ол 10 шығарады — сөмке тап-толық. Осы ережені сындыратын кіріс жаз: дәл сол заттардан сөмкені ауырырақ толтыруға болатын болсын. Шарттар: зат саны 4-тен аспасын, әр салмақ пен сыйымдылық 20-дан аспасын. Қай заттарды алған дұрыс болатынын және жалпы салмағы қанша шығатынын да жаз.",
+      ru: "Второе предложение, теперь на другой задаче. В первой строке дано число k — количество предметов, во второй — веса этих k предметов (в произвольном порядке), в третьей — вместимость рюкзака. Правило: возьми самый тяжёлый предмет, который помещается, затем из оставшихся снова самый тяжёлый, который помещается, и так далее. Программа выводит суммарный вес того, что уложено.\n\n`3`\n`3 3 4`\n`10`\n\nздесь она выводит 10 — рюкзак заполнен ровно под завязку. Придумай ввод, который ломает это правило: из тех же предметов рюкзак можно набить тяжелее. Условия: предметов не больше четырёх, каждый вес и вместимость не больше 20. Напиши также, какие предметы стоило взять и какой суммарный вес получается.",
     },
     code:
-      "w = sorted(list(map(int, input().split())))\ncap = int(input())\nrest = cap\npacked = 0\nfor k in range(len(w) - 1, -1, -1):\n    if w[k] <= rest:\n        rest = rest - w[k]\n        packed = packed + w[k]\nprint(packed)",
-    breakingInputs: ["6 5 5 1\n10", "9 6 5\n11", "8 5 5\n10"],
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    vector<int> w;\n" +
+      "    for (int i = 0; i < k; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        w.push_back(x);\n" +
+      "    }\n" +
+      "    sort(w.begin(), w.end());\n" +
+      "    int cap;\n" +
+      "    cin >> cap;\n" +
+      "    int rest = cap;\n" +
+      "    int packed = 0;\n" +
+      "    for (int i = k - 1; i >= 0; i--) {\n" +
+      "        if (w[i] <= rest) {\n" +
+      "            rest = rest - w[i];\n" +
+      "            packed = packed + w[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << packed;\n" +
+      "    return 0;\n" +
+      "}",
+    breakingInputs: ["4\n6 5 5 1\n10", "3\n9 6 5\n11", "3\n8 5 5\n10"],
   },
   {
     /*
@@ -261,6 +378,9 @@ export const M8_L2: LessonBlock[] = [
      * shortcuts — 2 3 4 5 / 14 kills `total < cap` written for `<=`, 9 9 9 9 / 5
      * kills a `best` started at -1 or at w[0], 10 1 1 1 / 10 kills a loop that
      * quietly skips the first item, and 9 6 5 1 / 11 kills any surviving greedy.
+     *
+     * The item count is fixed at four, so nothing about the input format had to
+     * change for C++.
      */
     id: "m8.l2.b6",
     type: "modify_code",
@@ -272,9 +392,60 @@ export const M8_L2: LessonBlock[] = [
       ru: "Здесь правило ещё проще: программа читает веса ровно четырёх предметов и смотрит их в том порядке, в каком они даны, — помещается, значит кладём. Для `7 4 4 2` и 8 она выводит 7, хотя рюкзак можно набить полностью: 4 + 4 = 8. Переделай программу так, чтобы она вообще отказалась от правила: у каждого предмета два варианта — «беру» и «не беру», значит всего 2 · 2 · 2 · 2 = 16 вариантов. Проверь их все и выведи наибольший суммарный вес, не превышающий вместимости. Если не помещается ни один предмет, выведи 0.",
     },
     code:
-      "w = list(map(int, input().split()))\ncap = int(input())\nrest = cap\npacked = 0\nfor k in range(len(w)):\n    if w[k] <= rest:\n        rest = rest - w[k]\n        packed = packed + w[k]\nprint(packed)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> w;\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        w.push_back(x);\n" +
+      "    }\n" +
+      "    int cap;\n" +
+      "    cin >> cap;\n" +
+      "    int rest = cap;\n" +
+      "    int packed = 0;\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        if (w[i] <= rest) {\n" +
+      "            rest = rest - w[i];\n" +
+      "            packed = packed + w[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << packed;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "w = list(map(int, input().split()))\ncap = int(input())\nbest = 0\nfor a in range(2):\n    for b in range(2):\n        for c in range(2):\n            for d in range(2):\n                total = a * w[0] + b * w[1] + c * w[2] + d * w[3]\n                if total <= cap and total > best:\n                    best = total\nprint(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> w;\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        w.push_back(x);\n" +
+      "    }\n" +
+      "    int cap;\n" +
+      "    cin >> cap;\n" +
+      "    int best = 0;\n" +
+      "    for (int a = 0; a < 2; a++) {\n" +
+      "        for (int b = 0; b < 2; b++) {\n" +
+      "            for (int c = 0; c < 2; c++) {\n" +
+      "                for (int d = 0; d < 2; d++) {\n" +
+      "                    int total = a * w[0] + b * w[1] + c * w[2] + d * w[3];\n" +
+      "                    if (total <= cap && total > best) {\n" +
+      "                        best = total;\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The prompt says each item may be taken at most once — 16 subsets. A loop allowing each
          item twice answers 5 here and passed every other case. */
@@ -327,8 +498,8 @@ export const M8_L2: LessonBlock[] = [
       {
         id: "o2",
         label: {
-          kk: "Тізімде бүтін сандар бар, олардың ішінде теріс сандар да болуы мүмкін. Екі санның ең үлкен көбейтіндісін алу үшін: ең үлкен екі санды ал.",
-          ru: "В списке целые числа, среди них могут быть и отрицательные. Чтобы получить наибольшее произведение двух чисел: возьми два самых больших числа.",
+          kk: "Тізбекте бүтін сандар бар, олардың ішінде теріс сандар да болуы мүмкін. Екі санның ең үлкен көбейтіндісін алу үшін: ең үлкен екі санды ал.",
+          ru: "В последовательности целые числа, среди них могут быть и отрицательные. Чтобы получить наибольшее произведение двух чисел: возьми два самых больших числа.",
         },
       },
       {
@@ -383,14 +554,18 @@ export const M8_L2: LessonBlock[] = [
      *                      guess, since every counterexample shown so far is
      *                      under 15.
      *   1 20 21  → 40 20 2 hidden. The first failure is EXACTLY 40, so a sweep
-     *                      written `range(1, 40)` prints none and dies here.
+     *                      written `n < 40` prints none and dies here.
      *   1 21 22  → none    hidden. The first failure is 42, outside the stated
      *                      range, so a sweep that runs past 40 reports 42 21 2
      *                      and dies. The two together pin the boundary from
      *                      both sides, which is what the prompt promises.
      *
-     * Missing `+ 1` on an enumeration bound and dropping the `break` are both
-     * killed by the visible cases, so a learner meets them in the open.
+     * Dropping the `break` is killed by the visible cases, so a learner meets it
+     * in the open.
+     *
+     * Cost: the sweep is at most about 200 000 additions in total, which is
+     * nothing on either engine — the size here buys correctness, not a timing
+     * lesson.
      *
      * The prompt fixes the ORDER of the three numbers and says nothing about
      * layout, which is what `token` promises; there is no line-structure claim
@@ -407,7 +582,48 @@ export const M8_L2: LessonBlock[] = [
       ru: "В одной строке даны три номинала: 1 = c1 < c2 < c3 ≤ 40, самый маленький всегда 1. Жадное правило прежнее: всегда бери самую крупную монету, которая помещается. Проверь каждую сумму от 1 до 40 включительно и найди НАИМЕНЬШУЮ сумму, на которой правило берёт больше монет, чем нужно. Если такая нашлась, выведи три числа в этом порядке: саму сумму, число монет по правилу и настоящее наименьшее число монет. Если во всём диапазоне от 1 до 40 такой суммы нет, выведи английское слово `none`. Вариантов для каждой суммы немного — количество монет каждого номинала не превосходит самой суммы, поэтому настоящий минимум спокойно ищется полным перебором.",
     },
     referenceSolution:
-      "c = list(map(int, input().split()))\nfound = 0\nfor n in range(1, 41):\n    rest = n\n    greedy = 0\n    for p in range(2, -1, -1):\n        greedy = greedy + rest // c[p]\n        rest = rest % c[p]\n    best = -1\n    for i in range(n // c[0] + 1):\n        for j in range(n // c[1] + 1):\n            for k in range(n // c[2] + 1):\n                if i * c[0] + j * c[1] + k * c[2] == n:\n                    if best == -1 or i + j + k < best:\n                        best = i + j + k\n    if greedy > best:\n        print(n, greedy, best)\n        found = 1\n        break\nif found == 0:\n    print(\"none\")",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> c;\n" +
+      "    for (int i = 0; i < 3; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        c.push_back(x);\n" +
+      "    }\n" +
+      "    int found = 0;\n" +
+      "    for (int n = 1; n <= 40; n++) {\n" +
+      "        int rest = n;\n" +
+      "        int greedy = 0;\n" +
+      "        for (int p = 2; p >= 0; p--) {\n" +
+      "            greedy = greedy + rest / c[p];\n" +
+      "            rest = rest % c[p];\n" +
+      "        }\n" +
+      "        int best = -1;\n" +
+      "        for (int i = 0; i <= n / c[0]; i++) {\n" +
+      "            for (int j = 0; j <= n / c[1]; j++) {\n" +
+      "                for (int k = 0; k <= n / c[2]; k++) {\n" +
+      "                    if (i * c[0] + j * c[1] + k * c[2] == n) {\n" +
+      "                        if (best == -1 || i + j + k < best) {\n" +
+      "                            best = i + j + k;\n" +
+      "                        }\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "        if (greedy > best) {\n" +
+      "            cout << n << \" \" << greedy << \" \" << best;\n" +
+      "            found = 1;\n" +
+      "            break;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (found == 0) {\n" +
+      "        cout << \"none\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "1 3 4", expectedOutput: "6 3 2" },
       { input: "1 5 10", expectedOutput: "none" },
@@ -424,13 +640,18 @@ export const M8_L2: LessonBlock[] = [
      * Support's substitute for b9 — «дайын кодты құрастыру мен толықтыру
      * көбірек» (p.6), the same problem with the structure handed over.
      *
-     * The five blanks are the five places where this program can be wrong, and
-     * none of them can be filled by pattern-matching the surrounding lines:
-     * the sweep's upper bound (41, because 40 is included), the enumeration
-     * bound that needs its `+ 1`, the comparison that keeps the smaller total,
-     * the direction of the failing test (greedy > best, never the reverse — the
-     * rule can only ever take too many), and the token printed when nothing
-     * breaks. Everything else is given.
+     * The five blanks are the five places where this program can be wrong:
+     * the sweep's upper bound, the enumeration bound for the largest coin, the
+     * comparison that keeps the smaller total, the direction of the failing test
+     * (greedy > best, never the reverse — the rule can only ever take too many),
+     * and the token printed when nothing breaks. Everything else is given.
+     *
+     * One of the five got easier in C++ and it is worth saying so rather than
+     * pretending otherwise: Python's `range(1, 41)` stopped one short of its
+     * bound, so the first blank used to be an off-by-one worth thinking about.
+     * The C++ loop is `n <= ___` and the answer is the stated end itself. The
+     * other four are unchanged, and the second — `n / c[2]`, how many of the
+     * largest coin can possibly fit — is still the one that needs the argument.
      *
      * The prompt restates the problem in full: support never receives b9, so a
      * reference to "the task above" would point at the multiple choice.
@@ -445,13 +666,54 @@ export const M8_L2: LessonBlock[] = [
       ru: "Задача: в одной строке даны три номинала, 1 = c1 < c2 < c3 ≤ 40, самый маленький всегда 1. Жадное правило — всегда брать самую крупную монету, которая помещается. Нужно проверить каждую сумму от 1 до 40 включительно и найти НАИМЕНЬШУЮ, на которой правило берёт больше монет, чем нужно. Если она нашлась — выводятся сама сумма, число монет по правилу и настоящий минимум, в этом порядке; если нет — английское слово `none`. Программа уже написана, но в ней пять пропусков. Заполни каждый.",
     },
     template:
-      "c = list(map(int, input().split()))\nfound = 0\nfor n in range(1, ___):\n    rest = n\n    greedy = 0\n    for p in range(2, -1, -1):\n        greedy = greedy + rest // c[p]\n        rest = rest % c[p]\n    best = -1\n    for i in range(n // c[0] + 1):\n        for j in range(n // c[1] + 1):\n            for k in range(___):\n                if i * c[0] + j * c[1] + k * c[2] == n:\n                    if best == -1 or ___:\n                        best = i + j + k\n    if ___:\n        print(n, greedy, best)\n        found = 1\n        break\nif found == 0:\n    print(___)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> c;\n" +
+      "    for (int i = 0; i < 3; i++) {\n" +
+      "        int x;\n" +
+      "        cin >> x;\n" +
+      "        c.push_back(x);\n" +
+      "    }\n" +
+      "    int found = 0;\n" +
+      "    for (int n = 1; n <= ___; n++) {\n" +
+      "        int rest = n;\n" +
+      "        int greedy = 0;\n" +
+      "        for (int p = 2; p >= 0; p--) {\n" +
+      "            greedy = greedy + rest / c[p];\n" +
+      "            rest = rest % c[p];\n" +
+      "        }\n" +
+      "        int best = -1;\n" +
+      "        for (int i = 0; i <= n / c[0]; i++) {\n" +
+      "            for (int j = 0; j <= n / c[1]; j++) {\n" +
+      "                for (int k = 0; k <= ___; k++) {\n" +
+      "                    if (i * c[0] + j * c[1] + k * c[2] == n) {\n" +
+      "                        if (best == -1 || ___) {\n" +
+      "                            best = i + j + k;\n" +
+      "                        }\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "        if (___) {\n" +
+      "            cout << n << \" \" << greedy << \" \" << best;\n" +
+      "            found = 1;\n" +
+      "            break;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (found == 0) {\n" +
+      "        cout << ___;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "sweep_end", answer: "41" },
-      { id: "third_bound", answer: "n // c[2] + 1" },
+      { id: "sweep_end", answer: "40" },
+      { id: "third_bound", answer: "n / c[2]" },
       { id: "keep_smaller", answer: "i + j + k < best", alternatives: ["best > i + j + k"] },
       { id: "rule_lost", answer: "greedy > best", alternatives: ["best < greedy", "greedy != best"] },
-      { id: "token", answer: "\"none\"", alternatives: ["'none'"] },
+      { id: "token", answer: "\"none\"" },
     ],
   },
   {
@@ -493,7 +755,7 @@ export const M8_L2: LessonBlock[] = [
         ru: "Рассуждение об обмене: если из двух соседних заданий первое длиннее, то при их перестановке меняются только их два времени завершения, а сумма уменьшается. Значит, в наилучшем порядке длинное задание не может стоять перед коротким — правило верно.",
       },
       {
-        kk: "Мұнда қарсы мысал жоқ екенін айтады, ал қарсы мысал келтірген оқушы оны толық жазуы керек: нақты уақыттар тізімі, ереже таңдаған рет, одан жақсы рет және екі қосынды. Бұл төртеуінің бірі жетпесе, ол әлі қарсы мысал емес.",
+        kk: "Мұнда қарсы мысал жоқ екенін айтады, ал қарсы мысал келтірген оқушы оны толық жазуы керек: нақты уақыттар тізбегі, ереже таңдаған рет, одан жақсы рет және екі қосынды. Бұл төртеуінің бірі жетпесе, ол әлі қарсы мысал емес.",
         ru: "Говорит, что контрпримера здесь нет; а если ученик его всё же приводит, то приводит полностью: конкретный список длительностей, порядок по правилу, лучший порядок и обе суммы. Без любого из этих четырёх пунктов это ещё не контрпример.",
       },
       {

@@ -191,8 +191,8 @@ const DRUGS: RegExp[] = [
  * Unauthorised access, theft, fraud.
  *
  * Every pattern needs an OBJECT — someone's account, a password, a card. A
- * fourteen-year-old learning Python will ask about hashing, about `hack`athons,
- * and about security, and none of those may be blocked.
+ * fourteen-year-old learning to program will ask about hashing, about
+ * `hack`athons, and about security, and none of those may be blocked.
  */
 const ILLEGAL_ACCESS: RegExp[] = [
   /\bhack\s+(into|his|her|their|someone'?s?|my\s+(friend|teacher|school)'?s?)\b/,
@@ -507,12 +507,31 @@ const EDUCATIONAL: RegExp[] = [
   /* No bare `if`, `for`, `int` or `str`. They are among the commonest words in
      English and they would make almost every sentence look educational, which
      costs the off-topic redirect its whole reason to exist. Real code is
-     matched by shape on the last line instead. */
+     matched by shape on the last line instead.
+
+     `python` stays. The course is C++17 now, but a learner asking «а в питоне
+     это как?» is asking a programming question and being redirected to the
+     task for it would be absurd. Words are added here, never removed: a signal
+     that this message is about the work does not stop being one because the
+     language changed. */
   /\b(python|code|coding|program|programming|function|loop|variable|error|bug|syntax|indent|traceback|exception|compile|debug)\b/,
+  /* What C++ brought with it. `compile` was already above; the rest are the
+     nouns a beginner reaches for when a build fails — and a build failing is
+     now the single commonest reason this panel is opened. */
+  /(?:\bc\+\+|\bcpp\b|\bcompil|\bsemicolon\b|\bdeclar|\bheader\b|\binclude\b|\bnamespace\b|\bbrace|\bbracket|\boverflow\b|\bcout\b|\bcin\b|\bstd::)/i,
   /\b(task|exercise|lesson|test\s+case|expected\s+output)\b/,
   /(код|программ|функци|цикл|переменн|ошибк|синтаксис|отступ|задач|урок|вывод|список|условие|решени|отлад)/,
+  /(компил|точк[аиу]\s+с\s+запятой|скобк|объяв(и|ить|лен)|заголовочн|пространство\s+имён|переполнен|тип\s+переменной)/,
   /(бағдарлама|функция|цикл|айнымалы|қате|тапсырма|сабақ|шарт|тізім|шығыс)/,
-  /\bprint\s*\(|\bdef\s+\w+\s*\(|\bfor\s+\w+\s+in\b|\bwhile\s+\w+\s*[<>=]|\bif\s+\w+\s*[<>=!]|\binput\s*\(/,
+  /(компиля|нүктелі\s+үтір|жақша|тақырыптық\s+файл|асып\s+кет|жария(ла|лан))/,
+  /* Real code, by shape.
+   *
+   * This was a Python probe — `print(`, `def f(`, `for x in`, `input(`. Against
+   * a C++17 course it matched nothing a learner would paste, so a message that
+   * was ENTIRELY a program read as unclassified and fell through to the default
+   * rather than being recognised as the work. The shapes below are the ones a
+   * September learner actually types. */
+  /(?:std::)?c(?:out|in)\s*(?:<<|>>)|#\s*include\s*<|\bint\s+main\s*\(|\busing\s+namespace\b|\b(?:int|long\s+long|double|float|char|bool|string)\s+[A-Za-z_]\w*\s*[=;,]|\b(?:if|while|for)\s*\([^)]*[<>=!]/,
 ];
 
 const SHORT_MESSAGE = 80;

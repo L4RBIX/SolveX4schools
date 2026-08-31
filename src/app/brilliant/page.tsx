@@ -14,6 +14,13 @@ import { Testimonials, type Testimonial } from "@/components/brilliant/testimoni
  * client module, and a server component that imports a value from one only
  * ever receives a client reference — not the array itself. Keeping the strings
  * in one place also makes them auditable against the extraction in one read.
+ *
+ * The Python in here is Brilliant's, not ours. "Thinking in Python" is a real
+ * course on a real site, this tree is a verbatim reproduction of it, and
+ * `/brilliant/**` 404s outside development (`tests/school/routes.test.ts`). A
+ * migration that renamed it to C++ would break the only baseline the product's
+ * own pages are measured against, and would put a course name on a page that
+ * the site it copies does not have. Leave it.
  */
 
 const ORIGIN = "/assets/original/brilliant/brilliant.org";

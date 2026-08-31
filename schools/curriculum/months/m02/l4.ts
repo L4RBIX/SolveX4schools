@@ -12,12 +12,36 @@ import type { LessonBlock } from "../../types";
  * and not a task — the learner looks at the boxes and their numbers before
  * anybody asks them to compute with them. The programme also names
  * «индекстің шекарадан шығуы» among October's four typical errors, which is
- * what `m2.l4.b5` puts on screen as a program that actually crashes.
+ * what `m2.l4.b5` puts on screen as a program that really does stop.
  *
- * Everything here is written with October's Python only: list literal, `[i]`,
- * `len`, `list(map(int, input().split()))`. No `sorted`, no negative-index
- * shortcut in any solution — `-1` appears exactly once, as a wrong answer to a
- * question about counting from the start.
+ * ## The C++ list is `vector<int>`, and the input format changed with it
+ *
+ * Python read a whole line and split it, and the length came from `len(a)`.
+ * C++ has no split, and a beginner's first list has to arrive by a route they
+ * can read: `cin >> n`, then `vector<int> a(n)`, then one `cin >> a[i]` per
+ * pass. So EVERY task in October that used to take one line of numbers now
+ * takes the count on the first line and the numbers on the second, and every
+ * prompt says so in both languages. Nothing else about the tasks moved.
+ *
+ * ## Why `at()` appears here, and only where an error is the subject
+ *
+ * Python answered an out-of-range index with `IndexError` — loud, immediate,
+ * and the reason a boundary bug was worth putting on screen. C++'s `a[i]` does
+ * NOT check: past the end it reads whatever happens to be next in memory, and
+ * the program keeps going with a number nobody chose. That is undefined
+ * behaviour, this course does not teach it as a concept, and shipping a task
+ * whose answer depends on it would be worse than teaching nothing.
+ *
+ * `a.at(i)` is the checked form: it stops the program with an `out of range`
+ * error. It traps identically on both engines — measured, see
+ * docs/cpp17/CPP17_BROWSER_RUNTIME.md — so a boundary error can be shown
+ * honestly and graded reproducibly. The rule the concept card gives is exactly
+ * that: write `a[i]` in your own programs, and reach for `a.at(i)` when you
+ * are hunting an index bug and want the computer to point at it. `m2.l4.b5`
+ * and `m2.l9.b4` are the two blocks that use it, and both are about the error.
+ *
+ * No `sort`, and no negative index anywhere in a solution — `-1` appears once,
+ * as a wrong answer to a question about counting from the start.
  */
 export const M2_L4: LessonBlock[] = [
   {
@@ -31,10 +55,23 @@ export const M2_L4: LessonBlock[] = [
       ru: "Список — ряд пронумерованных ячеек",
     },
     body: {
-      kk: "Тізім — бір атпен сақталған қораптар қатары. Әр қорапта бір мән жатыр, ал әр қораптың өз нөмірі (индексі) бар. Санау бірден емес, нөлден басталады: бірінші қорап — 0, екіншісі — 1, үшіншісі — 2. `a[i]` жазуы i нөмірлі қораптағы мәнді береді. `len(a)` — қораптардың саны; санау нөлден басталғандықтан соңғы қораптың нөмірі `len(a) - 1` болады.",
-      ru: "Список — это ряд ячеек, которые хранятся под одним именем. В каждой ячейке лежит одно значение, и у каждой ячейки есть свой номер — индекс. Счёт идёт не с единицы, а с нуля: первая ячейка — 0, вторая — 1, третья — 2. Запись `a[i]` даёт значение из ячейки с номером i. `len(a)` — это количество ячеек; так как счёт начинается с нуля, номер последней ячейки равен `len(a) - 1`.",
+      kk: "Тізім — бір атпен сақталған қораптар қатары. C++-та ол `vector<int>` деп аталады, ал оны қолдану үшін жоғарыға `#include <vector>` деген жол қосылады. Әр қорапта бір бүтін сан жатыр, ал әр қораптың өз нөмірі (индексі) бар. Санау бірден емес, нөлден басталады: бірінші қорап — 0, екіншісі — 1, үшіншісі — 2. `a[i]` жазуы i нөмірлі қораптағы мәнді береді.\n\n`a.size()` — қораптардың саны. Санау нөлден басталғандықтан соңғы қораптың нөмірі `a.size()` емес, `a.size() - 1` болады.\n\nТізімді қалай оқимыз? Алдымен қанша сан келетінін оқып аламыз, содан кейін дәл сонша қорабы бар тізім жасаймыз да, циклмен толтырамыз:\n\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n\nЕкі ескерту. Біріншісі: `a.size()` — теріс бола алмайтын ерекше сан, сондықтан бос тізімде `a.size() - 1` деген −1 емес, өте үлкен сан болып шығады. Сол себепті бұл курста ұзындықты бірден `int n = a.size();` деп жазып алып, циклде `i < n` деп салыстырамыз. Екіншісі: `a[i]` индекстің дұрыстығын ТЕКСЕРМЕЙДІ — шекарадан шығып кетсең, бағдарлама құламайды да, бөтен жердегі кездейсоқ санды алып, жұмысын жалғастыра береді. Ал `a.at(i)` тексереді және қате индексте бағдарламаны `out of range` деген хабармен тоқтатады. Өз шешіміңде `a[i]` жаз, ал индекс қатесін іздеп жүргенде `a.at(i)` — сенің көмекшің.",
+      ru: "Список — это ряд ячеек, которые хранятся под одним именем. В C++ он называется `vector<int>`, а чтобы им пользоваться, сверху добавляется строка `#include <vector>`. В каждой ячейке лежит одно целое число, и у каждой ячейки есть свой номер — индекс. Счёт идёт не с единицы, а с нуля: первая ячейка — 0, вторая — 1, третья — 2. Запись `a[i]` даёт значение из ячейки с номером i.\n\n`a.size()` — это количество ячеек. Так как счёт начинается с нуля, номер последней ячейки равен не `a.size()`, а `a.size() - 1`.\n\nКак прочитать список? Сначала читаем, сколько будет чисел, затем создаём список ровно с таким числом ячеек и заполняем его циклом:\n\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n\nДва предупреждения. Первое: `a.size()` — особое число, которое не бывает отрицательным, поэтому у пустого списка `a.size() - 1` — это не −1, а очень большое число. Поэтому в этом курсе мы сразу пишем `int n = a.size();` и сравниваем в цикле `i < n`. Второе: `a[i]` НЕ проверяет, правильный ли индекс, — выйдя за границу, программа не падает, а берёт случайное число из чужого места и спокойно работает дальше. А `a.at(i)` проверяет и на неверном индексе останавливает программу с сообщением `out of range`. В своём решении пиши `a[i]`, а `a.at(i)` — твой помощник, когда ищешь ошибку в индексах.",
     },
-    code: "a = [7, 3, 9, 5]\nprint(a[0])\nprint(a[2])\nprint(len(a))",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {7, 3, 9, 5};\n" +
+      "    int n = a.size();\n" +
+      "    cout << a[0] << endl;       // 7\n" +
+      "    cout << a[2] << endl;       // 9\n" +
+      "    cout << n << endl;          // 4\n" +
+      "    cout << a[n - 1] << endl;   // 5\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -51,8 +88,8 @@ export const M2_L4: LessonBlock[] = [
     pdfPage: 7,
     simulation: "loop_trace",
     prompt: {
-      kk: "Қораптарды бірінен соң бірін ашып көр. Жоғарыда — мән, төменде — сол қораптың индексі. Индекс 0-ден `len(a) - 1`-ге дейін жүреді: соңғы қорапта тоқта да, оның нөмірін дауыстап айт.",
-      ru: "Открывай ячейки одну за другой. Сверху — значение, снизу — индекс этой ячейки. Индекс идёт от 0 до `len(a) - 1`: остановись на последней ячейке и назови её номер вслух.",
+      kk: "Қораптарды бірінен соң бірін ашып көр. Жоғарыда — мән, төменде — сол қораптың индексі. Индекс 0-ден `a.size() - 1`-ге дейін жүреді: соңғы қорапта тоқта да, оның нөмірін дауыстап айт.",
+      ru: "Открывай ячейки одну за другой. Сверху — значение, снизу — индекс этой ячейки. Индекс идёт от 0 до `a.size() - 1`: остановись на последней ячейке и назови её номер вслух.",
     },
     config: { list: [7, 3, 9, 5], highlight: "index", showLength: true },
   },
@@ -65,7 +102,17 @@ export const M2_L4: LessonBlock[] = [
       kk: "Бағдарлама нені шығарады? Қораптардың нөмірін нөлден бастап санап шық.",
       ru: "Что выведет программа? Посчитай номера ячеек, начиная с нуля.",
     },
-    code: "a = [4, 8, 15, 16]\nprint(a[0], a[2], a[len(a) - 1])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {4, 8, 15, 16};\n" +
+      "    int n = a.size();\n" +
+      "    cout << a[0] << \" \" << a[2] << \" \" << a[n - 1];\n" +
+      "    return 0;\n" +
+      "}",
     answer: "4 15 16",
     options: ["4 15 16", "4 8 15", "4 8 16", "8 15 16"],
     diagnosticMapping: {
@@ -90,44 +137,49 @@ export const M2_L4: LessonBlock[] = [
     skillRefs: ["lists.index", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "`a` тізімінде `len(a)` элемент бар. Индекстер басынан бастап 0, 1, 2, … деп саналады. Соңғы элементтің индексі неге тең?",
-      ru: "В списке `a` ровно `len(a)` элементов. Индексы считаются от начала: 0, 1, 2, … Чему равен индекс последнего элемента?",
+      kk: "`a` тізімінде `a.size()` элемент бар. Индекстер басынан бастап 0, 1, 2, … деп саналады. Соңғы элементтің индексі неге тең?",
+      ru: "В списке `a` ровно `a.size()` элементов. Индексы считаются от начала: 0, 1, 2, … Чему равен индекс последнего элемента?",
     },
     options: [
-      { id: "o1", label: { kk: "len(a)", ru: "len(a)" } },
-      { id: "o2", label: { kk: "len(a) - 1", ru: "len(a) - 1" } },
-      { id: "o3", label: { kk: "len(a) + 1", ru: "len(a) + 1" } },
+      { id: "o1", label: { kk: "a.size()", ru: "a.size()" } },
+      { id: "o2", label: { kk: "a.size() - 1", ru: "a.size() - 1" } },
+      { id: "o3", label: { kk: "a.size() + 1", ru: "a.size() + 1" } },
       { id: "o4", label: { kk: "-1", ru: "-1" } },
     ],
     correctOptionId: "o2",
     diagnosticMapping: {
       /*
-       * o4 (`-1`) gets no mapping, and that is the whole reason it is here. In
-       * Python `a[-1]` really does reach the last element; a learner who picks
-       * it may understand indexing perfectly and simply answer a different
-       * question than the one asked (the number counted FROM THE START).
-       * Telling that learner they have a misconception would be false.
+       * o4 (`-1`) gets no mapping, and the reason changed with the language. In
+       * Python `a[-1]` really did reach the last element, so the option was
+       * defensible; in C++ it is simply out of range. It stays unmapped anyway,
+       * because two different things bring a learner to it — counting from the
+       * end, or reading the question as "which index is invalid" — and a
+       * distractor with two causes gets no attribution.
        */
       o1: {
         failureClass: "off_by_one_last_index",
         justification:
-          "`len(a)` — элементтердің саны, ал нөлден санағанда соңғы нөмір одан бір кем. Дәл осы бір қадам асып кету `a[len(a)]` жазылғанда IndexError береді, сондықтан бұл таңдау шекарадан шығу қатесін көрсетеді.",
+          "`a.size()` — элементтердің саны, ал нөлден санағанда соңғы нөмір одан бір кем. Дәл осы бір қадам асып кету `a.at(a.size())` жазылғанда бағдарламаны `out of range` қатесімен тоқтатады, ал `a[a.size()]` жазылса — тіпті тоқтатпай, бөтен санды алып береді. Сондықтан бұл таңдау шекарадан шығу қатесін көрсетеді.",
       },
     },
   },
   {
     /*
      * «индекстің шекарадан шығуы» — one of October's four named typical errors
-     * (PDF p.7). The two programs differ the loudest way there is: one prints a
-     * number, the other prints nothing at all and stops with IndexError.
-     * symptomInput is declared because the fallback probe feeds a single
-     * number, and on a single number the broken program still crashes but the
-     * fixed one prints — that would pass, yet it would not be the list the
-     * lesson is about.
+     * (PDF p.7), and the block the file header's `at()` decision exists for.
      *
-     * No diagnosticMapping: with two lines, choosing line 1 could mean "I think
-     * the reading line is wrong" or "I think the list came out one element
-     * short". Two causes, so the engine asks.
+     * The program is written with `a.at(...)` throughout, so the wrong index
+     * announces itself: the buggy half stops with `out of range` and prints
+     * nothing, the fixed half prints 30. With `a[...]` the same defect would be
+     * undefined behaviour — no crash, an unpredictable number, and a task whose
+     * answer key could not be trusted on either engine.
+     *
+     * symptomInput is declared because the fallback probe feeds a single
+     * number, and a single number is not the list the lesson is about.
+     *
+     * No diagnosticMapping: with two candidate lines the choice of the reading
+     * loop could mean "I think the reading line is wrong" or "I think the list
+     * came out one element short". Two causes, so the engine asks.
      */
     id: "m2.l4.b5",
     type: "find_bug",
@@ -135,13 +187,41 @@ export const M2_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Бағдарлама тізімнің соңғы элементін шығаруы керек. Бірақ `10 20 30` енгізгенде ол ештеңе шығармай, IndexError қатесімен тоқтайды. Қай жол кінәлі және неге?",
-      ru: "Программа должна выводить последний элемент списка. Но при вводе `10 20 30` она ничего не выводит и останавливается с ошибкой IndexError. Какая строка виновата и почему?",
+      kk: "Бағдарлама тізімнің соңғы элементін шығаруы керек. Индекстер `at()` арқылы жазылған, сондықтан қате индекс бірден көрінеді: `3` және `10 20 30` енгізгенде бағдарлама ештеңе шығармай, `out of range` деген қатемен тоқтап қалады. Қай жол кінәлі және неге?",
+      ru: "Программа должна выводить последний элемент списка. Индексы записаны через `at()`, поэтому неверный индекс виден сразу: при вводе `3` и `10 20 30` программа ничего не выводит и останавливается с ошибкой `out of range`. Какая строка виновата и почему?",
     },
-    code: "a = list(map(int, input().split()))\nprint(a[len(a)])",
-    buggyLine: 2,
-    symptomInput: "10 20 30",
-    fixedCode: "a = list(map(int, input().split()))\nprint(a[len(a) - 1])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a.at(i);\n" +
+      "    }\n" +
+      "    cout << a.at(n);\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 12,
+    symptomInput: "3\n10 20 30",
+    fixedCode:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a.at(i);\n" +
+      "    }\n" +
+      "    cout << a.at(n - 1);\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m2.l4.b6",
@@ -149,13 +229,28 @@ export const M2_L4: LessonBlock[] = [
     skillRefs: ["lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі, олардың саны тақ. Дәл ортадағы элементті шығаратындай толықтыр. Мысалы `2 7 4` үшін жауап 7, ал `1 2 3 4 5` үшін 3.",
-      ru: "В одной строке через пробел даны целые числа, их количество нечётное. Дополни программу так, чтобы она вывела элемент ровно из середины. Например, для `2 7 4` ответ 7, а для `1 2 3 4 5` — 3.",
+      kk: "Бірінші жолда сандардың саны n беріледі, ол әрқашан тақ. Екінші жолда сол n бүтін сан бос орынмен жазылады. Дәл ортадағы элементті шығаратындай толықтыр. Мысалы n = 3 және `2 7 4` үшін жауап 7, ал n = 5 және `1 2 3 4 5` үшін 3.",
+      ru: "В первой строке дано количество чисел n, оно всегда нечётное. Во второй строке через пробел записаны эти n целых чисел. Дополни программу так, чтобы она вывела элемент ровно из середины. Например, для n = 3 и `2 7 4` ответ 7, а для n = 5 и `1 2 3 4 5` — 3.",
     },
-    template: "a = list(map(int, input().split()))\nm = len(a) ___ 2\nprint(a[___])",
+    template:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    int m = n ___ 2;\n" +
+      "    cout << a[___];\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: "//" },
-      { id: "f2", answer: "m", alternatives: ["len(a) // 2"] },
+      { id: "f1", answer: "/" },
+      { id: "f2", answer: "m", alternatives: ["n / 2"] },
     ],
   },
   {
@@ -165,26 +260,42 @@ export const M2_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Бірінші жолда бос орынмен бөлінген бүтін сандар беріледі. Екінші жолда бір ғана бүтін сан k беріледі. Индекстер нөлден басталатынын ескеріп, k индексіндегі элементті шығар. k әрқашан дұрыс мән: ол 0-ден бастап, элементтер санынан бір кем санға дейін болады.",
-      ru: "В первой строке через пробел даны целые числа. Во второй строке — одно целое число k. Помня, что индексы начинаются с нуля, выведи элемент с индексом k. Число k всегда корректно: от 0 до количества элементов минус один.",
+      kk: "Бірінші жолда сандардың саны n беріледі (1 ≤ n ≤ 1000). Екінші жолда сол n бүтін сан бос орынмен жазылады. Үшінші жолда бір ғана бүтін сан k беріледі. Индекстер нөлден басталатынын ескеріп, k индексіндегі элементті шығар. k әрқашан дұрыс мән: ол 0-ден бастап n − 1-ге дейін болады.",
+      ru: "В первой строке дано количество чисел n (1 ≤ n ≤ 1000). Во второй строке через пробел записаны эти n целых чисел. В третьей строке — одно целое число k. Помня, что индексы начинаются с нуля, выведи элемент с индексом k. Число k всегда корректно: от 0 до n − 1.",
     },
-    referenceSolution: "a = list(map(int, input().split()))\nk = int(input())\nprint(a[k])",
+    referenceSolution:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    cout << a[k];\n" +
+      "    return 0;\n" +
+      "}",
     /*
-     * k = 0 and k = n-1 are both here because they are the two ends the lesson
-     * is about: `a[k - 1]` survives every middle case and dies on k = 0, and
-     * `a[k + 1]` survives every middle case and crashes on k = n-1. The
-     * single-element list is both ends at once. «9 9 9 2 9» has duplicates but
-     * a distinct target, so a solution that returns any old matching value
-     * fails it.
+     * k = 0 and k = n−1 are both here because they are the two ends the lesson
+     * is about: `a[k - 1]` survives every middle case and goes wrong at k = 0,
+     * and `a[k + 1]` survives every middle case and reads past the end at
+     * k = n−1. The single-element list is both ends at once. «9 9 9 2 9» has
+     * duplicates but a distinct target, so a solution that returns any old
+     * matching value fails it.
      */
     cases: [
-      { input: "5 8 13 21\n1", expectedOutput: "8" },
-      { input: "5 8 13 21\n0", expectedOutput: "5" },
-      { input: "5 8 13 21\n3", expectedOutput: "21", hidden: true },
-      { input: "7\n0", expectedOutput: "7", hidden: true },
-      { input: "9 9 9 2 9\n3", expectedOutput: "2", hidden: true },
-      { input: "-3 10 0 6\n2", expectedOutput: "0", hidden: true },
-      { input: "1 2 3 4 5 6 7 8 9 10\n9", expectedOutput: "10", hidden: true },
+      { input: "4\n5 8 13 21\n1", expectedOutput: "8" },
+      { input: "4\n5 8 13 21\n0", expectedOutput: "5" },
+      { input: "4\n5 8 13 21\n3", expectedOutput: "21", hidden: true },
+      { input: "1\n7\n0", expectedOutput: "7", hidden: true },
+      { input: "5\n9 9 9 2 9\n3", expectedOutput: "2", hidden: true },
+      { input: "4\n-3 10 0 6\n2", expectedOutput: "0", hidden: true },
+      { input: "10\n1 2 3 4 5 6 7 8 9 10\n9", expectedOutput: "10", hidden: true },
     ],
   },
   {
@@ -201,10 +312,24 @@ export const M2_L4: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі (кемінде біреу). Бірінші және соңғы элементті бос орынмен бөліп, бір жолға шығару керек. Код дайын — тек екі индексті қой.",
-      ru: "В одной строке через пробел даны целые числа (хотя бы одно). Нужно вывести в одну строку первый и последний элементы, разделив их пробелом. Код готов — расставь только два индекса.",
+      kk: "Бірінші жолда сандардың саны n (кемінде біреу), екінші жолда сол n бүтін сан беріледі. Бірінші және соңғы элементті бос орынмен бөліп, бір жолға шығару керек. Код дайын — тек екі орынды толтыр.",
+      ru: "В первой строке дано количество чисел n (хотя бы одно), во второй — эти n целых чисел. Нужно вывести в одну строку первый и последний элементы, разделив их пробелом. Код готов — заполни только два места.",
     },
-    template: "a = list(map(int, input().split()))\nprint(a[___], a[len(a) ___ 1])",
+    template:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    cout << a[___] << \" \" << a[n ___ 1];\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "0" },
       { id: "f2", answer: "-" },
@@ -217,22 +342,36 @@ export const M2_L4: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі (кемінде біреу). Тізімнің бірінші және соңғы элементін бос орынмен бөліп, бір жолға шығар.",
-      ru: "В одной строке через пробел даны целые числа (хотя бы одно). Выведи в одну строку первый и последний элементы списка, разделив их пробелом.",
+      kk: "Бірінші жолда сандардың саны n беріледі (1 ≤ n ≤ 1000). Екінші жолда сол n бүтін сан бос орынмен жазылады. Тізімнің бірінші және соңғы элементін бос орынмен бөліп, бір жолға шығар.",
+      ru: "В первой строке дано количество чисел n (1 ≤ n ≤ 1000). Во второй строке через пробел записаны эти n целых чисел. Выведи в одну строку первый и последний элементы списка, разделив их пробелом.",
     },
-    referenceSolution: "a = list(map(int, input().split()))\nprint(a[0], a[len(a) - 1])",
+    referenceSolution:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    cout << a[0] << \" \" << a[n - 1];\n" +
+      "    return 0;\n" +
+      "}",
     /*
      * The single-element list is hidden on purpose: it is the case where first
-     * and last are the same box, and a learner who wrote `a[len(a)]` or `a[1]`
-     * discovers it there rather than on the visible sample.
+     * and last are the same box, and a learner who wrote `a[1]` discovers it
+     * there rather than on the visible sample.
      */
     cases: [
-      { input: "5 8 13 21", expectedOutput: "5 21" },
-      { input: "10 20", expectedOutput: "10 20" },
-      { input: "7", expectedOutput: "7 7", hidden: true },
-      { input: "-4 0 9 -1", expectedOutput: "-4 -1", hidden: true },
-      { input: "3 3 3", expectedOutput: "3 3", hidden: true },
-      { input: "1 2 3 4 5 6", expectedOutput: "1 6", hidden: true },
+      { input: "4\n5 8 13 21", expectedOutput: "5 21" },
+      { input: "2\n10 20", expectedOutput: "10 20" },
+      { input: "1\n7", expectedOutput: "7 7", hidden: true },
+      { input: "4\n-4 0 9 -1", expectedOutput: "-4 -1", hidden: true },
+      { input: "3\n3 3 3", expectedOutput: "3 3", hidden: true },
+      { input: "6\n1 2 3 4 5 6", expectedOutput: "1 6", hidden: true },
     ],
   },
 ];

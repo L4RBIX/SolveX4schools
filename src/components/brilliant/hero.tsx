@@ -18,6 +18,14 @@ const COURSES = "/assets/original/brilliant/brilliant.org/videos/homepage/course
  * Thinking in code — and the homepage plays it in five places. The hero takes
  * the last scene, which nothing else uses, so it does not open on the same
  * frame as the first feature row.
+ *
+ * That second scene is Brilliant's Python lesson, captioned "Python", and it is
+ * also the clip's poster frame. It is why `PublicLanding` passes its own `clip`
+ * rather than falling through to `HERO_CLIP`: the product landing must not open
+ * on a Python card for a C++17 course. This default is only reached by the
+ * development-only `/brilliant` baseline, where the scene is the point — the
+ * clip is the reference, and describing it accurately is what makes it useful
+ * to measure against. Do not "correct" this sentence; correct the artwork.
  */
 export interface HeroClipSource {
   webm: string;

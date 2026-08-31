@@ -150,17 +150,18 @@ export const OPS_COUNTERS = [
    * operator's question and all of it is a child's business.
    *
    * The one thing an operator legitimately cannot see from the server is
-   * whether Pyodide is coming up at all: a 13 MB WASM download over a school
-   * link fails silently, in a place no server log reaches, and the symptom is
-   * eighteen learners who quietly cannot run anything. So the browser reports
-   * ONE bit per page session — did CPython start — and `local_exec.ready` is
-   * the denominator that makes the failures readable. Two failures means
-   * nothing; two failures out of three means the release is broken.
+   * whether the browser compiler is coming up at all: a 57 MB WASM download
+   * over a school link fails silently, in a place no server log reaches, and
+   * the symptom is eighteen learners who quietly cannot run anything. So the
+   * browser reports ONE bit per page session — did the toolchain start — and
+   * `local_exec.ready` is the denominator that makes the failures readable. Two
+   * failures means nothing; two failures out of three means the release is
+   * broken.
    *
    * See `schools/ops/runtime-signal.ts` for what may cross the wire, and
    * `schools/ops/runtime-availability.ts` for the ingest.
    */
-  /** CPython came up in a learner's browser. The denominator, not a success metric. */
+  /** The compiler came up in a learner's browser. The denominator, not a success metric. */
   "local_exec.ready",
   /** It did not. NEVER recorded against the learner — `isLearnerOutcome` is false. */
   "local_exec.unavailable",

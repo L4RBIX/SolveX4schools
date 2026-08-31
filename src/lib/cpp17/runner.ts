@@ -187,6 +187,23 @@ export class Cpp17Runner {
       truncated: msg.truncated,
       runtimeMs: msg.runtimeMs,
     });
+
+    /* The learner's program opened a file, so this worker's in-memory
+     * filesystem is no longer the one we built.
+     *
+     * Answer them first — they get their output, and the run they just made is
+     * honest — then throw the worker away and build a clean one. Verified in a
+     * browser: without this, a program that writes `include/bits/stdc++.h`
+     * breaks every compile for the rest of the page's life, in lessons that
+     * have nothing to do with the one where they experimented, with a
+     * diagnostic naming a header they never opened.
+     *
+     * The same recycle the deadline uses, for the same reason: there is no way
+     * to un-write a file inside a wasm memfs, so the memfs is replaced. */
+    if (msg.filesystemTouched && !this.disposed) {
+      this.kill(null);
+      void this.warm();
+    }
   }
 
   /**

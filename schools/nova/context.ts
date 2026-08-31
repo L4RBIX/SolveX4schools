@@ -9,7 +9,7 @@ import type { CapabilityContext } from "@schools/curriculum/capability";
  *
  * ## The bug this exists to end
  *
- * A learner reads `print("2 + 2")`, picks the wrong option, opens Nova and
+ * A learner reads `cout << 2 + 2;`, picks the wrong option, opens Nova and
  * types «Где ошибка?». Nova answers something like *"your code looks fine, what
  * do you see on screen?"* — and the platform, at that exact moment, already
  * knows the lesson, the block, the three options, which one they picked, that
@@ -109,12 +109,16 @@ export interface NovaContext {
     /** Skill ids the block declares. Internal; rendered as labels. */
     skillIds: string[];
     /**
-     * Which Python the curriculum has actually shown this learner by now.
+     * Which C++ the curriculum has actually shown this learner by now.
      *
      * `skillIds` says what the task is ABOUT. This says what a hint may be
      * WRITTEN WITH, and they are different questions: a level-4 hint on a
-     * September task could reach for a comprehension, which is correct Python
-     * and useless to someone six lessons in.
+     * September task could reach for a `for` loop, which is correct C++17 and
+     * useless to someone six lessons in.
+     *
+     * Paired with the declared sequence in `@schools/nova/cpp17`, which answers
+     * the half this cannot: the frame is SHOWN from lesson one and not REQUIRED
+     * of the learner until lesson seven.
      */
     capability: CapabilityContext | null;
     mode: "lesson" | "practice" | "assessment" | "review";

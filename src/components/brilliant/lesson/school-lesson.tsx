@@ -146,7 +146,14 @@ export interface SchoolLessonProps {
   /** Called once when the learner reaches the end AND the policy is satisfied. */
   onComplete?: (summary: LessonSummary) => void;
   /**
-   * A learner pressed Run and their own browser executed Python.
+   * A learner pressed Run and their own browser compiled and ran their C++.
+   *
+   * Two verbs, not one, and the seam carries both: under Python a press either
+   * produced output or raised, and under C++17 it can end at the compiler
+   * without the program ever having started. `run_executed` is emitted for
+   * either outcome — a learner who spent ten minutes fighting a missing
+   * semicolon has been trying, and a seam that only fired on programs which
+   * actually RAN would score exactly the wrong ten minutes as zero effort.
    *
    * ## Why this seam exists at all
    *
@@ -803,7 +810,8 @@ export function SchoolLesson({
    * not cost a re-render of the lesson. It is read at send time by the Nova
    * panel, exactly like `states` is, and it is the other half of "Nova can see
    * the screen" — `draftFor` carries what the learner TYPED, this carries what
-   * Python SAID about it.
+   * the toolchain SAID about it: the compiler's diagnostic when it never got
+   * as far as running, the program's own output when it did.
    *
    * Cleared by nothing: the learner's last run IS the current screen until they
    * run again. It leaves the browser only inside a Nova request, fenced as
@@ -1048,10 +1056,11 @@ export function SchoolLesson({
                       onAnswer={i === page ? setAnswer : () => {}}
                       lessonId={lesson.id}
                       monthIndex={monthIndex}
-                      /* Only the page on screen preloads CPython. Every page is
-                         mounted at once here, so without this a lesson with a
-                         coding block at the end would start a 13 MB download
-                         while the learner was still reading the first card. */
+                      /* Only the page on screen preloads the C++17 toolchain.
+                         Every page is mounted at once here, so without this a
+                         lesson with a coding block at the end would start an
+                         ~18 MB download while the learner was still reading the
+                         first card. */
                       active={i === page}
                       trustedProviderConfigured={trustedProviderConfigured}
                       onRun={(payload) => runExecuted(b.id, payload)}

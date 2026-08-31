@@ -359,14 +359,19 @@ async function databaseCheck(): Promise<Check> {
  * until an answer arrives. A monitor doing that twice a minute would burn a
  * free tier's daily allowance before the first lesson. It exists for the one
  * moment it is worth its cost — a human asking "is the judge actually up, and
- * which Python is it?" during a lesson — and `detail.probeRequests` says what
- * pressing it spent.
+ * is it compiling C++17?" during a lesson — and `detail.probeRequests` says
+ * what pressing it spent.
  *
  * ## The three questions the probe answers, in the order it stops asking them
  *
  * 1. Is anything there, and will it take our credentials? (`GET /languages`)
- * 2. Which interpreter will it use — id, name, version?
- * 3. Does `print(1)` actually come back as `1`?
+ * 2. Which compiler will it use — id, name, version?
+ * 3. Does the canary come back reporting `__cplusplus` as 201703?
+ *
+ * (3) is the one that changed shape with the language and is worth reading
+ * twice: it is not "does the judge run a program", which every compiler in the
+ * catalogue would pass, but "does the judge run THIS standard". See
+ * `runTrivialProgram` in `judge-probe.ts`.
  *
  * A failure at (1) skips (3) rather than spending a second request to fail the
  * same way twice.
@@ -537,10 +542,11 @@ async function executionCheck(probe: boolean): Promise<AdminHealth["execution"]>
  *
  * ## Two facts, and neither one is visible from the other
  *
- * A learner presses Run and Python executes in their own browser. A learner
- * presses Submit and it executes on our judge. The first produces no server
- * traffic whatsoever, so a school where Pyodide fails to download looks
- * IDENTICAL, from every server-side number in this report, to a school where
+ * A learner presses Run and their browser compiles and executes their C++. A
+ * learner presses Submit and it executes on our judge. The first produces no
+ * server traffic whatsoever, so a school where the compiler fails to download
+ * looks IDENTICAL, from every server-side number in this report, to a school
+ * where
  * every lesson went perfectly — silence either way. The second produces the
  * only results anybody may claim anything from, and it produces none at all
  * when `EXEC_PROVIDER=none`.
@@ -601,15 +607,15 @@ function hybridCheck(): AdminHealth["hybrid"] {
    *
    * With a judge, a dead browser runtime is `degraded`: `/api/exec/run` is
    * still there as the fallback and the lesson works, slowly. Without one it is
-   * `down`, because then there is no interpreter anywhere — the browser cannot
-   * start CPython and there is no server to ask instead, and a code lesson is
+   * `down`, because then there is no compiler anywhere — the browser cannot
+   * start one and there is no server to ask instead, and a code lesson is
    * simply not deliverable.
    */
   let status: CheckStatus = "ok";
   if (localRuntime.broken) {
     status = trusted ? "degraded" : "down";
     problems.push(
-      `Python failed to start in ${localRuntime.unavailable} of ` +
+      `The browser compiler failed to start in ${localRuntime.unavailable} of ` +
         `${localRuntime.signals} browser sessions since ${localRuntime.since}. ` +
         `Most common cause reported: ${dominantFailure(localRuntime)}.` +
         (trusted
@@ -636,9 +642,11 @@ function hybridCheck(): AdminHealth["hybrid"] {
     detail: {
       trustedProvider: trusted,
       submitProducesEvidence: evidence.submitProducesEvidence,
-      /* Named `localRuntime*` rather than `pyodide*`: the field is about the
-         learner being able to run Python locally, and the day the runtime is
-         replaced this report should not need renaming. */
+      /* Named `localRuntime*` rather than after whatever toolchain is in the
+         browser this year: the field is about the learner being able to run
+         code locally. The runtime HAS since been replaced — Pyodide out, a
+         WebAssembly clang in — and this report needed no renaming, which is the
+         argument the name was chosen for. */
       localRuntimeReady: localRuntime.ready,
       localRuntimeUnavailable: localRuntime.unavailable,
       localRuntimeSignals: localRuntime.signals,
@@ -1127,10 +1135,10 @@ export function teacherHealth(admin: AdminHealth): TeacherHealth {
                  connection or the machine, and neither is something a teacher
                  can be asked to diagnose mid-lesson. */
               kk:
-                "Кейбір компьютерлерде Python іске қосылмай тұр. Бетті қайта " +
-                "жүктеп көріңіздер; көмектеспесе — әкімшіге хабарлаңыз.",
+                "Кейбір компьютерлерде код құрастырғыш іске қосылмай тұр. Бетті " +
+                "қайта жүктеп көріңіздер; көмектеспесе — әкімшіге хабарлаңыз.",
               ru:
-                "На части компьютеров Python не запускается. Попробуйте " +
+                "На части компьютеров не запускается компилятор. Попробуйте " +
                 "перезагрузить страницу; если не поможет — сообщите администратору.",
             },
     },

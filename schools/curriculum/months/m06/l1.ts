@@ -16,15 +16,15 @@ import type { LessonBlock } from "../../types";
  *
  * - **Few** is a number, and December already taught how to get it. So the
  *   counting comes first: n(n − 1)/2 pairs, n(n − 1)(n − 2)/6 triples, against
- *   the ~10⁸ steps per second `m4.l1.b1` states once for the whole year. Every
- *   `write_code` below hands the learner the count in its own prompt and says
- *   why the enumeration is legitimate at that size — the reasoning December
- *   asks for BEFORE the code, not a decoration on top of it.
+ *   the ~10⁸ steps per second the year measures against. Every `write_code`
+ *   below hands the learner the count in its own prompt and says why the
+ *   enumeration is legitimate at that size — the reasoning December asks for
+ *   BEFORE the code, not a decoration on top of it.
  * - **Systematically** means an ordering the learner can defend as complete.
  *   That is the `i < j` convention this lesson establishes and the whole month
- *   keeps: the inner loop is `range(i + 1, n)`, so each unordered pair is
- *   examined exactly once, with the smaller index first. Triples extend it to
- *   `i < j < k`.
+ *   keeps: the inner loop is written `for (int j = i + 1; j < n; j++)`, so each
+ *   unordered pair is examined exactly once, with the smaller index first.
+ *   Triples extend it to `i < j < k`.
  *
  * The failure the convention exists to prevent — an inner loop starting at 0,
  * which counts every pair twice and pairs `i` with itself — is the month's most
@@ -58,12 +58,26 @@ import type { LessonBlock } from "../../types";
  * that a walk covered every variant. `m6.l2` takes the counting further into
  * the growth table and the early exit; nothing here pre-empts it.
  *
- * ## No new Python
+ * ## No new C++
  *
- * February introduces no construct (`capability.ts`, month 6: empty). Every
- * program below is October's nested `for` plus November's and January's list
- * reading. `b1` says so out loud, because a month whose novelty is an *idea*
- * rather than a *keyword* is one a learner can otherwise mistake for magic.
+ * February introduces no construct in this lesson. Every program below is
+ * October's nested `for` plus October's `vector<int>` read with `cin`. `b1`
+ * says so out loud, because a month whose novelty is an *idea* rather than a
+ * *keyword* is one a learner can otherwise mistake for magic.
+ *
+ * The one C++ fact this lesson adds is a scope fact, and it is added where it
+ * bites rather than as a rule: `b7`'s last trace row has no `i` and no `j` at
+ * all, because a variable declared in the head of a `for` stops existing when
+ * the loop ends. In the Python original that row read `i = 3`. It is a real
+ * difference and November already taught the rule it follows from.
+ *
+ * ## Overflow, checked rather than assumed
+ *
+ * Every count in this lesson is bounded well inside `int`: `b8` at n = 2000 can
+ * report at most 2000 · 1999 / 2 = 1 999 000 pairs and `b9` at n = 200 at most
+ * 200 · 199 · 198 / 6 = 1 313 400 triples. The values read are |a[i]| ≤ 1000
+ * and |s| ≤ 100 000, so no sum of three of them comes near 2³¹ − 1 either. No
+ * block here needs `long long`.
  *
  * ## Support
  *
@@ -72,7 +86,7 @@ import type { LessonBlock } from "../../types";
  * pair counter instead of writing three loops from nothing. Support keeps `b8`
  * — «нөлден жазу азырақ» is less writing from scratch, not none. The starting
  * program handed to `b9s` is the answer to nothing in this lesson: `b5`'s
- * repaired program reads `s` on its own line and `b6`'s completed template
+ * repaired program reads `s` after the list and `b6`'s completed template
  * tests divisibility by 10, so neither can be transcribed into it.
  */
 
@@ -101,23 +115,32 @@ export const M6_L1: LessonBlock[] = [
       kk:
         "Кейбір есептерде айла іздеудің қажеті жоқ: нұсқалар аз болса, олардың бәрін бір-бірлеп қарап шығуға болады. Бұл — толық іріктеу. Бірақ «бәрін қарап шығу» деген сөздің екі шарты бар, әрі екеуі де маңызды.\n\n" +
         "Бірінші шарт — алдымен сана. Кодқа отырмас бұрын нұсқалардың нақты санын шығар. n элементтің ішінен `i < j` болатын жұптарды алайық. Бірінші элементпен жұп құра алатын, одан кейін тұрған n − 1 элемент бар; екіншісімен — n − 2; ...; соңғысымен — 0. Барлығы n(n − 1)/2 жұп. Үштіктер үшін сан n(n − 1)(n − 2)/6 болады: алымдағы n(n − 1)(n − 2) — үш индексті ретімен таңдау саны, ал үш элементтен тұратын әрбір жиынды 6 түрлі ретпен жазуға болатындықтан, оны 6-ға бөлеміз — бізге сол алты жазудың біреуі ғана керек. Желтоқсаннан келе жатқан өлшем сол күйінде: компьютер бір секундта шамамен 100 000 000 қарапайым қадам жасайды.\n\n" +
-        "Екінші шарт — жүйелілік. Бірде-бір нұсқа қалып қоймауы және бірде-бір нұсқа екі рет қаралмауы керек. Дәл осыны `i < j` реті қамтамасыз етеді: ішкі цикл `range(i + 1, n)` деп жазылады, сондықтан j әрқашан i-ден кейін жүреді және {i, j} жұбы дәл бір рет — кіші индексі бірінші тұрған күйінде — қаралады. Ал ішкі цикл 0-ден басталса, әр жұп екі рет қаралады (бір рет (i, j) түрінде, бір рет (j, i) түрінде), оның үстіне i-дің өзімен жұптасуы да есепке кіріп кетеді. Бұл — іріктеудегі ең жиі кездесетін қате, және оны бүкіл ай бойы осылай жазып жүріп болдырмаймыз. Үштіктер де солай: i < j < k, яғни үшінші цикл `range(j + 1, n)` деп басталады.\n\n" +
-        "Ақпанда жаңа Python командасы жоқ. Бар болғаны қазанда үйренген цикл ішіндегі циклді жаңаша реттеп жазамыз — бірақ дәл сол рет есептің жауабын өзгертеді.",
+        "Екінші шарт — жүйелілік. Бірде-бір нұсқа қалып қоймауы және бірде-бір нұсқа екі рет қаралмауы керек. Дәл осыны `i < j` реті қамтамасыз етеді: ішкі цикл `for (int j = i + 1; j < n; j++)` деп жазылады, сондықтан j әрқашан i-ден кейін жүреді және {i, j} жұбы дәл бір рет — кіші индексі бірінші тұрған күйінде — қаралады. Ал ішкі цикл `j = 0`-ден басталса, әр жұп екі рет қаралады (бір рет (i, j) түрінде, бір рет (j, i) түрінде), оның үстіне i-дің өзімен жұптасуы да есепке кіріп кетеді. Бұл — іріктеудегі ең жиі кездесетін қате, және оны бүкіл ай бойы осылай жазып жүріп болдырмаймыз. Үштіктер де солай: i < j < k, яғни үшінші цикл `k = j + 1`-ден басталады.\n\n" +
+        "Ақпанда жаңа C++ командасы жоқ. Бар болғаны қазанда үйренген цикл ішіндегі циклді жаңаша реттеп жазамыз — бірақ дәл сол рет есептің жауабын өзгертеді.",
       ru:
         "В некоторых задачах не нужно искать хитрость: если вариантов немного, можно просмотреть их все по одному. Это и есть полный перебор. Но у слов «просмотреть все» есть два условия, и оба важны.\n\n" +
         "Первое условие — сначала посчитай. Прежде чем садиться за код, найди точное число вариантов. Возьмём пары с условием `i < j` среди n элементов. С первым элементом могут составить пару n − 1 стоящих после него элементов, со вторым — n − 2, ..., с последним — 0. Всего n(n − 1)/2 пар. Для троек число равно n(n − 1)(n − 2)/6: в числителе n(n − 1)(n − 2) — это количество способов выбрать три индекса по порядку, а делим на 6 потому, что любой набор из трёх элементов можно записать в 6 разных порядках, а нам нужна ровно одна такая запись. Мерка, пришедшая из декабря, остаётся прежней: компьютер делает примерно 100 000 000 простых шагов в секунду.\n\n" +
-        "Второе условие — систематичность. Ни один вариант не должен потеряться и ни один не должен быть просмотрен дважды. Именно это обеспечивает порядок `i < j`: внутренний цикл пишется как `range(i + 1, n)`, поэтому j всегда идёт после i, и пара {i, j} рассматривается ровно один раз — в записи, где меньший индекс стоит первым. А если внутренний цикл начать с 0, каждая пара будет просмотрена дважды (один раз как (i, j), другой как (j, i)), да ещё и i попадёт в напарники сам себе. Это самая частая ошибка перебора, и весь месяц мы избегаем её именно такой записью. С тройками так же: i < j < k, то есть третий цикл начинается с `range(j + 1, n)`.\n\n" +
-        "Новых команд Python в феврале нет. Мы всего лишь по-новому расставляем границы цикла внутри цикла, знакомого с октября, — но именно эта расстановка меняет ответ задачи.",
+        "Второе условие — систематичность. Ни один вариант не должен потеряться и ни один не должен быть просмотрен дважды. Именно это обеспечивает порядок `i < j`: внутренний цикл пишется как `for (int j = i + 1; j < n; j++)`, поэтому j всегда идёт после i, и пара {i, j} рассматривается ровно один раз — в записи, где меньший индекс стоит первым. А если внутренний цикл начать с `j = 0`, каждая пара будет просмотрена дважды (один раз как (i, j), другой как (j, i)), да ещё и i попадёт в напарники сам себе. Это самая частая ошибка перебора, и весь месяц мы избегаем её именно такой записью. С тройками так же: i < j < k, то есть третий цикл начинается с `k = j + 1`.\n\n" +
+        "Новых команд C++ в феврале нет. Мы всего лишь по-новому расставляем границы цикла внутри цикла, знакомого с октября, — но именно эта расстановка меняет ответ задачи.",
     },
     /* Three pairs printed, not counted: the learner should SEE the order the
        convention produces before any counter is put next to it. Deliberately
        not a `c = c + 1` program, so nothing on this card is the shape `b3`,
        `b7`, `b8` or `b9` will ask for. */
     code:
-      "a = [5, 8, 2]\n" +
-      "for i in range(3):\n" +
-      "    for j in range(i + 1, 3):\n" +
-      "        print(a[i], a[j])   # 5 8 / 5 2 / 8 2",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {5, 8, 2};\n" +
+      "    for (int i = 0; i < 3; i++) {\n" +
+      "        for (int j = i + 1; j < 3; j++) {\n" +
+      "            cout << a[i] << \" \" << a[j] << endl;   // 5 8 / 5 2 / 8 2\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m6.l1.b2",
@@ -130,8 +153,8 @@ export const M6_L1: LessonBlock[] = [
       ru: "Разобранный пример: пары с суммой 5",
     },
     problem: {
-      kk: "Тізім берілген: a = [2, 7, 4, 1, 3]. Қосындысы дәл 5-ке тең болатын жұптар нешеу? Бағдарлама екі санды шығарсын: табылған жұптар санын және қаралған жұптар санын.",
-      ru: "Дан список a = [2, 7, 4, 1, 3]. Сколько в нём пар с суммой ровно 5? Программа должна вывести два числа: количество найденных пар и количество просмотренных пар.",
+      kk: "Тізім берілген: a = {2, 7, 4, 1, 3}. Қосындысы дәл 5-ке тең болатын жұптар нешеу? Бағдарлама екі санды шығарсын: табылған жұптар санын және қаралған жұптар санын.",
+      ru: "Дан список a = {2, 7, 4, 1, 3}. Сколько в нём пар с суммой ровно 5? Программа должна вывести два числа: количество найденных пар и количество просмотренных пар.",
     },
     /* Step 5 is the reason this block exists and is a worked_example rather
        than a concept: the second counter is not part of the answer, it is the
@@ -156,21 +179,32 @@ export const M6_L1: LessonBlock[] = [
         ru: "Выписываем суммы по порядку: 2+7=9, 2+4=6, 2+1=3, 2+3=5 ✓, 7+4=11, 7+1=8, 7+3=10, 4+1=5 ✓, 4+3=7, 1+3=4. Десять сумм, из них две равны 5.",
       },
       {
-        kk: "Соңғы қадам — тексеру. `checked` дәл 10 шықты, яғни формула мен цикл келісті. Егер экранда 20 тұрса, ішкі цикл 0-ден басталған және әр жұп екі рет қаралған; егер 15 тұрса, ішкі цикл i-дің өзінен басталған және әр элемент өзімен жұптасқан. Бұл сан — іріктеудің дұрыстығын тексеретін ең қарапайым құрал.",
-        ru: "Последний шаг — проверка. `checked` вышел ровно 10, значит формула и цикл сошлись. Если бы на экране было 20, внутренний цикл начинался бы с 0 и каждая пара просматривалась бы дважды; если бы 15 — внутренний цикл начинался бы с самого i и каждый элемент попал бы в пару сам с собой. Это число — самый простой способ проверить, что перебор верен.",
+        kk: "Соңғы қадам — тексеру. `checked` дәл 10 шықты, яғни формула мен цикл келісті. Егер экранда 20 тұрса, ішкі цикл `j = 0`-ден басталған және әр жұп екі рет қаралған; егер 15 тұрса, ішкі цикл `j = i`-ден басталған және әр элемент өзімен жұптасқан. Бұл сан — іріктеудің дұрыстығын тексеретін ең қарапайым құрал.",
+        ru: "Последний шаг — проверка. `checked` вышел ровно 10, значит формула и цикл сошлись. Если бы на экране было 20, внутренний цикл начинался бы с `j = 0` и каждая пара просматривалась бы дважды; если бы 15 — внутренний цикл начинался бы с `j = i` и каждый элемент попал бы в пару сам с собой. Это число — самый простой способ проверить, что перебор верен.",
       },
     ],
     code:
-      "a = [2, 7, 4, 1, 3]\n" +
-      "found = 0\n" +
-      "checked = 0\n" +
-      "for i in range(5):\n" +
-      "    for j in range(i + 1, 5):\n" +
-      "        checked = checked + 1\n" +
-      "        if a[i] + a[j] == 5:\n" +
-      "            found = found + 1\n" +
-      "print(found)\n" +
-      "print(checked)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {2, 7, 4, 1, 3};\n" +
+      "    int found = 0;\n" +
+      "    int checked = 0;\n" +
+      "    for (int i = 0; i < 5; i++) {\n" +
+      "        for (int j = i + 1; j < 5; j++) {\n" +
+      "            checked = checked + 1;\n" +
+      "            if (a[i] + a[j] == 5) {\n" +
+      "                found = found + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << found << endl;\n" +
+      "    cout << checked;\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
       kk: "Экранға екі жол шығады: алдымен 2 (табылған жұптар), содан кейін 10 (қаралған жұптар).",
       ru: "На экран выводятся две строки: сначала 2 (найденные пары), затем 10 (просмотренные пары).",
@@ -186,31 +220,39 @@ export const M6_L1: LessonBlock[] = [
       ru: "В этой программе нет ни списка, ни условия — она только считает пары. Какое число выведется на экран при n = 6?",
     },
     code:
-      "n = 6\n" +
-      "pairs = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        pairs = pairs + 1\n" +
-      "print(pairs)",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 6;\n" +
+      "    int pairs = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            pairs = pairs + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << pairs;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "15",
     options: ["15", "21", "30", "36"],
     /* 30 carries no mapping, and the omission is deliberate. It is n(n − 1),
        which two different misunderstandings reach: reading the inner loop as
-       `range(n)` and remembering to skip j == i, or reading the loop correctly
-       and believing (i, j) and (j, i) are two different pairs. The first is
-       about the code, the second about the definition of a pair, and telling a
-       fourteen-year-old which one they made would be a guess. The engine asks
-       instead. */
+       starting at 0 and remembering to skip j == i, or reading the loop
+       correctly and believing (i, j) and (j, i) are two different pairs. The
+       first is about the code, the second about the definition of a pair, and
+       telling a fourteen-year-old which one they made would be a guess. The
+       engine asks instead. */
     diagnosticMapping: {
       "36": {
         failureClass: "nested_range_ignores_start",
         justification:
-          "36 = 6 · 6, яғни ішкі цикл сыртқы циклдің әр қадамында толық n рет айналады деп есептелген. `range(i + 1, n)` жазуындағы бірінші сан ескерілмегенде ғана дәл осы сан шығады.",
+          "36 = 6 · 6, яғни ішкі цикл сыртқы циклдің әр қадамында толық n рет айналады деп есептелген. `j = i + 1` деген бастапқы мән ескерілмегенде ғана дәл осы сан шығады.",
       },
       "21": {
         failureClass: "self_pair_included",
         justification:
-          "21 = 15 + 6, яғни дұрыс санға әр элементтің өзімен құрған алты «жұбы» қосылған. Ішкі цикл `range(i, n)` деп оқылғанда, немесе i-дің өзі серік деп саналғанда, дәл осы сан шығады.",
+          "21 = 15 + 6, яғни дұрыс санға әр элементтің өзімен құрған алты «жұбы» қосылған. Ішкі цикл `j = i`-ден басталады деп оқылғанда, немесе i-дің өзі серік деп саналғанда, дәл осы сан шығады.",
       },
     },
   },
@@ -278,43 +320,69 @@ export const M6_L1: LessonBlock[] = [
        once — 1 2 3 4 3 with s = 6 has two genuine pairs (2+4 and 3+3 at two
        different positions), which the broken loop counts in both directions,
        and it also contains a 3 that pairs with ITSELF to make 6. Correct 2,
-       broken 6. */
+       broken 6.
+
+       Both programs compile: the defect is a wrong ANSWER, not a refusal to
+       build, so the harness has to provoke it and the witness above is what
+       provokes it. */
     sourceType: "product-authored",
     prompt: {
       kk: "Бұл бағдарлама қосындысы s-ке тең жұптарды санауы керек. Бірақ 5 сан 1 2 3 4 3 және s = 6 берілгенде ол 2-нің орнына 6 шығарады. Қай жол кінәлі?",
       ru: "Эта программа должна считать пары с суммой s. Но при 5 числах 1 2 3 4 3 и s = 6 она выводит 6 вместо 2. Какая строка виновата?",
     },
     code:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(n):\n" +
-      "        if a[i] + a[j] == s:\n" +
-      "            c = c + 1\n" +
-      "print(c)",
-    buggyLine: 6,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int s;\n" +
+      "    cin >> s;\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < n; j++) {\n" +
+      "            if (a[i] + a[j] == s) c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 14,
     symptomInput: "5\n1 2 3 4 3\n6",
     fixedCode:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        if a[i] + a[j] == s:\n" +
-      "            c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int s;\n" +
+      "    cin >> s;\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            if (a[i] + a[j] == s) c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     diagnosticMapping: {
-      /* Line 7 is the condition, and it is correct: `a[i] + a[j] == s` is the
+      /* Line 15 is the condition, and it is correct: `a[i] + a[j] == s` is the
          property word for word. Choosing it means the learner looked for the
          defect where the ARITHMETIC is and never questioned which pairs the
          loops hand to it — the one reading of this program that lands there. */
-      "7": {
+      "15": {
         failureClass: "condition_blamed_for_loop_bounds",
         justification:
-          "Жетінші жол — шарттың өзі, ал ол есептің тұжырымымен сөзбе-сөз сәйкес: қосынды s-ке тең бе, солай тексеріліп тұр. Оны таңдау — қатені арифметикадан іздеп, циклдер шартқа ҚАНДАЙ жұптарды беріп тұрғанын мүлде тексермегенді білдіреді.",
+          "Он бесінші жол — шарттың өзі, ал ол есептің тұжырымымен сөзбе-сөз сәйкес: қосынды s-ке тең бе, солай тексеріліп тұр. Оны таңдау — қатені арифметикадан іздеп, циклдер шартқа ҚАНДАЙ жұптарды беріп тұрғанын мүлде тексермегенді білдіреді.",
       },
     },
   },
@@ -333,17 +401,27 @@ export const M6_L1: LessonBlock[] = [
       ru: "В первой строке читается n, во второй — n целых чисел. Программа должна вывести количество пар, сумма которых делится на 10 без остатка. Расставь обе границы внутреннего цикла: каждая пара должна быть просмотрена ровно один раз, и ни один элемент не должен попасть в пару сам с собой. Например, при n = 5 и числах 3 7 5 5 10 ответ 2 (3 + 7 и 5 + 5).",
     },
     template:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(___, ___):\n" +
-      "        if (a[i] + a[j]) % 10 == 0:\n" +
-      "            c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = ___; j < ___; j++) {\n" +
+      "            if ((a[i] + a[j]) % 10 == 0) c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "i + 1", alternatives: ["i+1"] },
-      { id: "f2", answer: "n", alternatives: ["len(a)"] },
+      { id: "f2", answer: "n", alternatives: ["(int)a.size()"] },
     ],
   },
   {
@@ -359,31 +437,44 @@ export const M6_L1: LessonBlock[] = [
        The property is `a[j] - a[i] == 2`, chosen because it is the one shape on
        this card where the ORDER of the two indices changes the value — a[j]
        minus a[i], not the other way round — so the trace cannot be filled in by
-       treating the pair as unordered. The last row carries no `j`: at i = 3 the
-       inner range is empty and the body never runs, which is where the 3 + 2 +
-       1 + 0 = 6 shape comes from. */
+       treating the pair as unordered.
+
+       The last row is where C++ differs from the Python original and the
+       difference is the point of the row. In Python the loop variable survived
+       the loop and the row read `i = 3`. Here `i` and `j` are declared in the
+       heads of their `for` statements, so at line 13 neither exists — November's
+       block scope, met as a consequence rather than as a rule. The row
+       therefore carries only `found`, and the prompt asks why. */
     sourceType: "product-authored",
     prompt: {
-      kk: "Бағдарлама айырмасы дәл 2-ге тең жұптарды санайды: артқы сан алдыңғыдан 2-ге үлкен болуы керек. Ішкі циклдің денесі әр орындалғаннан кейінгі `i`, `j` және `found` мәндерін жаз. Соңғы жол — циклдерден кейінгі `print`: ондағы `i` неге 3, ал `j` неге жоқ?",
-      ru: "Программа считает пары, у которых разность ровно 2: число, стоящее позже, должно быть на 2 больше стоящего раньше. Запиши значения `i`, `j` и `found` после каждого выполнения тела внутреннего цикла. Последняя строка — `print` уже после циклов: почему `i` там равен 3, а `j` отсутствует?",
+      kk: "Бағдарлама айырмасы дәл 2-ге тең жұптарды санайды: артқы сан алдыңғыдан 2-ге үлкен болуы керек. Ішкі циклдің денесі әр орындалғаннан кейінгі `i`, `j` және `found` мәндерін жаз. Соңғы жол — циклдерден кейінгі `cout`: онда `found` бар да, `i` мен `j` мүлде жоқ. Неге? Қарашадағы блок ережесін еске түсір: `for` жақшасының ішінде жарияланған айнымалы сол циклмен бірге бітеді.",
+      ru: "Программа считает пары, у которых разность ровно 2: число, стоящее позже, должно быть на 2 больше стоящего раньше. Запиши значения `i`, `j` и `found` после каждого выполнения тела внутреннего цикла. Последняя строка — `cout` уже после циклов: там есть `found`, а `i` и `j` нет вообще. Почему? Вспомни правило блока из ноября: переменная, объявленная в круглых скобках `for`, заканчивается вместе с этим циклом.",
     },
     code:
-      "a = [1, 4, 3, 6]\n" +
-      "found = 0\n" +
-      "for i in range(4):\n" +
-      "    for j in range(i + 1, 4):\n" +
-      "        if a[j] - a[i] == 2:\n" +
-      "            found = found + 1\n" +
-      "print(found)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {1, 4, 3, 6};\n" +
+      "    int found = 0;\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        for (int j = i + 1; j < 4; j++) {\n" +
+      "            if (a[j] - a[i] == 2) found = found + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << found;\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 2, vars: { found: "0" } },
-      { line: 5, vars: { i: "0", j: "1", found: "0" } },
-      { line: 5, vars: { i: "0", j: "2", found: "1" } },
-      { line: 5, vars: { i: "0", j: "3", found: "1" } },
-      { line: 5, vars: { i: "1", j: "2", found: "1" } },
-      { line: 5, vars: { i: "1", j: "3", found: "2" } },
-      { line: 5, vars: { i: "2", j: "3", found: "2" } },
-      { line: 7, vars: { i: "3", found: "2" } },
+      { line: 7, vars: { found: "0" } },
+      { line: 10, vars: { i: "0", j: "1", found: "0" } },
+      { line: 10, vars: { i: "0", j: "2", found: "1" } },
+      { line: 10, vars: { i: "0", j: "3", found: "1" } },
+      { line: 10, vars: { i: "1", j: "2", found: "1" } },
+      { line: 10, vars: { i: "1", j: "3", found: "2" } },
+      { line: 10, vars: { i: "2", j: "3", found: "2" } },
+      { line: 13, vars: { found: "2" } },
     ],
   },
   {
@@ -391,12 +482,12 @@ export const M6_L1: LessonBlock[] = [
     type: "write_code",
     skillRefs: ["enumerate.all", "loops.nested", "lists.index", "compare.operators", "perf.time_estimate"],
     /* PDF p.9: «белгілі қасиеті бар барлық жұп ... табу». The property is
-       chosen so that the i < j convention is not a tidiness rule but the
-       ANSWER: `a[i] > a[j]` is a statement about which of the two stands
-       earlier, so an enumeration that drops the order produces a different
-       number and the checker sees it. That is why no prompt here says "use two
-       nested loops" — the requirement is enforced by the output, which is
-       option 1 of the contract's three.
+     * chosen so that the i < j convention is not a tidiness rule but the
+     * ANSWER: `a[i] > a[j]` is a statement about which of the two stands
+     * earlier, so an enumeration that drops the order produces a different
+     * number and the checker sees it. That is why no prompt here says "use two
+     * nested loops" — the requirement is enforced by the output, which is
+     * option 1 of the contract's three.
      *
      * Wrong solutions and the case that kills each:
      *   - inner loop from 0 (each pair twice)      → "4 / 1 2 3 4": 6 vs 0,
@@ -404,28 +495,41 @@ export const M6_L1: LessonBlock[] = [
      *     front of them;
      *   - `>=` instead of `>`                      → "2 / 3 3": 1 vs 0, and
      *     "6 / 2 2 1 3 3 1": 9 vs 6;
-     *   - inner `range(i + 1, n - 1)`, one short   → "4 / 1 2 5 3": 0 vs 1,
+     *   - inner loop `j < n - 1`, one short        → "4 / 1 2 5 3": 0 vs 1,
      *     the only qualifying pair ends on the LAST element;
      *   - `<` instead of `>`                       → visible case: 6 vs 4;
      *   - comparing neighbours only (a[i] > a[i+1])→ visible case: 2 vs 4;
      *   - n = 1, no pairs at all                   → "1 / 7": 0.
      * The descending case pins the upper end: 5 elements, 10 pairs, all of them
-     * qualifying, which is n(n − 1)/2 checked against the formula in `b1`. */
+     * qualifying, which is n(n − 1)/2 checked against the formula in `b1`.
+     *
+     * Overflow: at n = 2000 the answer is at most 1 999 000, so `int` is the
+     * right type and nothing here needs `long long`. */
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Кезекке n оқушы тұрды. Бірінші жолда n беріледі (1 ≤ n ≤ 2000), екінші жолда — кезекте тұру ретімен олардың бойлары, бос орынмен бөлініп (әр бойы 1-ден 250-ге дейінгі бүтін сан). Алдында тұрған оқушы артында тұрғаннан ҚАТАҢ биік болатын жұптар нешеу? Басқаша айтқанда, i < j және a[i] > a[j] болатын (i, j) жұптарының санын тап. Тек сол бір санды шығар. Мысалы 1 5 2 4 3 үшін жауап 4. Есептеп көр: n ең үлкені 2000 болғанда жұптар саны 2000 · 1999 / 2 ≈ 2 000 000, ал бұл бір секундке еркін сыяды — сондықтан мұнда барлық жұпты қарап шығуға толық болады.",
-      ru: "В очередь встали n учеников. В первой строке дано n (1 ≤ n ≤ 2000), во второй — их рост в порядке очереди, через пробел (каждый рост — целое число от 1 до 250). Сколько есть пар, в которых стоящий впереди СТРОГО выше стоящего позади? Другими словами, найди количество пар (i, j), для которых i < j и a[i] > a[j]. Выведи только это одно число. Например, для 1 5 2 4 3 ответ 4. Прикинь сам: при наибольшем n = 2000 пар получается 2000 · 1999 / 2 ≈ 2 000 000, а столько свободно укладывается в секунду — значит, здесь вполне можно просмотреть все пары.",
+      kk: "Кезекке n оқушы тұрды. Бірінші жолда n беріледі (1 ≤ n ≤ 2000), екінші жолда — кезекте тұру ретімен олардың бойлары, бос орынмен бөлініп (әр бойы 1-ден 250-ге дейінгі бүтін сан). Алдында тұрған оқушы артында тұрғаннан ҚАТАҢ биік болатын жұптар нешеу? Басқаша айтқанда, i < j және a[i] > a[j] болатын (i, j) жұптарының санын тап. Тек сол бір санды шығар. Мысалы 1 5 2 4 3 үшін жауап 4. Есептеп көр: n ең үлкені 2000 болғанда жұптар саны 2000 · 1999 / 2 ≈ 2 000 000, ал бұл бір секундке еркін сыяды — сондықтан мұнда барлық жұпты қарап шығуға толық болады. Жауап та 2 000 000-нан аспайды, сондықтан `int` жеткілікті.",
+      ru: "В очередь встали n учеников. В первой строке дано n (1 ≤ n ≤ 2000), во второй — их рост в порядке очереди, через пробел (каждый рост — целое число от 1 до 250). Сколько есть пар, в которых стоящий впереди СТРОГО выше стоящего позади? Другими словами, найди количество пар (i, j), для которых i < j и a[i] > a[j]. Выведи только это одно число. Например, для 1 5 2 4 3 ответ 4. Прикинь сам: при наибольшем n = 2000 пар получается 2000 · 1999 / 2 ≈ 2 000 000, а столько свободно укладывается в секунду — значит, здесь вполне можно просмотреть все пары. Ответ тоже не больше 2 000 000, так что `int` здесь достаточно.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        if a[i] > a[j]:\n" +
-      "            c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            if (a[i] > a[j]) c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n1 5 2 4 3", expectedOutput: "4" },
       { input: "4\n1 2 3 4", expectedOutput: "0" },
@@ -446,8 +550,8 @@ export const M6_L1: LessonBlock[] = [
      *
      * The starting program is a working pair counter, and it is the answer to
      * nothing this lesson asks for. `b5`'s repaired program is the nearest
-     * neighbour and it is a different program: it reads `s` from a third input
-     * line, this one takes `n` and `s` together on the first. `b6`'s completed
+     * neighbour and it is a different program: it reads `s` after the list,
+     * this one takes `n` and `s` together on the first line. `b6`'s completed
      * template tests divisibility by 10. So a support learner has this shape in
      * their head from having read and repaired it, which is the point, but has
      * nothing to transcribe.
@@ -467,24 +571,45 @@ export const M6_L1: LessonBlock[] = [
       ru: "Ниже готовая, правильно работающая программа: она считает ПАРЫ с суммой s. Переделай её так, чтобы она считала ТРОЙКИ. Ввод остаётся прежним: в первой строке через пробел n и s (1 ≤ n ≤ 200, −100 000 ≤ s ≤ 100 000), во второй — n целых чисел (каждое от −1000 до 1000). Выведи количество троек (i, j, k), у которых сумма ровно s и выполнено i < j < k, — только это одно число. Например, при n = 5, s = 10 и числах 1 2 3 4 5 ответ 2: это 1 + 4 + 5 и 2 + 3 + 5. Подумай: откуда должен начинаться третий цикл, чтобы каждая тройка была просмотрена ровно один раз?",
     },
     code:
-      "n, s = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        if a[i] + a[j] == s:\n" +
-      "            c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, s;\n" +
+      "    cin >> n >> s;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            if (a[i] + a[j] == s) c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, s = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        for k in range(j + 1, n):\n" +
-      "            if a[i] + a[j] + a[k] == s:\n" +
-      "                c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, s;\n" +
+      "    cin >> n >> s;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            for (int k = j + 1; k < n; k++) {\n" +
+      "                if (a[i] + a[j] + a[k] == s) c = c + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     /* The first visible case is chosen so the UNCHANGED program fails it in the
        open: the pair counter prints 0 where 2 is expected, because no two of
        1 2 3 4 5 add up to 10. Handing back the starter cannot pass. */
@@ -513,7 +638,7 @@ export const M6_L1: LessonBlock[] = [
      * Wrong solutions and the case that kills each:
      *   - all three loops from 0            → visible "5 10 / 1 2 3 4 5": 18 vs 2;
      *   - third loop from i + 1, not j + 1  → same visible case: 5 vs 2;
-     *   - third loop `range(j + 1, n - 1)`  → "4 9 / 1 2 3 6": 0 vs 1, the only
+     *   - third loop bounded `k < n - 1`    → "4 9 / 1 2 3 6": 0 vs 1, the only
      *     qualifying triple ends on the LAST element;
      *   - consecutive triples only          → visible case: 0 vs 2;
      *   - assuming n ≥ 3                    → "2 5 / 2 3": the loops must simply
@@ -522,7 +647,10 @@ export const M6_L1: LessonBlock[] = [
      *     "5 0 / 0 0 0 0 0" gives 10, which is C(5,3) from `b1`'s formula.
      * "3 0 / 0 0 0" is the smallest input that has a triple at all, and
      * "5 0 / -3 1 2 -1 4" keeps negative numbers in the picture so nobody
-     * reaches for a shortcut that assumes the sum only grows. */
+     * reaches for a shortcut that assumes the sum only grows.
+     *
+     * Overflow: |a[i]| ≤ 1000 so a triple sum is at most 3000, and at n = 200
+     * the count is at most 1 313 400. `int` throughout. */
     sourceType: "curriculum-derived",
     pdfPage: P,
     tracks: ["core", "advanced"],
@@ -531,15 +659,26 @@ export const M6_L1: LessonBlock[] = [
       ru: "В первой строке через пробел даны два целых числа — n и s (1 ≤ n ≤ 200, −100 000 ≤ s ≤ 100 000), во второй — n целых чисел через пробел (каждое от −1000 до 1000, они могут быть отрицательными). Сколько существует троек (i, j, k), у которых сумма ровно s и выполнено i < j < k? Выведи только это одно число. Например, при n = 5, s = 10 и числах 1 2 3 4 5 ответ 2: это 1 + 4 + 5 и 2 + 3 + 5. Прежде чем садиться за код, посчитай: при наибольшем n = 200 троек получается 200 · 199 · 198 / 6 ≈ 1 300 000, и это свободно укладывается в секунду — значит, просмотреть их все по одной здесь вполне годный способ.",
     },
     referenceSolution:
-      "n, s = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "c = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        for k in range(j + 1, n):\n" +
-      "            if a[i] + a[j] + a[k] == s:\n" +
-      "                c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, s;\n" +
+      "    cin >> n >> s;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            for (int k = j + 1; k < n; k++) {\n" +
+      "                if (a[i] + a[j] + a[k] == s) c = c + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 10\n1 2 3 4 5", expectedOutput: "2" },
       { input: "4 6\n1 2 3 4", expectedOutput: "1" },

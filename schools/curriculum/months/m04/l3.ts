@@ -22,22 +22,50 @@ import type { LessonBlock } from "../../types";
  *
  * ## What arrives here, and why it was withheld
  *
- * `sorted()` and `.sort()` become available this month and not earlier. In
+ * `sort` from `<algorithm>` becomes available this month and not earlier. In
  * October «тізімдегі максимум мен минимум» IS the traversal being taught, and
- * in November the same maximum is written as a function — a builtin in either
- * month deletes the exercise. b1 says this to the learner in one sentence:
- * you already wrote the maximum by hand, twice; ordering the whole list is the
- * general form of that move. That is the only place in the lesson where the
- * arrival is announced.
+ * in November the same maximum is written as a function — a library call in
+ * either month deletes the exercise. b1 says this to the learner in one
+ * sentence: you already wrote the maximum by hand, twice; ordering the whole
+ * list is the general form of that move.
  *
- * ## The two forms, and the bug that follows from confusing them
+ * `a.begin()` and `a.end()` are presented as ONE phrase — "from the start of a
+ * to the end of a", the words `sort` needs — and nothing is said about
+ * iterators. `docs/cpp17/CPP17_PEDAGOGY.md` puts iterators-as-an-abstraction
+ * outside Year 1 explicitly, and a fourteen-year-old who is told `a.begin()`
+ * "returns an iterator" has been handed a second lesson in the middle of this
+ * one.
  *
- * `sorted(a)` returns a NEW list and leaves `a` alone; `a.sort()` reorders `a`
- * in place and returns `None`. b2 checks the first half (the prediction prints
- * `a` after `sorted()` and it is unchanged), b3 the second: `b = a.sort()`
- * followed by `print(b)`, which prints `None`. b3's program prints the ordered
- * list AND the original one, so `print(a)` is not a second valid repair and
- * line 2 is genuinely the only line at fault.
+ * ## What the C++ migration changed, and it is not a syntax change
+ *
+ * Python has two sorts and the lesson was built on the difference between them:
+ * `sorted(a)` returns a new list, `a.sort()` reorders in place and returns
+ * `None`, and `b = a.sort()` is the first mistake every learner makes.
+ *
+ * **C++ has only the in-place one.** `sort(a.begin(), a.end())` reorders `a`
+ * and returns nothing, and there is no standard call that hands back a sorted
+ * copy. So the pair of ideas becomes: sorting DESTROYS the original order, and
+ * if you need it you copy the vector first — `vector<int> b = a;`. That is the
+ * genuine C++ trap and it is the one this lesson now teaches. b2 checks that a
+ * copy really is a copy; b3 is the bug that follows — `sort` pointed at the
+ * wrong vector, so both printed lines come out in the wrong order.
+ *
+ * The Python bug (`b = a.sort()` printing `None`) has no C++ equivalent: it is
+ * not a wrong answer, it does not compile at all, so there would be nothing to
+ * find.
+ *
+ * ## Reading a line of unknown length
+ *
+ * Five blocks here take «бір жолда бос орынмен бөлінген сандар» with no count
+ * in front of them, which in C++ needs a recipe the learner has not met:
+ * `while (cin >> x) { a.push_back(x); }` — read until the numbers run out. It
+ * is introduced in b1 as exactly that, a recipe, with `push_back` being
+ * October's own.
+ *
+ * `m4.l3.b5` is the one block whose input format had to change: it wanted a
+ * line of numbers FOLLOWED by k, and "read to the end of the line, then read
+ * one more thing" is not expressible with the tools this course has. k now
+ * comes first. Nothing else about the block moved.
  *
  * ## Repeats: a decision, stated and then enforced
  *
@@ -46,7 +74,7 @@ import type { LessonBlock } from "../../types";
  * the hidden case `10 10 9 8 → 9` fails any solution that quietly answered the
  * distinct-value question instead. b8, advanced only, then asks that other
  * question on the SAME input and gets 8. It is not a harder version of b7; it
- * is a different problem, and its prompt says so. Without `set()` — which this
+ * is a different problem, and its prompt says so. Without `set` — which this
  * course never teaches — it is solved by walking the sorted list from the top
  * and counting the places where a neighbour differs, which is exactly the move
  * m4.l7 generalises.
@@ -71,32 +99,54 @@ export const M4_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     title: {
-      kk: "sorted() және .sort(): реттеудің екі түрі",
-      ru: "sorted() и .sort(): две формы сортировки",
+      kk: "sort: тізімді орнында реттеу",
+      ru: "sort: сортировка списка на месте",
     },
     body: {
       kk:
         "Қазанда тізімнің ең үлкен элементін циклмен өзің іздедің, қарашада сол іздеуді функцияға шығардың. Бүкіл тізімді реттеу — сол әрекеттің жалпы түрі: бір рет реттесең, ең кішісі де, ең үлкені де, шеттегі бірнеше мән де іздеусіз, тек индекс арқылы алынады.\n\n" +
-        "Реттеудің екі жазылу түрі бар, оларды шатастыруға болмайды. `sorted(a)` — ЖАҢА тізім қайтарады, ал `a` бұрынғы күйінде қалады. `a.sort()` — керісінше, `a` тізімінің өзін орнында реттейді және ешқандай мән қайтармайды. Сондықтан `b = a.sort()` деп жазуға болмайды: `b` бос мән (`None`) болып қалады.\n\n" +
-        "Екеуі де әдепкі бойынша ӨСУ ретімен реттейді. Демек реттелген тізімде ең кіші сан — `a[0]`, ең үлкені — `a[len(a) - 1]`, ал ең үлкен үш сан — тізімнің соңындағы үш элемент.",
+        "Реттеу үшін жаңа тақырып қосамыз: `#include <algorithm>`. Содан кейін `sort(a.begin(), a.end());` деп жазамыз. `a.begin(), a.end()` — бұл `sort`-қа керек тіркес, «a-ның басынан a-ның соңына дейін» дегені; әзірге оны бір бөлінбейтін жазба ретінде қабылда.\n\n" +
+        "Ең маңыздысы: `sort` тізімді ОРНЫНДА реттейді және ешқандай мән қайтармайды. `b = sort(...)` деп жазуға болмайды — ол тіпті компиляцияланбайды. Реттегеннен кейін бастапқы рет мүлде жоғалады. Егер бастапқы рет саған әлі керек болса, алдымен көшірме жаса: `vector<int> b = a;` — енді `b`-ны реттесең, `a` бұрынғы күйінде қалады.\n\n" +
+        "`sort` әдепкі бойынша ӨСУ ретімен реттейді. Демек реттелген тізімде ең кіші сан — `a[0]`, ең үлкені — `a[n - 1]`, ал ең үлкен үш сан — тізімнің соңындағы үш элемент. Кему ретімен керек болса, `sort(a.rbegin(), a.rend());` деп жаз — сол тіркестің кері оқылатын түрі.\n\n" +
+        "Тағы бір рецепт: бір жолда неше сан бар екені алдын ала белгісіз болса, `while (cin >> x) { a.push_back(x); }` деп оқы — сандар біткенде цикл өзі тоқтайды.",
       ru:
         "В октябре ты искал наибольший элемент списка циклом, а в ноябре оформил этот же поиск функцией. Сортировка всего списка — общая форма того же приёма: один раз упорядочил — и наименьшее, и наибольшее, и несколько крайних значений берутся уже без поиска, по индексу.\n\n" +
-        "У сортировки две записи, и путать их нельзя. `sorted(a)` возвращает НОВЫЙ список, а сам `a` остаётся прежним. `a.sort()` наоборот: переставляет элементы в самом списке `a` и не возвращает никакого значения. Поэтому писать `b = a.sort()` нельзя — в `b` окажется пустое значение `None`.\n\n" +
-        "Обе формы по умолчанию упорядочивают ПО ВОЗРАСТАНИЮ. Значит, в отсортированном списке наименьшее число — это `a[0]`, наибольшее — `a[len(a) - 1]`, а три наибольших — три последних элемента.",
+        "Для сортировки добавляем новый заголовок: `#include <algorithm>`. Дальше пишем `sort(a.begin(), a.end());`. Запись `a.begin(), a.end()` — это то, что нужно `sort`, и читается она как «от начала a до конца a»; пока принимай её как единое неделимое выражение.\n\n" +
+        "Самое важное: `sort` упорядочивает список НА МЕСТЕ и не возвращает никакого значения. Написать `b = sort(...)` нельзя — это даже не скомпилируется. После сортировки исходный порядок пропадает совсем. Если исходный порядок тебе ещё нужен, сначала сделай копию: `vector<int> b = a;` — теперь сортировка `b` оставит `a` нетронутым.\n\n" +
+        "По умолчанию `sort` упорядочивает ПО ВОЗРАСТАНИЮ. Значит, в отсортированном списке наименьшее число — это `a[0]`, наибольшее — `a[n - 1]`, а три наибольших — три последних элемента. Если нужно по убыванию, пиши `sort(a.rbegin(), a.rend());` — то же выражение, прочитанное с конца.\n\n" +
+        "И ещё один рецепт: если заранее неизвестно, сколько чисел в строке, читай их так — `while (cin >> x) { a.push_back(x); }`; когда числа кончатся, цикл остановится сам.",
     },
     code:
-      "a = [5, 2, 9, 1]\n" +
-      "b = sorted(a)\n" +
-      "print(b)\n" +
-      "print(a)\n" +
-      "a.sort()\n" +
-      "print(a)\n" +
-      "print(a[0], a[len(a) - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {5, 2, 9, 1};\n" +
+      "    int n = a.size();\n" +
+      "\n" +
+      "    vector<int> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << b[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    cout << a[0] << \" \" << a[n - 1] << endl;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
-    /* The indices are the point. A learner who only remembers «sorted() reorders
-       something» still has to say WHICH list each print reads, and the second
-       line is where the "sorted() leaves a alone" claim is actually tested. */
+    /* The indices are the point. A learner who only remembers «sort reorders
+       something» still has to say WHICH vector each line reads, and the second
+       line is where the "the copy is a real copy" claim is actually tested. */
     id: "m4.l3.b2",
     type: "prediction",
     skillRefs: ["sort.basic", "lists.index"],
@@ -106,17 +156,26 @@ export const M4_L3: LessonBlock[] = [
       ru: "Программа выводит две строки. Прежде чем записать каждую, скажи себе, из какого списка она читает. Что будет выведено?",
     },
     code:
-      "a = [7, 3, 9, 1]\n" +
-      "b = sorted(a)\n" +
-      "print(b[0], b[3])\n" +
-      "print(a[0], a[3])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {7, 3, 9, 1};\n" +
+      "    vector<int> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    cout << b[0] << \" \" << b[3] << endl;\n" +
+      "    cout << a[0] << \" \" << a[3] << endl;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "1 9\n7 1",
     options: ["1 9\n7 1", "1 9\n1 9", "9 1\n7 1", "7 1\n1 9"],
     diagnosticMapping: {
       "1 9\n1 9": {
         failureClass: "sorted_mistaken_for_in_place",
         justification:
-          "Екінші жолда 1 9 шығуының жалғыз жолы бар: `sorted(a)` `a` тізімінің өзін де реттеді деп ойлау. Ал `sorted` тек жаңа тізім жасайды, `a` мүлде өзгермейді.",
+          "Екінші жолда 1 9 шығуының жалғыз жолы бар: `vector<int> b = a;` жазбасы жаңа тізім жасамайды, тек `a`-ға басқа ат береді деп ойлау. Шын мәнінде бұл толық көшірме, сондықтан `b`-ны реттеу `a`-ны мүлде өзгертпейді.",
       },
       "9 1\n7 1": {
         failureClass: "sort_order_assumed_descending",
@@ -126,36 +185,75 @@ export const M4_L3: LessonBlock[] = [
     },
   },
   {
-    /* «b = a.sort()» is the first error every learner makes with the in-place
-       form, and the symptom is not a crash: it is the word None under a program
-       that looks finished. The program prints the ordered list AND the original
-       one, so swapping line 3 to `print(a)` fixes nothing — line 4 would then
-       print the same ordered list twice. Line 2 is the only repair. */
+    /* RE-AUTHORED for C++. The Python bug was `b = a.sort()` printing `None`;
+       in C++ that does not compile, so there is no wrong ANSWER to find.
+       The C++ bug is the one the language actually produces: `sort` aimed at
+       the original vector instead of at the copy. Both printed lines then come
+       out swapped — the first shows the untouched order, the second the sorted
+       one — and exactly one line has to change. */
     id: "m4.l3.b3",
     type: "find_bug",
     skillRefs: ["sort.basic", "lists.traverse"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бағдарлама алдымен сандарды өсу ретімен, содан кейін бастапқы тізімді өзгеріссіз шығаруы керек. Бірақ `5 2 9 1` енгізгенде бірінші жолда `None` шығады, ал екінші жолдағы тізім де бастапқы емес. Қате қай жолда?",
-      ru: "Программа должна сначала вывести числа по возрастанию, а потом исходный список без изменений. Но при вводе `5 2 9 1` в первой строке печатается `None`, да и во второй строке список уже не исходный. В какой строке ошибка?",
+      kk: "Бағдарлама алдымен сандарды өсу ретімен, содан кейін бастапқы тізімді өзгеріссіз шығаруы керек. Бірақ `5 2 9 1` енгізгенде бірінші жолда `5 2 9 1`, ал екінші жолда `1 2 5 9` шығады — жолдар орнымен ауысқандай. Көшірме дұрыс жасалған, `b` — шын көшірме. Ендеше қате қай жолда?",
+      ru: "Программа должна сначала вывести числа по возрастанию, а потом исходный список без изменений. Но при вводе `5 2 9 1` в первой строке печатается `5 2 9 1`, а во второй `1 2 5 9` — как будто строки поменялись местами. Копия сделана правильно, `b` — настоящая копия. Тогда в какой строке ошибка?",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "b = a.sort()\n" +
-      "print(b)\n" +
-      "print(a)",
-    buggyLine: 2,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    int n = a.size();\n" +
+      "    vector<int> b = a;\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << b[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 14,
     symptomInput: "5 2 9 1",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "b = sorted(a)\n" +
-      "print(b)\n" +
-      "print(a)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    int n = a.size();\n" +
+      "    vector<int> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << b[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     diagnosticMapping: {
-      "3": {
+      "16": {
         failureClass: "symptom_location_mistaken_for_defect",
         justification:
-          "Үшінші жол `b`-ны дұрыс шығарады — `None` сол жерде КӨРІНЕДІ, бірақ сол жерде ПАЙДА БОЛМАЙДЫ. Бұл жауап оқушының қатені мән бұзылған жерден емес, ол экранға шыққан жерден іздегенін көрсетеді.",
+          "16-жол `b`-ны дұрыс шығарады — реттелмеген тізім сол жерде КӨРІНЕДІ, бірақ сол жерде ПАЙДА БОЛМАЙДЫ. Бұл жауап оқушының қатені мән бұзылған жерден емес, ол экранға шыққан жерден іздегенін көрсетеді: `sort` шақырылған кезде-ақ дұрыс емес тізім реттеліп қойған.",
       },
     },
   },
@@ -171,7 +269,17 @@ export const M4_L3: LessonBlock[] = [
       kk: "`a` тізімі өсу ретімен реттелген, ұзындығы n. Көлемі бойынша ҮШІНШІ мәнді (мұнда ол 7) қай өрнек шығарады?",
       ru: "Список `a` отсортирован по возрастанию, его длина n. Какое выражение выведет ТРЕТЬЕ по величине значение (здесь это 7)?",
     },
-    code: "a = [2, 3, 5, 7, 11, 13]\nn = len(a)",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {2, 3, 5, 7, 11, 13};\n" +
+      "    int n = a.size();\n" +
+      "    cout << n;\n" +
+      "    return 0;\n" +
+      "}",
     options: [
       { id: "o1", label: { kk: "a[n - 3] өрнегі", ru: "Выражение a[n - 3]" } },
       { id: "o2", label: { kk: "a[n - 2] өрнегі", ru: "Выражение a[n - 2]" } },
@@ -191,19 +299,39 @@ export const M4_L3: LessonBlock[] = [
     },
   },
   {
+    /* The input order is k FIRST, then the numbers — see the head comment. In
+       C++ "read a line of unknown length, then read one more value" is not
+       expressible with the tools this course has, and inventing `getline` plus
+       a string stream for one fill-in-the-blank would cost more than it
+       teaches. The two blanks are unchanged: which call orders the list, and
+       how far in from the top the answer sits. */
     id: "m4.l3.b5",
     type: "fill_blank",
     skillRefs: ["sort.basic", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда сандар, екінші жолда k саны беріледі (1 ≤ k ≤ сандар саны). Бағдарлама көлемі бойынша k-шы мәнді шығаруы керек, яғни k = 1 болғанда ең үлкенін. Тізімді орнында реттейтін әдісті және индекс өрнегін толықтыр.",
-      ru: "В первой строке даны числа, во второй — число k (1 ≤ k ≤ количеству чисел). Программа должна вывести k-е по величине значение, то есть при k = 1 — наибольшее. Дополни метод, сортирующий список на месте, и выражение индекса.",
+      kk: "Бірінші жолда k саны, екінші жолда бос орынмен бөлінген сандар беріледі (1 ≤ k ≤ сандар саны). Бағдарлама көлемі бойынша k-шы мәнді шығаруы керек, яғни k = 1 болғанда ең үлкенін. Тізімді реттейтін амалдың атын және индекс өрнегін толықтыр.",
+      ru: "В первой строке дано число k, во второй — числа через пробел (1 ≤ k ≤ количеству чисел). Программа должна вывести k-е по величине значение, то есть при k = 1 — наибольшее. Дополни имя операции, которая упорядочивает список, и выражение индекса.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "k = int(input())\n" +
-      "a.___()\n" +
-      "print(a[len(a) - ___])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    int n = a.size();\n" +
+      "    ___(a.begin(), a.end());\n" +
+      "    cout << a[n - ___];\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "sort" },
       { id: "f2", answer: "k" },
@@ -219,19 +347,37 @@ export const M4_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі (кемінде бір сан, әрқайсысы -10^9 мен 10^9 аралығында). Сол сандарды өсу ретімен, бос орынмен бөліп, бір жолға шығар.",
-      ru: "В одной строке даны целые числа через пробел (не меньше одного числа, каждое от -10^9 до 10^9). Выведи эти числа по возрастанию, в одну строку, через пробел.",
+      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі (кемінде бір сан, әрқайсысы -1 000 000 000 мен 1 000 000 000 аралығында). Сол сандарды өсу ретімен, бос орынмен бөліп, бір жолға шығар. Сандардың саны алдын ала берілмейді — оларды `while (cin >> x)` рецептімен оқы.",
+      ru: "В одной строке даны целые числа через пробел (не меньше одного числа, каждое от -1 000 000 000 до 1 000 000 000). Выведи эти числа по возрастанию, в одну строку, через пробел. Количество чисел заранее не дано — читай их рецептом `while (cin >> x)`.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      'print(" ".join(map(str, a)))',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i];\n" +
+      "        if (i + 1 < n) {\n" +
+      "            cout << \" \";\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 2 9 1 3", expectedOutput: "1 2 3 5 9" },
       { input: "42", expectedOutput: "42" },
-      /* `10 9 2` and the −10^9 case both kill a solution that forgot
-         `map(int, ...)` and sorted the pieces as text: "10" < "2" as strings,
-         and "-1000000000" would land in the middle. */
+      /* `10 9 2` and the −10^9 case kill a hand-written comparison that only
+         ever looks at the first digit, and a solution that stops reading at the
+         first number it cannot place. */
       { input: "10 9 2", expectedOutput: "2 9 10", hidden: true },
       { input: "-3 10 0 -7 2", expectedOutput: "-7 -3 0 2 10", hidden: true },
       /* Duplicates must survive: a solution that drops them prints six numbers
@@ -261,15 +407,28 @@ export const M4_L3: LessonBlock[] = [
       ru: "В одной строке даны не меньше трёх целых чисел через пробел. Выведи третье по величине значение. Повторы считаются по отдельности: берём по месту в отсортированном списке, поэтому для `5 5 5` ответ 5, а для `10 10 9 8` ответ 9.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(a[len(a) - 3])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    cout << a[n - 3];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 2 9 1 3 8", expectedOutput: "5" },
       { input: "5 5 5", expectedOutput: "5" },
       /* The mutant killers, one each: `10 10 9 8` kills the distinct-value
          reading (it answers 8), `1 2 3 4 5 6` kills a[2] (third SMALLEST, 3)
-         and a[len(a) - 2] (second largest, 5), the negatives kill a solution
+         and a[n - 2] (second largest, 5), the negatives kill a solution
          that only works while everything is positive, and `7 7 7 7 1 2 3`
          kills a walk that skips over equal neighbours. */
       { input: "10 10 9 8", expectedOutput: "9", hidden: true },
@@ -298,13 +457,39 @@ export const M4_L3: LessonBlock[] = [
       ru: "Эта программа сортирует числа и выводит НАИМЕНЬШЕЕ. Измени её так, чтобы она выводила ТРЕТЬЕ по величине значение. Чисел не меньше трёх. Повторы считаются по отдельности: для `5 5 5` ответ 5, а для `10 10 9 8` ответ 9.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(a[0])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    cout << a[0];\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(a[len(a) - 3])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    cout << a[n - 3];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 2 9 1 3 8", expectedOutput: "5" },
       { input: "5 5 5", expectedOutput: "5" },
@@ -320,7 +505,7 @@ export const M4_L3: LessonBlock[] = [
        different answer on `10 10 9 8`, because the distinction between "third
        by position" and "third distinct" is the thing being taught and it only
        becomes visible when both questions are asked of one list.
-       No `set()` anywhere in this course: the sorted list already puts equal
+       No `set` anywhere in this course: the sorted list already puts equal
        values side by side, so counting distinct values is one walk from the
        top, and that walk is what m4.l7 reuses. */
     id: "m4.l3.b8",
@@ -333,28 +518,46 @@ export const M4_L3: LessonBlock[] = [
       ru: "Это не предыдущая задача, а другая. В одной строке дано не меньше одного целого числа через пробел. Выведи третье по величине РАЗЛИЧНОЕ значение: сколько бы раз число ни повторялось, оно считается одним значением. Например, для `10 10 9 8` различные значения — 10, 9, 8, и ответ 8 (а третьим по месту было 9). Если различных значений меньше трёх, выведи слово `none`. Используй то, что в отсортированном списке одинаковые числа стоят рядом.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "i = len(a) - 1\n" +
-      "ans = a[i]\n" +
-      "count = 1\n" +
-      "while i > 0:\n" +
-      "    if a[i - 1] != a[i]:\n" +
-      "        count = count + 1\n" +
-      "        ans = a[i - 1]\n" +
-      "        if count == 3:\n" +
-      "            break\n" +
-      "    i = i - 1\n" +
-      "if count < 3:\n" +
-      '    print("none")\n' +
-      "else:\n" +
-      "    print(ans)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int i = n - 1;\n" +
+      "    int ans = a[i];\n" +
+      "    int count = 1;\n" +
+      "    while (i > 0) {\n" +
+      "        if (a[i - 1] != a[i]) {\n" +
+      "            count = count + 1;\n" +
+      "            ans = a[i - 1];\n" +
+      "            if (count == 3) {\n" +
+      "                break;\n" +
+      "            }\n" +
+      "        }\n" +
+      "        i = i - 1;\n" +
+      "    }\n" +
+      "    if (count < 3) {\n" +
+      "        cout << \"none\";\n" +
+      "    } else {\n" +
+      "        cout << ans;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "10 10 9 8", expectedOutput: "8" },
       { input: "5 5 5", expectedOutput: "none" },
       /* `7 7 7 7 1 2 3` kills a walk that stops at the first repeated block;
          `4 4 9` and `8 8` and the single number kill a solution that indexes
-         a[len(a) - 3] blindly and crashes or prints a number that is not there;
+         a[n - 3] blindly, which in C++ is not a crash but undefined behaviour —
+         a number that is not there;
          `3 3 3 2 2 1 1` has every value repeated, so the count must come from
          the neighbour comparison and not from the positions. */
       { input: "7 7 7 7 1 2 3", expectedOutput: "2", hidden: true },

@@ -1,9 +1,8 @@
 import "server-only";
 import { config } from "@schools/config";
-import { PYTHON_RUNTIME } from "@schools/execution/python-policy";
+import { CPP_RUNTIME } from "@schools/execution/cpp-runtime";
 import {
   EXECUTION_LIMITS,
-  looksLikeCompileError,
   type CodeExecutionProvider,
   type ExecutionRequest,
   type ExecutionResult,
@@ -48,17 +47,22 @@ export class PistonExecutionProvider implements CodeExecutionProvider {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          /* Both read from `schools/execution/python-policy.ts` rather than
+          /* All three read from `schools/execution/cpp-runtime.ts` rather than
              written here. The literals were previously in this file, in the
              conformance test, in the runbook and in whatever the operator typed
              into `POST /api/v2/packages` — four copies of one decision, and the
              only one that could not be forgotten was the one nobody could see.
              `wireVersion` is a RANGE and stays one deliberately: it resolves
              against the single pinned package the judge has, so a patch-level
-             rebuild is not an outage. See that file for the full argument. */
-          language: PYTHON_RUNTIME.pistonLanguage,
-          version: PYTHON_RUNTIME.wireVersion,
-          files: [{ name: "main.py", content: request.sourceCode }],
+             rebuild is not an outage. See that file for the full argument,
+             including the one thing about this judge nobody has checked: which
+             standard its `c++` run script compiles with. */
+          language: CPP_RUNTIME.pistonLanguage,
+          version: CPP_RUNTIME.wireVersion,
+          /* The NAME selects the compiler on this judge — a `.cpp` extension is
+             what makes the gcc package build C++ rather than C. It is not
+             cosmetic and it is not ours to shorten. */
+          files: [{ name: CPP_RUNTIME.sourceFileName, content: request.sourceCode }],
           stdin: request.stdin,
           run_timeout: request.timeLimitMs,
           run_memory_limit: request.memoryLimitMb * 1024 * 1024,
@@ -108,20 +112,15 @@ export class PistonExecutionProvider implements CodeExecutionProvider {
       const failed = (run.code ?? 0) !== 0;
 
       return {
-        /* The python3 runtime has NO compile stage, so Piston never populates
-           `body.compile` for it: a syntax error arrives here, as exit 1 with
-           SyntaxError on stderr, and reading it as `runtime_error` told a
-           learner their program crashed when it never started. The local
-           provider always drew this distinction; Piston has to draw the same
-           one from the same evidence or the two judges disagree about the same
-           missing bracket. */
-        status: killed
-          ? "time_limit_exceeded"
-          : !failed
-            ? "ok"
-            : looksLikeCompileError(out.stderr)
-              ? "compile_error"
-              : "runtime_error",
+        /* Reaching here means the program COMPILED: the `body.compile` branch
+           above returns first when it did not, and the gcc runtime really does
+           populate that stage. So a non-zero exit is the learner's program
+           crashing and there is nothing left to infer.
+           This used to consult a shared `looksLikeCompileError` heuristic over
+           stderr, because the python3 runtime had no compile stage at all and a
+           SyntaxError arrived here disguised as a crash. A compiled language
+           removes the ambiguity rather than moving it. */
+        status: killed ? "time_limit_exceeded" : !failed ? "ok" : "runtime_error",
         stdout: out.stdout,
         stderr: out.stderr,
         exitCode: run.code ?? null,
@@ -152,7 +151,7 @@ export class PistonExecutionProvider implements CodeExecutionProvider {
  * `EXECUTION_LIMITS.maxOutputBytes` is the number the rest of the system is
  * written against and the local provider has always enforced it while
  * streaming. Piston hands over a finished body instead, so nothing was
- * enforcing it here: a `while True: print(x)` came back whole, went into
+ * enforcing it here: a `while (true) cout << x;` came back whole, went into
  * memory once per test case per learner, and `/api/exec/run` returned it
  * verbatim to a browser. Piston's own `output_max_size` is a server-side
  * setting on a host we may not control, which makes this the only ceiling we

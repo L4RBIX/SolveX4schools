@@ -121,7 +121,7 @@ export interface NovaChatProps {
    */
   currentDraft?: () => NovaDraft | undefined;
   /**
-   * The learner's last in-browser Python run, read at send time.
+   * The learner's last in-browser C++ compile-and-run, read at send time.
    *
    * Untrusted, like `currentDraft`, and for the same reason: it describes a
    * screen this browser rendered. The server re-derives every field it uses

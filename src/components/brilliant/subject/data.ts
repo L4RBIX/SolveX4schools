@@ -5,6 +5,13 @@
  * docs/research/specs/b-subject.spec.md). Note the deliberate mix of curly and
  * straight apostrophes: FAQ items 4 and 5 use `'` while everything else uses
  * `’`. That is what the source says.
+ *
+ * The Python in here is Brilliant's, not ours. "Thinking in Python" is a real
+ * course on a real site, this tree is a verbatim reproduction of it, and
+ * `/brilliant/**` 404s outside development (`tests/school/routes.test.ts`). A
+ * migration that renamed it to C++ would break the only baseline the product's
+ * own pages are measured against, and would put a course name on a page that
+ * the site it copies does not have. Leave it.
  */
 
 /** Root of the mirrored brilliant.org asset tree in /public. */
