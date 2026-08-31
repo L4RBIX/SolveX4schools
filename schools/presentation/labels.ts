@@ -1412,6 +1412,30 @@ export const TEACHER_FAILURE_CLASS: Record<string, Localized> = {
     ru: "ошибка без установленной причины",
   },
 
+  /* --- What C++ added to September, and Python never had ---------------- */
+
+  /* All four arrived with the language migration and had no label, so the
+     teacher console rendered each of them as «одна ошибка» — the exact
+     failure this catalogue's own header describes: an unnamed class is a
+     number beside a child's name that tells a teacher nothing. */
+
+  compiler_points_at_the_next_line: {
+    kk: "қатені компилятор көрсеткен жолдан іздейді",
+    ru: "ищет ошибку в той строке, которую назвал компилятор",
+  },
+  output_chain_read_as_addition: {
+    kk: "cout << a << b тізбегін қосу деп түсінеді",
+    ru: "читает цепочку cout << a << b как сложение",
+  },
+  cout_assumed_to_insert_a_space: {
+    kk: "cout мәндердің арасына бос орын қояды деп ойлайды",
+    ru: "думает, что cout сам ставит пробел между значениями",
+  },
+  int_division_assumed_to_round: {
+    kk: "бүтін бөлу дөңгелектейді деп ойлайды (шын мәнінде бөлшегі алынып тасталады)",
+    ru: "считает, что целочисленное деление округляет (на деле дробная часть отбрасывается)",
+  },
+
   /* --- September's own diagnostics ------------------------------------- */
   string_vs_number_confusion: {
     kk: "мәтін мен санды шатастырады (тырнақша артық қойылған)",

@@ -492,13 +492,49 @@ describe("structural claims the validator cannot make", () => {
   });
 
   it("every graded code task withholds at least one case", () => {
+    const exempt: string[] = [];
     for (const { where, block } of EVERY_BLOCK) {
       if (!("cases" in block) || !Array.isArray(block.cases) || !block.cases.length) continue;
+
+      /* A task that reads NOTHING is exempt, and it is the only exemption.
+       *
+       * The rule exists so that passing the shown example is not the same as
+       * being correct — a learner who special-cases the sample must still fail.
+       * That argument needs at least two possible runs. A block with no input
+       * has exactly one: there is a single execution of the program and a
+       * single correct output, so a "hidden" case would be a byte-identical
+       * copy of the visible one with the answer painted out.
+       *
+       * `m1.l1.b5` is the block this is written for — «print the value of
+       * 7 * 8», the first program a learner ever writes. Hiding its only case
+       * would remove the `→ 56` they are shown as the example, in the lesson
+       * where being shown the answer's SHAPE is the entire scaffold. That
+       * makes the first task harder than the tenth, to satisfy a rule whose
+       * reasoning does not apply to it.
+       *
+       * Deliberately narrow: `input` empty on EVERY case. One non-empty input
+       * anywhere and the block is graded by the normal rule again. */
+      const readsNothing = block.cases.every((c) => (c.input ?? "").trim() === "");
+      if (readsNothing) {
+        exempt.push(`${block.id} (${where})`);
+        continue;
+      }
+
       expect(
         block.cases.some((c) => c.hidden),
         `${block.id} (${where}) has no hidden case — the sample answer passes it`,
       ).toBe(true);
     }
+
+    /* The exemption is a door, so its width is asserted rather than trusted.
+       One graded block in the whole programme reads nothing; if that count
+       climbs, someone is routing around the hidden-case rule by dropping the
+       input rather than by writing a task, and this fails before that becomes
+       a habit. Raise the bound deliberately, with a reason, or not at all. */
+    expect(
+      exempt,
+      `\nblocks exempted for reading no input:\n  ${exempt.join("\n  ")}\n`,
+    ).toHaveLength(1);
   });
 
   it("a repair task shows the program it asks about", () => {
