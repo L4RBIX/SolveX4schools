@@ -37,18 +37,52 @@ import "server-only";
  * The values are stored under OUR names. Everything the vendor calls things
  * stays at the door.
  *
- * ## UNVERIFIED
+ * ## MEASURED, 2026-08-30
  *
- * **No live call has ever been made from this repository** — there is no
- * RapidAPI key here. The header names below are the ones RapidAPI's published
- * documentation describes; whether the subscribed plan actually sends any of
- * them, and with what casing, has not been observed. If none of them arrive,
- * `providerQuota()` stays `null` for the life of the process and the health
- * view says so rather than inventing a number.
+ * This used to say UNVERIFIED, and it was: no live call had been made and the
+ * names below were transcribed from RapidAPI's documentation. A live run since
+ * then sent SIX `x-ratelimit-*` headers and NONE of the nine this file knew, so
+ * `recordProviderQuota` found no families, returned early, and
+ * `providerQuota()` was null for the life of every process while the numbers
+ * were sitting on the wire. The health view reported "no quota information"
+ * about a service that was sending quota information on every response.
+ *
+ * The `submissions` family below is those six. The nine stay: they are what
+ * RapidAPI documents, a different plan may well send them, and deleting them
+ * would trade one blind spot for another.
+ *
+ * ## The measured plan reports an OVERAGE, not headroom
+ *
+ * `limit` is `0` and `remaining` is NEGATIVE — `-1786` on submissions, `-19` on
+ * batched. That is not a broken header. `limit: 0` is a plan publishing no
+ * included allowance, and `remaining` counting past zero is overage already
+ * incurred. In the same run the service accepted 42 submissions across 177
+ * requests and returned zero 429s, so the number is a BILL and not a blockage.
+ *
+ * Two consequences are wired below rather than left to the reader. `remaining`
+ * is parsed signed for this family only, so a real reading is not thrown away;
+ * and `meaning` says which of the two things the figure is, so nothing
+ * downstream can render `-1786` as an amount of headroom.
  */
 
 /** Our three fields. The vendor's names never appear outside this file. */
 type QuotaField = "limit" | "remaining" | "resetSeconds";
+
+interface QuotaHeader {
+  family: string;
+  field: QuotaField;
+  /**
+   * This header's family may legitimately report a value BELOW zero.
+   *
+   * Opt-in per header rather than global, because a negative `remaining` on the
+   * documented RapidAPI families is a value nobody has ever observed and would
+   * more likely be a bug than a reading — `tests/ops/judge-observability.test.ts`
+   * asserts that a `-1` there is refused, and that behaviour is deliberate and
+   * stays. The measured `submissions` family is different: negative is its
+   * normal state and discarding it is how the figure went missing.
+   */
+  signed?: true;
+}
 
 /**
  * Header name (lower-cased) → field, and a family key so two rate-limit windows
@@ -60,19 +94,27 @@ type QuotaField = "limit" | "remaining" | "resetSeconds";
  * beside `remaining` from the other would produce a figure that is true of
  * neither.
  */
-const QUOTA_HEADERS: ReadonlyMap<string, { family: string; field: QuotaField }> = new Map([
+const QUOTA_HEADERS: ReadonlyMap<string, QuotaHeader> = new Map<string, QuotaHeader>([
   // The subscription's request quota.
-  ["x-ratelimit-requests-limit", { family: "requests", field: "limit" as QuotaField }],
-  ["x-ratelimit-requests-remaining", { family: "requests", field: "remaining" as QuotaField }],
-  ["x-ratelimit-requests-reset", { family: "requests", field: "resetSeconds" as QuotaField }],
+  ["x-ratelimit-requests-limit", { family: "requests", field: "limit" }],
+  ["x-ratelimit-requests-remaining", { family: "requests", field: "remaining" }],
+  ["x-ratelimit-requests-reset", { family: "requests", field: "resetSeconds" }],
   // The marketplace's own ceiling, which can bite before the subscription does.
-  ["x-ratelimit-rapid-free-plans-hard-limit-limit", { family: "hard", field: "limit" as QuotaField }],
-  ["x-ratelimit-rapid-free-plans-hard-limit-remaining", { family: "hard", field: "remaining" as QuotaField }],
-  ["x-ratelimit-rapid-free-plans-hard-limit-reset", { family: "hard", field: "resetSeconds" as QuotaField }],
+  ["x-ratelimit-rapid-free-plans-hard-limit-limit", { family: "hard", field: "limit" }],
+  ["x-ratelimit-rapid-free-plans-hard-limit-remaining", { family: "hard", field: "remaining" }],
+  ["x-ratelimit-rapid-free-plans-hard-limit-reset", { family: "hard", field: "resetSeconds" }],
   // The unqualified form, which some deployments send instead of either.
-  ["x-ratelimit-limit", { family: "generic", field: "limit" as QuotaField }],
-  ["x-ratelimit-remaining", { family: "generic", field: "remaining" as QuotaField }],
-  ["x-ratelimit-reset", { family: "generic", field: "resetSeconds" as QuotaField }],
+  ["x-ratelimit-limit", { family: "generic", field: "limit" }],
+  ["x-ratelimit-remaining", { family: "generic", field: "remaining" }],
+  ["x-ratelimit-reset", { family: "generic", field: "resetSeconds" }],
+  /* What judge0-ce.p.rapidapi.com ACTUALLY sends, measured 2026-08-30. Signed,
+     because on that plan `remaining` is negative and means overage. */
+  ["x-ratelimit-submissions-limit", { family: "submissions", field: "limit", signed: true }],
+  ["x-ratelimit-submissions-remaining", { family: "submissions", field: "remaining", signed: true }],
+  ["x-ratelimit-submissions-reset", { family: "submissions", field: "resetSeconds", signed: true }],
+  ["x-ratelimit-batched-submissions-limit", { family: "batched", field: "limit", signed: true }],
+  ["x-ratelimit-batched-submissions-remaining", { family: "batched", field: "remaining", signed: true }],
+  ["x-ratelimit-batched-submissions-reset", { family: "batched", field: "resetSeconds", signed: true }],
 ]);
 
 export interface ProviderQuota {
@@ -92,6 +134,22 @@ export interface ProviderQuota {
    * conservative number as the only number.
    */
   windows: number;
+  /**
+   * What `remaining` is measuring, because on the plan actually rented it is
+   * NOT "requests left".
+   *
+   * - `"left"`    — `remaining >= 0`. A real ceiling, and the count still
+   *                 available before it stops a class.
+   * - `"overage"` — `remaining < 0`. The included allowance is spent and
+   *                 `-remaining` is how far past it this account already is.
+   *                 Measured: `limit: 0`, `remaining: -1786`, 42 submissions in
+   *                 the same run, zero 429s. A bill, not a blockage.
+   * - `null`      — no `remaining` header arrived; there is nothing to mean.
+   *
+   * Present so that nothing downstream can render `remaining` as headroom
+   * without having been told which of the two it is holding.
+   */
+  meaning: "left" | "overage" | null;
 }
 
 interface QuotaState {
@@ -107,11 +165,19 @@ function state(): QuotaState {
   return g[KEY];
 }
 
-/** A header value is a quota figure only if it is a plain non-negative integer. */
-function integer(raw: string | null): number | null {
+/**
+ * A header value is a quota figure only if it is a plain integer.
+ *
+ * `signed` is opt-in per header and defaults OFF, so the nine documented names
+ * keep refusing a negative exactly as they did — an asserted behaviour, and the
+ * right one for a family where a negative would be a bug. `"0"` parses to `0`
+ * in both modes: a zero that arrived is a zero, and only a header that did not
+ * arrive is null.
+ */
+function integer(raw: string | null, signed = false): number | null {
   if (raw === null) return null;
   const trimmed = raw.trim();
-  if (!/^\d+$/.test(trimmed)) return null;
+  if (!(signed ? /^-?\d+$/ : /^\d+$/).test(trimmed)) return null;
   const value = Number(trimmed);
   return Number.isSafeInteger(value) ? value : null;
 }
@@ -131,8 +197,8 @@ export function recordProviderQuota(headers: { get(name: string): string | null 
   if (!headers) return;
 
   const families = new Map<string, { limit: number | null; remaining: number | null; resetSeconds: number | null }>();
-  for (const [name, { family, field }] of QUOTA_HEADERS) {
-    const value = integer(headers.get(name));
+  for (const [name, { family, field, signed }] of QUOTA_HEADERS) {
+    const value = integer(headers.get(name), signed === true);
     if (value === null) continue;
     const bucket = families.get(family) ?? { limit: null, remaining: null, resetSeconds: null };
     bucket[field] = value;
@@ -141,18 +207,35 @@ export function recordProviderQuota(headers: { get(name: string): string | null 
 
   if (families.size === 0) return;
 
-  /* The tightest window wins. Two families that both report `remaining` are two
-     independent ceilings, and the class stops at whichever runs out first, so
-     the conservative one is the true answer to "can we finish". A family with
-     no `remaining` at all cannot be compared and is only used as a fallback. */
-  let best: { limit: number | null; remaining: number | null; resetSeconds: number | null } | null = null;
-  for (const bucket of families.values()) {
-    if (best === null) {
-      best = bucket;
-      continue;
-    }
-    if (bucket.remaining === null) continue;
-    if (best.remaining === null || bucket.remaining < best.remaining) best = bucket;
+  /*
+   * The tightest window wins — but a REAL ceiling outranks an overage counter,
+   * and that ordering is the whole of this block.
+   *
+   * Two families that both report a non-negative `remaining` are two
+   * independent ceilings, and a class stops at whichever runs out first, so the
+   * smaller is the true answer to "can we finish". That was the original rule
+   * and it is unchanged.
+   *
+   * What the original rule could not survive is the plan measured on
+   * 2026-08-30, where `remaining` is `-1786`. A plain `min` picks that every
+   * time, so a plan sending BOTH a live ceiling (`remaining: 480`) and this
+   * overage counter would have reported `-1786` and hidden the only number that
+   * can actually stop a lesson. Nobody has hit it because no plan has yet sent
+   * both — which is the reason to fix it now rather than after somebody does.
+   *
+   * So: prefer families that still have headroom, and take the tightest of
+   * those. Fall back to an overage reading only when there is no ceiling to
+   * report, because "-1786, and here is what that means" is worth more to an
+   * operator than null.
+   */
+  const buckets = [...families.values()];
+  const withCeiling = buckets.filter((b) => b.remaining !== null && b.remaining >= 0);
+  const comparable = withCeiling.length > 0 ? withCeiling : buckets.filter((b) => b.remaining !== null);
+
+  let best = comparable[0] ?? buckets[0] ?? null;
+  for (const bucket of comparable) {
+    if (bucket.remaining === null || best.remaining === null) continue;
+    if (bucket.remaining < best.remaining) best = bucket;
   }
   if (best === null) return;
 
@@ -162,6 +245,8 @@ export function recordProviderQuota(headers: { get(name: string): string | null 
     remaining: best.remaining,
     resetSeconds: best.resetSeconds,
     windows: families.size,
+    /* Said rather than left to be inferred from a sign. See `meaning`. */
+    meaning: best.remaining === null ? null : best.remaining >= 0 ? "left" : "overage",
   };
 }
 

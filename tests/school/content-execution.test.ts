@@ -63,12 +63,11 @@ const PYTHON = process.env.EXEC_PYTHON_BIN ?? "python3";
  */
 const SPAWN_TIMEOUT_MS = 60_000;
 
-function hasPython(): boolean {
+function pythonVersion(): string | null {
   try {
-    execFileSync(PYTHON, ["--version"], { stdio: "pipe" });
-    return true;
+    return execFileSync(PYTHON, ["--version"], { encoding: "utf8", stdio: "pipe" }).trim();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -137,9 +136,47 @@ const EXECUTABLE: Executable[] = EVERY_BLOCK.flatMap(({ where, block }) => {
   return [{ where, block, solution: block.referenceSolution, cases, checker }];
 });
 
-const python = hasPython();
+const pythonBuild = pythonVersion();
+const python = pythonBuild !== null;
+
+/**
+ * A release gate may not vacate itself.
+ *
+ * Every assertion below is `it.runIf(python)`, so with no interpreter on PATH
+ * this file reported PASS having executed nothing — 916 of its 934 tests
+ * skipped, the whole curriculum-execution gate silently absent, and a green
+ * tick beside it. Locally that is the right default: a contributor without
+ * python3 should still be able to run the suite.
+ *
+ * In CI it is a false negative wearing a tick, so there it fails instead. The
+ * opt-out exists and is deliberately awkward to reach by accident.
+ */
+const RELEASE_GATE =
+  Boolean(process.env.CI) && process.env.CONTENT_EXECUTION_ALLOW_SKIP !== "1";
 
 describe("every reference solution passes every one of its own cases", () => {
+  it("has an interpreter, and says which", () => {
+    /* Printed rather than merely asserted: which Python ran the curriculum is
+       a fact a release report should carry, and "916 skipped" needs to be
+       visible when it happens rather than inferred from a count nobody reads. */
+    // eslint-disable-next-line no-console
+    console.log(
+      `[content-execution] interpreter: ${pythonBuild ?? "NONE"} (${PYTHON}) · ` +
+        `${EXECUTABLE.length} executable blocks · ` +
+        `${python ? "0" : EXECUTABLE.length} would skip · ` +
+        `release gate: ${RELEASE_GATE ? "enforced" : "advisory"}`,
+    );
+
+    expect(
+      python || !RELEASE_GATE,
+      `\nNo Python interpreter (${PYTHON}), and this is a release gate.\n` +
+        `${EXECUTABLE.length} reference solutions would be skipped and this file ` +
+        `would report PASS having executed nothing.\n` +
+        `Install Python, set EXEC_PYTHON_BIN, or set CONTENT_EXECUTION_ALLOW_SKIP=1 ` +
+        `to accept a run that checks no content.\n`,
+    ).toBe(true);
+  });
+
   it("finds executable content to check", () => {
     // A refactor that silently stopped collecting blocks would make every test
     // below vacuously pass. This is the guard against a green suite that

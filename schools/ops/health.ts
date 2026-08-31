@@ -424,6 +424,13 @@ async function executionCheck(probe: boolean): Promise<AdminHealth["execution"]>
     detail.quotaLimit = quota?.limit ?? null;
     detail.quotaResetSeconds = quota?.resetSeconds ?? null;
     detail.quotaObservedAt = quota?.observedAt ?? null;
+    /* What `quotaRemaining` is measuring, because on the plan actually rented
+       it is NOT requests-left: `limit: 0` with `remaining: -1786` is overage
+       already incurred, and the same run made 42 submissions with zero 429s.
+       Shipped beside the number so a dashboard cannot render a negative as
+       headroom, or clamp it to zero and imply a class is about to be stopped.
+       See `schools/ops/provider-quota.ts`. */
+    detail.quotaMeaning = quota?.meaning ?? null;
   }
 
   let status: CheckStatus = problems.length > 0 ? "down" : "ok";

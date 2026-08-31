@@ -563,3 +563,126 @@ describe("the admin health report, for a rented judge", () => {
     expect(health.hybrid.evidence.submitProducesEvidence).toBe(false);
   });
 });
+
+
+/* ========================================================================== */
+/* THE HEADERS THE PLAN ACTUALLY SENDS                                        */
+/* ========================================================================== */
+
+/**
+ * Measured against `judge0-ce.p.rapidapi.com` on 2026-08-30, sanitized.
+ *
+ * The reader knew nine header names and the service sent six others, so
+ * `providerQuota()` was null for the life of every process while the numbers
+ * were on the wire — the health view reported "no quota information" about a
+ * service reporting quota on every response.
+ *
+ * The values are verbatim from that run, negatives included. `limit: 0` with
+ * `remaining: -1786` is not a broken header: it is a plan that publishes no
+ * included allowance, and a count of overage already incurred. The same run
+ * made 42 submissions across 177 requests and got zero 429s.
+ */
+const MEASURED_2026_08_30 = {
+  "x-ratelimit-submissions-limit": "0",
+  "x-ratelimit-submissions-remaining": "-1786",
+  "x-ratelimit-submissions-reset": "516562",
+  "x-ratelimit-batched-submissions-limit": "0",
+  "x-ratelimit-batched-submissions-remaining": "-19",
+  "x-ratelimit-batched-submissions-reset": "516562",
+} as const;
+
+describe("the quota reader understands the plan this deployment rents", () => {
+  const headers = (h: Record<string, string>) => ({
+    get: (name: string) => h[name.toLowerCase()] ?? null,
+  });
+
+  beforeEach(async () => {
+    const { resetProviderQuota } = await import("../../schools/ops/provider-quota");
+    resetProviderQuota();
+  });
+
+  it("reads the six headers that actually arrive", async () => {
+    const { recordProviderQuota, providerQuota } = await import(
+      "../../schools/ops/provider-quota"
+    );
+    recordProviderQuota(headers({ ...MEASURED_2026_08_30 }));
+
+    const quota = providerQuota();
+    expect(quota, "these headers used to produce nothing at all").not.toBeNull();
+    expect(quota?.windows, "two families arrived").toBe(2);
+    expect(quota?.resetSeconds).toBe(516_562);
+  });
+
+  it("keeps a negative remaining instead of discarding it, and says what it means", async () => {
+    const { recordProviderQuota, providerQuota } = await import(
+      "../../schools/ops/provider-quota"
+    );
+    recordProviderQuota(headers({ ...MEASURED_2026_08_30 }));
+
+    const quota = providerQuota();
+    /* The tightest of the two overage counters. Verbatim: rendering -1786 as
+       1786-left, or clamping it to 0, would both be lies in opposite
+       directions. */
+    expect(quota?.remaining).toBe(-1786);
+    expect(quota?.meaning, "a bill, not headroom").toBe("overage");
+    expect(quota?.limit, "a published allowance of zero is a real zero").toBe(0);
+  });
+
+  it("still refuses a negative on the families where one would be a bug", async () => {
+    /* The signed parse is opt-in per header. The nine documented RapidAPI names
+       have never been observed going negative, so there a negative is more
+       likely a bug than a reading, and refusing it is asserted behaviour that
+       this change must not have loosened. */
+    const { recordProviderQuota, providerQuota } = await import(
+      "../../schools/ops/provider-quota"
+    );
+    recordProviderQuota(
+      headers({
+        "x-ratelimit-requests-limit": "100",
+        "x-ratelimit-requests-remaining": "-5",
+        "x-ratelimit-requests-reset": "60",
+      }),
+    );
+    expect(providerQuota()?.remaining).toBeNull();
+    expect(providerQuota()?.limit).toBe(100);
+  });
+
+  it("does not let an overage counter hide a real ceiling", async () => {
+    /*
+     * The hazard nobody had hit, because no plan has yet sent both.
+     *
+     * The rule was a plain `min(remaining)`, so a response carrying a live
+     * ceiling AND this overage counter would have reported -1786 and buried
+     * the only number that can actually stop a lesson. A real ceiling now
+     * outranks an overage reading whatever the arithmetic says.
+     */
+    const { recordProviderQuota, providerQuota } = await import(
+      "../../schools/ops/provider-quota"
+    );
+    recordProviderQuota(
+      headers({
+        ...MEASURED_2026_08_30,
+        "x-ratelimit-requests-limit": "500",
+        "x-ratelimit-requests-remaining": "480",
+        "x-ratelimit-requests-reset": "60",
+      }),
+    );
+
+    const quota = providerQuota();
+    expect(quota?.remaining, "the ceiling, not the overage").toBe(480);
+    expect(quota?.meaning).toBe("left");
+    expect(quota?.windows, "and all three families were still seen").toBe(3);
+  });
+
+  it("leaks no header name or value into the payload", async () => {
+    const { recordProviderQuota, providerQuota } = await import(
+      "../../schools/ops/provider-quota"
+    );
+    recordProviderQuota(
+      headers({ ...MEASURED_2026_08_30, "x-rapidapi-key": "SECRET-KEY-DO-NOT-LEAK" }),
+    );
+    const json = JSON.stringify(providerQuota());
+    expect(json).not.toContain("SECRET-KEY-DO-NOT-LEAK");
+    expect(json).not.toContain("x-ratelimit");
+  });
+});
