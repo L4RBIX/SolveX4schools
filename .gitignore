@@ -76,3 +76,11 @@ __pycache__/
 
 # Supabase CLI scaffolding from `supabase link`. Not product.
 supabase/
+
+# The C++17 toolchain, fetched by scripts/sync-cpp17-assets.mjs from a pinned
+# upstream commit with SHA-256 verification. 57 MB of compiler does not belong
+# in a repository whose source is 3 MB.
+public/cpp17/
+# The C++17 worker, compiled from src/lib/cpp17/worker.ts by
+# scripts/build-cpp-worker.mjs. Generated, never edited by hand.
+public/cpp17-worker.js

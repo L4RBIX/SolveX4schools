@@ -27,9 +27,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "predev": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs",
+    "predev": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs",
+    "prebuild": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -50,7 +50,9 @@
     "pyodide:sync": "node scripts/sync-pyodide-assets.mjs --force",
     "pyodide:worker": "node scripts/build-python-worker.mjs",
     "test:python": "python3 -m pytest tests/python -q",
-    "test:nova": "vitest run tests/nova tests/learning"
+    "test:nova": "vitest run tests/nova tests/learning",
+    "cpp17:sync": "node scripts/sync-cpp17-assets.mjs",
+    "cpp17:worker": "node scripts/build-cpp-worker.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

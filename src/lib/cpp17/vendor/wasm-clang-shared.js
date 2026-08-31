@@ -828,3 +828,16 @@ class API {
 return API;
 
 })();
+
+/* -------------------------------------------------------------------------- */
+/* SolveX4Schools: ESM export.                                                */
+/*                                                                            */
+/* Upstream is a classic script loaded with `importScripts`, which leaves      */
+/* `API` on the worker global. Our worker is a module (see                     */
+/* `scripts/build-cpp-worker.mjs` for why Turbopack cannot emit it), so the    */
+/* binding has to be exported rather than leaked onto `self`.                  */
+/*                                                                            */
+/* Three upstream defects are patched above, each found by running programmes  */
+/* the curriculum needs. See docs/cpp17/CPP17_BROWSER_RUNTIME.md.              */
+/* -------------------------------------------------------------------------- */
+export { API };
