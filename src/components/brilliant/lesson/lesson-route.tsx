@@ -25,10 +25,20 @@ export function LessonRoute({
   monthTitle,
   trustedProviderConfigured,
   hydration,
+  contestSeconds,
 }: {
   lesson: PublicLesson;
   monthIndex: number;
   monthTitle: string;
+  /**
+   * Seconds left on a timed practice contest, computed on the SERVER.
+   *
+   * `null` for every lesson that is not one of May's contests. Seconds rather
+   * than a start instant on purpose: the deadline is then not a function of the
+   * device's clock, and a second tab cannot start a fresh countdown. See
+   * `schools/learning/contest.ts`.
+   */
+  contestSeconds?: number | null;
   /**
    * Whether this deployment has an execution provider that can produce
    * evidence, read on the server and passed straight through to the player.
@@ -229,6 +239,7 @@ export function LessonRoute({
 
   return (
     <SchoolLesson
+      contest={contestSeconds == null ? undefined : { remainingSeconds: contestSeconds }}
       lesson={lesson}
       monthIndex={monthIndex}
       monthTitle={monthTitle}

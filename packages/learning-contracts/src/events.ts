@@ -52,6 +52,10 @@ export const LEARNING_EVENTS = [
   // `delivered` carries what we actually said.
   "assistance_requested",
   "assistance_delivered",
+  /* The instant a timed practice contest's clock started for one learner.
+     Server-authored — see EVENT_TRUST — so a browser cannot start, restart or
+     rewind the clock, which is the only thing that makes it a clock. */
+  "contest_started",
 ] as const;
 
 export type LearningEventName = (typeof LEARNING_EVENTS)[number];
@@ -100,6 +104,11 @@ export const EVENT_TRUST: Record<LearningEventName, SourceTrust> = {
   solution_revealed: "browser",
   assistance_requested: "server",
   assistance_delivered: "server",
+  /* `server`, and load-bearing: CLIENT_REPORTABLE_EVENTS is derived as
+     `EVENT_TRUST[name] === "browser"`, so marking it here is what bars a
+     browser from authoring one. A learner who could POST this could reset their
+     own contest timer from a console. */
+  contest_started: "server",
 };
 
 /**

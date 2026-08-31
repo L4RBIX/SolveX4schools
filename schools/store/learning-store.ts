@@ -1863,6 +1863,70 @@ export class LearningStore {
    * `attempt_episodes.max_assistance_level` uses, so the two cannot be read as
    * disagreeing. Writing 0 would claim a level-0 hint was given.
    */
+
+  /**
+   * When this learner's clock on a timed contest started — minted once, ever.
+   *
+   * ## Why this needs no migration and no new table
+   *
+   * `learning_events` is append-only, `event_name` is a plain text column, and
+   * `insertEvents` already ends `on conflict (event_id) do nothing`. So an
+   * `eventId` DERIVED from (subject, lesson) makes the insert exactly-once: a
+   * second tab, a refresh, a re-login and a cleared cache all no-op and read
+   * the FIRST row back. That is the whole mechanism.
+   *
+   * `occurred_at` is the value returned, and it is written by this method from
+   * the server's own clock. Nothing a browser sends reaches it — `contest_started`
+   * is `server` in `EVENT_TRUST`, so a browser cannot author one at all.
+   *
+   * ## No episode id, deliberately
+   *
+   * `staleEpisodes` selects `where e.episode_id is not null`, so an event
+   * carrying one would have the reducer fabricate an `attempt_episodes` row for
+   * a task nobody attempted — inflating the teacher's `distinct_tasks` and the
+   * league's `attempted_tasks` with a clock tick.
+   */
+  async contestStartedAt(
+    subjectId: string,
+    lessonId: string,
+    mint: {
+      eventId: string;
+      sessionId: string;
+      environment: LearningEventRow["environment"];
+      route: string;
+    },
+  ): Promise<string> {
+    await this.appendEvents([
+      {
+        eventId: mint.eventId,
+        subjectId,
+        episodeId: null,
+        sessionId: mint.sessionId,
+        seq: 0,
+        eventName: "contest_started",
+        occurredAt: new Date().toISOString(),
+        sourceTrust: "server",
+        environment: mint.environment,
+        cohort: "public",
+        route: mint.route,
+        /* `task_ref` is the payload vocabulary's public-id slot and is already
+           how a block is named elsewhere ("block:m1.p3"). The key set is closed
+           on purpose — see `AllowedPayloadKey` — and a clock tick does not
+           deserve a new one. */
+        payload: { task_ref: `lesson:${lessonId}` },
+      },
+    ]);
+
+    const r = await this.sql.query<{ occurred_at: string }>(
+      `select occurred_at from learning_events where event_id = $1`,
+      [mint.eventId],
+    );
+    /* The row that is there, not the one just offered. On a second call the
+       insert did nothing and this reads the original instant back, which is
+       what makes the clock survive a refresh. */
+    return toIso(r.rows[0]?.occurred_at ?? new Date().toISOString());
+  }
+
   async solveEvidence(
     subjectId: string,
     episodeId: string,

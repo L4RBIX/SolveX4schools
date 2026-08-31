@@ -8,6 +8,7 @@ import { publicLesson } from "@schools/curriculum/public";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
 import { currentLearnerMayEnter } from "@schools/learning/access";
+import { contestRemainingSeconds } from "@schools/learning/contest";
 import { lessonHydration } from "@schools/learning/rehydrate";
 import { LessonRoute } from "@/components/brilliant/lesson/lesson-route";
 
@@ -125,6 +126,20 @@ export default async function LessonPage({
    */
   const hydration = await lessonHydration(lesson.id, lesson.blocks);
 
+  /* The contest clock, read from the server that owns it — the same reasoning
+     as `hydration` directly above. This page is already force-dynamic with a
+     session and a store open, and a client that computed its own deadline could
+     reset it by clearing storage or opening a second tab. `null` on every
+     lesson that is not one of May's four contests.
+
+     `found.lesson.estimatedMinutes` comes off the AUTHORED lesson rather than
+     the public projection, so `PublicLesson` needs no new field and the number
+     never has to cross to the browser as anything but a countdown. */
+  const contestSeconds = await contestRemainingSeconds(
+    lesson.id,
+    found.lesson.estimatedMinutes,
+  );
+
   return (
     <LessonRoute
       lesson={lesson}
@@ -146,6 +161,7 @@ export default async function LessonPage({
        */
       trustedProviderConfigured={trustedProviderConfigured()}
       hydration={hydration}
+      contestSeconds={contestSeconds}
     />
   );
 }

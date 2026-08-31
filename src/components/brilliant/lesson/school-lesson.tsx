@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "re
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
+import { isContestLesson } from "@schools/curriculum/inventory";
 import {
   publicCanCheck as canCheckAnswer,
   isPublicAttemptBlock as isAttemptBlock,
@@ -30,6 +31,7 @@ import { ChatIcon } from "./icons";
 import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
 import { NovaChat, type NovaDraft } from "@/components/nova/nova-chat";
 import { LessonTopBar } from "./lesson-chrome";
+import { ContestTimer } from "./contest-timer";
 import { BlockView } from "./blocks";
 import {
   cardBorderClass,
@@ -235,6 +237,14 @@ export interface SchoolLessonProps {
    * Present and empty means "we looked and there is nothing".
    */
   hydration?: LessonHydration;
+  /**
+   * The contest clock, when this lesson is one of May's timed practices.
+   *
+   * Seconds remaining, computed on the server — see `schools/learning/contest.ts`
+   * for why a start instant kept anywhere the browser can reach is not a clock.
+   * `undefined` for every other lesson, and the timer is simply not rendered.
+   */
+  contest?: { remainingSeconds: number };
 }
 
 export interface LessonSummary {
@@ -456,6 +466,7 @@ function draftFor(answer: BlockAnswer | undefined): NovaDraft | undefined {
 
 export function SchoolLesson({
   lesson,
+  contest,
   monthIndex,
   locale,
   backHref,
@@ -481,6 +492,16 @@ export function SchoolLesson({
    * means a new document), and re-seeding mid-session would overwrite work the
    * learner had just done with the server's older copy.
    */
+  /*
+   * One of May's timed practice contests, derived from the lesson id.
+   *
+   * Derived rather than passed down, and shared with `roleOf`, which already
+   * reads the same shape to classify these blocks as `contest` rather than
+   * `core`. A prop would have to be threaded through `LessonRoute` and the page
+   * for a fact the id already carries — and could be forgotten on one route.
+   */
+  const isContest = isContestLesson(lesson.id);
+
   const [states, setStates] = useState<Record<string, BlockState>>(() => statesFrom(hydration));
   const [page, setPage] = useState(() => resumePage(lesson.blocks, statesFrom(hydration)));
   /*
@@ -888,7 +909,7 @@ export function SchoolLesson({
   const verdict = state.verdict;
   const isAttempt = isAttemptBlock(block);
   const isOptional = block.optional === true;
-  const mode = footerMode(verdict, isAttempt, isOptional);
+  const mode = footerMode(verdict, isAttempt, isOptional, isContest);
 
   /* The finishing CTA, in one place because the footer renders it from two
      arms and they must never say different things.
@@ -956,12 +977,23 @@ export function SchoolLesson({
              nothing. What replaces it is a fact — how many of this lesson's
              checkable tasks the player has actually marked correct. */
           readout={
-            attemptCount > 0 ? (
-              <span className="flex items-center gap-1.5 text-[16px] leading-[22.4px] font-medium tabular-nums">
-                <CheckReadoutIcon done={solvedCount > 0} />
-                <span className={solvedCount > 0 ? "text-b-green-2" : "text-b-fg/30"}>
-                  {solvedCount}/{attemptCount}
-                </span>
+            /* In a contest the clock sits beside the count, in the top bar's
+               existing status slot rather than in a new banner: it has to be
+               visible on every problem without pushing the work down, and this
+               is the one place already reserved for "how am I doing". */
+            attemptCount > 0 || contest ? (
+              <span className="flex items-center gap-2.5">
+                {contest ? (
+                  <ContestTimer remainingSeconds={contest.remainingSeconds} locale={locale} />
+                ) : null}
+                {attemptCount > 0 ? (
+                  <span className="flex items-center gap-1.5 text-[16px] leading-[22.4px] font-medium tabular-nums">
+                    <CheckReadoutIcon done={solvedCount > 0} />
+                    <span className={solvedCount > 0 ? "text-b-green-2" : "text-b-fg/30"}>
+                      {solvedCount}/{attemptCount}
+                    </span>
+                  </span>
+                ) : null}
               </span>
             ) : null
           }
@@ -1047,9 +1079,13 @@ export function SchoolLesson({
                 not need. Without it "optional" is a fact about the schema that
                 no learner can observe: the Skip button appears and nothing on
                 screen says why this card has one and the last one did not. */}
-            {isOptional && (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
+            {(isOptional || isContest) &&
+            (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
               <p className="mx-auto max-w-[367px] px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60">
-                {t(L.optionalNote, locale)}
+                {/* Two different sentences, because they are two different
+                    promises. Optional means the task can be declined; contest
+                    means it can be deferred and will come back. */}
+                {t(isContest ? L.contestNote : L.optionalNote, locale)}
               </p>
             ) : null}
 
@@ -1064,7 +1100,7 @@ export function SchoolLesson({
                 {/* An optional task keeps its Check — a learner who wants the
                     practice takes it — and gains the way past that every other
                     footer mode already had. */}
-                {mode === "check-optional" && (
+                {(mode === "check-optional" || mode === "check-contest") && (
                   <>
                     <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
                       {t(L.check, locale)}
@@ -1073,19 +1109,22 @@ export function SchoolLesson({
                         so. Labelling it «Өткізіп жіберу» there told the learner
                         they were skipping ahead when they were finishing. */}
                     <Button3D variant="secondary" onClick={advance}>
-                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
+                      {onLastPage ? finishLabel : t(isContest ? L.leaveForLater : L.skipOptional, locale)}
                     </Button3D>
                   </>
                 )}
 
-                {/* Wrong answer on an optional task: Try again, or move on. */}
-                {mode === "retry-optional" && (
+                {/* Wrong answer on an optional task, or on a contest problem:
+                    Try again, or come back to it. `advance()` already jumps to
+                    the first outstanding block instead of finishing, so a
+                    deferred contest problem is returned to rather than lost. */}
+                {(mode === "retry-optional" || mode === "retry-contest") && (
                   <>
                     <Button3D variant="warn" onClick={retry}>
                       {t(L.tryAgain, locale)}
                     </Button3D>
                     <Button3D variant="secondary" onClick={advance}>
-                      {onLastPage ? finishLabel : t(L.skipOptional, locale)}
+                      {onLastPage ? finishLabel : t(isContest ? L.leaveForLater : L.skipOptional, locale)}
                     </Button3D>
                   </>
                 )}

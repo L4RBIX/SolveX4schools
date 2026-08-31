@@ -216,6 +216,19 @@ export interface MonthCompletableShape {
   assessment?: { id: string; status: PublicationStatus; blocks: readonly unknown[] } | null;
 }
 
+/**
+ * Is this lesson one of May's timed practice contests?
+ *
+ * `m9.c1`–`m9.c4`. Derived from the id rather than declared on the lesson,
+ * matching `roleOf`, which already reads the same shape to classify a block as
+ * `contest` rather than `core`. Pure and free of `server-only`, because the
+ * lesson player needs it in the browser: a contest problem gets a
+ * come-back-later control that an ordinary required task does not.
+ */
+export function isContestLesson(lessonId: string): boolean {
+  return /^m\d+\.c\d+$/.test(lessonId);
+}
+
 export function monthCompletables(month: MonthCompletableShape): Completable[] {
   const out: Completable[] = [];
   for (const unit of month.units) {

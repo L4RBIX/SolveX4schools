@@ -323,6 +323,19 @@ export const L = {
      something, and a Continue beside a Check reads as though the answer has
      already been accepted. See `optionalNote` for what sits above it. */
   skipOptional: { kk: "Өткізіп жіберу", ru: "Пропустить" },
+
+  /* The secondary control on a CONTEST problem, and the wording carries the
+     difference. «Пропустить» would be a lie: a contest problem is required,
+     nothing is waived, and the Finish button brings the learner straight back
+     to it. «Вернусь позже» is what actually happens. */
+  leaveForLater: { kk: "Кейін ораламын", ru: "Вернусь позже" },
+  /** The label beside the contest clock. Deliberately not «Қалған уақыт: 0:00»
+      as a threat — nothing is enforced at zero. */
+  contestTimeLeft: { kk: "Қалған уақыт", ru: "Осталось" },
+  contestNote: {
+    kk: "Тұрып қалсаң — кейінге қалдырып, келесіге өт. Аяқтар алдында бәрібір ораласың.",
+    ru: "Застрял — отложи и переходи к следующей. Перед завершением всё равно вернёшься.",
+  },
   /** Said once, above the footer, on a block the required path does not need. */
   optionalNote: {
     kk: "Бұл тапсырма — қосымша жаттығу. Қаласаң шығар, қаламасаң өткізіп жібер.",

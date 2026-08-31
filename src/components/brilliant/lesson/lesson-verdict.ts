@@ -118,6 +118,8 @@ export type FooterMode =
   | "advance"
   | "retry"
   | "retry-optional"
+  | "check-contest"
+  | "retry-contest"
   | "celebrate";
 
 /**
@@ -138,11 +140,38 @@ export type FooterMode =
  * It offers Check as well as Skip rather than advancing outright: a learner who
  * wants the extra practice must still be able to take it. Optional means the
  * choice exists, not that the task is withdrawn.
+ *
+ * @param contest  This block is a problem in one of May's timed practice
+ *   contests (`m9.c1`–`m9.c4`).
+ *
+ * A contest problem is NOT optional. `requirementFor` still demands
+ * `attempted`, the block still counts, and the Finish button still bounces the
+ * learner back to anything outstanding — `advance()` jumps to
+ * `decision.outstanding[0]` rather than completing. What changes is only that
+ * there is a way to come back later.
+ *
+ * Without it the mode is `retry`, which renders Try again and Get help and
+ * nothing else, and the top bar's forward arrow is hardcoded off. So a learner
+ * who could not solve problem two of five could not reach problems three, four
+ * or five — in a lesson whose own stated objectives are «Бір есепке тұрып
+ * қалмау» and «Тұрып қалған есепті уақытында тастау»: do not get stuck on one
+ * problem, drop a stuck problem in time. The product taught the opposite of the
+ * lesson, and enforced it.
+ *
+ * A waiver would have been the wrong fix and is not what this is: skipping
+ * leaves the problem outstanding, reveals nothing, and is exactly the
+ * `retry-optional` control pointed at a required task.
  */
-export function footerMode(v: LessonVerdict, isAttempt: boolean, optional = false): FooterMode {
+export function footerMode(
+  v: LessonVerdict,
+  isAttempt: boolean,
+  optional = false,
+  contest = false,
+): FooterMode {
   if (v === "unchecked") {
     if (!isAttempt) return "advance";
-    return optional ? "check-optional" : "check";
+    if (optional) return "check-optional";
+    return contest ? "check-contest" : "check";
   }
   if (v === "correct") return "celebrate";
   if (v === "wrong" || v === "partial") {
@@ -154,7 +183,8 @@ export function footerMode(v: LessonVerdict, isAttempt: boolean, optional = fals
      * whose last block is optional the finishing control disappeared too. It
      * was escapable by pressing Try again to get back to `unchecked`, and
      * nothing on screen said so. */
-    return optional ? "retry-optional" : "retry";
+    if (optional) return "retry-optional";
+    return contest ? "retry-contest" : "retry";
   }
   return "advance";
 }

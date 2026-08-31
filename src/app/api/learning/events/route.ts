@@ -157,6 +157,12 @@ const INGEST_TRUST = {
   solution_revealed: "server",
   assistance_requested: "server",
   assistance_delivered: "server",
+  /* Server-authored. A browser-posted `contest_started` carries no episode, and
+     `attestedStatement` returns null without one, so it is refused and counted
+     as `server_authored_event` — the clock cannot be started or rewound from a
+     console. This entry is compile-forced by the `satisfies` below, which is
+     how a new event cannot be added without someone deciding its trust. */
+  contest_started: "server",
 } as const satisfies Record<LearningEventName, SourceTrust>;
 
 /**
