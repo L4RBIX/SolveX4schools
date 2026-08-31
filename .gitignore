@@ -73,3 +73,6 @@ __pycache__/
 
 # Screenshots written by the ad-hoc _nova-*.mjs harnesses.
 .shots/
+
+# Supabase CLI scaffolding from `supabase link`. Not product.
+supabase/
