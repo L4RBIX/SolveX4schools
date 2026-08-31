@@ -25,7 +25,20 @@ export interface PedestalProps {
   className?: string;
 }
 
-export function PedestalActive({ className }: PedestalProps) {
+/**
+ * The marker standing on the active pedestal.
+ *
+ * The reference draws it in Brilliant's `#29CC57`. That green is theirs, and in
+ * this player green already means "correct" — so a permanent green gem on the
+ * current lesson congratulates a learner for arriving. The product passes its
+ * own violet, the same hue Nova wears on the gameboard.
+ */
+const REFERENCE_MARKER = "#29CC57";
+
+export function PedestalActive({
+  className,
+  markerColor = REFERENCE_MARKER,
+}: PedestalProps & { markerColor?: string }) {
   const id = useId().replace(/:/g, "");
   return (
     <svg width="64" height="62" viewBox="0 0 64 62" fill="none" aria-hidden="true" className={className}>
@@ -59,7 +72,7 @@ export function PedestalActive({ className }: PedestalProps) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M46.5 15.5c-.001-2.921-1.851-4.492-2.945-5.158-2.55-1.553-5.155-4.283-6.514-6.615C36.531 2.852 34.945 1 32 1s-4.531 1.853-5.041 2.726c-1.36 2.332-3.965 5.062-6.514 6.615-1.094.665-2.944 2.236-2.945 5.157v.003c.001 2.921 1.851 4.492 2.945 5.158 2.55 1.553 5.155 4.283 6.514 6.615C27.469 28.148 29.055 30 32 30s4.531-1.853 5.041-2.726c1.36-2.332 3.965-5.062 6.514-6.615 1.094-.666 2.944-2.237 2.945-5.158z"
-        fill="#29CC57"
+        fill={markerColor}
       />
       <path
         fillRule="evenodd"

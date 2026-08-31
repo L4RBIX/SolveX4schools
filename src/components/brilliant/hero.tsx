@@ -19,30 +19,39 @@ const COURSES = "/assets/original/brilliant/brilliant.org/videos/homepage/course
  * the last scene, which nothing else uses, so it does not open on the same
  * frame as the first feature row.
  */
-const HERO_CLIP = {
+export interface HeroClipSource {
+  webm: string;
+  poster: string;
+  /** Seconds to open on, for a clip shared by several cards. */
+  startAt?: number;
+  width: number;
+  height: number;
+}
+
+const HERO_CLIP: HeroClipSource = {
   webm: `${COURSES}/cs-refresh.webm`,
   poster: `${COURSES}/posters/cs-refresh.png`,
   startAt: 16.5,
   width: 1360,
   height: 888,
-} as const;
+};
 
 /**
  * Autoplay can be refused; the poster frame is what stands in when it is.
  * `play()` is retried on `canplay` because calling it from a mount effect can
  * land before the element has any data and get dropped.
  */
-function HeroClip() {
+function HeroClip({ clip }: { clip: HeroClipSource }) {
   const ref = useRef<HTMLVideoElement>(null);
 
   const start = () => {
     const node = ref.current;
     if (!node) return;
-    if (HERO_CLIP.startAt && Number.isFinite(node.duration)) {
+    if (clip.startAt && Number.isFinite(node.duration)) {
       /* Only seek when the clip has looped back past the offset, so a resumed
          playhead is not yanked backwards mid-scene. */
-      if (node.currentTime < HERO_CLIP.startAt) {
-        node.currentTime = HERO_CLIP.startAt % node.duration;
+      if (node.currentTime < clip.startAt) {
+        node.currentTime = clip.startAt % node.duration;
       }
     }
     void node.play().catch(() => {});
@@ -53,9 +62,9 @@ function HeroClip() {
   return (
     <video
       ref={ref}
-      width={HERO_CLIP.width}
-      height={HERO_CLIP.height}
-      poster={HERO_CLIP.poster}
+      width={clip.width}
+      height={clip.height}
+      poster={clip.poster}
       className="h-full w-full object-cover"
       autoPlay
       muted
@@ -67,7 +76,7 @@ function HeroClip() {
       onEnded={start}
       aria-hidden
     >
-      <source src={HERO_CLIP.webm} type="video/webm" />
+      <source src={clip.webm} type="video/webm" />
     </video>
   );
 }
@@ -157,6 +166,16 @@ export interface HeroProps {
    * is commercially licensed and cannot ship; the product passes its own class.
    */
   headingFontClass?: string;
+  /**
+   * The clip this card plays, when the caller has its own.
+   *
+   * The clone keeps the default, because that is what it is a clone of. The
+   * product passes a recording of a real SolveX lesson — the card is the one
+   * place on the landing page that claims "this is the thing you are signing
+   * up for", and a clip of someone else's course is the wrong claim to make
+   * there. The three feature rows below it keep the reference footage.
+   */
+  clip?: HeroClipSource;
 }
 
 export function Hero({
@@ -169,13 +188,19 @@ export function Hero({
     { glyph: "play", label: "Featured App" },
   ],
   headingFontClass = "font-b-serif",
+  clip,
 }: HeroProps = {}) {
   return (
     <section className="b-shell flex flex-col justify-center gap-8 py-12 lg:h-[760px] lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:py-0">
-      <div className="contents lg:block lg:w-full lg:max-w-[640px]">
+      {/* `lg:min-w-0` is the whole fix for the 1024 breakpoint: a flex item
+          defaults to `min-width: auto`, so a 76px display line containing
+          "программировать," refuses to shrink and pushes the 560px video off
+          the page. The display size now reaches 76px at 1280, which is where
+          the reference was measured, and holds at 60px between 1024 and 1280. */}
+      <div className="contents lg:block lg:w-full lg:max-w-[640px] lg:min-w-0">
         <h1
           className={cn(
-            "order-1 text-center text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[76px] lg:leading-[79.8px] lg:tracking-[-1.4px]",
+            "order-1 text-center text-[36px] font-medium leading-[39.6px] tracking-[-0.36px] text-b-ink sm:text-[56px] sm:leading-[58.8px] sm:tracking-[-1.05px] lg:order-none lg:text-left lg:text-[60px] lg:leading-[64px] lg:tracking-[-1.1px] xl:text-[76px] xl:leading-[79.8px] xl:tracking-[-1.4px]",
             headingFontClass,
           )}
         >
@@ -216,7 +241,7 @@ export function Hero({
 
       <div className="order-2 flex w-full shrink-0 justify-center lg:order-none lg:w-[560px]">
         <div className="aspect-[1360/888] w-full max-w-[560px] overflow-hidden rounded-[20px] bg-b-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_16px_40px_rgba(0,0,0,0.06)]">
-          <HeroClip />
+          <HeroClip clip={clip ?? HERO_CLIP} />
         </div>
       </div>
     </section>

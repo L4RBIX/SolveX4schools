@@ -1,6 +1,10 @@
 import "server-only";
 import { grantHintLevel, type GrantDecision } from "@solvex/nova-core";
-import { decide, type NovaDirective } from "@solvex/learning-intelligence-core";
+import {
+  decide,
+  type NovaDirective,
+  type ReducibleEvent,
+} from "@solvex/learning-intelligence-core";
 import type { LearningStore } from "@schools/store/learning-store";
 
 /**
@@ -32,6 +36,17 @@ export interface EnforceResult {
   directive: NovaDirective | null;
   /** Why the directive is null, when it is. Shown in the dev lab, never to a learner. */
   directiveNote: string | null;
+  /**
+   * This episode's ledger rows, handed back rather than dropped.
+   *
+   * They are already loaded below to answer "has the learner attempted
+   * anything", and the route needs the same rows to answer a different
+   * question — has the judge ever graded this block (`lastServerCheck` in
+   * `./execution-context`). Reading them twice would be two queries and, worse,
+   * two chances for the hint ceiling and the execution context to disagree
+   * about what this episode contains.
+   */
+  events: readonly ReducibleEvent[];
 }
 
 export async function enforceHintPolicy(input: EnforceInput): Promise<EnforceResult> {
@@ -50,16 +65,26 @@ export async function enforceHintPolicy(input: EnforceInput): Promise<EnforceRes
 
   const lastGranted = await store.lastGrantedLevel(episodeId);
   const lastHintAt = await store.lastHintAt(episodeId);
+  const events = await store.eventsForEpisode(episodeId);
 
   /* Derived from the ledger, not claimed by the client. With no hint yet there
      is nothing to have attempted "since", so the opening rung is available. */
   const hasAttemptSinceLastHint =
-    lastHintAt === null ? true : await hasAttemptSince(store, episodeId, lastHintAt);
+    lastHintAt === null ? true : hasEffortAfter(events, lastHintAt);
+
+  /* Has anything been tried on this task AT ALL?
+   *
+   * The line above answers "may they climb"; this one answers "may they start".
+   * Without it, `hasAttemptSinceLastHint` is vacuously true on a cold episode,
+   * and the programme's first rule about help — that it opens only after the
+   * learner has made an attempt of their own — had nothing enforcing it. */
+  const hasAttempted = hasEffortAfter(events, null);
 
   const grant = grantHintLevel({
     requested: input.requested,
     lastGranted,
     hasAttemptSinceLastHint,
+    hasAttempted,
     directive,
     learnerOverride: input.learnerOverride,
   });
@@ -73,7 +98,7 @@ export async function enforceHintPolicy(input: EnforceInput): Promise<EnforceRes
     granted: Math.min(grant.granted, grant.requested),
   };
 
-  return { grant: clamped, directive, directiveNote };
+  return { grant: clamped, directive, directiveNote, events };
 }
 
 /**
@@ -83,12 +108,15 @@ export async function enforceHintPolicy(input: EnforceInput): Promise<EnforceRes
  * effort — otherwise the ladder could be climbed by asking repeatedly, which is
  * the exact failure it exists to prevent.
  */
-async function hasAttemptSince(
-  store: LearningStore,
-  episodeId: string,
-  since: string,
-): Promise<boolean> {
-  const events = await store.eventsForEpisode(episodeId);
-  const EFFORT = new Set(["verdict_received", "run_executed", "code_diff_classified", "test_case_authored"]);
-  return events.some((e) => e.received_at > since && EFFORT.has(e.event_name));
+function hasEffortAfter(
+  events: readonly { event_name: string; received_at: string }[],
+  since: string | null,
+): boolean {
+  const EFFORT = new Set([
+    "verdict_received",
+    "run_executed",
+    "code_diff_classified",
+    "test_case_authored",
+  ]);
+  return events.some((e) => (since === null || e.received_at > since) && EFFORT.has(e.event_name));
 }

@@ -8,8 +8,8 @@ import { Nav } from "./nav";
 import { NovaSection } from "./nova-section";
 import { SolveXWordmark } from "./app/school-chrome";
 import { useLocale } from "@/components/sx/i18n";
+import { LocaleToggle } from "./locale-toggle";
 import type { Locale } from "@schools/curriculum/types";
-import { cn } from "@/lib/utils";
 
 /**
  * The public site.
@@ -46,7 +46,7 @@ const CS = {
 } as const;
 
 const COPY: Record<Locale, {
-  navSignIn: string; navStart: string;
+  navStart: string;
   heroHeading: string; heroBody: string; heroPrimary: string; heroSecondary: string;
   novaHeading: string; novaBody: string;
   rows: { heading: string; body: string }[];
@@ -55,7 +55,6 @@ const COPY: Record<Locale, {
   legal: string;
 }> = {
   kk: {
-    navSignIn: "Кіру",
     navStart: "Оқуды бастау",
     heroHeading: "Есеп шығару арқылы бағдарламалауды үйрен",
     heroBody:
@@ -94,7 +93,6 @@ const COPY: Record<Locale, {
     legal: "SolveX4Schools — 9-сыныпқа арналған спорттық бағдарламалау бағдарламасы.",
   },
   ru: {
-    navSignIn: "Войти",
     navStart: "Начать обучение",
     heroHeading: "Учись программировать, решая задачи",
     heroBody:
@@ -153,7 +151,11 @@ export function PublicLanding() {
         wordmark={<SolveXWordmark tone="light" />}
         wordmarkHref="/"
         wordmarkLabel="SolveX4Schools"
-        signIn={{ label: c.navSignIn, href: "/home" }}
+        /* No "Sign in". There is no sign-in: identity is an anonymous cookie,
+           and a control labelled "Войти" that silently drops the reader on the
+           dashboard is a promise the product does not keep. One CTA, and it
+           says what it does. */
+        signIn={null}
         getStarted={{ label: c.navStart, href: "/home" }}
         trailing={<LocaleToggle locale={loc} onChange={setLocale} />}
       />
@@ -162,6 +164,17 @@ export function PublicLanding() {
           fixed pill bar (16px inset + 56px tall). */}
       <div className="bg-b-paper pt-[72px]">
         <Hero
+          /* A real SolveX lesson: the task, the code being written, Python
+             running in the browser, and the check going green. The three
+             feature rows below keep the reference footage — only this card,
+             which is the page's claim about what you are signing up for,
+             shows our own product. */
+          clip={{
+            webm: "/videos/solvex/lesson-coding.webm",
+            poster: "/videos/solvex/lesson-coding.png",
+            width: 1360,
+            height: 888,
+          }}
           heading={c.heroHeading}
           body={c.heroBody}
           primary={{ label: c.heroPrimary, href: "/home" }}
@@ -189,35 +202,6 @@ export function PublicLanding() {
         legal={c.legal}
         social={false}
       />
-    </div>
-  );
-}
-
-/** Language, on the light surface. Persisted by the provider. */
-function LocaleToggle({
-  locale,
-  onChange,
-}: {
-  locale: Locale;
-  onChange: (l: Locale) => void;
-}) {
-  return (
-    <div className="mr-1 hidden overflow-hidden rounded-full border border-b-line sm:flex">
-      {(["kk", "ru"] as const).map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => onChange(code)}
-          aria-pressed={locale === code}
-          aria-label={code === "kk" ? "Қазақша" : "Русский"}
-          className={cn(
-            "h-8 w-10 cursor-pointer text-[13px] font-bold uppercase transition-colors",
-            locale === code ? "bg-b-ink text-b-white" : "text-b-muted hover:text-b-ink",
-          )}
-        >
-          {code}
-        </button>
-      ))}
     </div>
   );
 }

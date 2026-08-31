@@ -106,6 +106,29 @@ export function NavYouIcon({ className, size = 16 }: AppIconProps) {
   );
 }
 
+/**
+ * Nav icon for the league.
+ *
+ * Drawn rather than borrowed: the reference's nav has three entries and none of
+ * them is a competition, so there is no measured original to match. Three
+ * ascending bars on the same 24x24 box and the same `currentcolor` fill as its
+ * neighbours, so it inherits the selected/unselected treatment without a
+ * special case.
+ *
+ * Bars rather than a trophy or a medal. A trophy says "you won something", which
+ * is the battle-pass register §23 and §45 rule out; ascending bars say "there is
+ * a ladder and you are on it", which is what the screen actually shows.
+ */
+export function NavLeagueIcon({ className, size = 16 }: AppIconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentcolor" aria-hidden="true" className={className}>
+      <rect x="1" y="14" width="6" height="9" rx="1.5" />
+      <rect x="9" y="8" width="6" height="15" rx="1.5" />
+      <rect x="17" y="1" width="6" height="22" rx="1.5" />
+    </svg>
+  );
+}
+
 /** Header hamburger. Three 2px bars on a 16x16 box. */
 export function MenuIcon({ className, size = 16 }: AppIconProps) {
   return (
@@ -143,7 +166,7 @@ export function StreakBolt({
     >
       <path
         d="M1.27498 12.516L10.1761 1.31828C10.7098 0.646883 11.7966 1.11739 11.6606 1.96094L10.3758 9.92921H15.8888C16.9368 9.92921 17.5236 11.1248 16.8757 11.94L7.97457 23.1377C7.44087 23.8091 6.35401 23.3386 6.49003 22.495L7.7748 14.5268H2.26186C1.21381 14.5268 0.62701 13.3312 1.27498 12.516Z"
-        fill={completed ? "currentColor" : "var(--color-b-dark)"}
+        fill={completed ? "currentColor" : "var(--color-b-bg)"}
         stroke={completed ? "none" : "currentColor"}
         strokeWidth={completed ? 0 : 2}
       />

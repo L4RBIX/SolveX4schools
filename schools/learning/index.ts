@@ -44,3 +44,35 @@ export {
   UNKNOWN_MASTERY,
   type FailureClass,
 } from "./phrasing";
+
+/**
+ * The post-help explanation gate — «кез келген көмектен соң… міндетті».
+ *
+ * Exported from here because the completion path needs `evaluateCompletionGate`
+ * and would otherwise have to know the file name. Pure: no `node:crypto`, no
+ * secret, no store, so a client component can import it for the same reason it
+ * can import `checking.ts`.
+ *
+ * `explanationVerdict` is in the list on purpose. It returns `unknown` and
+ * nothing else, and anything reaching for a verdict on an explanation should
+ * find this rather than write its own.
+ */
+export {
+  POST_HELP_ASSISTANCE_THRESHOLD,
+  POST_HELP_STATUSES,
+  MIN_EXPLANATION_CHARS,
+  MAX_EXPLANATION_CHARS,
+  isPostHelpStatus,
+  requiresPostHelpExplanation,
+  canSubmitExplanation,
+  classifyExplanation,
+  explanationVerdict,
+  explanationPromptKeyFor,
+  markingPointsFor,
+  evaluateCompletionGate,
+  type PostHelpStatus,
+  type AssistanceContext,
+  type CompletionGate,
+  type GateReason,
+  type ExplanationPromptKey,
+} from "./post-help";

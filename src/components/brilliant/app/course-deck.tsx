@@ -46,6 +46,8 @@ export interface CourseDeckProps {
   heading?: string;
   /** Primary CTA label on the front card. */
   startLabel?: string;
+  /** Colour of the marker on the active lesson's pedestal. See `pedestal.tsx`. */
+  markerColor?: string;
 }
 
 /**
@@ -77,6 +79,7 @@ export function CourseDeck({
   className,
   heading = "Jump back in",
   startLabel = "Start",
+  markerColor,
 }: CourseDeckProps) {
   const [index, setIndex] = useState(0);
   const active = courses[index];
@@ -86,7 +89,17 @@ export function CourseDeck({
      min-content width (nine tiles ≈ 884px) becomes the deck's floor and the
      whole column pushes out of the page instead of scrolling inside it. */
   return (
-    <div className={cn("flex min-w-0 flex-1 flex-col items-start gap-5", className)}>
+    /* `overflow-x-clip`: the stack's back cards are translated up to +27.5% of
+       the card width, which fits inside the reference's own 800px column and
+       does not fit inside a phone. Clipping at the column edge loses a sliver
+       of a decorative card; not clipping gives the whole page a horizontal
+       scrollbar. */
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-start gap-5 overflow-x-clip",
+        className,
+      )}
+    >
       <h2 className="h-[30px] w-full text-[20px] leading-[25px] font-bold">{heading}</h2>
 
       <div className="h-[540px] max-h-[540px] min-h-[274px] w-full">
@@ -109,10 +122,10 @@ export function CourseDeck({
                 <div
                   className={cn(
                     "h-full overflow-clip rounded-2xl border-2 bg-b-elevated pt-5",
-                    depth < 2 ? "border-b-edge" : "border-white/5",
+                    depth < 2 ? "border-b-edge" : "border-b-fg/5",
                   )}
                 >
-                  {depth === 0 && <DeckCardBody course={c} startLabel={startLabel} />}
+                  {depth === 0 && <DeckCardBody course={c} startLabel={startLabel} markerColor={markerColor} />}
                 </div>
               </div>
             );
@@ -143,7 +156,7 @@ export function CourseDeck({
                 "flex h-full w-full items-center justify-center rounded-lg border-2 transition-all duration-200",
                 i === index
                   ? "border-[#7139CC] bg-[#170B29]"
-                  : "border-white/20 bg-b-bg hover:border-white/40",
+                  : "border-b-fg/20 bg-b-bg hover:border-b-fg/40",
               )}
             >
               <Image src={c.thumb} alt="" width={40} height={40} className="h-10 w-10" />
@@ -165,9 +178,11 @@ export function CourseDeck({
 function DeckCardBody({
   course,
   startLabel,
+  markerColor,
 }: {
   course: DeckCourse;
   startLabel: string;
+  markerColor?: string;
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-between gap-4 p-5">
@@ -203,7 +218,11 @@ function DeckCardBody({
                 !l.active && "opacity-50",
               )}
             >
-              {l.active ? <PedestalActive className="shrink-0" /> : <PedestalLocked className="shrink-0" />}
+              {l.active ? (
+                <PedestalActive className="shrink-0" markerColor={markerColor} />
+              ) : (
+                <PedestalLocked className="shrink-0" />
+              )}
               <div className="flex h-10 flex-1 items-center p-2">
                 <p className={cn("flex-1", l.active && "font-bold")}>{l.title}</p>
                 {/* completion dot: a filled 24-circle drawn at 20px */}
@@ -216,7 +235,7 @@ function DeckCardBody({
                   viewBox="0 0 24 24"
                   fill="none"
                   aria-hidden="true"
-                  className={cn("shrink-0", l.done ? "text-b-green" : "text-white/20")}
+                  className={cn("shrink-0", l.done ? "text-b-green" : "text-b-fg/20")}
                 >
                   <rect width="24" height="24" rx="12" fill="currentColor" />
                   {l.done ? (
@@ -261,7 +280,7 @@ function StartButton({ href, label }: { href: string; label: string }) {
         data-slot="button3d-face"
         className={cn(
           "relative flex h-12 w-full items-center justify-center gap-2 overflow-clip rounded-[60px] px-6 py-[14px]",
-          "leading-5 font-medium text-white",
+          "leading-5 font-medium text-b-fg",
           "bg-b-purple shadow-[0_4px_0_0_var(--color-b-purple-2)]",
           "-translate-y-1 transition-[transform,box-shadow] duration-100 ease-out",
           "group-active:translate-y-0 group-active:shadow-[0_0_0_0_var(--color-b-purple-2)]",

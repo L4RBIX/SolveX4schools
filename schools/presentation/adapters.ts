@@ -1,10 +1,9 @@
+import type { Locale, Localized } from "@schools/curriculum/types";
 import type {
-  Lesson,
-  Locale,
-  Localized,
-  Month,
-  Unit,
-} from "@schools/curriculum/types";
+  LessonOutline as Lesson,
+  MonthOutline as Month,
+  UnitOutline as Unit,
+} from "@schools/curriculum/public";
 import { ATTEMPT_BLOCK_TYPES } from "@schools/curriculum/types";
 import { ASSESSMENT_ART, monthArt, PROGRAMME_ART } from "./illustrations";
 
@@ -371,7 +370,14 @@ export function monthToGameboard(
       title: pick(month.title, locale),
       blurb: pick(month.endOfMonthCapability, locale),
       lessons: labels.lessons(monthLessonCount(month)),
-      exercises: labels.tasks(month.expectedTaskCount),
+      /* The BUILT count, not `expectedTaskCount`.
+         The board used to print the number the programme promises, which for a
+         month with nothing authored yet would advertise 38 tasks over an empty
+         board. `monthTaskCount` has always computed the truth and was called by
+         nothing. The gap between promised and built belongs in the validator
+         and the teacher console, where someone can act on it — not on a card a
+         learner reads as a description of what is in front of them. */
+      exercises: labels.tasks(monthTaskCount(month)),
       art: monthArt(month.index),
       activeHref: upcoming ? `/lesson/${upcoming.id}` : `/course/${month.index}`,
     },

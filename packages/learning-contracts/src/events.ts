@@ -102,6 +102,56 @@ export const EVENT_TRUST: Record<LearningEventName, SourceTrust> = {
   assistance_delivered: "server",
 };
 
+/**
+ * Which events a BROWSER is allowed to create.
+ *
+ * ## The hole this closes
+ *
+ * `/api/learning/events` documented itself as refusing "the OUTCOME events,
+ * entirely" and did not: its only filter was `isLearningEventName`, so any
+ * signed-in learner could POST
+ *
+ *     {"eventName":"verdict_received",
+ *      "payload":{"verdict":"accepted","task_ref":"block:m1.p3"}}
+ *
+ * and have it stored. It landed with `source_trust: 'browser'` — correctly
+ * stamped, and stamping is only a defence if something downstream reads it.
+ * Nothing did: `blockEvidence` and `solveEvidence` both counted
+ * `verdict_received … = 'accepted'` with no trust predicate, so a forged row
+ * was indistinguishable from a judge verdict in the teacher's console and in
+ * the programme's independence evidence.
+ *
+ * ## Why the list is derived rather than typed out
+ *
+ * `EVENT_TRUST` already declares who may author each event. A second
+ * hand-written list would be a second opinion, and the two would drift the
+ * first time an event was added. So the rule is mechanical: **a browser may
+ * report only what `EVENT_TRUST` already says is worth browser trust.**
+ *
+ * `verdict_received` is then excluded explicitly, and it is the one case worth
+ * arguing. Its trust entry says `browser`, on the theory that ingest would
+ * upgrade it to `judge` on a valid attestation. No such upgrade was ever
+ * implemented, and meanwhile the real writer appeared elsewhere: the submit
+ * route appends the verdict itself, server-side, stamped `judge`. So there is
+ * no longer any legitimate reason for a verdict to arrive from a browser at
+ * all, and the honest ingest rule is to refuse it.
+ */
+export const CLIENT_REPORTABLE_EVENTS: ReadonlySet<LearningEventName> = new Set(
+  LEARNING_EVENTS.filter(
+    (name) => EVENT_TRUST[name] === "browser" && name !== "verdict_received",
+  ),
+);
+
+/**
+ * May this event arrive in a request body from a learner's browser?
+ *
+ * The ingest route's whole authority question in one call. Everything it
+ * refuses has a server-side writer that is the real source.
+ */
+export function isClientReportable(name: LearningEventName): boolean {
+  return CLIENT_REPORTABLE_EVENTS.has(name);
+}
+
 // ─── Payload allowlist ───────────────────────────────────────────────────────
 //
 // A single global allowlist rather than a per-event one, for the same reason

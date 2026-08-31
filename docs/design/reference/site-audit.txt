@@ -1,0 +1,252 @@
+SITE AUDIT
+==========
+
+/  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   BRILLIANT ASSET /assets/original/brilliant/brilliant.org/images/homepage/get-started/photo-desktop-wide.avif
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   BRILLIANT ASSET /assets/original/brilliant/brilliant.org/images/homepage/get-started/photo-mobile.avif
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/home  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/home  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/program  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/program  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/you  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/you  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/course/1  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/course/1  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/lesson/m1-u1-l1  @1440  (HTTP 404)
+   CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 404 /lesson/m1-u1-l1
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/lesson/m1-u1-l1  @375  (HTTP 404)
+   CONSOLE Failed to load resource: the server responded with a status of 404 (Not Found)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 404 /lesson/m1-u1-l1
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/assessment/1  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, sourceCodePro, ui-monospace
+
+/assessment/1  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, sourceCodePro, ui-monospace
+
+/review  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/review  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/teacher  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/teacher  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/paths  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/paths  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/schools  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif, JetBrains Mono
+
+/schools  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif, JetBrains Mono
+
+/welcome  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   BRILLIANT ASSET /assets/original/brilliant/brilliant.org/images/homepage/get-started/photo-desktop-wide.avif
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/welcome  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST /videos/solvex/course-board.webm
+   REQUEST 401 /api/preferences
+   BRILLIANT ASSET /assets/original/brilliant/brilliant.org/images/homepage/get-started/photo-mobile.avif
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/login  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/login  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/settings/account  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/settings/account  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/settings/preferences  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/settings/preferences  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/help  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/help  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/about  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/about  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/privacy  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/privacy  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/terms  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/terms  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans, ui-sans-serif
+
+/program  @1440  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+
+/program  @375  (HTTP 200)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   CONSOLE Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   REQUEST 401 /api/preferences
+   fonts: IBM Plex Sans
+

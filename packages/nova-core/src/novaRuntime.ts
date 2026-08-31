@@ -43,6 +43,8 @@ export type GrantReason =
   | "one_rung_at_a_time"
   /** No attempt since the last hint, so nothing new has been learned. */
   | "no_attempt_since_last_hint"
+  /** Nothing has been tried at all yet. Help opens after a first attempt. */
+  | "attempt_required"
   /** The decision engine's directive caps it lower. */
   | "capped_by_directive"
   /** Struggle stopped being productive; the cap lifts. */
@@ -62,6 +64,20 @@ export interface GrantInput {
    * has nothing to check.
    */
   hasAttemptSinceLastHint: boolean;
+  /**
+   * Has the learner tried ANYTHING on this task yet?
+   *
+   * Distinct from `hasAttemptSinceLastHint`, which is about earning the next
+   * rung. This is about earning the first one, and the programme is explicit
+   * that it must be earned (PDF p.4): «Көмек оқушы өзі бір әрекет жасап
+   * көргеннен кейін ғана ашылады» — help opens only after the learner has made
+   * an attempt of their own.
+   *
+   * Defaults to true when the caller does not know, so an integration that has
+   * not wired it up degrades to the previous behaviour rather than silently
+   * locking every learner out of help.
+   */
+  hasAttempted?: boolean;
   /** From the decision engine. Null when no learner state is available yet. */
   directive: NovaDirective | null;
   /**
@@ -117,7 +133,46 @@ export function grantHintLevel(input: GrantInput): GrantDecision {
     mustNotSay,
   };
 
-  if (input.learnerOverride) {
+  /*
+   * Nothing tried yet: a question, and nothing more — even under override.
+   *
+   * This is the first of three gates that used to be absent, and it is the one
+   * that mattered most. The panel's "just tell me" button posts
+   * `requestedLevel: 4, override: true`, and `learnerOverride` was checked
+   * before every other rule, so a learner who had opened a task and typed
+   * nothing could have the full solution — with code, since a subject with no
+   * ledger yet has no directive and `mayIncludeCode` defaults to true — in one
+   * tap. The programme forbids exactly that twice over: help opens only after
+   * an attempt, and «ешқашан дайын кодтан басталмайды».
+   *
+   * The override is NOT removed. A mentor you cannot overrule is a wall, and
+   * learners route around walls by leaving. It is deferred: once they have
+   * tried something and taken the opening question, it works as before.
+   */
+  if (input.hasAttempted === false) {
+    const granted = Math.min(requested, MIN_HINT_LEVEL);
+    return {
+      ...base,
+      granted,
+      capped: granted < requested,
+      reason: granted < requested ? "attempt_required" : "granted_as_requested",
+      explanation:
+        granted < requested
+          ? "Have a go first — even a wrong one. Then I can help with what you actually hit."
+          : null,
+    };
+  }
+
+  /*
+   * The opening rung is not skippable either, override or not.
+   *
+   * `lastGranted < MIN_HINT_LEVEL` means no hint has been given this episode.
+   * Starting at a question rather than a solution is the whole shape of the
+   * ladder; an override that jumps it makes the first intervention the last
+   * one. Past that point the override is honoured in full, which is what keeps
+   * this from becoming a tutor that traps the learner.
+   */
+  if (input.learnerOverride && input.lastGranted >= MIN_HINT_LEVEL) {
     return {
       ...base,
       granted: requested,

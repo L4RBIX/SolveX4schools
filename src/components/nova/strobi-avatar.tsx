@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import {
-  STROBI,
-  type BodyMotion,
-  type Expression,
-  type EyeMotion,
-  type EyeShape,
-} from "./strobi-definition";
+import { STROBI, type Expression, type EyeShape } from "./strobi-definition";
 
 /**
  * Strobi, rendered from the definition file.
@@ -49,6 +43,13 @@ export interface StrobiAvatarProps {
    * `aria-hidden`.
    */
   reducedMotion?: boolean;
+  /**
+   * Overrides the definition's own body colour.
+   *
+   * The file ships `#77bb41`. Nova wears the product's accent instead, so the
+   * mascot belongs to SolveX rather than to whoever authored the definition.
+   */
+  bodyColor?: string;
 }
 
 export function StrobiAvatar({
@@ -56,29 +57,64 @@ export function StrobiAvatar({
   size = 128,
   className,
   reducedMotion,
+  bodyColor,
 }: StrobiAvatarProps) {
+  const system = useSystemReducedMotion();
+  const still = reducedMotion ?? system;
+
+  /*
+   * Keyed on `animation` so a reaction remounts and starts at its own first
+   * step. The alternative — resetting the step index from an effect — makes
+   * every reaction render once at the wrong expression before correcting
+   * itself, which is visible as a flick on a 200ms transition.
+   */
+  return (
+    <StrobiCycle
+      key={animation}
+      animation={animation}
+      size={size}
+      className={className}
+      still={still}
+      bodyColor={bodyColor}
+    />
+  );
+}
+
+/** `prefers-reduced-motion`, read as an external store rather than mirrored into state. */
+function useSystemReducedMotion(): boolean {
+  const subscribe = useCallback((notify: () => void) => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    mq.addEventListener("change", notify);
+    return () => mq.removeEventListener("change", notify);
+  }, []);
+
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    // Server render: assume motion is fine. Getting this wrong the other way
+    // would ship a frozen avatar to everyone until hydration.
+    () => false,
+  );
+}
+
+function StrobiCycle({
+  animation,
+  size,
+  className,
+  still,
+  bodyColor,
+}: {
+  animation: string;
+  size: number;
+  className?: string;
+  still: boolean;
+  bodyColor?: string;
+}) {
   const scale = size / REF;
   const anim = STROBI.animations[animation] ?? STROBI.animations.idle;
 
   const [stepIndex, setStepIndex] = useState(0);
   const [blinking, setBlinking] = useState(false);
-  const [prefersReduced, setPrefersReduced] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReduced(mq.matches);
-    const on = () => setPrefersReduced(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-
-  const still = reducedMotion ?? prefersReduced;
-
-  // Restart the cycle whenever the animation changes, so a reaction begins at
-  // its own first step rather than wherever the previous loop happened to be.
-  useEffect(() => {
-    setStepIndex(0);
-  }, [animation]);
 
   /* Step cycle. Each step holds, then the NEXT step's transition carries the
      eyes across — which is why the timer waits hold + transition. */
@@ -116,7 +152,6 @@ export function StrobiAvatar({
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      setBlinking(false);
     };
   }, [anim, still]);
 
@@ -128,7 +163,8 @@ export function StrobiAvatar({
   const bodyMotion = expr.motion.body;
   const eyeMotion = expr.motion.eyes;
 
-  const colors = STROBI.colors;
+  const body = bodyColor ?? STROBI.colors.body;
+  const eyes = STROBI.colors.eyes;
 
   return (
     <div
@@ -148,8 +184,8 @@ export function StrobiAvatar({
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            background: `radial-gradient(circle at 32% 28%, ${lighten(colors.body, 0.28)} 0%, ${colors.body} 46%, ${darken(colors.body, 0.22)} 100%)`,
-            boxShadow: `inset 0 ${-10 * scale}px ${22 * scale}px ${darken(colors.body, 0.34)}44`,
+            background: `radial-gradient(circle at 32% 28%, ${lighten(body, 0.28)} 0%, ${body} 46%, ${darken(body, 0.22)} 100%)`,
+            boxShadow: `inset 0 ${-10 * scale}px ${22 * scale}px ${darken(body, 0.34)}44`,
           }}
         />
 
@@ -173,8 +209,8 @@ export function StrobiAvatar({
               transition: `gap ${ms}ms cubic-bezier(0.4, 0, 0.2, 1)`,
             }}
           >
-            <Eye shape={expr.eyes.left} scale={scale} ms={ms} blink={blinking} color={colors.eyes} />
-            <Eye shape={expr.eyes.right} scale={scale} ms={ms} blink={blinking} color={colors.eyes} />
+            <Eye shape={expr.eyes.left} scale={scale} ms={ms} blink={blinking} color={eyes} />
+            <Eye shape={expr.eyes.right} scale={scale} ms={ms} blink={blinking} color={eyes} />
           </div>
         </div>
       </div>

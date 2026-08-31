@@ -16,7 +16,7 @@
  */
 
 // L2 — episode projection
-export { reduceEpisode, REDUCER_VERSION } from "./episode";
+export { reduceEpisode, REDUCER_VERSION, isTrustedOutcome } from "./episode";
 export type { ReducedEpisode, ReducibleEvent } from "./episode";
 
 // Diff classification (feeds the reducer)

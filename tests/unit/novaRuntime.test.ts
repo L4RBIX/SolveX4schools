@@ -126,13 +126,41 @@ describe("directives constrain what the gate will grant", () => {
 });
 
 describe("overrides", () => {
-  it("always honours the learner, and states the cost once", () => {
-    // A mentor you cannot overrule is a wall, and learners route around walls
-    // by leaving.
+  /*
+   * This test asserted that an override granted level 4 from `lastGranted: -1`
+   * — i.e. as the FIRST thing that happens on a task. It passed, which is how
+   * the hole stayed open: the panel's "just tell me" button posts
+   * `requestedLevel: 4, override: true`, so one tap on an untouched task
+   * returned the solution, with code, since a learner with no ledger has no
+   * directive and `mayIncludeCode` then defaults to true.
+   *
+   * The approved programme rules that out in as many words (PDF p.4): help
+   * «ешқашан дайын кодтан басталмайды» — never STARTS with ready code. Note the
+   * word: not "never gives", never *starts with*. So the override survives; it
+   * simply cannot be the opening move.
+   */
+  it("will not make ready code the first thing that happens", () => {
     const grant = grantHintLevel({
       requested: 4,
       lastGranted: -1,
       hasAttemptSinceLastHint: false,
+      directive: directive({ maxHintLevel: 0 }),
+      learnerOverride: true,
+    });
+    expect(grant.granted).toBe(0);
+    expect(grant.capped).toBe(true);
+    expect(grant.reason).toBe("opening_rung");
+  });
+
+  it("always honours the learner once the ladder has started, and states the cost once", () => {
+    // A mentor you cannot overrule is a wall, and learners route around walls
+    // by leaving. Past the opening question the override is absolute — it
+    // outranks even a directive capping the level at 0.
+    const grant = grantHintLevel({
+      requested: 4,
+      lastGranted: 0,
+      hasAttemptSinceLastHint: false,
+      hasAttempted: true,
       directive: directive({ maxHintLevel: 0 }),
       learnerOverride: true,
     });

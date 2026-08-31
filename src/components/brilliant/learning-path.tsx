@@ -36,7 +36,7 @@ export function LearningPath({ path, className }: LearningPathProps) {
           <p className="b-eyebrow text-b-dim">{path.eyebrow}</p>
           <h2
             id={headingId}
-            className="mt-1.5 text-[24px] leading-[30px] font-bold text-white"
+            className="mt-1.5 text-[24px] leading-[30px] font-bold text-b-fg"
           >
             {path.title}
           </h2>

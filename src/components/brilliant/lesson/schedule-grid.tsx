@@ -173,14 +173,14 @@ export function ScheduleGrid({
           {title}
         </div>
 
-        <div className="m-2 flex h-[216px] flex-row rounded-[8px] bg-black pt-[14px] pr-2 pb-[18px]">
+        <div className="m-2 flex h-[216px] flex-row rounded-[8px] bg-[#12141a] text-[#e8ecf4] pt-[14px] pr-2 pb-[18px]">
           {/* axis gutter */}
           <div className="relative mr-1 h-full w-auto min-w-[36px] overflow-visible">
             {labelledHours.map((h) => (
               <span
                 key={h}
                 style={{ top: `${((h - hourStart) / span) * 100}%` }}
-                className="absolute right-0 -translate-y-1/2 text-[13px] whitespace-nowrap text-white"
+                className="absolute right-0 -translate-y-1/2 text-[13px] whitespace-nowrap text-b-fg"
               >
                 {hourLabel(h)}
               </span>
@@ -188,7 +188,7 @@ export function ScheduleGrid({
           </div>
 
           {/* plot */}
-          <div className="relative h-full flex-1 bg-black">
+          <div className="relative h-full flex-1 bg-[#12141a] text-[#e8ecf4]">
             {Array.from({ length: span + 1 }, (_, i) => (
               <div
                 key={i}
@@ -279,7 +279,7 @@ export function ConstraintList({ labels, statuses, className }: ConstraintListPr
               {status === "unsatisfied" && <ConstraintCrossIcon />}
               {status === "satisfied" && <ConstraintCheckIcon />}
             </span>
-            <span className="text-[16px] leading-6 text-white">{label}</span>
+            <span className="text-[16px] leading-6 text-b-fg">{label}</span>
           </div>
         );
       })}

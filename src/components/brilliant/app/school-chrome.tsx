@@ -31,14 +31,14 @@ export function SolveXWordmark({
     <span
       className={cn(
         "flex h-6 items-center text-[19px] leading-6 font-bold tracking-[-0.01em] whitespace-nowrap",
-        tone === "dark" ? "text-white" : "text-b-ink",
+        tone === "dark" ? "text-b-fg" : "text-b-ink",
         className,
       )}
     >
       Solve<span className="text-b-purple">X</span>
       {/* The suffix is deliberately quieter than the name, but it must still be
           READ. It was previously white-on-white on the landing surface. */}
-      <span className={cn("ml-[3px]", tone === "dark" ? "text-white/50" : "text-b-muted")}>
+      <span className={cn("ml-[3px]", tone === "dark" ? "text-b-fg/50" : "text-b-muted")}>
         4Schools
       </span>
     </span>
@@ -60,7 +60,7 @@ export function LocaleSwitch({
   onChange: (next: Locale) => void;
 }) {
   return (
-    <div className="flex shrink-0 overflow-hidden rounded-full border-2 border-white/20">
+    <div className="flex shrink-0 overflow-hidden rounded-full border-2 border-b-fg/20">
       {(["kk", "ru"] as const).map((code) => (
         <button
           key={code}
@@ -71,8 +71,8 @@ export function LocaleSwitch({
           className={cn(
             "h-[37px] w-[42px] cursor-pointer text-[13px] font-bold uppercase transition-colors",
             locale === code
-              ? "bg-white/15 text-white"
-              : "text-white/40 hover:text-white/80",
+              ? "bg-b-fg/15 text-b-fg"
+              : "text-b-fg/40 hover:text-b-fg/80",
           )}
         >
           {code}
@@ -92,5 +92,34 @@ export function SCHOOL_NAV(locale: Locale): AppNavLink[] {
       aria: t(L.navCourses, locale),
     },
     { id: "you", label: t(L.navYou, locale), href: "/you", aria: t(L.navYou, locale) },
+  ];
+}
+
+/**
+ * The nav, with the league in it.
+ *
+ * A separate function rather than a flag on `SCHOOL_NAV`, because the league is
+ * feature-gated per school and the gate is a SERVER decision — `config` is
+ * `server-only` and cannot be read from a client component. The page resolves
+ * it and passes the right list down, so a school without leagues never renders
+ * a tab that 404s.
+ *
+ * Placed before «Прогресс»/«Сен», not after: the league is a weekly thing a
+ * learner checks in passing, and `/you` is the reflective page they arrive at
+ * last. Ordering it that way also keeps `/you` in the rightmost position it has
+ * always occupied, so the tab a learner's muscle memory reaches for has not
+ * moved.
+ */
+export function SCHOOL_NAV_WITH_LEAGUE(locale: Locale): AppNavLink[] {
+  const base = SCHOOL_NAV(locale);
+  return [
+    ...base.slice(0, 2),
+    {
+      id: "league",
+      label: t(L.navLeague, locale),
+      href: "/league",
+      aria: t(L.navLeague, locale),
+    },
+    ...base.slice(2),
   ];
 }

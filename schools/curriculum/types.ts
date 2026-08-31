@@ -17,6 +17,18 @@
  *    differ. Students only ever see `published`.
  */
 
+/*
+ * A type-only import, so nothing in the judge is pulled into a client bundle by
+ * a component that renders a block. The checker semantics have one definition
+ * and it belongs to the module that does the comparing — a second copy here
+ * would be the first step back towards a task passing CI under one rule and
+ * failing a learner under another.
+ */
+import type { OutputChecker } from "../exec/checker";
+
+/** Re-exported so a month file declares a checker without reaching past these types. */
+export type { OutputChecker };
+
 /** Where a piece of content came from. Never inferred — always declared. */
 export type SourceType =
   /** Specified in the approved programme document. Cite the page. */
@@ -81,6 +93,7 @@ export interface Skill {
  */
 export type BlockType =
   | "concept"
+  | "worked_example"
   | "prediction"
   | "multiple_choice"
   | "trace_code"
@@ -167,10 +180,47 @@ export interface ConceptBlock extends BlockBase {
   code?: string;
 }
 
+/**
+ * A problem reasoned through from statement to result.
+ *
+ * The programme calls for «толық талданған мысалдар» — fully worked examples —
+ * and September had none: a concept block is a code snippet under two
+ * sentences, which shows an answer without ever showing the thinking that
+ * reaches it. The shape here is the one the brief names: problem → reasoning →
+ * code → trace → result, with the reasoning as discrete steps so the learner
+ * reads one move at a time instead of a wall of prose.
+ *
+ * It is not an attempt block. Reading someone else's reasoning is not evidence
+ * of anything, and pretending otherwise is the exact failure the verdict model
+ * exists to prevent.
+ */
+export interface WorkedExampleBlock extends BlockBase {
+  type: "worked_example";
+  title: Localized;
+  /** The task, stated as a learner would meet it. */
+  problem: Localized;
+  /** The thinking, one move per step. Kept short: this is not a lecture. */
+  steps: Localized[];
+  /** The program the reasoning arrives at. */
+  code: string;
+  /** What it prints for the sample in `problem`. Concrete, never "the answer". */
+  result: Localized;
+}
+
 export interface PredictionBlock extends BlockBase {
   type: "prediction";
   prompt: Localized;
   code: string;
+  /**
+   * Input the program is predicted against.
+   *
+   * Most predictions are over a self-contained snippet and need none. One that
+   * asks "what happens when the learner types 3 4" needs it declared rather
+   * than described only in the prompt — otherwise the stated answer cannot be
+   * checked against real Python, which is how `content-execution.test.ts`
+   * caught exactly that.
+   */
+  stdin?: string;
   /** Exact expected output. Compared after trimming trailing whitespace. */
   answer: string;
   /** Offered as choices. Free entry when absent. */
@@ -216,6 +266,19 @@ export interface FindBugBlock extends BlockBase {
   /** 1-indexed line carrying the defect. */
   buggyLine: number;
   fixedCode: string;
+  /**
+   * An input on which the broken program and the repaired one visibly differ.
+   *
+   * "This program is broken" is a claim, and a claim about Python is checkable
+   * by running Python — which is what `content-execution.test.ts` does. Without
+   * a declared witness the test has to probe a spread of guessed inputs, and a
+   * guessed spread is numeric, so a bug that only shows on text (m1.l11.b3
+   * calls `int()` on a name) reads as "the two programs behave identically".
+   *
+   * Optional, because the numeric probe genuinely covers the arithmetic bugs.
+   * Declare it whenever the symptom needs a specific input to appear.
+   */
+  symptomInput?: string;
 }
 
 export interface WriteCodeBlock extends BlockBase {
@@ -225,6 +288,36 @@ export interface WriteCodeBlock extends BlockBase {
   /** Reference solution. Never shown to a learner. */
   referenceSolution: string;
   cases: { input: string; expectedOutput: string; hidden?: boolean }[];
+  /**
+   * How this task's output is compared. Absent means `{ kind: "token" }`.
+   *
+   * ## Why `token` is the default and not `exact`
+   *
+   * A default is a decision taken for every author who did not think about the
+   * question, so it must be the one that is harmless when nobody thought.
+   *
+   * `exact` is not harmless as a default. It would attach a requirement to
+   * every task in the year that no prompt states — reproduce the author's
+   * spacing and line breaks — and the learner who fails it is told they are
+   * wrong about arithmetic, on a hidden case, over a space nobody asked for.
+   * From inside the product that is indistinguishable from not understanding
+   * the topic, and it reaches the evidence pipeline as exactly that.
+   *
+   * `token` errs the other way: it accepts everything a byte comparison
+   * accepts, and the extra things it accepts are the things the prompt did not
+   * ask about. When the formatting genuinely IS the exercise — print a table,
+   * separate the pairs with commas — the author writes `{ kind: "exact" }` on
+   * the block, one word, in review, next to the cases it governs.
+   *
+   * `{ kind: "numeric", ... }` MUST carry its own tolerance; there is no global
+   * default and the validator rejects a numeric checker without one. Inventing
+   * a tolerance would decide on every future author's behalf how wrong their
+   * answer is allowed to be.
+   *
+   * The same field, with the same default, is on `modify_code`, `challenge` and
+   * `verify`. The rules themselves live in `schools/exec/checker.ts`.
+   */
+  checker?: OutputChecker;
 }
 
 export interface ModifyCodeBlock extends BlockBase {
@@ -233,6 +326,8 @@ export interface ModifyCodeBlock extends BlockBase {
   code: string;
   referenceSolution: string;
   cases: { input: string; expectedOutput: string; hidden?: boolean }[];
+  /** Output comparison. Absent means `token` — see `WriteCodeBlock.checker`. */
+  checker?: OutputChecker;
 }
 
 export interface ExplainBlock extends BlockBase {
@@ -269,6 +364,18 @@ export interface VerifyBlock extends BlockBase {
     | "oral_explanation"
     | "delayed_resolve";
   prompt: Localized;
+  /**
+   * The program under inspection.
+   *
+   * Required by `find_bug` and `manual_trace`: a "find the error" task with no
+   * program on screen is not a hard task, it is an impossible one. The absence
+   * of this field is what made `m1.as.b3` unanswerable — the renderer had
+   * nothing to draw, so the learner met a prompt about "this program" and an
+   * empty box. The validator now refuses either mode without it.
+   */
+  code?: string;
+  /** Editable starting point. Defaults to `code` for repair modes. */
+  starter?: string;
   referenceSolution?: string;
   /**
    * Assessment cases are mostly hidden by design: a check the learner can pass
@@ -276,6 +383,24 @@ export interface VerifyBlock extends BlockBase {
    * when none is hidden.
    */
   cases?: { input: string; expectedOutput: string; hidden?: boolean }[];
+  /**
+   * Output comparison. Absent means `token` — see `WriteCodeBlock.checker`.
+   *
+   * An assessment is where the temptation to tighten to `exact` is strongest
+   * and worst: the cases are hidden, so a learner marked wrong on whitespace in
+   * a monthly check has no way to discover why, and the result is filed as
+   * evidence about the month's topic.
+   */
+  checker?: OutputChecker;
+  /**
+   * Points a human marker looks for, for the modes no machine should score.
+   *
+   * `oral_explanation` and the written half of a monthly check settle as
+   * `unknown` and are read by a teacher. Carrying the marking points on the
+   * block means the teacher console shows the same criteria the learner was
+   * set, rather than a marker inventing them per learner.
+   */
+  expectedPoints?: Localized[];
 }
 
 export interface ArenaProblemBlock extends BlockBase {
@@ -302,10 +427,13 @@ export interface ChallengeBlock extends BlockBase {
   prompt: Localized;
   referenceSolution: string;
   cases: { input: string; expectedOutput: string; hidden?: boolean }[];
+  /** Output comparison. Absent means `token` — see `WriteCodeBlock.checker`. */
+  checker?: OutputChecker;
 }
 
 export type LessonBlock =
   | ConceptBlock
+  | WorkedExampleBlock
   | PredictionBlock
   | MultipleChoiceBlock
   | TraceCodeBlock

@@ -62,7 +62,7 @@ export function cardBorderClass(v: LessonVerdict): string {
       return "border-b-warn";
     case "unchecked":
     case "unmeasured":
-      return "border-white/20";
+      return "border-b-fg/20";
   }
 }
 

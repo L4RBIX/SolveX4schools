@@ -1,6 +1,7 @@
 import type { LearnerState, SkillState } from "@solvex/learning-intelligence-core";
 import type { Locale, Localized } from "@schools/curriculum/types";
 import { SKILL_BY_ID } from "@schools/curriculum/skills";
+import { pluralRu as plural } from "./labels";
 
 /**
  * Evidence states for the learner-facing dashboard.
@@ -139,16 +140,6 @@ function summarise(s: SkillState | undefined): Localized {
   }
 
   return { kk: kk.join(", ") + ".", ru: ru.join(", ") + "." };
-}
-
-/** Russian needs three forms; getting it wrong is the first thing a child notices. */
-function plural(n: number, one: string, few: string, many: string): string {
-  const m100 = n % 100;
-  if (m100 >= 11 && m100 <= 14) return many;
-  const m10 = n % 10;
-  if (m10 === 1) return one;
-  if (m10 >= 2 && m10 <= 4) return few;
-  return many;
 }
 
 export const EVIDENCE_LABEL: Record<EvidenceState, Localized> = {

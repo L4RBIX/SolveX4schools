@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { config } from "@schools/config";
 import {
   EXECUTION_LIMITS,
+  looksLikeCompileError,
   type CodeExecutionProvider,
   type ExecutionRequest,
   type ExecutionResult,
@@ -28,6 +29,8 @@ import {
  */
 export class LocalExecutionProvider implements CodeExecutionProvider {
   readonly id = "local";
+  /** A subprocess on our own machine. Free, and refuses to run in production anyway. */
+  readonly metered = false;
   readonly describe =
     "Local python3 subprocess — NOT a sandbox, development only, refuses to run in production";
 
@@ -113,7 +116,7 @@ export class LocalExecutionProvider implements CodeExecutionProvider {
         /* Python reports a syntax error as exit 1 with SyntaxError on stderr.
            Distinguished because "your program did not compile" and "your
            program crashed while running" are different things to a learner. */
-        const isSyntax = /SyntaxError|IndentationError|TabError/.test(stderr);
+        const isSyntax = looksLikeCompileError(stderr);
         finish({
           status: code === 0 ? "ok" : isSyntax ? "compile_error" : "runtime_error",
           stdout, stderr,

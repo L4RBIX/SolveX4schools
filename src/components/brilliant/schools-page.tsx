@@ -4,6 +4,7 @@ import { Footer } from "./footer";
 import { Nav } from "./nav";
 import { SolveXWordmark } from "./app/school-chrome";
 import { useLocale } from "@/components/sx/i18n";
+import { LocaleToggle } from "./locale-toggle";
 import type { Locale } from "@schools/curriculum/types";
 import { PROGRAMME_FACTS, TASK_TARGETS } from "@schools/curriculum/source-of-truth";
 
@@ -19,7 +20,7 @@ import { PROGRAMME_FACTS, TASK_TARGETS } from "@schools/curriculum/source-of-tru
  */
 
 const COPY: Record<Locale, {
-  navSignIn: string; navStart: string;
+  navStart: string;
   h1: string; lede: string;
   factsTitle: string;
   facts: { k: string; v: string }[];
@@ -27,7 +28,7 @@ const COPY: Record<Locale, {
   contactTitle: string; contactBody: string;
 }> = {
   kk: {
-    navSignIn: "Кіру", navStart: "Оқуды бастау",
+    navStart: "Оқуды бастау",
     h1: "Мектептерге",
     lede: "Тоғыз айлық спорттық бағдарламалау бағдарламасы, 9-сынып. Нөлден бастап, қазақ және орыс тілінде.",
     factsTitle: "Бағдарлама параметрлері",
@@ -51,7 +52,7 @@ const COPY: Record<Locale, {
     contactBody: "Пилотқа қатысты сұрақтар бойынша мектеп әкімшілігі арқылы хабарласыңыз.",
   },
   ru: {
-    navSignIn: "Войти", navStart: "Начать обучение",
+    navStart: "Начать обучение",
     h1: "Для школ",
     lede: "Девятимесячная программа спортивного программирования для 9 класса. С нуля, на казахском и русском.",
     factsTitle: "Параметры программы",
@@ -77,7 +78,7 @@ const COPY: Record<Locale, {
 };
 
 export function SchoolsPage() {
-  const { locale } = useLocale();
+  const { locale, setLocale } = useLocale();
   const loc = locale as Locale;
   const c = COPY[loc];
 
@@ -87,8 +88,11 @@ export function SchoolsPage() {
         wordmark={<SolveXWordmark tone="light" />}
         wordmarkHref="/"
         wordmarkLabel="SolveX4Schools"
-        signIn={{ label: c.navSignIn, href: "/home" }}
+        /* No "Sign in": identity is an anonymous cookie and there is nothing
+           to sign into. Same decision as the landing page. */
+        signIn={null}
         getStarted={{ label: c.navStart, href: "/home" }}
+        trailing={<LocaleToggle locale={loc} onChange={setLocale} />}
       />
 
       <main className="bg-b-paper pt-[120px] pb-20 lg:pb-28">

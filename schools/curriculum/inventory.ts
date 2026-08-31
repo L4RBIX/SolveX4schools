@@ -71,3 +71,71 @@ export function allLessons(): { month: Month; lesson: Lesson }[] {
     month.units.flatMap((unit) => unit.lessons.map((lesson) => ({ month, lesson }))),
   );
 }
+
+/**
+ * Something a learner can finish: a lesson, or a month's own check.
+ *
+ * Deliberately NOT the `Lesson` object. The one caller is the completion route,
+ * which needs to know that an id is real and how many blocks it has — and
+ * handing it the authored lesson would put every `referenceSolution` one
+ * careless `Response.json` away from a browser. `public.ts` exists because that
+ * has already happened once.
+ */
+export interface Completable {
+  id: string;
+  /** 1 = September … 9 = May. */
+  monthIndex: number;
+  /** Blocks in the authored object. The ceiling for any count a client reports. */
+  blockCount: number;
+  status: PublicationStatus;
+  /**
+   * Which of the two things this is.
+   *
+   * Both are completed through the same route and recorded in the same table
+   * under their own id, so the caller could only tell them apart by matching
+   * the id against a pattern — and `task_ref` already shows what an implicit
+   * string contract costs when the shape drifts. This is derived at the one
+   * place that actually knows, which is the lookup that just walked the
+   * curriculum to find it.
+   */
+  kind: "lesson" | "assessment";
+}
+
+/**
+ * Look one up by the id the lesson player reports on completion.
+ *
+ * Covers assessments as well as lessons, because the monthly check is recorded
+ * under its own id — `assessment-route.tsx` marks `m1.assessment` complete so
+ * the board can show it done without it being counted as a tenth lesson.
+ *
+ * Returns null for anything not in the curriculum. That is the whole point: a
+ * completion for an id nobody authored is a forged request, not content we have
+ * yet to write.
+ */
+export function findCompletable(id: string): Completable | null {
+  for (const month of PROGRAM.months) {
+    for (const unit of month.units) {
+      for (const lesson of unit.lessons) {
+        if (lesson.id === id) {
+          return {
+            id,
+            monthIndex: month.index,
+            blockCount: lesson.blocks.length,
+            status: lesson.status,
+            kind: "lesson",
+          };
+        }
+      }
+    }
+    if (month.assessment?.id === id) {
+      return {
+        id,
+        monthIndex: month.index,
+        blockCount: month.assessment.blocks.length,
+        status: month.assessment.status,
+        kind: "assessment",
+      };
+    }
+  }
+  return null;
+}
