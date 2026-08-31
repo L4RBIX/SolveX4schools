@@ -133,8 +133,8 @@ const l1Blocks: LessonBlock[] = [
       ru: "Разобранный пример: вывести две строки",
     },
     problem: {
-      kk: "Экранға `Сәлем!` деп жаз, ал келесі жолда 2026 - 14 өрнегінің мәнін шығар.",
-      ru: "Выведи на экран `Сәлем!`, а на следующей строке — значение выражения 2026 - 14.",
+      kk: "Экранға `Сәлем!` деп жаз, келесі жолда 2026 - 14 өрнегінің мәнін, ал соңғы жолда 6 * 7 мәнін шығар.",
+      ru: "Выведи на экран `Сәлем!`, на следующей строке — значение выражения 2026 - 14, а на последней — 6 * 7.",
     },
     steps: [
       {
@@ -153,10 +153,19 @@ const l1Blocks: LessonBlock[] = [
         kk: "`cout << 2026 - 14;` — мұнда тырнақша жоқ, сондықтан алдымен өрнек есептеледі, содан кейін нәтижесі шығады.",
         ru: "`cout << 2026 - 14;` — здесь кавычек нет, поэтому сначала вычисляется выражение, а потом печатается результат.",
       },
+      {
+        /* The multiplication sign, shown once before it is ever asked for.
+           `b5` immediately below asks the learner to print `7 * 8`, and until
+           this line existed nothing in the lesson had shown that `*` is how
+           multiplication is written — the one genuinely notational fact here,
+           since there is no × on a keyboard. */
+        kk: "`cout << 6 * 7;` — көбейту жұлдызшамен `*` жазылады: пернетақтада × белгісі жоқ.",
+        ru: "`cout << 6 * 7;` — умножение записывают звёздочкой `*`: знака × на клавиатуре нет.",
+      },
     ],
-    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!" << endl;\n    cout << 2026 - 14;\n    return 0;\n}',
+    code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!" << endl;\n    cout << 2026 - 14 << endl;\n    cout << 6 * 7;\n    return 0;\n}',
     stdin: "",
-    result: { kk: "Сәлем!\n2012", ru: "Сәлем!\n2012" },
+    result: { kk: "Сәлем!\n2012\n42", ru: "Сәлем!\n2012\n42" },
   },
   {
     id: "m1.l1.b5",
@@ -461,11 +470,6 @@ const l3Blocks: LessonBlock[] = [
         failureClass: "remainder_vs_quotient_swap",
         justification:
           "3 — бұл 7 / 2 нәтижесі. Оны таңдау `%` пен `/` орындарын ауыстырғанды білдіреді.",
-      },
-      "3.5": {
-        failureClass: "integer_operators_read_as_school_division",
-        justification:
-          "3.5 — қағаздағы бөлудің жауабы. Оны таңдау `%` амалын бөлу деп оқығанды және бүтін сандармен жұмыс істеп тұрғанын байқамағанды білдіреді.",
       },
     },
   },
@@ -1367,7 +1371,12 @@ const l10Blocks: LessonBlock[] = [
     options: ["2", "2.25", "3", "2.5"],
     diagnosticMapping: {
       "2.25": {
-        failureClass: "int_division_expected_a_fraction",
+        /* The key `schools/presentation/labels.ts` deliberately kept when the
+           course changed language: it was Python's "`/` hands back a float" and
+           is now C++'s "`/` on two ints throws the fraction away". The label
+           inverted; the identifier did not, because past attempts are filed
+           under it. */
+        failureClass: "true_division_returns_float",
         justification:
           "2.25 — қағаздағы бөлудің жауабы. Екі сан да бүтін болғандықтан, C++ бөлшек бөлігін лақтырып тастайды. Бөлшек жауап алу үшін бір жағын `4.0` деп жазу керек еді.",
       },
@@ -1548,7 +1557,7 @@ const l11Blocks: LessonBlock[] = [
       '#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string name;\n    cin >> name;\n    cout << "Hello, " << name;\n    return 0;\n}',
     diagnosticMapping: {
       "7": {
-        failureClass: "blamed_the_read_not_the_declared_type",
+        failureClass: "unnecessary_int_conversion",
         justification:
           "7-жол дұрыс жазылған: `cin >> name;` айнымалыға нені оқу керегін оның ТҮРІНЕН біледі. Қате 6-жолда — есім `int` деп жарияланған, сондықтан оқу сәтсіз бітіп, айнымалыда 0 қалады.",
       },
