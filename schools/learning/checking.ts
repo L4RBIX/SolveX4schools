@@ -44,6 +44,145 @@ export type BlockAnswer =
 
 export const NO_ANSWER: BlockAnswer = { kind: "none" };
 
+/* -------------------------------------------------------------------------- */
+/* The wire boundary                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A `BlockAnswer` re-derived from whatever actually arrived, or `null`.
+ *
+ * ## The bug this closes
+ *
+ * `POST /api/learning/submit` used to do `body.answer as BlockAnswer`, and a
+ * cast is a promise the compiler cannot keep about a JSON body. Every branch
+ * below then dereferenced a field the cast had merely asserted:
+ * `answer.value.trim()`, `answer.values.join()`, `answer.ids.every()`,
+ * `answer.cells[key]`. Against a block of the matching type, four of the eight
+ * variants turned a malformed body into an unhandled `TypeError` and an HTTP
+ * **500** — measured, from an ordinary signed-in learner:
+ *
+ *     {"kind":"text"}                  -> 500   (prediction, test_case)
+ *     {"kind":"blanks","values":123}   -> 500   (fill_blank)
+ *     {"kind":"order"}                 -> 500   (reorder_code)
+ *     {"kind":"grid","cells":null}     -> 500   (trace_code)
+ *
+ * The crash was also an enumeration oracle. Those same bodies return 404
+ * against a block that does not exist, is unpublished, or is locked for this
+ * learner — three states the route deliberately makes indistinguishable — so
+ * 500-versus-404 answered the question the 404s exist to refuse.
+ *
+ * ## Why here, and why it returns a new object
+ *
+ * `readArtifact` in `schools/learning/hydration.ts` has validated this exact
+ * union on the way OUT of the database for as long as the column has existed,
+ * and says why: "A cast would instead hand the UI a shape it will destructure
+ * and crash on." That argument was right and was never applied to the way IN.
+ * This is the same argument, at the other end of the same column.
+ *
+ * It lives beside the type rather than in the route so that a ninth variant is
+ * added within sight of the code that has to accept it.
+ *
+ * That is placement, not enforcement, and the difference matters: the `switch`
+ * below is over `unknown`, so TypeScript cannot check it for exhaustiveness and
+ * a forgotten variant would compile and silently be refused as malformed. The
+ * two things that actually catch it are `ANSWER_KIND_TABLE` — a `Record` keyed
+ * by the union, which does fail to compile — and the test that walks
+ * `BLOCK_ANSWER_KINDS` and requires every tag in it to parse.
+ *
+ * Every field is COPIED rather than the input returned, so nothing a caller
+ * did not declare travels onward into `learning_submissions.answer`. Extra
+ * properties were never read; now they are not stored either.
+ *
+ * Malformed is `null`, not a neutral `{ kind: "none" }`. A learner who sent
+ * nothing and a client that sent nonsense are different events, and only one
+ * of them should be graded.
+ */
+export function parseBlockAnswer(raw: unknown): BlockAnswer | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+
+  switch (r.kind) {
+    /* Both carry nothing, so there is nothing to check beyond the tag. */
+    case "none":
+      return { kind: "none" };
+    case "acknowledged":
+      return { kind: "acknowledged" };
+
+    case "option":
+      return typeof r.id === "string" ? { kind: "option", id: r.id } : null;
+
+    /* `text` carries a learner's program as well as their prose. It is NOT
+       length-checked here: the size ceiling is `checkPayloadSize`, it is
+       enforced at the route with a 413 that names the limit, and duplicating
+       it would give two places an opinion about one number. This guarantees
+       only that the thing handed to `Buffer.byteLength` is a string. */
+    case "text":
+      return typeof r.value === "string" ? { kind: "text", value: r.value } : null;
+
+    case "blanks":
+      return isStringArray(r.values) ? { kind: "blanks", values: [...r.values] } : null;
+
+    case "order":
+      return isStringArray(r.ids) ? { kind: "order", ids: [...r.ids] } : null;
+
+    /* `Number.isFinite` and not `typeof === "number"`: JSON cannot carry NaN or
+       Infinity, but this function is exported and the next caller may not be
+       `JSON.parse`. A non-finite line compares equal to no `buggyLine` and
+       would be graded wrong rather than refused, which is a verdict about the
+       learner for a defect in the client. */
+    case "line":
+      return typeof r.line === "number" && Number.isFinite(r.line)
+        ? { kind: "line", line: r.line }
+        : null;
+
+    /* Values as well as the container. `checkBlock` does `cells[k] ?? ""` then
+       `.trim()`, so a numeric cell throws exactly as a null `cells` does. */
+    case "grid":
+      return isStringRecord(r.cells) ? { kind: "grid", cells: { ...r.cells } } : null;
+
+    /* Includes `undefined`, and includes kinds that sound plausible but are not
+       in the union — `"code"` above all. Code answers travel as `text`; a
+       client sending `{"kind":"code"}` is a client this server has never had,
+       and grading it as an empty answer would record a verdict about a learner
+       whose work never arrived. */
+    default:
+      return null;
+  }
+}
+
+/**
+ * The eight tags, for callers that need to name a kind without trusting one —
+ * an ops log that wants to say WHICH shape a client got wrong, without echoing
+ * an arbitrary string out of a request body into a log file.
+ *
+ * Built from a `Record` keyed by the union rather than written as a literal
+ * array, so a ninth variant fails to compile here — which is what makes this
+ * the enforcement point `parseBlockAnswer`'s own `switch` cannot be. A set that
+ * silently fell behind would report a legitimate kind as unrecognised, which is
+ * the exact class of quiet wrongness this file is trying to stop.
+ */
+const ANSWER_KIND_TABLE: Record<BlockAnswer["kind"], true> = {
+  none: true,
+  option: true,
+  text: true,
+  blanks: true,
+  order: true,
+  line: true,
+  grid: true,
+  acknowledged: true,
+};
+
+export const BLOCK_ANSWER_KINDS: ReadonlySet<string> = new Set(Object.keys(ANSWER_KIND_TABLE));
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  return Object.values(value as Record<string, unknown>).every((v) => typeof v === "string");
+}
+
 export interface CheckResult {
   verdict: BlockVerdict;
   /** Normalised answer, for the event payload. Never source code. */

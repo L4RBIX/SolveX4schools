@@ -11,7 +11,7 @@ import { findBlock, gradeBlock, toLearningVerdictName } from "@schools/learning/
 import { gateFor } from "@schools/curriculum/gate";
 import { ATTEMPTS_BEFORE_REVEAL, justificationFor, revealFor } from "@schools/learning/reveal";
 import { signAttestation } from "@schools/learning/sign";
-import type { BlockAnswer } from "@schools/learning/checking";
+import { BLOCK_ANSWER_KINDS, parseBlockAnswer } from "@schools/learning/checking";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
 import { claimSubmission, isSubmissionId } from "@schools/learning/submission";
 import { MAX_REQUEST_BYTES, checkPayloadSize, requestTooLarge } from "@schools/exec/limits";
@@ -57,6 +57,14 @@ import type { AwardResult } from "@schools/leagues/engine";
  * answer is refused with a 413 BEFORE identity is resolved, before the judge is
  * called and before a single event exists — so it leaves no trace in the ledger
  * of any kind. See `schools/exec/limits.ts`.
+ *
+ * ## And nothing malformed is graded either
+ *
+ * The answer's runtime shape is checked by `parseBlockAnswer` before the block
+ * is even looked up, and a body that is not one of the eight variants is a 400
+ * that touches nothing. It used to be a cast, and four of the eight variants
+ * turned a malformed body into a 500 — one of which threw after the submission
+ * claim, burning a learner's Check press. See the guard below.
  */
 
 export const runtime = "nodejs";
@@ -64,7 +72,17 @@ export const runtime = "nodejs";
 interface SubmitBody {
   blockId?: string;
   episodeId?: string;
-  answer?: BlockAnswer;
+  /**
+   * `unknown`, and that is the point.
+   *
+   * This field was declared `BlockAnswer`, which made `body.answer` look
+   * already-checked to every reader of this file — including the code that
+   * dereferenced `.value`, `.values`, `.ids` and `.cells` on it. Nothing had
+   * checked it; the declaration was an assertion about a JSON body, and the
+   * compiler had no way to keep it. Typing it honestly is what forces the call
+   * to `parseBlockAnswer` below, and forces the next person to keep it.
+   */
+  answer?: unknown;
   /**
    * The idempotency key. A v4 uuid the client mints on the Check press and
    * keeps for as long as the answer is unchanged, so "this submission again" and
@@ -105,6 +123,66 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "blockId required" }, { status: 400 });
   }
 
+  /*
+   * The answer's runtime shape, and why the check is HERE.
+   *
+   * `body.answer` used to be cast to `BlockAnswer` and handed straight to code
+   * that dereferences its fields — `checkPayloadSize({ sourceCode:
+   * answer.value })` below, and `checkBlock`'s per-block branches after it.
+   * Four of the eight variants turned a malformed body into an unhandled
+   * `TypeError` and a 500 for an ordinary signed-in learner. See
+   * `parseBlockAnswer` for the four and for why the parser lives beside the
+   * type instead of here.
+   *
+   * ## Before `findBlock`, deliberately
+   *
+   * This route answers 404 with one body for three different states — no such
+   * block, month not published, month not unlocked for this learner — because
+   * distinguishing them lets a caller map the year and other people's progress.
+   * The crash broke that: a malformed answer returned 500 for a block that was
+   * reachable and 404 for one that was not, which answers the question the 404s
+   * refuse. Validating the body BEFORE anything is looked up keeps the 400 a
+   * function of the request alone, so it reveals nothing about server state.
+   *
+   * It is also the earliest point at which it can run, which is what makes a
+   * refusal free: no identity has been resolved, no store opened, no cookie
+   * set, no row claimed. A 400 from here cannot leave a trace in a child's
+   * ledger, for the same reason the 413 below cannot.
+   *
+   * ## A missing `answer` is a malformed request, not an empty one
+   *
+   * It used to default to `NO_ANSWER`. Every client sends the field — all three
+   * call sites type it as required, and the player's own initial state is an
+   * explicit `{ kind: "none" }` — so the default only ever covered a caller
+   * that was already broken, and covering it meant grading a block for a
+   * learner whose answer never arrived. An explicit `{ kind: "none" }` is still
+   * accepted and still means what it always did.
+   */
+  const answer = parseBlockAnswer(body.answer);
+  if (answer === null) {
+    /* The kind only, and only when it is one this server knows. The point of
+       the counter is "is a stale client sending garbage, and which shape" —
+       echoing an arbitrary string from the body into the ops log would make
+       this line a place learner input lands in a log file.
+
+       `blockId` is truncated for the same reason, and this is the one branch
+       that needs it: every other `opsLog` in this route runs after `findBlock`
+       succeeded, so what they log is a curriculum id. This one runs before, by
+       design, so `blockId` here is still whatever the caller sent — bounded
+       only by the 256 KiB envelope. A real id is under 32 characters. */
+    const kind = typeof body.answer === "object" && body.answer !== null
+      ? (body.answer as { kind?: unknown }).kind
+      : undefined;
+    opsLog("submit.invalid_answer", {
+      block_id: blockId.slice(0, 64),
+      kind: BLOCK_ANSWER_KINDS.has(kind as string) ? String(kind) : "unrecognised",
+    });
+    /* No detail. Which field was wrong, which kinds exist and what the union
+       looks like are all schema internals, and a caller that cannot construct a
+       valid answer does not become able to by being told the shape. */
+    return NextResponse.json({ error: "invalid answer" }, { status: 400 });
+  }
+
   const target = findBlock(blockId);
   if (!target) {
     return NextResponse.json({ error: "unknown block" }, { status: 404 });
@@ -136,8 +214,6 @@ export async function POST(request: Request) {
     opsLog("submit.unpublished_month", { block_id: blockId, month: String(target.month.index) });
     return NextResponse.json({ error: "unknown block" }, { status: 404 });
   }
-
-  const answer: BlockAnswer = body.answer ?? { kind: "none" };
 
   /*
    * Size, and why it is refused HERE.
@@ -840,11 +916,17 @@ export async function POST(request: Request) {
         /*
          * The learner's work, kept beside the verdict it earned.
          *
-         * `answer` is the `BlockAnswer` this route already received and
-         * graded — the exact value, not a re-derivation — so what is stored is
-         * by construction what was judged. It rides the same transaction as
-         * the events and the settlement: a verdict without the work behind it,
-         * or work with no verdict, are both states this cannot produce.
+         * `answer` is the `BlockAnswer` this route graded — the same object,
+         * so what is stored is by construction what was judged. It rides the
+         * same transaction as the events and the settlement: a verdict without
+         * the work behind it, or work with no verdict, are both states this
+         * cannot produce.
+         *
+         * It is the parser's output rather than the request body, and that is
+         * the point: `parseBlockAnswer` rebuilt it field by field, so a
+         * property the contract does not declare cannot arrive here and be
+         * written into `jsonb` unread. Grading and storage still see one
+         * value — it is simply a value that was checked before either did.
          *
          * Bounded already: `checkPayloadSize` refused anything over
          * `EXECUTION_LIMITS.maxSourceBytes` before we got here, and it measures
