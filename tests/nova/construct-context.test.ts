@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { grantHintLevel } from "@solvex/nova-core";
+import { MONTHS } from "@schools/curriculum/months";
 import {
   CAPABILITY_VOCABULARY_IS_PYTHON,
   buildSystemPrompt,
@@ -495,5 +496,55 @@ describe("the construct extractor speaks C++, and the gate lifted itself", () =>
     expect(() =>
       buildSystemPrompt({ ...base, blockId: "m1.l1.b1", grant: grantAt(4), capability: c }),
     ).not.toThrow();
+  });
+});
+
+describe("teaching position is derived from the corpus, in every month", () => {
+  /**
+   * The generalisation of the September defect.
+   *
+   * SEVEN of the nine months have lesson ids that are not their teaching order
+   * — only October and May happen to be sequential. `septemberTaughtBy` is
+   * guarded by `month === 1`, so months 2–9 returned a wrong number nobody
+   * read; that is a trap rather than a safety margin, and it is exactly how the
+   * defect reached September in the first place.
+   *
+   * This asserts the property against the corpus rather than against a table,
+   * so re-ordering a month cannot silently invalidate it.
+   */
+  it("agrees with the Month structure for every lesson in the programme", () => {
+    const wrong: string[] = [];
+    for (const month of MONTHS) {
+      let n = 0;
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          n += 1;
+          const got = cpp17PositionOf(`${lesson.id}.b1`);
+          if (got?.lesson !== n) {
+            wrong.push(`${lesson.id}: taught #${n}, reported #${got?.lesson}`);
+          }
+        }
+      }
+    }
+    expect(wrong, `\n${wrong.join("\n")}\n`).toEqual([]);
+  });
+
+  it("finds months whose ids genuinely disagree with their order, so this is not vacuous", () => {
+    /* If every month were sequential the test above would pass under the old
+       id-parsing implementation too. It is not: this counts the months where
+       the two genuinely differ, and there are seven. */
+    let reordered = 0;
+    for (const month of MONTHS) {
+      const nums: number[] = [];
+      for (const unit of month.units) {
+        for (const lesson of unit.lessons) {
+          const m = /\.l(\d+)$/.exec(lesson.id);
+          if (m) nums.push(Number(m[1]));
+        }
+      }
+      const sorted = [...nums].sort((a, b) => a - b);
+      if (JSON.stringify(nums) !== JSON.stringify(sorted)) reordered += 1;
+    }
+    expect(reordered, "no month reorders its lessons — the test above proves nothing").toBeGreaterThanOrEqual(6);
   });
 });

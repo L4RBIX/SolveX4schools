@@ -295,14 +295,16 @@ export interface Cpp17Position {
  * number from an id shape nobody has seen would be worse than not knowing.
  */
 /**
- * September's lesson ids are NOT its teaching order.
+ * Lesson ids are NOT the teaching order, in SEVEN of the nine months.
  *
- * The month runs `l1, l11, l2, l10, l3, l4, l5, l12, l6, l7, l8, l9` — the
- * numbers are stable identifiers, not a sequence. This map is derived from the
- * `Month` structure so it cannot drift from it.
+ * September runs `l1, l11, l2, l10, l3, l4, l5, l12, l6, l7, l8, l9`; November
+ * teaches `l8` fourth; December teaches `l7` fifth; January, February, March
+ * and April all reorder too. Only October and May happen to be sequential. The
+ * numbers are stable identifiers, not a sequence, and this map is derived from
+ * the `Month` structure so it cannot drift from the content.
  *
  * Reading the number out of the id, which is what this file used to do, was
- * wrong in both directions and both were live:
+ * wrong in both directions and both were live in September:
  *
  *   - `m1.l11` is the SECOND lesson taught. It read as lesson 11, so a learner
  *     two lessons into the year was described to Nova as having finished
@@ -311,30 +313,48 @@ export interface Cpp17Position {
  *     `cond.if_else` came back as NOT TAUGHT YET in the very lesson that
  *     introduces it, and the tutor would withhold the lesson's own subject.
  *
+ * ## Why this covers every month and not just the one that was broken
+ *
+ * `septemberTaughtBy` is the only CURRENT consumer of `lesson`, and it is
+ * guarded by `month === 1`, so months 2–9 returned a wrong number that nobody
+ * read. That is a trap, not a safety margin: the value is on a public function,
+ * it looks authoritative, and the first person to use it for October would get
+ * a silently wrong answer — which is precisely how this defect arrived in
+ * September. Deriving all nine costs one loop and removes the trap.
+ *
  * Found by the capability extractor's migration, which had just had the same
  * class of defect removed from it pointing the other way.
  */
-const SEPTEMBER_TEACHING_POSITION: ReadonlyMap<string, number> = (() => {
+const TEACHING_POSITION: ReadonlyMap<string, number> = (() => {
   const order = new Map<string, number>();
-  const september = MONTHS.find((m) => m.index === 1);
-  if (!september) return order;
-  let n = 0;
-  for (const unit of september.units) {
-    for (const lesson of unit.lessons) order.set(lesson.id, ++n);
+  for (const month of MONTHS) {
+    let n = 0;
+    for (const unit of month.units) {
+      for (const lesson of unit.lessons) order.set(lesson.id, ++n);
+    }
   }
   return order;
 })();
 
 export function cpp17PositionOf(blockId: string | undefined | null): Cpp17Position | null {
   if (typeof blockId !== "string") return null;
-  const m = /^m(\d+)\.(l(\d+)|p\d+|as)\b/.exec(blockId.trim());
+  /* `c` as well as `l`. May has no new topic — «төрт 45 минуттық жаттығу
+     жарысы», PDF p.10 — so `m9.c1`..`m9.c4` are its four training contests, and
+     they are lessons in every structural sense: they sit in a unit's `lessons`
+     array, they route like one (`routes.test.ts` matches `^m\d+\.[lc]\d+$`),
+     and they are taught in sequence. Omitting them here meant this function
+     returned NULL for four of the programme's lessons, so Nova received no
+     position at all for a third of May. */
+  const m = /^m(\d+)\.([lc](\d+)|p\d+|as)\b/.exec(blockId.trim());
   if (!m) return null;
   const month = Number(m[1]);
   if (!Number.isFinite(month) || month < 1) return null;
   if (m[3]) {
-    /* Position in the sequence, not the digits in the name. Outside September
-       the two coincide and the fallback is the id's own number. */
-    const taught = SEPTEMBER_TEACHING_POSITION.get(`m${month}.l${m[3]}`);
+    /* Position in the sequence, not the digits in the name. The fallback is for
+       a block id naming a lesson the corpus does not contain — a typo or a
+       deleted lesson — where the id's own number is the only thing left to say. */
+    /* Look the id up as written — `m9.c1` is not `m9.l1`, and both may exist. */
+    const taught = TEACHING_POSITION.get(`m${month}.${m[2]}`);
     return { month, lesson: taught ?? Number(m[3]), kind: "lesson" };
   }
   return {
