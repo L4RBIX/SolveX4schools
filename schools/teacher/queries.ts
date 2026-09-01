@@ -1,6 +1,7 @@
 import "server-only";
 import type { SqlExecutor } from "@schools/store/sql";
 import type { LearnerState, SkillState } from "@solvex/learning-intelligence-core";
+import { CURRICULUM_VERSION } from "@schools/curriculum/source-of-truth";
 
 /**
  * Class-scoped reads for the teacher command centre.
@@ -48,8 +49,15 @@ import type { LearnerState, SkillState } from "@solvex/learning-intelligence-cor
  * page load, and a learner enrolled in two classes had their scope row stolen
  * by whichever teacher refreshed last. `classRoster` resolves subjects with one
  * read-only join against `learning_subject_aliases`, whose primary key is
- * `(alias_kind, alias_value)`, and returns `null` for a learner who has never
- * been resolved rather than creating one.
+ * `(alias_kind, alias_value, curriculum_version)`, and returns `null` for a
+ * learner who has never been resolved rather than creating one.
+ *
+ * That third key column is not decoration. Since migration 0024 an account has
+ * one subject PER CURRICULUM, so this join without a version predicate returned
+ * a row per curriculum — every dual-curriculum learner listed twice, with an
+ * arbitrary subject id attached to each. A teacher would see a class of
+ * eighteen as nineteen names, two of them the same child, and every aggregate
+ * built on `subjectIdsOf` would double-count one of them.
  *
  * **3. One definition of independence, and it is the stored column.**
  *
@@ -105,6 +113,7 @@ export async function classRoster(
   sql: SqlExecutor,
   schoolId: string,
   classId: string,
+  curriculumVersion: string = CURRICULUM_VERSION,
 ): Promise<ClassMember[]> {
   const r = await sql.query<{
     user_id: string;
@@ -121,12 +130,13 @@ export async function classRoster(
        left join learning_subject_aliases al
               on al.alias_kind = 'user_id'
              and al.alias_value = a.user_id::text
+             and al.curriculum_version = $3
       where e.school_id = $1
         and e.class_id  = $2
         and e.withdrawn_at is null
         and a.disabled_at is null
       order by a.display_name asc`,
-    [schoolId, classId],
+    [schoolId, classId, curriculumVersion],
   );
   return r.rows.map((row) => ({
     userId: row.user_id,

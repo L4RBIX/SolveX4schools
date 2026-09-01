@@ -11,6 +11,7 @@ import type {
 } from "@solvex/learning-intelligence-core";
 import type { LearningEventName, LearningPayload } from "@solvex/learning-contracts";
 import type { PostHelpStatus } from "@schools/learning/post-help";
+import { CURRICULUM_VERSION } from "@schools/curriculum/source-of-truth";
 import type { SqlExecutor } from "./sql";
 
 /**
@@ -307,11 +308,13 @@ export class LearningStore {
     anonId: string,
     cohort: Cohort = "public",
     scope?: { schoolId: string; classId: string },
+    curriculumVersion: string = CURRICULUM_VERSION,
   ): Promise<string> {
     const existing = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
-        where alias_kind = 'anon_id' and alias_value = $1`,
-      [anonId],
+        where alias_kind = 'anon_id' and alias_value = $1
+          and curriculum_version = $2`,
+      [anonId, curriculumVersion],
     );
     if (existing.rows.length > 0) {
       const id = existing.rows[0].subject_id;
@@ -325,15 +328,15 @@ export class LearningStore {
     const subjectId = randomUUID();
     await this.sql.tx(async (t) => {
       await t.query(
-        `insert into learning_subjects (subject_id, primary_anon_id, cohort)
-         values ($1, $2, $3)`,
-        [subjectId, anonId, cohort],
+        `insert into learning_subjects (subject_id, primary_anon_id, cohort, curriculum_version)
+         values ($1, $2, $3, $4)`,
+        [subjectId, anonId, cohort, curriculumVersion],
       );
       await t.query(
-        `insert into learning_subject_aliases (alias_kind, alias_value, subject_id)
-         values ('anon_id', $1, $2)
-         on conflict (alias_kind, alias_value) do nothing`,
-        [anonId, subjectId],
+        `insert into learning_subject_aliases (alias_kind, alias_value, subject_id, curriculum_version)
+         values ('anon_id', $1, $2, $3)
+         on conflict (alias_kind, alias_value, curriculum_version) do nothing`,
+        [anonId, subjectId, curriculumVersion],
       );
       /* Scoped at creation. A subject with no class is invisible to every
          teacher query — which is the safe default, and also means a learner
@@ -360,8 +363,9 @@ export class LearningStore {
        into an error. */
     const settled = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
-        where alias_kind = 'anon_id' and alias_value = $1`,
-      [anonId],
+        where alias_kind = 'anon_id' and alias_value = $1
+          and curriculum_version = $2`,
+      [anonId, curriculumVersion],
     );
     return settled.rows[0]?.subject_id ?? subjectId;
   }
@@ -2106,10 +2110,35 @@ export class LearningStore {
     return { schoolId: r.rows[0].school_id, classId: r.rows[0].class_id };
   }
 
-  async subjectsInClass(classId: string): Promise<string[]> {
+  /**
+   * The class roster, as subject ids, for the ACTIVE curriculum only.
+   *
+   * The join to `learning_subjects` is load-bearing rather than decorative. A
+   * learner who worked the Python year and the C++ year has TWO subject rows,
+   * both scoped to the same class, so the unjoined query returned them twice —
+   * and every caller that counts rows (class size, "no activity", the
+   * leaderboard) would have double-counted one child and reported a roster of
+   * nineteen for a class of eighteen.
+   *
+   * Filtering here rather than at each caller is the same argument
+   * `isInClass` makes about authorization: a rule enforced in one place cannot
+   * be forgotten by the next query somebody writes.
+   *
+   * Historical Python subjects stay in the table and stay queryable — this
+   * hides them from CURRENT metrics, it does not delete them.
+   */
+  async subjectsInClass(
+    classId: string,
+    curriculumVersion: string = CURRICULUM_VERSION,
+  ): Promise<string[]> {
     const r = await this.sql.query<{ subject_id: string }>(
-      `select subject_id from school_subject_scope where class_id = $1 order by created_at asc`,
-      [classId],
+      `select s.subject_id
+         from school_subject_scope s
+         join learning_subjects ls on ls.subject_id = s.subject_id
+        where s.class_id = $1
+          and ls.curriculum_version = $2
+        order by s.created_at asc`,
+      [classId, curriculumVersion],
     );
     return r.rows.map((row) => row.subject_id);
   }
@@ -2144,14 +2173,24 @@ export class LearningStore {
   }
 
   /** Last activity per subject, for the "no activity" signal. */
-  async lastActivityForClass(classId: string): Promise<Map<string, string>> {
+  async lastActivityForClass(
+    classId: string,
+    curriculumVersion: string = CURRICULUM_VERSION,
+  ): Promise<Map<string, string>> {
     const r = await this.sql.query<{ subject_id: string; at: string }>(
+      /* Same version filter as `subjectsInClass`, and for the same reason: a
+         learner with a Python subject and a C++ subject would otherwise appear
+         twice, and their Python-era last-activity could be the more recent of
+         the two — reporting a child as active in a curriculum they are no
+         longer working. */
       `select e.subject_id, max(e.received_at) as at
          from learning_events e
-         join school_subject_scope s on s.subject_id = e.subject_id
+         join school_subject_scope s  on s.subject_id = e.subject_id
+         join learning_subjects   ls on ls.subject_id = e.subject_id
         where s.class_id = $1
+          and ls.curriculum_version = $2
         group by 1`,
-      [classId],
+      [classId, curriculumVersion],
     );
     return new Map(r.rows.map((row) => [row.subject_id, toIso(row.at)]));
   }
@@ -2493,11 +2532,20 @@ export class LearningStore {
   async subjectIdForAlias(
     kind: "anon_id" | "user_id",
     value: string,
+    curriculumVersion: string = CURRICULUM_VERSION,
   ): Promise<string | null> {
+    /* The version predicate is what stops a Python artifact restoring into a
+       C++ lesson. Since migration 0024 an account has one alias row PER
+       curriculum, so the unfiltered query returned whichever the planner
+       reached first — and hydration would have put the learner's Python source
+       for `m1.l1.b5` into the C++ block of the same id. The block ids are
+       identical across the two curricula, which is exactly why matching on the
+       id alone is not enough. */
     const r = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
-        where alias_kind = $1 and alias_value = $2`,
-      [kind, value],
+        where alias_kind = $1 and alias_value = $2
+          and curriculum_version = $3`,
+      [kind, value, curriculumVersion],
     );
     return r.rows[0]?.subject_id ?? null;
   }
@@ -2514,11 +2562,13 @@ export class LearningStore {
     userId: string,
     scope: { schoolId: string; classId: string },
     cohort: Cohort = "public",
+    curriculumVersion: string = CURRICULUM_VERSION,
   ): Promise<string> {
     const existing = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
-        where alias_kind = 'user_id' and alias_value = $1`,
-      [userId],
+        where alias_kind = 'user_id' and alias_value = $1
+          and curriculum_version = $2`,
+      [userId, curriculumVersion],
     );
     if (existing.rows.length > 0) {
       const id = existing.rows[0].subject_id;
@@ -2585,17 +2635,19 @@ export class LearningStore {
        * minting a second subject would scatter their evidence across both.
        */
       const inserted = await t.query<{ subject_id: string }>(
-        `insert into learning_subjects (subject_id, user_id, cohort) values ($1,$2,$3)
-         on conflict (user_id) do nothing
+        `insert into learning_subjects (subject_id, user_id, cohort, curriculum_version)
+         values ($1,$2,$3,$4)
+         on conflict (user_id, curriculum_version) do nothing
          returning subject_id`,
-        [subjectId, userId, cohort],
+        [subjectId, userId, cohort, curriculumVersion],
       );
 
       let bind: string = subjectId;
       if (inserted.rows.length === 0) {
         const owner = await t.query<{ subject_id: string }>(
-          `select subject_id from learning_subjects where user_id = $1`,
-          [userId],
+          `select subject_id from learning_subjects
+            where user_id = $1 and curriculum_version = $2`,
+          [userId, curriculumVersion],
         );
         /* Absent only if the conflict was on something other than `user_id`,
            which the constraint list makes impossible — but falling back to the
@@ -2605,17 +2657,18 @@ export class LearningStore {
       }
 
       await t.query(
-        `insert into learning_subject_aliases (alias_kind, alias_value, subject_id)
-         values ('user_id', $1, $2)
-         on conflict (alias_kind, alias_value) do nothing`,
-        [userId, bind],
+        `insert into learning_subject_aliases (alias_kind, alias_value, subject_id, curriculum_version)
+         values ('user_id', $1, $2, $3)
+         on conflict (alias_kind, alias_value, curriculum_version) do nothing`,
+        [userId, bind, curriculumVersion],
       );
     });
 
     const settled = await this.sql.query<{ subject_id: string }>(
       `select subject_id from learning_subject_aliases
-        where alias_kind = 'user_id' and alias_value = $1`,
-      [userId],
+        where alias_kind = 'user_id' and alias_value = $1
+          and curriculum_version = $2`,
+      [userId, curriculumVersion],
     );
     const winner = settled.rows[0]?.subject_id ?? subjectId;
     await this.setSubjectScope(winner, scope);

@@ -262,3 +262,50 @@ export const YEAR_ONE_EXCLUDES_OOP = true;
  */
 export const YEAR_ONE_LANGUAGE_LABEL = "C++17" as const;
 export const YEAR_ONE_LANGUAGE_STANDARD = "c++17" as const;
+
+/**
+ * WHICH CURRICULUM a learner's evidence belongs to.
+ *
+ * ## The defect this exists to make impossible
+ *
+ * Python block `m1.as.b1` and C++ block `m1.as.b1` share a logical id. Every
+ * progression query was `subject_id + block_id`, so an accepted Python-era
+ * verdict on `m1.as.b1` satisfied the C++ independence requirement for the same
+ * month — a learner could be credited for demonstrating in C++ something they
+ * only ever did in Python, and the next month would unlock.
+ *
+ * It had not materialised (production holds zero accepted independence blocks),
+ * but "currently zero" is a fact about today's data, not an architecture.
+ *
+ * ## Why this is not `language`
+ *
+ * `YEAR_ONE_LANGUAGE` says what the learner writes. This says which BODY OF
+ * CONTENT their evidence was earned against, and the two are not the same
+ * question: a future C++ revision that re-authors half the assessments is still
+ * `cpp17`, and evidence from the old revision should not automatically satisfy
+ * the new one. Overloading `language` would make that impossible to express, so
+ * the version carries its own dimension and the language stays alongside it.
+ *
+ * ## How the isolation works
+ *
+ * The version scopes the SUBJECT, not each evidence row. One subject per
+ * (account, curriculum version) means a C++ subject id has no Python rows
+ * anywhere — so every existing `where subject_id = $1` is correct by
+ * construction, and a future query cannot leak by forgetting a predicate,
+ * because there is no predicate to forget. See migration 0024.
+ */
+export const CURRICULUM_VERSION = "cpp17-year1-v1" as const;
+
+/**
+ * The version every pre-versioning row is backfilled to.
+ *
+ * Read the migration's comment before assuming this means "was written in
+ * Python": it is the FAIL-CLOSED bucket for all evidence that predates
+ * versioning, which includes rows created while acceptance-testing C++ against
+ * the production database. Quarantining those from C++ progression is the
+ * correct outcome — they are test data — but they were not Python.
+ */
+export const LEGACY_CURRICULUM_VERSION = "python-year1-v1" as const;
+
+/** Shape of a curriculum version id, enforced at the database boundary too. */
+export type CurriculumVersion = typeof CURRICULUM_VERSION | typeof LEGACY_CURRICULUM_VERSION;
