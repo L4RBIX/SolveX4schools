@@ -227,9 +227,14 @@ export const M6_PRACTICE: LessonBlock[] = [
         "Подсказка: модуль целого числа даёт `abs`, он находится в заголовке `<cstdlib>`.",
     },
     referenceSolution:
+      /* No `abs()`, and no `<cstdlib>`.
+         The programme never teaches `abs` — September's remediation notes say
+         so, January writes absolute value with an `if` for the same reason, and
+         `constructs-are-taught` caught this block asking a learner to use it in
+         February when the first place it is SHOWN is May. The difference is
+         written out instead, which is the same arithmetic and one line longer. */
       "#include <iostream>\n" +
       "#include <vector>\n" +
-      "#include <cstdlib>\n" +
       "using namespace std;\n" +
       "\n" +
       "int main() {\n" +
@@ -242,7 +247,9 @@ export const M6_PRACTICE: LessonBlock[] = [
       "    int close = 0;\n" +
       "    for (int i = 0; i < n; i++) {\n" +
       "        for (int j = i + 1; j < n; j++) {\n" +
-      "            if (abs(a[i] - a[j]) <= d) close = close + 1;\n" +
+      "            int diff = a[i] - a[j];\n" +
+      "            if (diff < 0) diff = -diff;\n" +
+      "            if (diff <= d) close = close + 1;\n" +
       "        }\n" +
       "    }\n" +
       "    cout << close;\n" +

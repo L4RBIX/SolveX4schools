@@ -697,7 +697,21 @@ const KEYWORDS: { word: string; id: ConstructId }[] = [
   { word: "typename", id: "excl.template" },
   { word: "new", id: "excl.new_delete" },
   { word: "delete", id: "excl.new_delete" },
-  { word: "nullptr", id: "excl.pointer" },
+  /* `nullptr` is NOT evidence that pointers have been taught.
+   *
+   * Its one appearance in nine months is `cin.tie(nullptr)`, the second line of
+   * May's two-line fast-input recipe, which `m9.l2.b1` teaches explicitly as an
+   * incantation with a stated rule (do not mix with scanf/printf). Nothing
+   * around it declares a pointer, dereferences one, or takes an address.
+   *
+   * Counting it made `constructs-are-taught` report that year one had shown a
+   * construct it names as excluded — from a block whose whole subject is
+   * reacting to judge verdicts. The real signals for a pointer being taught are
+   * a pointer TYPE, a dereference, or address-of, and those are matched
+   * elsewhere; a bare keyword in a recipe is not one of them.
+   *
+   * `NULL` stays: nothing in the curriculum uses it, so it remains a true
+   * tripwire for someone introducing C-style pointer idioms. */
   { word: "NULL", id: "excl.pointer" },
   { word: "try", id: "excl.exception" },
   { word: "catch", id: "excl.exception" },
@@ -1265,14 +1279,48 @@ export function teachingOrder(): readonly OrderedBlock[] {
 }
 
 /**
+ * Fenced code inside a prose body, which is rendered to the learner as code.
+ *
+ * Four blocks in the programme carry one, and `m9.l1.b1` is the reason this
+ * exists: it is the concept block that TEACHES `#include <bits/stdc++.h>`, and
+ * it teaches it in a fenced snippet inside `body` rather than in `code`.
+ * Reading only `code` therefore reported the header as first shown at
+ * `m9.l1.b8s` — a SUPPORT-track fill_blank a core learner never sees — and
+ * `constructs-are-taught` raised a violation against `m9.l1.b7` for requiring
+ * something the lesson had in fact just displayed.
+ *
+ * Under-reporting "shown" is the direction that produces false violations, and
+ * a false violation is the kind of thing someone eventually silences by
+ * loosening the gate. A fence in prose is on screen; it counts.
+ */
+function fencedCodeInBody(block: LessonBlock): string[] {
+  const body = (block as { body?: { kk?: string; ru?: string } }).body;
+  if (!body) return [];
+  const out: string[] = [];
+  for (const text of [body.kk, body.ru]) {
+    if (!text) continue;
+    for (const fence of text.match(/```[a-z]*\n([\s\S]*?)```/g) ?? []) {
+      out.push(fence.replace(/^```[a-z]*\n/, "").replace(/```$/, ""));
+    }
+  }
+  return out;
+}
+
+/**
  * The code this block puts in front of the learner.
  *
  * The distinction that matters is SHOWN versus CORRECT. A reference solution is
  * correct and invisible; extracting from it would report a construct as taught
  * because a task's answer happened to use it, which is the opposite of the
  * question being asked.
+ *
+ * "Shown" includes fenced code in a prose body — see `fencedCodeInBody`.
  */
 export function shownCode(block: LessonBlock): string[] {
+  return [...shownCodeFields(block), ...fencedCodeInBody(block)];
+}
+
+function shownCodeFields(block: LessonBlock): string[] {
   switch (block.type) {
     case "concept":
       return block.code ? [block.code] : [];

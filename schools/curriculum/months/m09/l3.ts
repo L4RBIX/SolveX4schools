@@ -667,7 +667,11 @@ export const M9_L3: LessonBlock[] = [
       "    long long best = -1;\n" +
       "    for (int j = 0; j < n; j++) {\n" +
       "        long long total = 0;\n" +
-      "        for (int i = 0; i < n; i++) total = total + abs(a[i] - a[j]);\n" +
+      "        for (int i = 0; i < n; i++) {\n" +
+      "            long long diff = a[i] - a[j];\n" +
+      "            if (diff < 0) diff = -diff;\n" +
+      "            total = total + diff;\n" +
+      "        }\n" +
       "        if (best == -1 || total < best) best = total;\n" +
       "    }\n" +
       "    cout << best;\n" +
