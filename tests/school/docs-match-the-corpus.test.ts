@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { MONTHS } from "@schools/curriculum/months";
 import { loadOf } from "../../scripts/workload";
-import { isTask, monthInventory, roleOf } from "@schools/curriculum/inventory";
+import { isIndependent, isTask, monthInventory, roleOf } from "@schools/curriculum/inventory";
 import type { LessonBlock, Month } from "@schools/curriculum/types";
 
 /**
@@ -43,6 +43,17 @@ function tally(months: readonly Month[]) {
   let bank = 0;
   let assessment = 0;
   let contest = 0;
+  /* The two columns that drifted with nothing watching them.
+   *
+   * `isIndependent` is `write_code && !starter?.trim()`. The C++ migration gave
+   * eight September write_code blocks a frame starter — correctly, the pedagogy
+   * doc says the frame is GIVEN as scaffold before it is required — so all
+   * eight flipped independent -> guided: September 25 -> 17, the year 159 ->
+   * 151. Three documents kept claiming 159 and stayed green, because the
+   * headline "written from nothing against a promised ~100" was prose no
+   * assertion covered. */
+  let independent = 0;
+  let guided = 0;
   for (const month of months) {
     for (const unit of month.units) {
       for (const lesson of unit.lessons) {
@@ -56,7 +67,20 @@ function tally(months: readonly Month[]) {
           else if (role === "contest") {
             contest += 1;
             practice += 1;
-          } else practice += 1;
+            /* Contest blocks count as practice and are deliberately NOT split
+               into independent/guided — `reconcile-counts.ts` `continue`s here
+               and this must agree with it, or the two disagree by 20. */
+          } else {
+            practice += 1;
+            /* `isIndependent` from the inventory, not a local predicate. It is
+               broader than "write_code with no starter": a `challenge` and a
+               `verify` in `unseen_problem` mode also count, and a second
+               definition here would drift from the generator the documents are
+               produced by — which is the failure this whole file exists to
+               catch. */
+            if (isIndependent(b)) independent += 1;
+            else guided += 1;
+          }
         }
       }
     }
@@ -69,7 +93,7 @@ function tally(months: readonly Month[]) {
       }
     }
   }
-  return { blocks, attempt, practice, bank, assessment, contest };
+  return { blocks, attempt, practice, bank, assessment, contest, independent, guided };
 }
 
 const T = tally(MONTHS);
@@ -93,6 +117,15 @@ describe("the audit documents report the corpus that exists", () => {
     /* The traceability manifest's Built column read nine zeros beside
        September's 36 for eight months of authoring, because nothing read it. */
     { file: "CURRICULUM_TRACEABILITY.md", label: "comparable practice", value: () => T.practice },
+
+    /* The independent count, in all four documents that headline it. It is the
+       one figure a reader checks against the PDF's «~100 толық дербес шешім»,
+       and it is the one that went stale silently. Regenerate with
+       `npx tsx scripts/reconcile-counts.ts --markdown`. */
+    { file: "TASK_COUNT_RECONCILIATION.md", label: "independent solutions", value: () => T.independent },
+    { file: "FULL_YEAR_RELEASE_AUDIT.md", label: "independent solutions", value: () => T.independent },
+    { file: "RELEASE_VERDICT.md", label: "independent solutions", value: () => T.independent },
+    { file: "FULL_YEAR_CONTENT_FREEZE.md", label: "independent solutions", value: () => T.independent },
   ];
 
   for (const c of cases) {

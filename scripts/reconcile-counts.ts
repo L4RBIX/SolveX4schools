@@ -145,6 +145,15 @@ const header = [
   "Assessment",
   "Contest",
   "Bank",
+  /* `Attempt` was computed and never printed.
+   *
+   * `totalAttempt` has been incremented since this script was written and
+   * emitted by neither output mode — a dead field. It is also one of the four
+   * numbers `docs-match-the-corpus` asserts, which made it the one count with
+   * no generator output AND a test watching it, so when the corpus moved it
+   * drifted with nothing to regenerate it from. A number a document must state
+   * and a script cannot produce is a number that will go stale. */
+  "Attempt",
   "All blocks",
 ];
 
@@ -154,17 +163,17 @@ if (md) {
   for (const r of rows) {
     const delta = r.practice - r.promised;
     console.log(
-      `| ${r.month} ${r.name} | ${r.promised} | **${r.practice}** (${delta >= 0 ? "+" : ""}${delta}) | ${r.independentCoding} | ${r.guidedCoding} | ${r.otherInteraction} | ${r.explanation} | ${r.assessment} | ${r.contest} | ${r.bank} | ${r.totalBlocks} |`,
+      `| ${r.month} ${r.name} | ${r.promised} | **${r.practice}** (${delta >= 0 ? "+" : ""}${delta}) | ${r.independentCoding} | ${r.guidedCoding} | ${r.otherInteraction} | ${r.explanation} | ${r.assessment} | ${r.contest} | ${r.bank} | ${r.totalAttempt} | ${r.totalBlocks} |`,
     );
   }
   console.log(
-    `| **Year** | **${sum("promised")}** | **${sum("practice")}** | **${sum("independentCoding")}** | ${sum("guidedCoding")} | ${sum("otherInteraction")} | ${sum("explanation")} | ${sum("assessment")} | ${sum("contest")} | ${sum("bank")} | ${sum("totalBlocks")} |`,
+    `| **Year** | **${sum("promised")}** | **${sum("practice")}** | **${sum("independentCoding")}** | ${sum("guidedCoding")} | ${sum("otherInteraction")} | ${sum("explanation")} | ${sum("assessment")} | ${sum("contest")} | ${sum("bank")} | **${sum("totalAttempt")}** | ${sum("totalBlocks")} |`,
   );
 } else {
   console.log("");
   console.log("  Core route. PDF-comparable practice = lesson attempt blocks, excluding bank and assessment.");
   console.log("  " + "─".repeat(94));
-  console.log("  m  name        PDF  practice  indep  guided  other  expl  assess  contest  bank  blocks");
+  console.log("  m  name        PDF  practice  indep  guided  other  expl  assess  contest  bank  attempt  blocks");
   for (const r of rows) {
     const d = r.practice - r.promised;
     console.log(
@@ -173,7 +182,7 @@ if (md) {
         `${String(r.independentCoding).padStart(7)}${String(r.guidedCoding).padStart(8)}` +
         `${String(r.otherInteraction).padStart(7)}${String(r.explanation).padStart(6)}` +
         `${String(r.assessment).padStart(8)}${String(r.contest).padStart(9)}` +
-        `${String(r.bank).padStart(6)}${String(r.totalBlocks).padStart(8)}`,
+        `${String(r.bank).padStart(6)}${String(r.totalAttempt).padStart(9)}${String(r.totalBlocks).padStart(8)}`,
     );
   }
   console.log("  " + "─".repeat(94));
@@ -182,7 +191,7 @@ if (md) {
       `${String(sum("independentCoding")).padStart(7)}${String(sum("guidedCoding")).padStart(8)}` +
       `${String(sum("otherInteraction")).padStart(7)}${String(sum("explanation")).padStart(6)}` +
       `${String(sum("assessment")).padStart(8)}${String(sum("contest")).padStart(9)}` +
-      `${String(sum("bank")).padStart(6)}${String(sum("totalBlocks")).padStart(8)}`,
+      `${String(sum("bank")).padStart(6)}${String(sum("totalAttempt")).padStart(9)}${String(sum("totalBlocks")).padStart(8)}`,
   );
   console.log("");
   console.log(`  PDF p.11 promises ~250 tasks of which ~100 are «толық дербес шешім».`);

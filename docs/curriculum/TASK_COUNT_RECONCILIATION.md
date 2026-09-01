@@ -55,22 +55,22 @@ the comparable figure rather than counted against the promise.
 
 ## The corrected comparison
 
-| Month | PDF «тапсырма» | Practice (comparable) | · independent | · guided coding | · other interaction | Explanation | Assessment | Contest | Bank | All blocks |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 1 Қыркүйек | 36 | **43** (+7) | 25 | 1 | 17 | 18 | 4 | 0 | 0 | 65 |
-| 2 Қазан | 38 | **60** (+22) | 22 | 3 | 35 | 15 | 3 | 0 | 8 | 86 |
-| 3 Қараша | 34 | **55** (+21) | 18 | 4 | 33 | 14 | 3 | 0 | 4 | 76 |
-| 4 Желтоқсан | 32 | **50** (+18) | 21 | 2 | 27 | 12 | 4 | 0 | 1 | 67 |
-| 5 Қаңтар | 30 | **58** (+28) | 19 | 5 | 34 | 12 | 3 | 0 | 1 | 74 |
-| 6 Ақпан | 30 | **50** (+20) | 18 | 3 | 29 | 10 | 4 | 0 | 1 | 65 |
-| 7 Наурыз | 26 | **45** (+19) | 15 | 2 | 28 | 10 | 4 | 0 | 3 | 62 |
-| 8 Сәуір | 28 | **43** (+15) | 17 | 1 | 25 | 13 | 4 | 0 | 0 | 60 |
-| 9 Мамыр | 25 | **42** (+17) | 4 | 2 | 16 | 9 | 7 | 20 | 0 | 58 |
-| **Year** | **279** | **446** | **159** | 23 | 244 | 113 | 36 | 20 | 18 | 613 |
+| Month | PDF «тапсырма» | Practice (comparable) | · independent | · guided coding | · other interaction | Explanation | Assessment | Contest | Bank | Attempt | All blocks |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 Қыркүйек | 36 | **43** (+7) | 17 | 9 | 17 | 18 | 4 | 0 | 0 | 47 | 65 |
+| 2 Қазан | 38 | **60** (+22) | 22 | 3 | 35 | 15 | 3 | 0 | 8 | 71 | 86 |
+| 3 Қараша | 34 | **55** (+21) | 18 | 4 | 33 | 14 | 3 | 0 | 4 | 62 | 76 |
+| 4 Желтоқсан | 32 | **50** (+18) | 21 | 2 | 27 | 12 | 4 | 0 | 1 | 55 | 67 |
+| 5 Қаңтар | 30 | **58** (+28) | 19 | 5 | 34 | 12 | 3 | 0 | 1 | 62 | 74 |
+| 6 Ақпан | 30 | **50** (+20) | 18 | 3 | 29 | 10 | 4 | 0 | 1 | 55 | 65 |
+| 7 Наурыз | 26 | **45** (+19) | 15 | 2 | 28 | 10 | 4 | 0 | 3 | 52 | 62 |
+| 8 Сәуір | 28 | **43** (+15) | 17 | 1 | 25 | 13 | 4 | 0 | 0 | 47 | 60 |
+| 9 Мамыр | 25 | **42** (+17) | 4 | 2 | 16 | 9 | 7 | 20 | 0 | 49 | 58 |
+| **Year** | **279** | **446** | **151** | 31 | 244 | 113 | 36 | 20 | 18 | **500** | 613 |
 
 ## What it says
 
-**446 comparable practice tasks against a promised 279, and 159 independent
+**446 comparable practice tasks against a promised 279, and 151 independent
 solutions against a promised ~100.** Both are about 60% above the figure the
 programme states.
 
@@ -100,7 +100,7 @@ about minutes, not tasks, and it is answered in
 | Total blocks | 613 |
 | Attempt blocks | 500 |
 | **PDF-comparable practice tasks** | **446** |
-| — of which independent solutions | 159 |
+| — of which independent solutions | 151 |
 | — of which guided coding | 23 |
 | — of which other interaction | 244 |
 | — of which May's contest problems | 20 |

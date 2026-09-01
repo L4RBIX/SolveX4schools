@@ -14,13 +14,13 @@ Core route. These figures are kept apart on purpose; `TASK_COUNT_RECONCILIATION.
 |---|---|
 | 1. Total blocks | **614** (700 across all three routes) |
 | 2. Attempt tasks | **501** |
-| 3. PDF-comparable practice tasks | **447** against a promised 279 |
+| 3. PDF-comparable practice tasks | **446** against a promised 279 |
 | 4. Core-required tasks | **483** — every attempt task that is not in the bank |
 | 5. Bank tasks | **18** (23 across all routes) |
 | 6. Assessments | **9 checks, 36 graded tasks** |
 | 7. Contests | **4 practice contests + the final tournament, 20 problems** |
 
-Of the 447, **159 are whole programs written from nothing** against a promised ~100.
+Of the 446, **151 are whole programs written from nothing** against a promised ~100.
 
 ## 8. All 29 optional-task routes — PASS
 

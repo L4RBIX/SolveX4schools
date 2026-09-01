@@ -49,7 +49,7 @@ Core route. These nine figures are kept apart on purpose; see `TASK_COUNT_RECONC
 |---|---|
 | Blocks, all nine months | 613 |
 | PDF-comparable practice tasks | **446** against a promised 279 |
-| Written from nothing | **159** against a promised ~100 |
+| Written from nothing | **151** against a promised ~100 |
 | Monthly-check tasks | 36 |
 | May contest problems | 20 |
 | Optional bank | 18 |
