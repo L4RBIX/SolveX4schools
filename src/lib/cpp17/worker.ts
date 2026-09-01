@@ -232,7 +232,33 @@ export function classifyFailure(
  * ones who went looking. Over-recycling is a warm restart; under-recycling is
  * the bug.
  */
-function watchForFileAccess(a: WasmClangApi): { touched: () => boolean; release: () => void } {
+export function watchForFileAccess(a: WasmClangApi): { touched: () => boolean; release: () => void } {
+  /*
+   * The exports object of a WebAssembly instance is FROZEN.
+   *
+   * The JS API spec freezes it, and this file is an ES module — so strict mode
+   * turns `exports.path_open = …` below into a thrown TypeError rather than a
+   * silent no-op:
+   *
+   *     Cannot assign to read only property 'path_open' of object '[object Object]'
+   *
+   * `shared.js` sets `this.exports = instance.exports` directly, so that is
+   * exactly what arrives here. The throw happened AFTER compile and link
+   * succeeded, on the line that starts watching the learner's own program —
+   * which is why it presented as "the compiler works but nothing ever runs"
+   * rather than as a compiler failure.
+   *
+   * Swapping in a mutable shallow copy is safe and is the smallest fix that
+   * does not touch vendored code: WebAssembly exported functions do not close
+   * over `this`, `shared.js` re-reads `this.memfs.exports` on every run (it
+   * spreads them into the `wasi_unstable` import object), and `memory` was
+   * already captured by `new Memory(this.exports.memory)` during init. Done
+   * once, and only when the object is actually frozen, so a future vendored
+   * change that hands over a plain object costs nothing.
+   */
+  if (Object.isFrozen(a.memfs.exports)) {
+    a.memfs.exports = { ...a.memfs.exports };
+  }
   const exports = a.memfs.exports;
   const original = exports.path_open;
   if (typeof original !== "function") {
@@ -253,7 +279,7 @@ function watchForFileAccess(a: WasmClangApi): { touched: () => boolean; release:
   };
 }
 
-interface WasmClangApi {
+export interface WasmClangApi {
   ready: Promise<unknown>;
   clangCommonArgs: string[];
   memfs: {

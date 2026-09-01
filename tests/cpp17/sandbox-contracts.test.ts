@@ -291,6 +291,89 @@ describe.skipIf(!ASSETS)(
       await api.ready;
     });
 
+    describe("the file-access watch can actually be installed", () => {
+      /**
+       * The bug this pins broke EVERY Run in a real browser.
+       *
+       * `watchForFileAccess` in `worker.ts` wraps `path_open` so a program that
+       * touches the filesystem forces a worker recycle. It did that by
+       * assigning to `api.memfs.exports.path_open` — and `shared.js` sets
+       * `this.exports = instance.exports`, which the WebAssembly JS API
+       * **freezes**. `worker.ts` is an ES module, so strict mode turned the
+       * assignment into a thrown TypeError:
+       *
+       *     Cannot assign to read only property 'path_open' of object '[object Object]'
+       *
+       * It fires AFTER compile and link succeed, on the line that starts
+       * watching the learner's own program — so the symptom was not "the
+       * compiler is broken" but "the compiler works and nothing ever runs".
+       * Measured in Chromium 151: every Run returned a failure and no learner
+       * could execute a single C++ program.
+       *
+       * Node freezes the exports object identically, which is what lets this
+       * be a Node test rather than a browser one — the frozen-ness is a
+       * property of the WebAssembly spec, not of any engine.
+       */
+      it("hands over a frozen exports object, which is why the copy exists", () => {
+        /* If a future vendored change hands over a plain object this assertion
+           fails and the guard below becomes unnecessary — that is a result
+           worth being told about, not a test to delete quietly. */
+        expect(Object.isFrozen(api.memfs.exports)).toBe(true);
+      });
+
+      it("refuses a direct assignment, exactly as the browser did", () => {
+        expect(() => {
+          "use strict";
+          (api.memfs.exports as Record<string, unknown>).path_open = () => {};
+        }).toThrow(/read only|read-only/i);
+      });
+
+      it("installs on the REAL api without throwing — the regression guard", async () => {
+        /* The assertions above describe the bug. This one calls the actual
+           production function, so reverting the fix fails here rather than
+           only in a browser. The earlier version of this suite stayed green
+           under that mutation, which made it documentation rather than a
+           guard. */
+        const { watchForFileAccess } = await import("../../src/lib/cpp17/worker");
+        let watch: { touched: () => boolean; release: () => void } | null = null;
+        expect(() => {
+          watch = watchForFileAccess(api as unknown as Parameters<typeof watchForFileAccess>[0]);
+        }).not.toThrow();
+        expect(watch).not.toBeNull();
+        /* Nothing has run, so nothing has opened a file. `touched() === true`
+           here would mean the shape check fell through to its fail-safe, i.e.
+           the watch is not really installed. */
+        expect(watch!.touched()).toBe(false);
+        expect(() => watch!.release()).not.toThrow();
+      });
+
+      it("becomes patchable after the mutable-copy swap the worker performs", () => {
+        /* The fix, reproduced: swap in a shallow copy, then patch. Exported
+           wasm functions do not close over `this`, and `shared.js` re-reads
+           `memfs.exports` on every run, so the copy is what a learner's
+           program is actually given. */
+        const target = { ...(api.memfs.exports as Record<string, unknown>) };
+        const original = target.path_open;
+        expect(typeof original, "path_open must exist to be wrapped").toBe("function");
+
+        let seen = false;
+        expect(() => {
+          target.path_open = (...args: unknown[]) => {
+            seen = true;
+            return (original as (...a: unknown[]) => unknown).apply(target, args);
+          };
+        }).not.toThrow();
+
+        expect(seen).toBe(false);
+        expect(typeof target.path_open).toBe("function");
+        /* And the copy still carries everything the runtime needs, or the swap
+           would have broken memfs instead of fixing the watch. */
+        for (const required of ["memory", "init", "GetPathBuf", "path_open"]) {
+          expect(target[required], `${required} must survive the copy`).toBeDefined();
+        }
+      });
+    });
+
     describe("no environment secrets are exposed to the sandboxed program", () => {
       /**
        * The whole environment block, exactly as a running program receives it.
