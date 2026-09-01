@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 
 /**
  * Production ships C++17. Python stays in the repository as a backup.
@@ -91,7 +91,6 @@ describe("the production build carries no Python runtime", () => {
 function grepImports(root: string): { file: string; line: number }[] {
   const out: { file: string; line: number }[] = [];
   const stack = [root];
-  const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs");
   while (stack.length) {
     const dir = stack.pop()!;
     if (!existsSync(dir)) continue;
@@ -186,7 +185,6 @@ describe("no Python tool validates C++ content", () => {
 
 /** Every .ts/.mjs file under the given roots. */
 function walk(roots: string[]): string[] {
-  const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs");
   const out: string[] = [];
   const stack = [...roots];
   while (stack.length) {
