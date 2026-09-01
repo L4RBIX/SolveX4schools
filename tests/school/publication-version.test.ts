@@ -47,15 +47,14 @@ const september = () => MONTHS.find((m) => m.index === 1)!;
 /** A publication row for a month whose content has since been re-authored. */
 function pythonEraRecord(monthIndex: number): PublicationRecord {
   return {
-    publicationId: "00000000-0000-0000-0000-000000000001",
     monthIndex,
     /* A real-shaped hash that is not the current one — this is what every
        production row looks like from the C++ curriculum's point of view. */
     curriculumHash: "fc70b83383ea".padEnd(64, "0"),
     reviewerId: "00000000-0000-0000-0000-000000000002",
+    reviewerName: "Curriculum owner",
     note: "September, Python year",
     publishedAt: new Date("2026-06-01").toISOString(),
-    withdrawnAt: null,
   };
 }
 
@@ -72,12 +71,16 @@ describe("a Python-era publication cannot approve the C++ curriculum", () => {
     expect(state.currentHash).toBe(curriculumHash(september()));
   });
 
-  it("stays lapsed even though the Python row was never withdrawn", () => {
-    /* The production rows are all live. If the gate depended on withdrawal it
-       would be open right now. */
-    const live = pythonEraRecord(1);
-    expect(live.withdrawnAt, "the fixture must mirror production: still live").toBeNull();
-    expect(approvalState(september(), [live]).state).toBe("lapsed");
+  it("stays lapsed for a row that is still live", () => {
+    /* `PublicationRecord` has no `withdrawnAt`: the store filters withdrawn
+       rows out before the policy sees them, so every record reaching
+       `approvalState` is by definition a LIVE approval.
+
+       That is what makes this test worth writing. All nine production rows are
+       live today. If the gate depended on somebody having withdrawn them it
+       would be open right now — it is closed because a hash of different
+       content is a different hash, and nothing else. */
+    expect(approvalState(september(), [pythonEraRecord(1)]).state).toBe("lapsed");
   });
 
   it("approves only an exact match against the current content", () => {
