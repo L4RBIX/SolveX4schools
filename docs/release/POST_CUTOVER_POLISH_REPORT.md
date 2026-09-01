@@ -15,7 +15,14 @@ Two things the brief asked me to be careful about, answered honestly up front:
   contract, not the bug.
 
 ## 2 STARTING SHA — `baf9a4a`
-## 3 FINAL SHA — `2b214dc` (production + `origin/master`)
+## 3 FINAL SHA
+
+- **`2b214dc` — the code.** This is what is deployed to production and what every
+  measurement in this report was taken against.
+- **`58b7de8` — repository HEAD**, which adds this document and nothing else.
+  Production was deliberately NOT redeployed for a docs-only commit: the running
+  deployment is the one verified 29/29, and a fresh build to ship a markdown file
+  would put an unverified artefact in front of learners for no gain.
 
 **SHA reconciliation, as required before touching anything:**
 
