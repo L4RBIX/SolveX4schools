@@ -34,7 +34,6 @@ import { L } from "@schools/presentation/labels";
  * every request precisely because a browser is not trusted to police itself.
  */
 import type { LearningPayload } from "@solvex/learning-contracts";
-import type { RunnerPhase } from "@/lib/pyodide/runner";
 import type { ExecutionSurface, SurfaceCapability } from "@schools/execution/trust-policy";
 import { trustSatisfies } from "@schools/execution/trust-policy";
 

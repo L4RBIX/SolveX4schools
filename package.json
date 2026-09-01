@@ -29,7 +29,7 @@
   "scripts": {
     "predev": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
+    "prebuild": "node scripts/strip-python-assets.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
