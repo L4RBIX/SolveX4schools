@@ -113,6 +113,34 @@ that is not theirs. Nothing in Year 1 goes near a limit deliberately, and
 December's bounds were built to survive a factor of ten either way, which is
 what makes that safe rather than lucky.
 
+**Measured, on real curriculum code: `-O0` costs between 2x and 14x.** May's
+two quadratic solutions, run against their own blocks' largest legal input,
+medians of nine runs each, Apple clang 17 / arm64:
+
+| programme | `-O2` | `-O0` | ratio |
+|---|---|---|---|
+| `m9.l3.b6` naive — all subarrays, `vector<long long>` | 0.071 s | 0.158 s | **2.2x** |
+| `m9.c3.p4` naive — pairing scan over a `vector<bool>` | 0.046 s | 0.661 s | **14.4x** |
+| `m9.l3.b6` reference — two pointers | 0.012 s | 0.015 s | 1.3x |
+| `m9.c3.p4` reference — sort + two pointers | 0.012 s | 0.012 s | 1.0x |
+
+So "several times slower" above is now a range rather than a hand-wave, and the
+spread inside the range is the thing to take away: the two naive programmes do
+the same ~3·10⁷ operations and differ by a factor of six in what `-O0` costs
+them. The `vector<bool>` is why — it is a bit-packed proxy whose `operator[]`
+is a function call that inlines away at `-O2` and does not at `-O0`. A bound
+checked at `-O2` on a container-heavy solution can be wrong about the judge by
+an order of magnitude, in the dangerous direction.
+
+The references barely move, which is the reassuring half: a solution that is
+the right shape has nothing for the optimiser to rescue.
+
+**This is also what ended May's complexity guards.** Both naive programmes above
+sit inside the 5 s judge budget by a factor of 7.6 at worst, and both print the
+correct answer, so `m9.l3.b6` and `m9.c3.p4` are graded on the answer with
+complexity unmeasured. `tests/school/may-complexity-guards.test.ts` records that
+in executable form.
+
 **The authoring harness deliberately still uses `-O2`,** and that is a choice
 with a cost worth naming: it is the *less* faithful of the two, and the reason
 it stays is that every month of this migration was verified under it. Moving it

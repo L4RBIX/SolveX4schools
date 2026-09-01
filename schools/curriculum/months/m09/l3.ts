@@ -123,10 +123,14 @@ const P = 10; // PDF page for all of May
  * pass in 0.09 s while the all-subarrays scan did ~3.2 · 10⁷ steps and took
  * 12.37 s against a 5 s budget.
  *
- * Re-measured under C++17 at -O2, the same two programs on the same input take
- * **0.00 s and 0.04 s.** The quadratic scan is now roughly three hundred times
- * faster than it was, and 3.2 · 10⁷ steps is a rounding error against a 5 s
- * limit. There is no way to restore the guard through stdin: at two bytes a
+ * Re-measured under C++17 the same two programs on the same input take, as
+ * medians of nine runs, **0.012 s and 0.071 s at -O2** — and, at the -O0 Judge0
+ * actually grades at, **0.015 s and 0.158 s.** The quadratic scan is 78 times
+ * faster than CPython managed at -O0 and 174 times at -O2, so 3.2 · 10⁷ steps is
+ * a rounding error against a 5 s limit even unoptimised: the naive sits a factor
+ * of thirty-one inside the budget on the engine that grades a child.
+ *
+ * There is no way to restore the guard through stdin: at two bytes a
  * value `EXECUTION_LIMITS.maxStdinBytes` (16 KiB) caps a case at about 8 190
  * numbers, so ~3 · 10⁷ operations is the most a naive solution can be made to do
  * here, and in C++ that is fast. Restoring it would mean generating the data
@@ -139,6 +143,11 @@ const P = 10; // PDF page for all of May
  * input, and an answer of 7 999 that no small case reaches. It does not
  * distinguish the two-pointer solution from the quadratic one, and the prompt
  * never claimed it did: the shape is guidance there, graded on the answer.
+ *
+ * `tests/school/may-complexity-guards.test.ts` is where that is held to. It
+ * used to assert the separation; it now asserts its absence — that the
+ * quadratic scan answers this very case correctly — so the retraction above is
+ * executable rather than a comment nobody re-runs.
  *
  * 16 010 bytes with the newline `runCases` appends — inside
  * `EXECUTION_LIMITS.maxStdinBytes` (16 384).

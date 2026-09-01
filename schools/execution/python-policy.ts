@@ -1,36 +1,81 @@
 /**
- * The learner runtime policy.
+ * ██ BACKUP PATH — NOT THE PRODUCT. Production ships C++17 only. ██
  *
- * One file that answers three questions nobody should have to answer twice:
- * which Python a learner's code runs on, what that Python is allowed to import,
- * and what a request to widen that would have to survive.
+ * The Python execution policy, retained as a BACKUP and read by NOTHING in the
+ * active learner product. For production this file is superseded, in full, by
+ * `schools/execution/cpp-runtime.ts`.
+ *
+ * ## Status, as of 2026-09-01 (branch `cpp17-migration`, after e9f8983)
+ *
+ * The course is C++17. All 249 reference solutions are C++17 and stay that way;
+ * the Python-era curriculum is not coming back. The owner's standing rule is
+ * that production ships C++17 ONLY and that the Python source stays in the
+ * repository as a backup — so this module is made INERT rather than deleted.
+ *
+ * Concretely, and verifiable with one grep:
+ *
+ *   - `schools/config.ts` carries `exec.cpp` from `cpp-runtime.ts`. There is no
+ *     `exec.python` key and no `EXEC_PYTHON_VERSION` environment variable.
+ *   - `schools/exec/providers/piston.ts` puts `CPP_RUNTIME.pistonLanguage`,
+ *     `.wireVersion` and `.sourceFileName` on the wire. Nothing under
+ *     `schools/exec/**` imports this file.
+ *   - `ExecutionRequest.language` is the one-member union `"cpp17"`, so there is
+ *     no way to ask any provider for Python even by mistake.
+ *   - The only importers of this module are two tests
+ *     (`tests/school/python-policy.test.ts`, `tests/school/python-version-skew.test.ts`)
+ *     and the internal `/dev/execution` lab, which labels it as the backup and
+ *     never describes the live judge with it. `/dev` returns `notFound()` in
+ *     production — see `src/app/dev/layout.tsx`.
+ *
+ * ## What "backup" means here, precisely
+ *
+ * It means the decisions below are preserved so that reviving Python would be a
+ * deliberate act with its reasoning intact, rather than a rediscovery. It does
+ * NOT mean this is a second live configuration. There is exactly one
+ * authoritative runtime policy for the active product and it is
+ * `cpp-runtime.ts`; if anything in this file ever disagrees with that one, this
+ * file is the stale one by definition.
+ *
+ * Do not wire anything to these exports. Adding a production importer is not a
+ * refactor — it is a reversal of the product direction, and it belongs in a
+ * commit that says so.
+ *
+ * ---------------------------------------------------------------------------
+ *
+ * What follows is the module as it stood while Python WAS the product. The
+ * reasoning is kept verbatim below because it is the part worth preserving; the
+ * only edits are the ones that would otherwise leave a false claim on the page.
+ *
+ * One file that answered three questions nobody should have to answer twice:
+ * which Python a learner's code ran on, what that Python was allowed to import,
+ * and what a request to widen that would have had to survive.
  *
  * ## Why this is a module and not a paragraph in a document
  *
  * A version number written in a runbook, a Dockerfile, a provider and a test is
  * four numbers that agree until the day one of them is edited. The evidence this
  * product records about children is only reproducible if the interpreter that
- * produced it is knowable, so the version is declared HERE, once, and everything
- * else — `schools/config.ts`, the Piston provider, both infrastructure documents
- * — reads it from here or names this file.
+ * produced it is knowable, so the version was declared HERE, once, and
+ * everything else read it from here or named this file. `cpp-runtime.ts` now
+ * holds that role for the compiler, and holds it alone.
  *
  * ## What this module does NOT do
  *
- * It does not enforce anything at execution time. There is no static analysis of
- * learner code, no import allowlist checked before a run, and there should not
- * be: a beginner who types `import nunpy` deserves Python's own error message,
- * not ours.
+ * It does not enforce anything at execution time — it never did. There is no
+ * static analysis of learner code, no import allowlist checked before a run, and
+ * there should not be: a beginner who types `import nunpy` deserves Python's own
+ * error message, not ours.
  *
- * The library policy is enforced by ABSENCE. The judge has no network and the
- * only package installed on it is the pinned CPython below, so `import numpy`
- * fails with `ModuleNotFoundError` because numpy is not there — which is a real
- * mechanism, unlike a list of forbidden names that something has to remember to
- * check. This module records the policy so the absence is deliberate rather than
- * accidental, and so that "can we add pandas?" has a written answer.
+ * The library policy was enforced by ABSENCE. A judge with no network and one
+ * installed package fails `import numpy` with `ModuleNotFoundError` because
+ * numpy is not there — a real mechanism, unlike a list of forbidden names that
+ * something has to remember to check. This module recorded the policy so the
+ * absence was deliberate rather than accidental, and so that "can we add
+ * pandas?" had a written answer. `cpp-runtime.ts` carries the same argument for
+ * headers, which is the version of it that is live.
  *
- * No `server-only` import: this is policy data with no secrets in it, and it is
- * read by the server config, by tests and — potentially — by a script. Marking
- * it server-only would buy nothing and cost the test runner an alias.
+ * No `server-only` import: this is policy data with no secrets in it, and
+ * marking it server-only would buy nothing and cost the test runner an alias.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -38,7 +83,11 @@
 /* -------------------------------------------------------------------------- */
 
 /**
- * The pinned learner runtime. **The single source of truth.**
+ * The pinned learner runtime, as the BACKUP path records it.
+ *
+ * **Not the single source of truth any more.** It was, while Python was the
+ * product. The live pin is `CPP_RUNTIME` in `schools/execution/cpp-runtime.ts`,
+ * and that is the one the Piston provider actually reads.
  *
  * ## Why two version fields, and why that is not a duplication
  *
@@ -57,16 +106,18 @@
  * *because* the install is pinned; it would be reckless on a judge with three
  * Pythons on it.
  *
- * This distinction is asserted in `tests/school/python-policy.test.ts`, and the
- * wire format is asserted separately in `tests/exec/piston-conformance.test.ts`.
+ * The internal consistency of the two fields is still asserted in
+ * `tests/school/python-policy.test.ts`, which is a test of a backup module and
+ * says so. `tests/exec/piston-conformance.test.ts` no longer corroborates it
+ * from the other end: that test asserts the C++ wire format, because that is
+ * what the provider sends.
  *
- * ## UNVERIFIED
+ * ## UNVERIFIED, and now permanently so
  *
- * No real Piston has ever been reached from this repository. That `3.12.0` is a
- * package this deployment's Piston can install is a claim only a live
- * `GET /api/v2/packages` can settle — see `docs/infrastructure/JUDGE_DEPLOYMENT.md`,
- * which makes that call step one and tells the operator what to do if the answer
- * is no.
+ * No real Piston was ever reached from this repository with these values, and
+ * none ever will be while the product ships C++17. That `3.12.0` is a package
+ * some Piston could install is an open question that nothing is going to close,
+ * because nothing sends it. It is recorded, not pending.
  */
 export const PYTHON_RUNTIME = {
   /** Piston's package name. Not `python3` — that is our own port's language id. */
@@ -86,7 +137,9 @@ export const PYTHON_RUNTIME = {
 export const PINNED_PYTHON_VERSION = PYTHON_RUNTIME.version;
 
 /* -------------------------------------------------------------------------- */
-/* The library policy                                                         */
+/* The library policy — BACKUP. The live one is the header policy in           */
+/* cpp-runtime.ts. Everything below describes the Python-era curriculum, which  */
+/* is not coming back; it is kept for its reasoning, not for its facts.         */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -154,7 +207,9 @@ export function isAnticipatedStdlib(moduleName: string): boolean {
 }
 
 /* -------------------------------------------------------------------------- */
-/* The gate a package request has to pass                                     */
+/* The gate a package request has to pass — BACKUP. `LIBRARY_REQUEST_GATES`    */
+/* and `reviewLibraryRequest` in cpp-runtime.ts are the live equivalents; a     */
+/* real request about the shipping product goes through those, not these.       */
 /* -------------------------------------------------------------------------- */
 
 /**

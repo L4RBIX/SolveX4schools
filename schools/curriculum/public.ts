@@ -531,6 +531,63 @@ export function monthOutlines(months: readonly Month[], track = "core"): MonthOu
 }
 
 /**
+ * The template as the learner receives it: answer slots emptied, nothing else.
+ *
+ * A space rather than an empty string. `f(___)` collapsing to `f()` would
+ * manufacture a token pair the template never displayed, and a manufactured
+ * token on the question surface is a manufactured excusal.
+ */
+export function templateWithoutBlanks(template: string): string {
+  return template.replace(/___/g, " ");
+}
+
+/**
+ * The strings this block's own question is made of, per category.
+ *
+ * ## What it is for
+ *
+ * An excusal, and only an excusal: a string cannot be treated as withheld when
+ * the projection is structurally obliged to publish it. Withholding it would
+ * not protect anything — it would break the task.
+ *
+ * ## Why it is computed per category rather than per string
+ *
+ * It used to be prompt + visible cases, full stop, and the template was never
+ * part of it. That left the fill_blank answers with no excusal path *by
+ * construction*: the case-value excusal is gated on `caseValues`, and a
+ * fill_blank has no cases. What actually kept the sweep quiet was the
+ * eight-character floor below — 84 of the programme's 85 template-visible
+ * blank answers are one to seven characters long, so none of them ever
+ * reached the check. The 85th is `vector<int>` on `m3.l8.b8s`, at eleven
+ * characters, and it turned the sweep red for a token the projection has to
+ * ship. `is_high` on `m3.l6.b7s` misses the same fate by one character. That
+ * is a length lottery standing in for a boundary, and it decides whether the
+ * suite is green.
+ *
+ * So the surface is completed instead: for a fill_blank the published question
+ * additionally includes the template, which `publicBlock` emits verbatim
+ * because for this block type the template IS the question. `int`, `is_high`
+ * and `vector<int>` are now treated alike, by category rather than by length.
+ *
+ * ## What it deliberately leaves out
+ *
+ * Not every string `publicBlock` emits. `starter`, a `find_bug`'s broken
+ * program, a `trace_code` listing and a `reorder_code` line are all published,
+ * and all of them are absent here on purpose: widening the surface silently
+ * converts future leaks into non-findings, and nothing needs them. Each
+ * category earns its entry by having a caller that would otherwise be wrong.
+ */
+export function questionSurface(block: LessonBlock): string {
+  const parts: string[] = [];
+  if ("prompt" in block) parts.push(...Object.values(block.prompt as Record<string, string>));
+  if ("cases" in block && Array.isArray(block.cases)) {
+    for (const c of block.cases) if (!c.hidden) parts.push(c.input, c.expectedOutput);
+  }
+  if (block.type === "fill_blank") parts.push(templateWithoutBlanks(block.template));
+  return parts.join("\n");
+}
+
+/**
  * Every string that must never appear in a browser payload.
  *
  * Used by the build-output test (`tests/school/payload-privacy.test.ts`) to
@@ -552,9 +609,20 @@ export function secretStringsOf(block: LessonBlock): string[] {
       caseValues.add(c.expectedOutput);
     }
   }
+  /* Declared-shown answers are collected too, and filtered at the bottom
+     against the surface rather than trusted on the strength of the flag. A
+     declaration that does not match the template is a false one, and the point
+     of the filter is that it cannot be talked into anything. */
+  const shownBlankAnswers = new Set<string>();
   if (block.type === "fill_blank") {
     for (const b of block.blanks) {
       out.push(b.answer);
+      if (b.shown) shownBlankAnswers.add(b.answer);
+      /* Alternatives are never excused, `shown` or not. `shown` says the
+         template displays this token; an alternative is a second answer the
+         author will also accept, which the template by definition does not
+         display, so shipping one hands over a spelling nobody could read off
+         the screen. */
       if (b.alternatives) out.push(...b.alternatives);
     }
   }
@@ -586,19 +654,30 @@ export function secretStringsOf(block: LessonBlock): string[] {
    * shows it in a visible sample, so the same word arriving as a hidden
    * expectation is not a secret. What is genuinely hidden there is the PAIRING
    * of input to output, which no string search can express; `hiddenCaseCount`
-   * is what holds that line. Anything already on the question surface is
-   * therefore excused — but only for case values. A reference solution, a
-   * repaired program, a blank answer, a breaking input, a trace value or a
-   * justification is never excused, whatever else it resembles.
+   * is what holds that line.
+   *
+   * The second is a blank answer the template DISPLAYS and the author has
+   * declared `shown`. `publicBlock` emits `blanks: [{id}]` and nothing else —
+   * no answer, no alternatives — so the projection is structurally incapable
+   * of withholding the token; it reaches the browser inside the template,
+   * which is the question. Redacting it would emit a program that does not
+   * compile. See `questionSurface` for why this is a category rule and not the
+   * eight-character floor doing it by accident.
+   *
+   * Nothing else is ever excused. A reference solution, a repaired program, a
+   * breaking input, a trace value, a justification, a blank ALTERNATIVE, and a
+   * blank answer the template does not display all stay secret at any length,
+   * whatever else they resemble.
    */
-  const surface = [
-    ...Object.values(("prompt" in block ? block.prompt : {}) as Record<string, string>),
-    ...("cases" in block && Array.isArray(block.cases)
-      ? block.cases.filter((c) => !c.hidden).flatMap((c) => [c.input, c.expectedOutput])
-      : []),
-  ].join("\n");
+  const surface = questionSurface(block);
 
   return out.filter((value) => {
+    /* Both halves are load-bearing and neither is length. The flag is the
+       author's declaration; the surface is the check that the declaration is
+       true. An author who sets `shown` on an answer the template never
+       displays gets no excusal, which is what keeps the flag from becoming a
+       way to silence the sweep. */
+    if (shownBlankAnswers.has(value) && surface.includes(value)) return false;
     if (value.trim().length < 8) return false;
     if (caseValues.has(value) && surface.includes(value)) return false;
     return true;

@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useCpp17 } from "@/lib/cpp17/use-cpp17";
 import { usePython } from "@/lib/pyodide/use-python";
-import { DEFAULT_PYODIDE_BASE_URL } from "@/lib/pyodide/worker";
+import {
+  CPP_RUNTIME,
+  CPP_STANDARD_FLAG,
+  CPP_STANDARD_MACRO,
+  MEASURED_JUDGE0_CPP_LANGUAGE_ID,
+  MIN_GNU_CXX17_MAJOR,
+} from "@schools/execution/cpp-runtime";
 import { PYTHON_RUNTIME } from "@schools/execution/python-policy";
 import { LOCAL_LIMITS, type LocalExecutionStatus, type LocalRunResult } from "@schools/execution/trust";
 import { probeJudgeAction } from "./actions";
@@ -13,15 +20,32 @@ import type { ProbeOutcome, TrustedJudgeConfig } from "./probe";
  *
  * ## Why this page exists at all
  *
- * A learner presses Run and Python executes in their browser. They press Submit
- * and the same source executes on our judge. The product's entire premise is
- * that the first is a fast, free, private preview of the second — and NOBODY
- * had ever run one program through both and compared the answers. A hybrid
- * system whose two halves disagree is worse than either half alone: the learner
- * sees one thing, iterates until it looks right, and is graded on another.
+ * A learner presses Run and clang compiles their C++17 in the tab. They press
+ * Submit and the same source is compiled by GCC on our judge. The product's
+ * entire premise is that the first is a fast, free, private preview of the
+ * second — and NOBODY had ever run one program through both and compared the
+ * answers. A hybrid system whose two halves disagree is worse than either half
+ * alone: the learner sees one thing, iterates until it looks right, and is
+ * graded on another.
  *
  * So this page runs one program through both engines at once and puts the
  * results side by side. It is internal, it is not pretty, and it is honest.
+ *
+ * ## Which engines, exactly
+ *
+ * Both columns are C++17, because that is what the product ships. The left is
+ * `src/lib/cpp17` — clang compiled to WebAssembly, passed `-std=c++17`
+ * explicitly. The right is whatever `EXEC_PROVIDER` names, reading its language
+ * and version from `schools/execution/cpp-runtime.ts`, which is the ONLY
+ * authoritative runtime policy for the shipping product.
+ *
+ * This page used to describe the judge with `PYTHON_RUNTIME.version` and
+ * `.wireVersion` from `schools/execution/python-policy.ts` and feed it Python
+ * presets. That was a false claim on a screen: the provider had already been
+ * moved to `CPP_RUNTIME`, so the panel confidently named an interpreter version
+ * that nothing sends, next to a judge that would have answered Python source
+ * with a compile error. Python survives here only in the clearly-labelled
+ * backup pane at the bottom, which compares nothing and says so.
  *
  * ## What it deliberately does not claim
  *
@@ -39,10 +63,10 @@ import type { ProbeOutcome, TrustedJudgeConfig } from "./probe";
  * ## What the trusted column may say, and what it may not
  *
  * It names the provider, whether it is configured, its endpoint reduced to a
- * host, whether it is metered, and — after an explicit probe — the interpreter
- * the judge reported: id, name, version. That is enough to answer "what am I
+ * host, whether it is metered, and — after an explicit probe — the compiler the
+ * judge reported: id, name, version. That is enough to answer "what am I
  * actually being compared against", which was previously unanswerable from this
- * page and is the reason a version skew could go unnoticed.
+ * page and is the reason a toolchain skew could go unnoticed.
  *
  * It never renders an API key, a key prefix, a key length, a request header or
  * a raw provider response body. It cannot: everything it receives comes from
@@ -94,7 +118,8 @@ function localOutcome(status: LocalExecutionStatus): Outcome {
     case "output_limit_exceeded":
       return "output_capped";
     case "runtime_unavailable":
-      /* Pyodide did not start, or we refused the payload. `isLearnerOutcome`
+      /* The toolchain did not start, or we refused the payload — and in the
+         backup pane, Pyodide not starting lands here too. `isLearnerOutcome`
          is false for exactly this, and the comparison below must not treat it
          as a disagreement about the program. */
       return "not_measured";
@@ -277,129 +302,124 @@ function compare(local: LocalRunResult | null, server: ServerOutcome | null): Ag
 /**
  * stderr is deliberately NOT compared.
  *
- * A traceback names the file the code was written to, and the two engines write
- * it to different places — `<exec>` under Pyodide's harness, a temp path on the
- * judge — with different frame counts around the learner's own. Comparing them
- * would mean a permanent, unfixable red banner on every program that raises,
+ * A compiler diagnostic names the file the code was written to, and the two
+ * engines write it to different places — a virtual `main.cpp` under the
+ * WebAssembly sysroot, a job path on the judge. They are also different
+ * compilers: clang and GCC word the same error differently, point at different
+ * columns, and print a different number of notes under it. Comparing them would
+ * mean a permanent, unfixable red banner on every program that fails to build,
  * which is the fastest way to make this page useless. Both are shown in full;
- * the eye is a better judge of a traceback than a string equality.
+ * the eye is a better judge of a diagnostic than a string equality.
  */
 const STDERR_NOTE =
-  "stderr is shown but not compared — tracebacks name different paths and frames on the two engines by construction.";
+  "stderr is shown but not compared — clang and GCC word the same diagnostic differently and name different paths, by construction.";
 
 /* -------------------------------------------------------------------------- */
-/* Version skew                                                               */
+/* Toolchain divergence                                                       */
 /* -------------------------------------------------------------------------- */
 
-type SkewKind = "unknown" | "identical" | "patch" | "feature";
+/**
+ * How worrying a finding is. Drives colour and nothing else.
+ *
+ * This used to be a version distance — `identical | patch | feature` — which
+ * was the right vocabulary when both halves were CPython and the only question
+ * was how far apart two triples were. It is the wrong vocabulary for C++: the
+ * halves are not two builds of one implementation, they are clang and GCC, and
+ * "same version" is not a state they can ever be in. The question worth asking
+ * is not how far apart they are but whether each one is a C++17 compiler.
+ */
+type Verdict = "unknown" | "good" | "watch" | "bad";
 
-interface Skew {
-  kind: SkewKind;
+interface Finding {
+  kind: Verdict;
   note: string;
 }
 
-/** How far apart two version strings are. `null` on either side is `unknown`. */
-function distance(a: string | null, b: string | null): SkewKind {
-  if (!a || !b) return "unknown";
-  if (a === b) return "identical";
-  const [aMajor, aMinor] = a.split(".");
-  const [bMajor, bMinor] = b.split(".");
-  return aMajor === bMajor && aMinor === bMinor ? "patch" : "feature";
-}
-
 /**
- * Pyodide ships its own CPython. There is no mechanism that makes it the same
- * number as the judge's, and it very probably is not — a real finding for the
- * infrastructure docs, not something to round off.
+ * The permanent, deliberate divergence — stated rather than measured.
  *
- * ## Three numbers, not two
+ * There is no probe for this and there does not need to be one: both compilers
+ * are chosen, not discovered. clang-in-WebAssembly is what `src/lib/cpp17`
+ * ships; GCC is what every judge in `schools/exec/providers` reaches. They are
+ * different implementations on purpose, and the ONLY contract they share is the
+ * standard — which is why `-std=c++17` is passed explicitly in the browser and
+ * why the judge canary prints `__cplusplus` rather than `1`.
  *
- * This used to compare the browser against `PYTHON_RUNTIME.version` and stop.
- * That was right while there was one judge and its version was pinned in a file
- * we control. With a rented judge it is no longer enough, because
- * `PYTHON_RUNTIME.version` is a number somebody WROTE DOWN — `python-policy.ts`
- * says so itself — and the judge's actual interpreter is only knowable by
- * asking it. So there are three:
+ * Two things follow that are easy to forget while reading a green banner:
  *
- * - what this browser is running (or would run, per the lock file),
- * - what this build CLAIMS the judge runs,
- * - what the judge, when probed, actually said.
- *
- * The second and third disagreeing is its own finding and a worse one than the
- * first-versus-third skew: it means the constant the rest of the system reasons
- * about is wrong, and nothing else in the product would ever notice.
- *
- * `judge` is null until somebody probes. Absent a probe this behaves exactly as
- * it did before, against the written-down number, and says which it used.
+ * - Implementation-defined behaviour may legitimately differ. Warning text and
+ *   diagnostics certainly do, which is why stderr is not compared.
+ * - The judge is not SENT a standard flag. On Judge0's RapidAPI plan
+ *   `compiler_options` is refused with HTTP 403, so C++17 is a property of the
+ *   compiler's default, which is what makes the GCC floor below load-bearing.
  */
-function versionSkew(browserPython: string | null, judgePython: string | null): Skew {
-  const pinned = PYTHON_RUNTIME.version;
-  /* The probed number wins when there is one: it is a measurement, and the
-     pinned one is an assertion. */
-  const judgeSide = judgePython ?? pinned;
-  const source = judgePython
-    ? "as the judge reported it"
-    : `as pinned in python-policy.ts — the judge has not been probed, so this is a written-down number`;
-
-  if (!browserPython) {
-    return {
-      kind: "unknown",
-      note:
-        "Neither the running interpreter nor the shipped lock file has said which " +
-        "Python this browser would get, so there is nothing to compare.",
-    };
-  }
-
-  const kind = distance(browserPython, judgeSide);
-  const heading = `Browser ${browserPython} vs judge ${judgeSide} (${source}).`;
-
-  if (kind === "identical") {
-    return { kind, note: `${heading} Both halves are on the same interpreter version.` };
-  }
-  if (kind === "patch") {
-    return {
-      kind,
-      note:
-        `${heading} Same feature release, different patch. Nothing a Grade 9 program can ` +
-        "observe, but the two halves are still not byte-identical interpreters.",
-    };
-  }
+function toolchainNote(): Finding {
   return {
-    kind,
+    kind: "watch",
     note:
-      `${heading} That is a different FEATURE release, so syntax, error text and ` +
-      "standard-library behaviour can legitimately differ between what a learner sees on " +
-      "Run and what they are graded on. Neither number is wrong — Pyodide ships its own " +
-      "CPython — and the skew belongs in docs/infrastructure, not in a shrug.",
+      `Browser clang (WebAssembly), compiled with ${CPP_STANDARD_FLAG} passed explicitly. ` +
+      "Judge GCC, compiled with the standard as a DEFAULT — this plan refuses " +
+      "compiler_options, so there is no flag to send. Two different implementations by " +
+      `design; the only shared contract is __cplusplus == ${CPP_STANDARD_MACRO}. Differences ` +
+      "in diagnostics are expected. Differences in a program's OUTPUT are not, and are what " +
+      "the panes below are for.",
   };
 }
 
 /**
- * The second skew: what this build CLAIMS the judge runs versus what it said.
+ * The finding that is actually fixable: is the judge's GCC new enough?
  *
- * Reported separately and only once a probe has produced a real number, because
- * it is a different kind of defect from the browser/judge skew. That one is
- * inherent and permanent — two interpreters, on purpose. This one is a stale
- * constant, it is fixable, and until it is fixed every other statement in the
- * product about the judge's Python is wrong.
+ * `null` until somebody probes, because before that there is no number and a
+ * banner comparing a constant with itself would be theatre.
+ *
+ * ## Why a floor and not an equality
+ *
+ * The old version of this compared the judge's reported version against a
+ * pinned one and called any difference a config defect. That is wrong here.
+ * `CPP_RUNTIME.version` pins the gcc package for PISTON; the probe's number
+ * comes from Judge0's language catalogue, so on a metered deployment the two
+ * describe different judges and demanding they match would report a defect that
+ * does not exist.
+ *
+ * What matters on either judge is the same thing and it is a floor: GCC has
+ * defaulted to `gnu++17` since GCC 11, so anything older compiles the course's
+ * October-onwards syntax as C++14 and rejects it — in a way that looks to a
+ * learner like their own program being wrong. `MIN_GNU_CXX17_MAJOR` is that
+ * floor and `schools/execution/cpp-runtime.ts` argues it.
+ *
+ * The canary in the probe panel is still the ground truth: it asks the compiler
+ * itself what `__cplusplus` is. This is the cheap structural check beside it.
  */
-function pinSkew(judgePython: string | null): Skew | null {
-  if (!judgePython) return null;
-  const pinned = PYTHON_RUNTIME.version;
-  const kind = distance(pinned, judgePython);
-  if (kind === "identical") {
+function compilerFloor(judgeVersion: string | null): Finding | null {
+  if (!judgeVersion) return null;
+
+  const major = Number.parseInt(judgeVersion.split(".")[0] ?? "", 10);
+  if (!Number.isFinite(major)) {
     return {
-      kind,
-      note: `python-policy.ts pins ${pinned} and the judge reported ${judgePython}. They match.`,
+      kind: "unknown",
+      note:
+        `The judge named its compiler "${judgeVersion}", which no major version can be read ` +
+        "out of. The canary's __cplusplus answer below is the only thing that settles it.",
     };
   }
+
+  if (major >= MIN_GNU_CXX17_MAJOR) {
+    return {
+      kind: "good",
+      note:
+        `The judge reported GCC ${judgeVersion}, at or above the GCC ${MIN_GNU_CXX17_MAJOR} ` +
+        "floor, so it defaults to gnu++17. Confirm with the canary — a default is what the " +
+        "catalogue implies, and __cplusplus is what the compiler says.",
+    };
+  }
+
   return {
-    kind,
+    kind: "bad",
     note:
-      `python-policy.ts pins Python ${pinned}; the judge reported ${judgePython}. The pinned ` +
-      "number is what the rest of the system reasons about — the parity fixtures, the error " +
-      "dictionary, the version-skew docs — and it is now wrong. This is a config defect, not " +
-      "an inherent property of a hybrid runtime.",
+      `The judge reported GCC ${judgeVersion}, BELOW the GCC ${MIN_GNU_CXX17_MAJOR} floor. ` +
+      "That compiler defaults to gnu++14 and this plan refuses compiler_options, so there is " +
+      "no flag that fixes it: every lesson from October onwards would be marked wrong for " +
+      "using syntax the course had just taught. The fix is a newer compiler on the judge.",
   };
 }
 
@@ -414,79 +434,114 @@ function pinSkew(judgePython: string | null): Skew | null {
 const PRESETS: { label: string; source: string; stdin: string; probes: string }[] = [
   {
     label: "normal",
-    source: "n = int(input())\nprint(n * n)",
+    source:
+      "#include <iostream>\nint main() {\n  long long n;\n  std::cin >> n;\n  std::cout << n * n << \"\\n\";\n}\n",
     stdin: "7",
     probes: "the control. Both should print 49 and agree.",
   },
   {
     label: "stdin, two values",
-    source: "a, b = map(int, input().split())\nprint(a + b)",
+    source:
+      "#include <iostream>\nint main() {\n  long long a, b;\n  std::cin >> a >> b;\n  std::cout << a + b << \"\\n\";\n}\n",
     stdin: "3 4",
-    probes: "stdin handling — the browser passes it through a worker, the judge through a pipe.",
+    probes:
+      "stdin handling — the browser feeds a virtual file to the WebAssembly program, the judge " +
+      "a pipe. `>>` skipping whitespace is the same operator in both standard libraries.",
   },
   {
-    label: "float formatting",
-    source: "print(0.1 + 0.2)\nprint(7 / 3)\nprint(10 // 3, 10 % 3)",
+    label: "iostream formatting",
+    source:
+      "#include <iostream>\nint main() {\n  std::cout << 0.1 + 0.2 << \"\\n\";\n  std::cout << 7.0 / 3 << \"\\n\";\n  std::cout << -7 / 2 << \" \" << -7 % 2 << \"\\n\";\n}\n",
     stdin: "",
-    probes: "repr of floats. Same CPython algorithm, so a divergence here would be alarming.",
+    probes:
+      "`<<` default precision is 6 significant digits in both libraries, and C++11 onwards " +
+      "requires integer division to truncate toward zero (-3 and -1). A divergence here would " +
+      "mean one half is not a conforming C++17 library.",
   },
   {
-    label: "syntax error",
-    source: "print(",
+    label: "compile error",
+    source: "#include <iostream>\nint main() { std::cout << 1 }\n",
     stdin: "",
     probes:
       "the unions differ by design — browser `syntax_error`, judge `compile_error`. Both map to " +
-      "`learner_error`, so this must NOT show as a divergence.",
+      "`learner_error`, so this must NOT show as a divergence. The diagnostics WILL differ: " +
+      "clang and GCC word a missing semicolon differently, and stderr is not compared.",
   },
   {
     label: "runtime error",
-    source: "print(1 / 0)",
+    source:
+      "#include <iostream>\n#include <vector>\nint main() {\n  std::vector<int> v;\n  std::cout << v.at(3);\n}\n",
     stdin: "",
-    probes: "stdout is empty on both; the traceback text will differ and is not compared.",
+    probes:
+      "an uncaught std::out_of_range. Both abort with a non-zero exit; stdout is empty on both. " +
+      "The terminate handler's sentence goes to stderr and is not compared.",
   },
   {
     label: "infinite loop",
-    source: "while True: pass",
+    source: "int main() { while (true) {} }\n",
     stdin: "",
     probes:
-      `both cut it off — the browser at ${LOCAL_LIMITS.timeLimitMs} ms, the judge at its own ` +
-      "5 s. Same outcome class, deliberately different budgets.",
+      `both cut it off — the browser at ${LOCAL_LIMITS.timeLimitMs} ms of RUN time (the compile ` +
+      "has its own, larger budget), the judge at its own 5 s. Same outcome class, deliberately " +
+      "different budgets.",
   },
   {
     label: "large output",
-    source: "for i in range(200000):\n    print(i)",
+    source:
+      "#include <iostream>\nint main() {\n  for (int i = 0; i < 200000; i++) std::cout << i << \"\\n\";\n}\n",
     stdin: "",
     probes:
       "the caps are identical (64 KiB) and the STATUSES are not: the browser reports " +
       "`output_limit_exceeded`, the judge truncates and stays `ok`. A real divergence.",
   },
   {
-    label: "interpreter identity",
-    source: "import sys\nprint(sys.version_info[:3])",
+    label: "compiler identity",
+    source:
+      "#include <iostream>\nint main() {\n  std::cout << __cplusplus << \"\\n\";\n#if defined(__clang__)\n  std::cout << \"clang \" << __clang_major__ << \"\\n\";\n#elif defined(__GNUC__)\n  std::cout << \"gcc \" << __GNUC__ << \"\\n\";\n#endif\n}\n",
     stdin: "",
-    probes: "the version skew, made concrete. Expect these to differ.",
+    probes:
+      `the toolchain divergence, made concrete. Line 1 must be ${CPP_STANDARD_MACRO} on BOTH — ` +
+      "that is the whole contract, and a mismatch there is the worst finding this page can " +
+      "produce. Line 2 will say clang on the left and gcc on the right, so expect a DIVERGENCE " +
+      "banner and read the first line rather than the banner.",
   },
   {
     label: "platform",
-    source: "import sys, os\nprint(sys.platform)\nprint(os.name)",
+    source:
+      "#include <iostream>\nint main() {\n#ifdef __EMSCRIPTEN__\n  std::cout << \"emscripten\\n\";\n#elif defined(__linux__)\n  std::cout << \"linux\\n\";\n#else\n  std::cout << \"other\\n\";\n#endif\n  std::cout << sizeof(void*) << \"\\n\";\n}\n",
     stdin: "",
     probes:
-      "`emscripten` in the browser, `linux` on the judge. Any learner program that branches " +
-      "on the platform will be graded differently from what it showed them.",
+      "wasm in the browser, linux on the judge — and 4-byte pointers against 8. Any learner " +
+      "program that branches on the platform, or leans on pointer width, is graded differently " +
+      "from what it showed them.",
+  },
+  {
+    label: "bits/stdc++.h",
+    source:
+      "#include <bits/stdc++.h>\nint main() { std::vector<int> v{3,1,2}; std::sort(v.begin(), v.end()); for (int x : v) std::cout << x; std::cout << \"\\n\"; }\n",
+    stdin: "",
+    probes:
+      "a libstdc++ extension GCC ships and libc++ does not. It builds in the browser only " +
+      "because `src/lib/cpp17/bits-stdcpp.ts` puts the header into the sysroot deliberately. " +
+      "Slow on the left (~4 s) and that is expected. May's contest lessons teach this header, " +
+      "so a divergence here is a curriculum problem, not a curiosity.",
   },
   {
     label: "third-party absence",
-    source: "import numpy\nprint(numpy.__version__)",
+    source: "#include <boost/version.hpp>\nint main() {}\n",
     stdin: "",
     probes:
-      "the library policy is enforced by ABSENCE on both halves. Both should raise " +
-      "ModuleNotFoundError.",
+      "the library policy is enforced by ABSENCE on both halves — see the header policy in " +
+      "`schools/execution/cpp-runtime.ts`. Both should fail to compile on a missing header.",
   },
   {
     label: "environment scrub",
-    source: "import os\nprint(os.environ.get('DEEPSEEK_API_KEY'))",
+    source:
+      "#include <cstdlib>\n#include <iostream>\nint main() {\n  const char* v = std::getenv(\"DEEPSEEK_API_KEY\");\n  std::cout << (v ? \"LEAKED\" : \"absent\") << \"\\n\";\n}\n",
     stdin: "",
-    probes: "None on both. The judge's child process env is scrubbed; the browser never had one.",
+    probes:
+      "`absent` on both. The judge's child process env is scrubbed; the WebAssembly program " +
+      "never had one to scrub.",
   },
 ];
 
@@ -495,46 +550,24 @@ const PRESETS: { label: string; source: string; stdin: string; probes: string }[
 /* -------------------------------------------------------------------------- */
 
 /**
- * The Python version Pyodide SHIPS, read from the lock file it is served with.
+ * There is no browser compiler VERSION to report, and that is not a gap.
  *
- * A fallback for the state an operator is most likely to be in when they open
- * this page: Pyodide is not booting, so `pythonVersion` is null and the skew —
- * the thing they came to check — would show as "unknown" precisely when the
- * runtime is too broken to answer for itself. The lock file is a static asset
- * next to the WASM, so it answers even when the 13 MB download does not.
+ * The Python lab read `pyodide-lock.json` for a second opinion on the local
+ * interpreter's version, because the two halves were two CPythons and the
+ * number was the whole comparison. `Cpp17Runner` deliberately exposes no such
+ * field — `RunnerStatus` is phase, `initMs` and `error`, with the comment "never
+ * a written-down pin" against it — because the local half's identity is not a
+ * version at all. It is: clang, WebAssembly, `-std=c++17` passed explicitly.
+ * That is a build-time fact, stated in the strip below from
+ * `schools/execution/cpp-runtime.ts`, and there is nothing to fetch.
  *
- * Preferred SECOND, never first. `RunnerStatus.pythonVersion` is what the
- * interpreter actually reports about itself; this is a written-down number, and
- * a written-down number is exactly what `python-policy.ts` warns can drift.
+ * What replaces the lock-file read is `initMs`, which answers the question an
+ * operator opening this page actually has when the left column is slow: did the
+ * 18 MB toolchain come up, and how long did it take.
  */
-function useDeclaredPythonVersion(): string | null {
-  const [declared, setDeclared] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(`${DEFAULT_PYODIDE_BASE_URL}pyodide-lock.json`);
-        if (!res.ok) return;
-        const lock = (await res.json()) as { info?: { python?: unknown } };
-        const version = lock.info?.python;
-        if (!cancelled && typeof version === "string") setDeclared(version);
-      } catch {
-        /* The lab shows one fewer fact. It is a dev page; a failed fetch of an
-           optional detail must not take the tool down with it. */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return declared;
-}
 
 export function ExecutionLab({ judge }: { judge: TrustedJudgeConfig }) {
-  const python = usePython();
-  const declaredPython = useDeclaredPythonVersion();
+  const cpp = useCpp17({ preload: true });
   const [source, setSource] = useState(PRESETS[0].source);
   const [stdin, setStdin] = useState(PRESETS[0].stdin);
   const [local, setLocal] = useState<LocalRunResult | null>(null);
@@ -545,8 +578,13 @@ export function ExecutionLab({ judge }: { judge: TrustedJudgeConfig }) {
      a dev tool that costs money to look at is a dev tool nobody opens. */
   const [probe, setProbe] = useState<ProbeOutcome | null>(null);
   const [probing, setProbing] = useState(false);
+  /* The Python backup pane is not mounted until this is true, which is the
+     whole reason it is a boolean and not a CSS class: mounting it constructs a
+     Pyodide runner, and an operator who came here to look at C++ should not pay
+     for a runtime the product does not ship. */
+  const [backupOpen, setBackupOpen] = useState(false);
 
-  const { run: runLocal } = python;
+  const { run: runLocal } = cpp;
 
   const runBoth = useCallback(async () => {
     setBusy(true);
@@ -574,34 +612,23 @@ export function ExecutionLab({ judge }: { judge: TrustedJudgeConfig }) {
   }, []);
 
   const agreement = compare(local, server);
-  /* What the interpreter says about itself, or failing that what the lock file
-     says it would be. The label below names which, because they are not the
-     same kind of claim. */
-  const observedPython = python.pythonVersion ?? declaredPython;
-  /* The judge's own answer, and only ever its own answer: `runtime.version` is
-     null for an operator-pinned language id, and a null here correctly falls
-     back to the written-down number rather than inventing one. */
-  const judgePython =
+  /* The judge's own answer, and only ever its own answer. `runtime.version` is
+     null for an operator-pinned language id, and a null here correctly produces
+     NO finding rather than falling back to a written-down number and dressing
+     it up as a measurement. */
+  const judgeCompiler =
     probe?.kind === "probed" ? (probe.probe.runtime?.version ?? null) : null;
-  const skew = versionSkew(observedPython, judgePython);
-  const pin = pinSkew(judgePython);
-  const versionSource = python.pythonVersion
-    ? "reported by the running interpreter"
-    : declaredPython
-      ? "declared by the shipped pyodide-lock.json — the runtime itself has not started"
-      : null;
+  const toolchain = toolchainNote();
+  const floor = compilerFloor(judgeCompiler);
 
   return (
     <div className="flex flex-col gap-6">
       <RuntimeStrip
-        phase={python.phase}
-        pyodideVersion={python.pyodideVersion}
-        pythonVersion={python.pythonVersion}
-        declaredPython={declaredPython}
-        error={python.error}
-        skew={skew}
-        pin={pin}
-        versionSource={versionSource}
+        phase={cpp.phase}
+        initMs={cpp.initMs}
+        error={cpp.error}
+        toolchain={toolchain}
+        floor={floor}
         judge={judge}
         probe={probe}
         probing={probing}
@@ -678,6 +705,22 @@ export function ExecutionLab({ judge }: { judge: TrustedJudgeConfig }) {
         nothing and grades nothing. Evidence comes only from{" "}
         <code>/api/learning/submit</code>, which is not on this page. {STDERR_NOTE}
       </p>
+
+      <div className="flex flex-wrap items-center gap-4 border-t-2 border-b-edge pt-6">
+        <button
+          type="button"
+          onClick={() => setBackupOpen((open) => !open)}
+          className="h-10 rounded-full border-2 border-b-edge px-4 text-[13px] hover:border-b-fg/40"
+        >
+          {backupOpen ? "hide the Python backup" : "show the Python backup"}
+        </button>
+        <span className="text-[13px] text-b-fg/40">
+          Closed by default, and unmounted rather than hidden — opening it constructs a Pyodide
+          runner and downloads 13 MB the product does not ship.
+        </span>
+      </div>
+
+      {backupOpen ? <PythonBackupPane /> : null}
     </div>
   );
 }
@@ -686,64 +729,52 @@ export function ExecutionLab({ judge }: { judge: TrustedJudgeConfig }) {
 /* Pieces                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Shared by both skew banners, so the two cannot be coloured by different rules. */
-function skewTone(kind: SkewKind): string {
-  return kind === "feature"
-    ? "border-sx-partial text-sx-partial"
-    : kind === "patch"
+/** Shared by both finding banners, so the two cannot be coloured by different rules. */
+function findingTone(kind: Verdict): string {
+  return kind === "bad"
+    ? "border-sx-wrong text-sx-wrong"
+    : kind === "watch"
       ? "border-sx-unknown text-sx-text-2"
-      : kind === "identical"
+      : kind === "good"
         ? "border-sx-correct text-sx-correct"
         : "border-b-edge text-b-fg/50";
 }
 
 function RuntimeStrip(props: {
   phase: string;
-  pyodideVersion: string | null;
-  pythonVersion: string | null;
-  declaredPython: string | null;
+  initMs: number | null;
   error: string | null;
-  skew: Skew;
-  pin: Skew | null;
-  versionSource: string | null;
+  toolchain: Finding;
+  floor: Finding | null;
   judge: TrustedJudgeConfig;
   probe: ProbeOutcome | null;
   probing: boolean;
   onProbe: () => void;
 }) {
-  const {
-    phase,
-    pyodideVersion,
-    pythonVersion,
-    declaredPython,
-    error,
-    skew,
-    pin,
-    versionSource,
-    judge,
-    probe,
-    probing,
-    onProbe,
-  } = props;
+  const { phase, initMs, error, toolchain, floor, judge, probe, probing, onProbe } = props;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-[12px] border-2 border-b-edge p-4">
           <div className="text-[12px] uppercase tracking-wide text-b-fg/40">
-            Browser — Pyodide
+            Browser — clang in WebAssembly
           </div>
           <dl className="mt-2 grid grid-cols-[9rem_1fr] gap-y-1 font-b-mono text-[13px]">
             <dt className="text-b-fg/50">phase</dt>
             <dd>{phase}</dd>
-            <dt className="text-b-fg/50">pyodide</dt>
-            <dd>{pyodideVersion ?? "—"}</dd>
-            <dt className="text-b-fg/50">python (reported)</dt>
-            <dd>{pythonVersion ?? "—"}</dd>
-            <dt className="text-b-fg/50">python (shipped)</dt>
-            {/* From the lock file served next to the WASM, so it is knowable
-                even when the runtime will not start. */}
-            <dd>{declaredPython ?? "—"}</dd>
+            <dt className="text-b-fg/50">standard</dt>
+            {/* Passed explicitly on every compile. `clang -cc1` defaults to C++14
+                here, so this flag is the only reason October's syntax builds. */}
+            <dd>{CPP_STANDARD_FLAG}</dd>
+            <dt className="text-b-fg/50">version</dt>
+            {/* Deliberately absent rather than "—" by accident. `RunnerStatus`
+                exposes no compiler version, so inventing one on this page would
+                be the exact class of written-down number the strip exists to
+                distrust. */}
+            <dd className="text-b-fg/40">not reported by the runtime</dd>
+            <dt className="text-b-fg/50">toolchain up in</dt>
+            <dd>{initMs === null ? "—" : `${initMs} ms`}</dd>
             <dt className="text-b-fg/50">trust</dt>
             <dd>client_local</dd>
           </dl>
@@ -787,10 +818,41 @@ function RuntimeStrip(props: {
                 <dd>{judge.metered.maxConcurrentRequests}</dd>
               </>
             ) : null}
-            <dt className="text-b-fg/50">python (pinned)</dt>
-            <dd>{PYTHON_RUNTIME.version}</dd>
-            <dt className="text-b-fg/50">wire version</dt>
-            <dd>{PYTHON_RUNTIME.wireVersion}</dd>
+            {/* The judge's half of the C++ contract, from the one authoritative
+                module. Which row applies depends on the provider, so the rows
+                are rendered per provider rather than all at once — a panel that
+                showed a Piston gcc pin next to a Judge0 deployment would be
+                describing a judge nobody configured. */}
+            <dt className="text-b-fg/50">standard required</dt>
+            <dd>
+              __cplusplus == {CPP_STANDARD_MACRO}
+            </dd>
+            {judge.provider === "piston" ? (
+              <>
+                <dt className="text-b-fg/50">gcc (pinned)</dt>
+                <dd>{CPP_RUNTIME.version}</dd>
+                <dt className="text-b-fg/50">wire version</dt>
+                <dd>{CPP_RUNTIME.wireVersion}</dd>
+                <dt className="text-b-fg/50">source file</dt>
+                {/* The extension is what makes Piston's gcc package build C++
+                    rather than C. Not cosmetic. */}
+                <dd>{CPP_RUNTIME.sourceFileName}</dd>
+              </>
+            ) : null}
+            {judge.provider === "judge0_rapidapi" ? (
+              <>
+                <dt className="text-b-fg/50">language id</dt>
+                {/* The id whose C++17 behaviour was actually measured against
+                    the live service, not read off a catalogue name. An operator
+                    override replaces it, and the probe says when it did. */}
+                <dd>
+                  {judge.metered?.pinnedLanguageId ?? MEASURED_JUDGE0_CPP_LANGUAGE_ID}
+                  {judge.metered?.pinnedLanguageId ? " (JUDGE0_LANGUAGE_ID)" : " (measured)"}
+                </dd>
+                <dt className="text-b-fg/50">gcc floor</dt>
+                <dd>{`>= ${MIN_GNU_CXX17_MAJOR}`}</dd>
+              </>
+            ) : null}
             <dt className="text-b-fg/50">trust</dt>
             <dd>{judge.trusted ? "server_verified" : "none — EXEC_PROVIDER=none"}</dd>
             <dt className="text-b-fg/50">produces evidence</dt>
@@ -807,19 +869,22 @@ function RuntimeStrip(props: {
 
       <JudgeProbePanel judge={judge} probe={probe} probing={probing} onProbe={onProbe} />
 
-      <div className={`rounded-[12px] border-2 p-3 text-[13px] leading-5 ${skewTone(skew.kind)}`}>
-        <strong className="font-b-mono">version skew: {skew.kind}</strong> — {skew.note}
-        {versionSource ? (
-          <span className="block text-b-fg/40">Local version {versionSource}.</span>
-        ) : null}
+      <div
+        className={`rounded-[12px] border-2 p-3 text-[13px] leading-5 ${findingTone(toolchain.kind)}`}
+      >
+        <strong className="font-b-mono">toolchain: two compilers by design</strong> —{" "}
+        {toolchain.note}
       </div>
 
-      {/* Only once a probe has produced a real number. Before that there is
-          nothing to compare the pinned constant against, and a banner claiming
-          otherwise would be comparing it with itself. */}
-      {pin ? (
-        <div className={`rounded-[12px] border-2 p-3 text-[13px] leading-5 ${skewTone(pin.kind)}`}>
-          <strong className="font-b-mono">pinned vs probed: {pin.kind}</strong> — {pin.note}
+      {/* Only once a probe has produced a real version. Before that there is
+          nothing to check the floor against, and a banner claiming otherwise
+          would be checking a constant against itself. */}
+      {floor ? (
+        <div
+          className={`rounded-[12px] border-2 p-3 text-[13px] leading-5 ${findingTone(floor.kind)}`}
+        >
+          <strong className="font-b-mono">judge compiler floor: {floor.kind}</strong> —{" "}
+          {floor.note}
         </div>
       ) : null}
     </div>
@@ -869,7 +934,7 @@ function JudgeProbePanel(props: {
           {judge.metered
             ? "Billable. One language listing on the first probe of this server process, one " +
               "submission, and a poll per round until it answers."
-            : "Asks which interpreter the judge will use, then runs print(1) through it."}
+            : "Asks which compiler the judge will use, then makes it print __cplusplus."}
         </span>
       </div>
 
@@ -892,14 +957,18 @@ function JudgeProbePanel(props: {
             <dd>{runtime?.name ?? "—"}</dd>
             <dt className="text-b-fg/50">runtime version</dt>
             {/* Null is a real answer, not a missing one: an operator-pinned
-                language id means nothing in this system knows which interpreter
+                language id means nothing in this system knows which compiler
                 graded a learner. */}
             <dd>{runtime?.version ?? "unknown"}</dd>
             <dt className="text-b-fg/50">discovered by</dt>
             <dd>{runtime?.operatorOverride ? "JUDGE0_LANGUAGE_ID (pinned)" : "the judge"}</dd>
-            <dt className="text-b-fg/50">print(1) status</dt>
+            <dt className="text-b-fg/50">canary status</dt>
             <dd>{result?.execution?.status ?? "not run"}</dd>
-            <dt className="text-b-fg/50">print(1) → 1</dt>
+            <dt className="text-b-fg/50">{`__cplusplus == ${CPP_STANDARD_MACRO}`}</dt>
+            {/* The ground truth on this whole page. The canary is a C++ program
+                that prints the macro, so this is the compiler's own answer to
+                "did you build my source as C++17" rather than an inference from
+                a catalogue name. */}
             <dd className={result?.execution?.ok ? "text-sx-correct" : "text-sx-wrong"}>
               {String(result?.execution?.ok ?? false)}
             </dd>
@@ -1097,7 +1166,7 @@ function Stream({ label, text }: { label: string; text: string }) {
  * Line-by-line, aligned by index.
  *
  * Not an LCS diff. The interesting case here is not "a line was inserted" but
- * "line 3 says 3.13.2 on one engine and 3.12.0 on the other", and index
+ * "line 1 says 201703 on one engine and 201402 on the other", and index
  * alignment shows that immediately while a real diff algorithm would be a
  * hundred lines of code on an internal page.
  */
@@ -1140,6 +1209,138 @@ function StdoutDiff({ left, right }: { left: string; right: string }) {
           Showing the first {rows} lines. ∅ means the stream had no such line.
         </p>
       ) : null}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Python backup                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * BACKUP PATH. Not the product, and it compares nothing.
+ *
+ * ## Why this exists at all
+ *
+ * Production ships C++17 only. The Python runtime is nevertheless RETAINED in
+ * the repository as a backup — `src/lib/pyodide/**`, the pinned interpreter and
+ * the library policy in `schools/execution/python-policy.ts`, all deliberately
+ * kept rather than deleted. Retained code that nothing can run is retained code
+ * that has quietly stopped working, so there is one way to exercise it by hand,
+ * and this is it.
+ *
+ * ## Why it has one column and not two
+ *
+ * Because there is no Python judge to be the second one. `ExecutionRequest`'s
+ * `language` is the one-member union `"cpp17"`; `/api/exec/run` compiles C++;
+ * handing it `print(1)` produces a compile error, not a comparison. A second
+ * column here would be exactly the false claim this pane replaced: the page
+ * used to describe that C++ judge with `PYTHON_RUNTIME.version` and feed it
+ * Python presets, which made a screen say something untrue about a running
+ * service.
+ *
+ * So this runs CPython in the browser and reports what CPython said. That is
+ * the entire claim. Nothing is compared, nothing is graded, and the pinned
+ * backup judge version is shown ONLY as what it is: a number nothing sends.
+ *
+ * ## What it needs to work
+ *
+ * `public/pyodide` and `public/pyodide-worker.js`, which `predev` writes and
+ * `scripts/strip-python-assets.mjs` deletes before a production build. On a
+ * machine that has only ever run `npm run build`, the runtime will not start
+ * and the phase below will say so — which is correct, not broken.
+ */
+function PythonBackupPane() {
+  /* `preload: false` even though this component only mounts on demand: an
+     operator opening the section to READ it should not start a 13 MB download
+     they did not ask for. `run` warms the runner itself on first press. */
+  const python = usePython({ preload: false });
+  const [source, setSource] = useState("n = int(input())\nprint(n * n)\n");
+  const [stdin, setStdin] = useState("7");
+  const [result, setResult] = useState<LocalRunResult | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const { run } = python;
+  const runBackup = useCallback(async () => {
+    setBusy(true);
+    setResult(null);
+    setResult(await run({ source, stdin }));
+    setBusy(false);
+  }, [run, source, stdin]);
+
+  return (
+    <section className="flex flex-col gap-4 rounded-[12px] border-2 border-sx-partial p-4">
+      <h2 className="text-[16px] font-bold uppercase tracking-wide text-sx-partial">
+        Backup path — Python. Not the product.
+      </h2>
+
+      <p className="text-[13px] leading-5 text-b-fg/60">
+        Production ships C++17 only. This runs CPython in <strong>this browser</strong> and
+        compares it against <strong>nothing</strong>: there is no Python judge to compare it to.{" "}
+        <code>ExecutionRequest.language</code> is the one-member union <code>&quot;cpp17&quot;</code>
+        , <code>/api/exec/run</code> compiles C++, and sending Python source to it would produce a
+        compile error rather than a second opinion. Nothing on this pane describes the live judge —
+        for that, read the strip at the top of the page.
+      </p>
+
+      <p className="text-[13px] leading-5 text-b-fg/40">
+        Kept so the retained runtime under <code>src/lib/pyodide</code> can still be exercised by
+        hand. Needs <code>public/pyodide</code>, which <code>predev</code> writes and{" "}
+        <code>scripts/strip-python-assets.mjs</code> removes before a production build. See the
+        header of <code>schools/execution/python-policy.ts</code> before wiring anything to this.
+      </p>
+
+      <dl className="grid grid-cols-[12rem_1fr] gap-y-1 font-b-mono text-[13px]">
+        <dt className="text-b-fg/50">phase</dt>
+        <dd>{python.phase}</dd>
+        <dt className="text-b-fg/50">pyodide</dt>
+        <dd>{python.pyodideVersion ?? "—"}</dd>
+        <dt className="text-b-fg/50">python (reported)</dt>
+        <dd>{python.pythonVersion ?? "—"}</dd>
+        <dt className="text-b-fg/50">backup judge pin</dt>
+        {/* Rendered here and NOWHERE else on this page. It is a decision the
+            backup module records, not a description of anything running: no
+            provider sends it and no request carries it. */}
+        <dd className="text-b-fg/40">
+          {PYTHON_RUNTIME.version} · nothing sends this
+        </dd>
+        <dt className="text-b-fg/50">trust</dt>
+        <dd>client_local</dd>
+      </dl>
+
+      {python.error ? (
+        <p className="font-b-mono text-[12px] leading-4 text-sx-wrong">{python.error}</p>
+      ) : null}
+
+      <textarea
+        value={source}
+        onChange={(e) => setSource(e.target.value)}
+        rows={6}
+        spellCheck={false}
+        className="w-full rounded-[12px] border-2 border-b-edge bg-black p-4 font-b-mono text-[14px]"
+      />
+      <input
+        value={stdin}
+        onChange={(e) => setStdin(e.target.value)}
+        placeholder="stdin"
+        className="h-12 rounded-[12px] border-2 border-b-edge bg-black px-4 font-b-mono text-[14px]"
+      />
+
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={runBackup}
+          disabled={busy}
+          className="h-12 w-64 rounded-full border-2 border-sx-partial font-medium text-sx-partial disabled:opacity-40"
+        >
+          {busy ? "running…" : "Run in the browser only"}
+        </button>
+        <span className="text-[13px] text-b-fg/40">
+          One engine. No judge call, no comparison, no agreement banner.
+        </span>
+      </div>
+
+      <LocalPane result={result} busy={busy} />
     </section>
   );
 }

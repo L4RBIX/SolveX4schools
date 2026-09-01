@@ -333,7 +333,46 @@ export interface FillBlankBlock extends BlockBase {
   prompt: Localized;
   /** Code with `___` placeholders, in order. */
   template: string;
-  blanks: { id: string; answer: string; alternatives?: string[] }[];
+  blanks: {
+    id: string;
+    answer: string;
+    alternatives?: string[];
+    /**
+     * This answer is a token the template DISPLAYS on purpose.
+     *
+     * ## What it declares
+     *
+     * "The task is choosing this token, not inventing it." `m3.l8.b8s` asks for
+     * the return type of a function whose parameter is already
+     * `vector<int> a` — naming the type is the exercise, and the type is
+     * visible because the program could not be read without it. The answer is
+     * therefore not a secret: `publicBlock` has to ship the template, because
+     * for a fill_blank the template IS the question, and a template with the
+     * token cut out is a C++ program that does not compile.
+     *
+     * ## Why it is declared rather than inferred
+     *
+     * `secretStringsOf` withholds every blank answer, and the payload-privacy
+     * sweep goes red if one reaches the projection. Inferring the excusal —
+     * "the answer is in the template, so shipping it is fine" — would excuse
+     * an author who pasted a novel answer into the template by accident, which
+     * is the one case where the sweep is telling the truth. The flag makes the
+     * author say it, so the excusal is a decision on the record instead of a
+     * property of the string.
+     *
+     * Eighty-three blanks in the programme name a variable or constant that
+     * appears elsewhere in their template (`n`, `0`, `i`). Those are not
+     * secrets either, but the sweep's length floor never reaches them, so they
+     * need no declaration; `validate.ts` names them as warnings so the
+     * distinction stays visible. Set this only where the token is genuinely
+     * the thing being read off the screen.
+     *
+     * `true` rather than `boolean`: `shown: false` and an absent flag mean the
+     * same thing, and two spellings of one state is how a reader ends up
+     * believing there are two.
+     */
+    shown?: true;
+  }[];
 }
 
 export interface ReorderCodeBlock extends BlockBase {

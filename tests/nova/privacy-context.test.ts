@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { MONTHS } from "@schools/curriculum/months";
-import { capabilityFor } from "@schools/curriculum/capability";
-import { buildNovaMessages, buildSystemPrompt } from "@schools/nova/prompt";
-import { CPP17_FRAME } from "@schools/nova/cpp17";
+import { CAPABILITY_PROMPT_HEADING, capabilityFor } from "@schools/curriculum/capability";
+import { buildNovaMessages, buildSystemPrompt, type PromptContext } from "@schools/nova/prompt";
+import { CPP17_FRAME, CPP17_PROMPT_HEADING } from "@schools/nova/cpp17";
+import {
+  EXECUTION_PROMPT_HEADING,
+  executionContextFor,
+} from "@schools/nova/execution-context";
+import { DIAGNOSTIC_PROMPT_HEADING } from "@schools/nova/diagnostics";
 import type { LessonBlock, Locale } from "@schools/curriculum/types";
+import type { NovaContext } from "@schools/nova/context";
 import type { GrantDecision } from "@solvex/nova-core";
+import type { NovaDirective } from "@solvex/learning-intelligence-core";
 
 /**
  * Exactly what leaves this server.
@@ -57,25 +64,156 @@ function septemberBlocks(): Situated[] {
   return out;
 }
 
+/**
+ * The DEGRADED shape: no block id, no execution, no ledger context.
+ *
+ * Real — the dev lab and a block outside the capability walk build exactly
+ * this — but it is not what a learner's request produces. The privacy
+ * assertions below use it deliberately: they are about what CANNOT be in the
+ * prompt, and the smallest prompt is the strictest place to assert an absence.
+ * The size assertions use `productionPromptFor` instead; see section 4.
+ */
 function promptFor(s: Situated, locale: Locale, level: number): string {
+  return buildSystemPrompt(degradedContext(s, locale, level), "0".repeat(32));
+}
+
+function degradedContext(s: Situated, locale: Locale, level: number): PromptContext {
   const b = s.block as LessonBlock & {
     prompt?: Record<Locale, string>;
     code?: string;
   };
-  return buildSystemPrompt(
-    {
-      locale,
+  return {
+    locale,
+    monthTitle: SEPT.title[locale],
+    lessonTitle: s.lessonTitle,
+    blockPrompt: b.prompt ? b.prompt[locale] : s.lessonTitle,
+    blockCode: typeof b.code === "string" ? b.code : undefined,
+    skills: s.block.skillRefs,
+    capability: capabilityFor(s.block.id),
+    directive: null,
+    grant: grantAt(level),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The shape production actually sends                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What `src/app/api/nova/hint/route.ts` assembles, reproduced.
+ *
+ * Not a smaller stand-in for it. The route passes five things this file used to
+ * leave out — the block id, the directive, the execution evidence, the ledger
+ * context and the learner's draft — and every one of them adds a section to the
+ * system message. Measuring without them was measuring a prompt nobody sends:
+ * 8.4 kB against a real 12.5 kB, with the whole difference unmeasured.
+ *
+ * The learner-authored halves are held at a fixed, realistic size rather than
+ * at their caps, and that is the line this fixture draws on purpose. A judge's
+ * `stdout` and `stderr` may be 800 characters each (`MAX_STREAM_CHARS`) and a
+ * reported run's `stderr` 1 200 (`NOVA_OUTPUT_LIMITS`); those are the learner's
+ * own data, they are already bounded where they are read, and calibrating a
+ * ceiling on their maximum would leave 3 kB of slack for generated context to
+ * grow into unnoticed. What this fixture pins is everything the PLATFORM
+ * generates around them.
+ */
+const COMPILER_ERROR = [
+  "main.cpp:5:19: error: expected ';' after expression",
+  '    cout << "Salem!"',
+  "                   ^",
+  "                   ;",
+  "1 error generated.",
+].join("\n");
+
+const PROGRAM_STDOUT = "17\n";
+
+/** A directive with everything switched on: a named difficulty and a mustNotSay. */
+const DIRECTIVE: NovaDirective = {
+  mode: "explain",
+  mayNameMisconception: true,
+  namedMisconception: "strict_vs_inclusive_boundary",
+  maxHintLevel: 4,
+  mayIncludeCode: true,
+  mustNotSay: ["the answer", "just write"],
+  opening: "You have tried this twice. What did you expect that test to print?",
+};
+
+function ledgerContext(s: Situated, locale: Locale, level: number): NovaContext {
+  const b = s.block as LessonBlock & {
+    prompt?: Record<Locale, string>;
+    code?: string;
+    options?: unknown[];
+  };
+  const code = typeof b.code === "string" ? b.code : undefined;
+  return {
+    /* Pseudonymous, and the privacy assertions above run against the degraded
+       shape precisely so that no fixture of mine can make them pass. */
+    learner: { subjectId: "00000000-0000-0000-0000-000000000000", locale },
+    curriculum: {
       monthTitle: SEPT.title[locale],
       lessonTitle: s.lessonTitle,
-      blockPrompt: b.prompt ? b.prompt[locale] : s.lessonTitle,
-      blockCode: typeof b.code === "string" ? b.code : undefined,
-      skills: s.block.skillRefs,
+      blockId: s.block.id,
+      blockType: s.block.type,
+      prompt: b.prompt ? b.prompt[locale] : s.lessonTitle,
+      skillIds: s.block.skillRefs,
       capability: capabilityFor(s.block.id),
-      directive: null,
-      grant: grantAt(level),
+      mode: "lesson",
     },
-    "0".repeat(32),
-  );
+    interaction: {
+      visible: {
+        code,
+        options: Array.isArray(b.options)
+          ? b.options.slice(0, 12).map((o, i) =>
+              typeof o === "string"
+                ? { id: o, text: o }
+                : { id: String(i), text: String((o as { id?: unknown }).id ?? i) },
+            )
+          : undefined,
+      },
+      settled: {
+        verdict: "incorrect",
+        attemptCount: 2,
+        deliveredHintLevel: level - 1,
+        attemptSinceLastHelp: true,
+        stdout: PROGRAM_STDOUT,
+        stderr: COMPILER_ERROR,
+        visibleTestSummary: "2 of 5 checks passed",
+      },
+      draft: { code: code ?? CPP17_FRAME },
+    },
+    intelligence: {
+      relevantSkills: s.block.skillRefs.map((id) => ({ skillId: id, label: id })),
+      /* `MAX_RELEVANT_EVIDENCE` of them — the most the selector will ever pass. */
+      recentEvidence: [
+        { outcome: "failed", skillId: s.block.skillRefs[0] ?? null, daysAgo: 0, difficulty: "off_by_one" },
+        { outcome: "solved_after_help", skillId: s.block.skillRefs[0] ?? null, daysAgo: 2 },
+        { outcome: "failed", skillId: null, daysAgo: 3 },
+        { outcome: "solved_alone", skillId: null, daysAgo: 6 },
+      ],
+      action: "DIAGNOSE",
+      directive: DIRECTIVE,
+      directiveNote: null,
+    },
+    assistance: { grant: grantAt(level), assessmentCapped: false },
+  };
+}
+
+function productionContext(s: Situated, locale: Locale, level: number): PromptContext {
+  return {
+    ...degradedContext(s, locale, level),
+    blockId: s.block.id,
+    directive: DIRECTIVE,
+    execution: executionContextFor({
+      reported: { status: "syntax_error", stdout: PROGRAM_STDOUT, stderr: COMPILER_ERROR },
+      events: [],
+      blockId: s.block.id,
+    }),
+    context: ledgerContext(s, locale, level),
+  };
+}
+
+function productionPromptFor(s: Situated, locale: Locale, level: number): string {
+  return buildSystemPrompt(productionContext(s, locale, level), "0".repeat(32));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -284,22 +422,40 @@ describe("no credential and no person reaches the model", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("what is sent stays bounded", () => {
-  it("keeps the worst September block under a stated ceiling", () => {
-    /* A number, not a vibe. The measured worst case across the whole month, in
-       both languages, at every rung, is `m1.l6.b3s` in Russian at level 3 —
-       about 6.9 kB, call it 1 700 tokens. The ceiling is 8 000 so that a
-       longer task statement does not turn this into a tripwire that fires on
-       ordinary content edits, while a change that DOUBLES the context still
-       trips it.
-       The reason it matters: input tokens are billed, eighteen learners share
-       one monthly cap, and a context that grows silently is how a pilot runs
-       out of budget in week three. */
+  /**
+   * The measured worst September system message, on the shape the hint route
+   * sends: block id, directive, execution evidence, ledger context and draft.
+   *
+   * 12 478 characters — `m1.as.b2` in Russian at level 1 — call it 3 100
+   * tokens. The ceiling is 13 500, and both halves of that gap are deliberate:
+   *
+   *   - 1 022 characters of headroom is more than three times the longest task
+   *     statement in September (326 characters), so ordinary content edits do
+   *     not turn this into a tripwire;
+   *   - and it is LESS than 1 500, so the next generated section — a paragraph
+   *     of policy, a new derived list, a second inventory — trips it. That is
+   *     the failure this test exists for. The last two arrived unmeasured:
+   *     `schools/nova/cpp17.ts` (+2 065) did not exist when the old ceiling was
+   *     calibrated, and the capability block (+1 499) began rendering the day
+   *     the extractor stopped speaking Python, because the gate that had been
+   *     holding it back is detected rather than configured.
+   *
+   * Why it matters: input tokens are billed, eighteen learners share one
+   * monthly cap, and a context that grows silently is how a pilot runs out of
+   * budget in week three.
+   */
+  const PRODUCTION_CEILING = 13_500;
+
+  /** Same measurement, degraded shape: 8 382 measured, 9 000 stated. */
+  const DEGRADED_CEILING = 9_000;
+
+  function worstOf(build: (s: Situated, l: Locale, n: number) => string) {
     let worst = 0;
     let worstId = "";
     for (const s of septemberBlocks()) {
       for (const locale of LOCALES) {
         for (const level of LEVELS) {
-          const n = promptFor(s, locale, level).length;
+          const n = build(s, locale, level).length;
           if (n > worst) {
             worst = n;
             worstId = `${s.block.id} · ${locale} · L${level}`;
@@ -307,7 +463,74 @@ describe("what is sent stays bounded", () => {
         }
       }
     }
-    expect(worst, `worst case was ${worstId}`).toBeLessThan(8000);
+    return { worst, worstId };
+  }
+
+  it("keeps the worst September block under a stated ceiling, on the shape production sends", () => {
+    const { worst, worstId } = worstOf(productionPromptFor);
+    expect(worst, `worst case was ${worstId}`).toBeLessThan(PRODUCTION_CEILING);
+  });
+
+  it("is measuring a prompt that really is the production shape", () => {
+    /* The ceiling above is worth nothing if what it measures quietly degrades
+       back into the small prompt this file used to check. A missing block id or
+       a null context does not throw — it silently removes two sections and
+       three kilobytes, and the ceiling then passes for the wrong reason. So the
+       sections are named. */
+    const sample = septemberBlocks().find(
+      (s) => typeof (s.block as LessonBlock & { code?: string }).code === "string",
+    )!;
+    const prompt = productionPromptFor(sample, "ru", 3);
+    for (const marker of [
+      CPP17_PROMPT_HEADING,
+      CAPABILITY_PROMPT_HEADING,
+      EXECUTION_PROMPT_HEADING,
+      DIAGNOSTIC_PROMPT_HEADING,
+      "TRUSTED CURRENT INTERACTION",
+      "BEFORE YOU ANSWER",
+    ]) {
+      expect(prompt, `the production prompt must carry ${marker}`).toContain(marker);
+    }
+    /* And it must be the bigger of the two shapes, or the pair of ceilings
+       below has them the wrong way round. */
+    expect(prompt.length).toBeGreaterThan(promptFor(sample, "ru", 3).length);
+  });
+
+  it("states which constructs the learner has met ONCE, not twice", () => {
+    /* The 1.25 kB this test was tripping over was not a section that grew — it
+       was two sections describing the same thing in two vocabularies, and on
+       lessons 5 and 6 they contradicted each other about the frame.
+       `@schools/curriculum/capability` derives the inventory from the content
+       and owns it; `@schools/nova/cpp17` declares what a walk of the content
+       cannot see and defers on the rest. This is the assertion that keeps them
+       from drifting back together. */
+    for (const s of septemberBlocks()) {
+      const prompt = productionPromptFor(s, "ru", 4);
+
+      const inventory = prompt.match(/TAUGHT, use freely/g) ?? [];
+      expect(inventory, `${s.block.id}: one derived TAUGHT list`).toHaveLength(1);
+      expect(prompt, `${s.block.id}: no declared TAUGHT list beside it`).not.toMatch(
+        /of 12\. TAUGHT:/,
+      );
+
+      /* The scaffold sentence, which was rendered word for word by both. */
+      const scaffold = prompt.match(/never ask them to produce it/g) ?? [];
+      expect(scaffold.length, `${s.block.id}: scaffold stated at most once`).toBeLessThanOrEqual(1);
+
+      /* And the later-months list, which the derived view states per construct
+         and per month while the declaration stated seven of them by name. */
+      expect(prompt, `${s.block.id}: no second later-months list`).not.toContain("NOT UNTIL LATER");
+    }
+  });
+
+  it("keeps the degraded shape under its own ceiling", () => {
+    /* Still a real path — the dev lab, and any block outside the capability
+       walk — and the one where `./cpp17` renders the declared sequence in full
+       because nothing else is stating it. Bounded separately rather than folded
+       into the number above: the two shapes fail for different reasons and a
+       single ceiling would hide whichever grew second. */
+    const { worst, worstId } = worstOf(promptFor);
+    expect(worst, `worst case was ${worstId}`).toBeLessThan(DEGRADED_CEILING);
   });
 
   it("bounds the conversation the client may send back", () => {

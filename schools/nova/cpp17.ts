@@ -390,6 +390,33 @@ export function septemberTaughtBy(lesson: number): {
   return { write, given, notYet };
 }
 
+/**
+ * Is the frame on screen without being the learner's to write, at this position?
+ *
+ * The one fact in this file that the derived view gets WRONG rather than merely
+ * misses, which is why it is exported rather than kept private to the renderer.
+ * `frameBecomesTheirsAt()` in `@schools/curriculum/capability` infers the
+ * cutover from the content — the first block whose hidden solution needs a
+ * frame construct the learner has not been shown — and that proxy lands at
+ * teaching lesson 4 (`m1.l10.b5`). The pedagogy document says lesson 7, and the
+ * document is binding.
+ *
+ * So for lessons 5 and 6 the two views disagreed IN THE SAME PROMPT: the
+ * derived list said `#include`, `int main() { }` and `return 0;` were theirs to
+ * use freely while this file said they were on screen and not to be asked for.
+ * `prompt.ts` now asks this question once and the capability block defers, so
+ * the learner's scaffold state is stated once and from the binding source.
+ *
+ * False outside September and false when the position is unknown: after the
+ * frame becomes theirs it never goes back, and an unrecognised block id is not
+ * evidence that a learner is in week one. The withholding it would buy is not
+ * worth telling a learner in March that `#include` is not theirs to write.
+ */
+export function frameIsStillScaffold(position: Cpp17Position | null): boolean {
+  if (!position || position.month !== 1 || position.lesson === null) return false;
+  return septemberTaughtBy(position.lesson).given.some((c) => c.id === "frame");
+}
+
 /* -------------------------------------------------------------------------- */
 /* The bilingual vocabulary                                                   */
 /* -------------------------------------------------------------------------- */
@@ -439,7 +466,51 @@ export const CPP17_TERMS: Record<Locale, readonly string[]> = {
 export const CPP17_PROMPT_HEADING = "THE LANGUAGE — C++17, AND HOW FAR IN THEY ARE";
 
 /**
- * The sequence, said to a model, in as few characters as it can be said in.
+ * What the rest of the prompt is already saying, so this section can stop
+ * saying it too.
+ *
+ * ## The duplication this exists to end
+ *
+ * Two sections were describing the same thing in two vocabularies. This file
+ * DECLARES September's constructs from the pedagogy document; `capability.ts`
+ * DERIVES them by walking the code the course puts on screen. Between them they
+ * were 39.5% of the September system prompt, and the overlap was measured at
+ * ~1.25 kB per request — a TAUGHT list twice, a not-yet list twice, a
+ * later-months list twice, and the scaffold sentence twice, word for word.
+ *
+ * ## Which one is authoritative, and why it is the derived one
+ *
+ * `capability.ts` wins the INVENTORY — which constructs the learner has met.
+ * It is computed from the content by a walk in teaching order, so it cannot
+ * drift from the curriculum the way a hand-written table drifts; it is finer
+ * (the extractor's alphabet, not fourteen pedagogy rows); and its closed-list
+ * rule — "anything not on the TAUGHT list counts as not taught" — is a stronger
+ * statement than any enumeration of what is missing.
+ *
+ * This file keeps only what a walk of the shown code cannot see, and each of
+ * these is here because the derived view is structurally unable to state it:
+ *
+ *   - the language itself, and that Python is not it;
+ *   - the frame VERBATIM, so a hint that points at "line 2" means their line 2;
+ *   - given-vs-required — see `frameIsStillScaffold`, where the derived cutover
+ *     is three lessons early and the pedagogy document is binding;
+ *   - `NEVER_IN_YEAR_ONE`, which is a rule about the whole year. The derived
+ *     view's nearest claim is "no code in this course shows it", and its own
+ *     comment says that is deliberately weaker than "the course does not teach
+ *     it";
+ *   - the semantic traps, which are about what C++ ANSWERS, not what it shows;
+ *   - the bilingual vocabulary, which is not in any code field.
+ *
+ * ## What the cut costs, stated rather than hidden
+ *
+ * One thing: `double`. September teaches the type at lesson 5 and the word
+ * appears in eleven places in the month's PROSE — and in no `code` field
+ * anywhere in the nine months, so the extractor never sees it and the derived
+ * TAUGHT list cannot contain it. Under the closed-list rule Nova will avoid
+ * writing `double` on the lesson about `double`, which is the over-RESTRICTING
+ * direction and therefore the safe one to be wrong in. It is a content gap —
+ * a September that teaches a type it never puts on screen — and papering over
+ * it with a second, contradicting list is how it stayed invisible.
  *
  * Terse because the whole system prompt is under a measured ceiling that a test
  * enforces — input tokens are billed and eighteen learners share one monthly
@@ -447,9 +518,24 @@ export const CPP17_PROMPT_HEADING = "THE LANGUAGE — C++17, AND HOW FAR IN THEY
  * worth paying for on every request, so it lives in these comments and the
  * model gets the rules.
  */
+export interface Cpp17PromptOptions {
+  /**
+   * True when `capabilityPromptLines` is also being rendered into this prompt.
+   *
+   * A fact about the WHOLE prompt, which only its assembler knows, which is why
+   * it is a parameter rather than something guessed here. False is the honest
+   * default: the dev lab, `tests/nova/construct-context.test.ts` and any block
+   * outside the capability walk build a prompt with no derived inventory in it,
+   * and there the declared sequence is the only thing standing between a
+   * fourteen-year-old and a `for` loop.
+   */
+  readonly derivedInventoryPresent: boolean;
+}
+
 export function cpp17PromptLines(
   position: Cpp17Position | null,
   locale: Locale,
+  opts: Cpp17PromptOptions = { derivedInventoryPresent: false },
 ): string[] {
   const lines: string[] = [
     "",
@@ -467,18 +553,37 @@ export function cpp17PromptLines(
     "```",
   ];
 
+  /* The inventory — WHICH constructs — only when nothing else is stating it.
+     The position and the scaffold sentence are stated either way: neither is
+     derivable, and both are what the rest of the section is read against. */
+  const declared = !opts.derivedInventoryPresent;
+
   if (position && position.month === 1 && position.lesson !== null) {
     const { write, given, notYet } = septemberTaughtBy(position.lesson);
     lines.push(
-      `- September, lesson ${position.lesson} of 12. TAUGHT: ${write.map((c) => c.label).join("; ")}`,
+      declared
+        ? `- September, lesson ${position.lesson} of 12. TAUGHT: ${write.map((c) => c.label).join("; ")}`
+        : `- September, lesson ${position.lesson} of 12.`,
     );
     if (given.length) {
+      /* Stated here in BOTH modes, and the capability block defers to it — see
+         `frameIsStillScaffold`. The derived cutover is three lessons early, so
+         the two used to contradict each other on lessons 5 and 6. */
       lines.push(
         `- On screen but NOT yet theirs to write: ${given.map((c) => c.label).join("; ")}.`,
         "  Point at it and explain it; never ask them to produce it.",
       );
     }
     if (notYet.length) {
+      /* Kept in both modes, and it is not the restatement it looks like. The
+         derived view's arrivals are the constructs first shown in a LATER
+         MONTH; one first shown later in THIS month is simply missing from its
+         TAUGHT list, and the closed-list rule is all that withholds it. That is
+         sound and it is silent, and September — twelve lessons with `if` at the
+         ninth — is where within-month sequencing does the most work.
+         It also costs nothing where the ceiling is set: at the assessment,
+         which is the worst September prompt, the month is over and this list is
+         empty. It is at its longest at lesson 1, where the prompt is smallest. */
       lines.push(
         `- NOT TAUGHT YET this month: ${notYet.map((c) => c.label).join("; ")}.`,
       );
@@ -488,8 +593,14 @@ export function cpp17PromptLines(
   }
 
   /* Withheld when the position is unknown, not permitted. A block id nobody
-     recognises is not evidence that the learner has reached December. */
-  const later = arrivesAfter(position?.month ?? 1);
+     recognises is not evidence that the learner has reached December.
+
+     Dropped when the derived inventory is present, which says the same thing
+     construct by construct and month by month — `m2: for, while, vector, …`
+     against this list's `for loops (m2); while loops (m2); arrays and vector
+     (m2)`. Every entry below appears in that one, in the same month, with more
+     of the alphabet around it. */
+  const later = declared ? arrivesAfter(position?.month ?? 1) : [];
   if (later.length) {
     lines.push(
       `- NOT UNTIL LATER: ${later.map((a) => `${a.label} (m${arrivalMonth(a)})`).join("; ")}.`,

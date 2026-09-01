@@ -1744,6 +1744,28 @@ export interface CapabilityPromptOptions {
    * either refuse or invent a worse solution.
    */
   includeTaskGap: boolean;
+  /**
+   * True when another section already states which constructs are on screen
+   * without being the learner's to write.
+   *
+   * `schools/nova/cpp17.ts` does, from the binding prerequisite table, and it
+   * has to: `frameBecomesTheirsAt()` above infers the cutover from the content
+   * — the first block whose hidden solution needs a frame construct nothing has
+   * shown — and that proxy lands at teaching lesson 4 where the pedagogy
+   * document says lesson 7. So on lessons 5 and 6 the same prompt carried both
+   * "TAUGHT, use freely: #include, … return 0;" and "on screen but NOT yet
+   * theirs to write: the frame", about the single fact September is built on.
+   *
+   * When true the frame is left out of BOTH lists here — out of `TAUGHT` as
+   * well as out of its own sentence — because the declared cutover is the later
+   * of the two and the reason to defer is that it is right, not that it is
+   * duplicated. Nothing is withheld by this: the other section names the frame,
+   * prints it verbatim, and says it may be pointed at and explained.
+   *
+   * False leaves this block exactly as it was, which is what a prompt with no
+   * declared sequence in it needs.
+   */
+  scaffoldStatedElsewhere: boolean;
 }
 
 /**
@@ -1753,27 +1775,49 @@ export interface CapabilityPromptOptions {
  * bans. A ban list is only as good as its author's imagination; "anything not
  * on this list is not taught" holds for constructs nobody thought of.
  *
- * Terse on purpose. `schools/nova/cpp17.ts` already tells the model that a
- * longer solution built from what they know is the correct one, and that
- * explaining an untaught construct is allowed while solving with it is not;
- * saying it twice costs input tokens on every request out of a cap eighteen
- * learners share, and `tests/nova/privacy-context.test.ts` holds the whole
- * prompt under a measured ceiling.
+ * ## This block owns the INVENTORY, and it is the only one that may
+ *
+ * `schools/nova/cpp17.ts` declares September's constructs from the pedagogy
+ * document; this derives them from the content. Both were rendering a TAUGHT
+ * list, a not-yet list, a later-months list and the scaffold sentence, in two
+ * vocabularies, ~1.25 kB of restatement per request — and on lessons 5 and 6
+ * the two disagreed about the frame.
+ *
+ * The split now follows what each can actually know. Which constructs the
+ * learner has met is read off the content here, so it cannot drift and it is
+ * stated construct by construct. Everything the content cannot show — the
+ * language itself, the frame verbatim, given-vs-required, the year-one
+ * exclusions, the semantic traps, the bilingual vocabulary — is stated once, in
+ * that file, and this block does not repeat it. `opts.scaffoldStatedElsewhere`
+ * is the one place the seam is visible.
+ *
+ * Terse on purpose. Input tokens are billed out of a cap eighteen learners
+ * share, and `tests/nova/privacy-context.test.ts` holds the whole prompt under
+ * a measured ceiling — on the shape production actually sends.
  */
 export function capabilityPromptLines(
   ctx: CapabilityContext,
   opts: CapabilityPromptOptions,
 ): string[] {
+  /* The frame, when somebody else is stating its status. Held out of `TAUGHT`
+     as well: a construct cannot be "use freely" here and "not yet theirs to
+     write" three lines earlier, and that is exactly what lessons 5 and 6 said
+     until this argument existed. */
+  const available = opts.scaffoldStatedElsewhere
+    ? ctx.available.filter((s) => !SCAFFOLD_IDS.has(s.id))
+    : ctx.available;
+  const scaffold = opts.scaffoldStatedElsewhere ? [] : ctx.givenAsScaffold;
+
   const lines: string[] = [
     "",
     CAPABILITY_PROMPT_HEADING,
     "- Computed from the code this course has put on screen up to this task. Not a guess.",
-    `- TAUGHT, use freely: ${joinLabels(ctx.available)}`,
+    `- TAUGHT, use freely: ${joinLabels(available)}`,
   ];
 
-  if (ctx.givenAsScaffold.length) {
+  if (scaffold.length) {
     lines.push(
-      `- ON SCREEN but NOT theirs to write: ${joinLabels(ctx.givenAsScaffold)}.`,
+      `- ON SCREEN but NOT theirs to write: ${joinLabels(scaffold)}.`,
       "  Point at it and explain it; never ask them to produce it.",
     );
   }
@@ -1793,9 +1837,19 @@ export function capabilityPromptLines(
       .join(" · ");
     lines.push(`- NOT YET — first shown in a later month: ${grouped}`);
   }
-  if (ctx.neverShown.length) {
-    lines.push(`- NEVER SHOWN in this course's code: ${joinLabels(ctx.neverShown)}`);
-  }
+  /* `ctx.neverShown` is deliberately NOT rendered, and the field stays on the
+     context because `tests/school/constructs-are-taught.test.ts` asserts it and
+     the dev lab shows it.
+     It was an enumeration of part of the complement of a list that is already
+     closed — 420 characters, on every request, all year, forbidding nothing the
+     next two lines do not forbid. Two of its entries argued against the rest of
+     the prompt while it was there: `class / struct`, `template`, `new / delete`,
+     `pointers` and `lambda` restate `NEVER_IN_YEAR_ONE` in `schools/nova/cpp17.ts`
+     as the weaker claim (never SHOWN, rather than never TAUGHT in year one), and
+     `double` said "no code in this course shows it" about a type September
+     teaches at lesson 5 — which is true of the content and reads as a
+     prohibition. The closed-list rule below covers every one of them without
+     naming any. */
 
   lines.push(
     /* "closed" verbatim: `tests/nova/construct-context.test.ts` asserts this

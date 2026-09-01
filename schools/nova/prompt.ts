@@ -16,7 +16,12 @@ import {
 import type { NovaMessage } from "./provider";
 import type { NovaContext } from "./context";
 import { draftBlock, groundingReminder, trustedContextLines } from "./render-context";
-import { CPP17_PROMPT_HEADING, cpp17PositionOf, cpp17PromptLines } from "./cpp17";
+import {
+  CPP17_PROMPT_HEADING,
+  cpp17PositionOf,
+  cpp17PromptLines,
+  frameIsStillScaffold,
+} from "./cpp17";
 import { DIAGNOSTIC_PROMPT_HEADING } from "./diagnostics";
 import { voiceContract } from "./voice";
 import { failureWord } from "@schools/learning/phrasing";
@@ -379,10 +384,30 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
    * Unconditional. `capability` is optional and frequently null; this is not,
    * because "we could not work out which lesson they are on" is a reason to fall
    * back to the month's rules, never a reason to stop saying which language the
-   * course is in. */
-  lines.push(...cpp17PromptLines(cpp17PositionOf(ctx.blockId), locale));
+   * course is in.
+   *
+   * ## The two of them are assembled together
+   *
+   * Which of them may say what depends on whether the other one is here.
+   *
+   * `capability` is the derived inventory — a walk of the code the course has
+   * put on screen, in teaching order, up to this block. When it is present it
+   * is authoritative about WHICH constructs the learner has met, and `./cpp17`
+   * drops its own coarser restatement of the same thing (~1.25 kB per request,
+   * measured on the worst September block). When it is absent — the dev lab, a
+   * block outside the walk, a prompt built by a test — the declared sequence is
+   * the only sequence gate there is, and it renders in full.
+   *
+   * The one thing that does not move is the frame's given-vs-required status:
+   * `./cpp17` states it from the pedagogy document in both modes, and the
+   * capability block defers, because the derived cutover is three lessons early
+   * and the two used to contradict each other inside the same prompt. */
+  const position = cpp17PositionOf(ctx.blockId);
+  const derived = Boolean(ctx.capability) && !CAPABILITY_VOCABULARY_IS_PYTHON;
 
-  if (ctx.capability && !CAPABILITY_VOCABULARY_IS_PYTHON) {
+  lines.push(...cpp17PromptLines(position, locale, { derivedInventoryPresent: derived }));
+
+  if (ctx.capability && derived) {
     /* The task-specific exception is withheld below level 3.
      *
      * `taskGap` names what this task's own solution needs beyond the taught
@@ -391,7 +416,12 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
      * to stop exactly that. At 3 and 4 Nova is walking the reasoning through or
      * giving the fix, so withholding it there would only force it to invent a
      * worse solution or refuse. */
-    lines.push(...capabilityPromptLines(ctx.capability, { includeTaskGap: grant.granted >= 3 }));
+    lines.push(
+      ...capabilityPromptLines(ctx.capability, {
+        includeTaskGap: grant.granted >= 3,
+        scaffoldStatedElsewhere: frameIsStillScaffold(position),
+      }),
+    );
   }
 
   /* Metadata only — where the code ran and what that is worth. The program's

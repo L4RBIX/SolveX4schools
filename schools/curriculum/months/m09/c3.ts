@@ -87,10 +87,20 @@ import type { LessonBlock } from "../../types";
  * 7 998 5s with L = 9 denies an early-exit pairing scan every partner, so the
  * quadratic solution took over 8 s against the reference's 0.10 s.
  *
- * **Re-measured under C++17 at -O2 the same two programs take 0.04 s and
- * 0.00 s.** The quadratic scan is now some two hundred times faster than it was,
- * and ~3 · 10⁷ operations is nothing against a 5 s budget. The guard cannot be
- * restored through stdin: at two bytes a value `EXECUTION_LIMITS.maxStdinBytes`
+ * **Re-measured under C++17, medians of nine runs: the reference takes 0.012 s
+ * and the quadratic scan 0.046 s at -O2 — and at the -O0 Judge0 actually grades
+ * at, 0.012 s and 0.661 s.** The quadratic scan is now some twelve times faster
+ * than it was, and ~3 · 10⁷ operations is nothing against a 5 s budget: even
+ * unoptimised the naive sits a factor of 7.6 inside the limit, which is the
+ * smallest margin anywhere in this month and still far too large to grade on.
+ *
+ * The 14x spread between the two optimisation levels here — against 2x for
+ * m9.l3.b6's naive — is the `vector<bool>` the scan marks passengers in: a
+ * bit-packed proxy whose accessors disappear under inlining and do not at -O0.
+ * Worth knowing before anyone quotes an -O2 number at a bound again.
+ *
+ * The guard cannot be restored through stdin: at two bytes a value
+ * `EXECUTION_LIMITS.maxStdinBytes`
  * (16 KiB) caps a case at about 8 190 numbers, which caps the naive work at
  * ~3 · 10⁷ — and that is fast in C++. Restoring it would mean generating the
  * weights in-program from a seed, as `m9.c1.p4` and `m9.c4.p3` now do; it is not
@@ -102,7 +112,12 @@ import type { LessonBlock } from "../../types";
  * actually exercised — 8 000 weights read, a shape where almost nobody can share
  * a boat, and an answer of 7 998 that no small case reaches. It does not
  * separate the two-pointer solution from the quadratic one, and no prompt
- * claimed it did.
+ * claimed it did — this problem's statement names no method at all, which is
+ * what makes it honest without needing a disclaimer.
+ *
+ * `tests/school/may-complexity-guards.test.ts` holds both halves of that: that
+ * the quadratic scan answers this case correctly, and that the prompt has not
+ * quietly grown a method it cannot enforce.
  *
  * 16 007 bytes with the appended newline, inside `EXECUTION_LIMITS.maxStdinBytes`.
  */

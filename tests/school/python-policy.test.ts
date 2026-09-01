@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { CPP_RUNTIME } from "@schools/execution/cpp-runtime";
+import { PistonExecutionProvider } from "@schools/exec/providers/piston";
 import {
   ANTICIPATED_STDLIB,
   PACKAGE_REQUEST_GATES,
@@ -9,78 +13,167 @@ import {
   isAnticipatedStdlib,
   reviewPackageRequest,
   type PackageRequestGateId,
-} from "../../schools/execution/python-policy";
+} from "@schools/execution/python-policy";
 
 /**
- * The runtime policy, asserted.
+ * The BACKUP runtime policy, asserted — and the boundary that keeps it backup.
  *
- * A policy nothing checks is a comment, and a version number nothing checks is
- * a version number that will be edited in one of the four places it appears.
+ * `schools/execution/python-policy.ts` is retained deliberately: production
+ * ships C++17 only, the Python-era curriculum is not coming back, and the
+ * Python source stays in the repository as a backup rather than being deleted.
+ * That makes this file a test of a backup module, which is legitimate — an
+ * inert module with no test is an inert module nobody can revive safely — but
+ * it changes what the file is for.
  *
- * ## What these tests can and cannot establish
+ * ## What these tests establish
  *
- * They establish that the pin has ONE home and that the provider reads it from
- * there. They establish nothing whatsoever about whether a real Piston can
- * install `3.12.0` — no instance has ever been reached from this repository, and
- * that claim can only be closed by a live `GET /api/v2/packages`. See
- * `docs/infrastructure/JUDGE_DEPLOYMENT.md`, which makes that call step one.
+ * Two different things, and they are worth keeping apart.
+ *
+ * 1. **The backup module is internally consistent.** The pin is an exact
+ *    triple, the wire version is a range that covers it, the package gates
+ *    refuse by default and say why. That is preserved reasoning; a future
+ *    reader deciding whether to revive Python gets a module that still holds
+ *    together rather than one that rotted quietly.
+ *
+ * 2. **The backup cannot become the product by accident.** This is the part
+ *    that guards the shipping system. It is asserted against the PROVIDER's
+ *    actual behaviour and against the active module graph, not by grepping one
+ *    file for a string that happens to be absent.
+ *
+ * ## What they do not establish
+ *
+ * Nothing whatsoever about whether a real Piston can install `3.12.0`. No
+ * instance has ever been reached from this repository, and now none will be:
+ * nothing sends these values. That question is recorded, not pending.
  */
 
-describe("the pinned interpreter has one source of truth", () => {
-  it("pins an exact triple for installation", () => {
-    /* Exact, not a range. This is what goes to `POST /api/v2/packages`, and it
-       is the entire reproducibility claim: evidence recorded in March is only
-       comparable to evidence recorded in April if the interpreter underneath
-       both is knowable. */
-    expect(PYTHON_RUNTIME.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(PINNED_PYTHON_VERSION).toBe(PYTHON_RUNTIME.version);
+/* -------------------------------------------------------------------------- */
+/* The boundary: Python is backup, and the wire proves it                      */
+/* -------------------------------------------------------------------------- */
+
+/** Repo root. Vitest runs from it, the same way `python-version-skew` does. */
+const ROOT = process.cwd();
+
+/**
+ * Every TypeScript file in the ACTIVE execution path.
+ *
+ * "Active" is meant narrowly and each entry earns its place: the server-side
+ * providers and the port they implement (`schools/exec`), the config they read
+ * (`schools/config.ts`), the runtime policy that is actually authoritative
+ * (`schools/execution/cpp-runtime.ts`), and the browser compiler a learner
+ * presses Run against (`src/lib/cpp17`). If any of those grew an import of the
+ * backup module, Python would be back in the product's module graph — which is
+ * the failure this guard exists to catch, and it is a graph property rather
+ * than a spelling one.
+ */
+const ACTIVE_EXECUTION_PATHS = [
+  "schools/exec",
+  "schools/config.ts",
+  "schools/execution/cpp-runtime.ts",
+  "src/lib/cpp17",
+];
+
+function sourceFilesUnder(relative: string): string[] {
+  const absolute = path.join(ROOT, relative);
+  if (!statSync(absolute).isDirectory()) return [absolute];
+  const found: string[] = [];
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    const child = path.join(relative, entry.name);
+    if (entry.isDirectory()) found.push(...sourceFilesUnder(child));
+    else if (/\.tsx?$/.test(entry.name)) found.push(path.join(ROOT, child));
+  }
+  return found;
+}
+
+describe("Python is the backup path, and the active judge cannot be sent it", () => {
+  it("is not what the Piston provider puts on the wire — the judge is asked for C++", async () => {
+    /* The assertion this file exists to make, and it is made against the
+       provider's BEHAVIOUR rather than its source text. The previous version
+       grepped `piston.ts` for the literal `PYTHON_RUNTIME.wireVersion`, which
+       was the right test while Python was the product and became a dead string
+       coupling the moment it was not: it failed because someone had correctly
+       removed the thing it watched for.
+
+       So the provider is actually run, with `fetch` stubbed, and the request
+       body it produced is inspected. That fails if anyone re-wires the Python
+       runtime here by any spelling — a literal, a re-import, an alias — and it
+       cannot fail merely because a comment was reworded. */
+    const sent: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(String(init?.body ?? ""));
+      return new Response(
+        JSON.stringify({ run: { stdout: "1", stderr: "", code: 0, signal: null } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as typeof globalThis.fetch;
+
+    try {
+      await new PistonExecutionProvider("http://judge.invalid").run({
+        language: "cpp17",
+        sourceCode: "#include <iostream>\nint main(){ std::cout << 1; }\n",
+        stdin: "",
+        timeLimitMs: 1_000,
+        memoryLimitMb: 64,
+      });
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+
+    expect(sent, "the provider must have called the judge exactly once").toHaveLength(1);
+    const body = JSON.parse(sent[0]) as {
+      language: string;
+      version: string;
+      files: { name: string; content: string }[];
+    };
+
+    // What it DOES send: the one authoritative runtime module.
+    expect(body.language).toBe(CPP_RUNTIME.pistonLanguage);
+    expect(body.version).toBe(CPP_RUNTIME.wireVersion);
+    expect(body.files[0].name).toBe(CPP_RUNTIME.sourceFileName);
+
+    /* What it must never send. Stated against the backup module's own values so
+       that changing them cannot quietly make this pass — if someone re-pointed
+       `PYTHON_RUNTIME.pistonLanguage` at `"c++"`, the first of these would fire
+       rather than going green by coincidence. */
+    expect(body.language).not.toBe(PYTHON_RUNTIME.pistonLanguage);
+    expect(body.version).not.toBe(PYTHON_RUNTIME.wireVersion);
+    expect(body.files[0].name.endsWith(".py")).toBe(false);
+    expect(JSON.stringify(body)).not.toContain(PYTHON_RUNTIME.version);
   });
 
-  it("asks the judge for a RANGE, which the pin makes safe", () => {
-    /* The wire version is deliberately loose while the install is exact. Piston
-       resolves it against the packages the host has, and the host has exactly
-       one Python, so it can only resolve to the pin — while a patch-level
-       rebuild of the judge stays a rebuild rather than an outage.
-       `tests/exec/piston-conformance.test.ts` asserts the same literal from the
-       other end, against a protocol-faithful fake. */
-    expect(PYTHON_RUNTIME.wireVersion).toBe("3.*");
-    expect(PYTHON_RUNTIME.wireVersion).not.toBe(PYTHON_RUNTIME.version);
-    // The range must actually cover the pin, or the two decisions have drifted.
-    expect(PYTHON_RUNTIME.version.startsWith("3.")).toBe(true);
-  });
+  it("is imported by nothing in the active execution path", () => {
+    /* The other half of the same claim. The wire test proves the Piston
+       provider is clean; this proves nobody else in the shipping path reaches
+       for the backup either, including the judge0 provider and the browser
+       compiler, neither of which the wire test touches.
 
-  it("uses Piston's package name, not our port's language id", () => {
-    /* `ExecutionRequest.language` is `python3` — our own port's vocabulary.
-       Piston's package is called `python`. Sending the wrong one is a 400 on
-       every request and a whole class unmeasured, so they are distinguished
-       here rather than assumed identical. */
-    expect(PYTHON_RUNTIME.pistonLanguage).toBe("python");
-  });
+       An import edge, not a mention: the docs and this test file are allowed to
+       name the module, and do. */
+    const files = ACTIVE_EXECUTION_PATHS.flatMap(sourceFilesUnder);
+    /* A scan that found nothing would pass vacuously, which is exactly how this
+       kind of guard dies — a directory gets renamed and the test keeps smiling. */
+    expect(files.length, "the active-path scan found no files to check").toBeGreaterThan(10);
 
-  it("is the value the Piston provider actually puts on the wire", async () => {
-    /* The point of the constant. Read from the provider's source rather than
-       from a second copy of the literal, so this fails if someone re-hardcodes
-       the version there. */
-    const src = await import("node:fs/promises").then((fs) =>
-      fs.readFile(new URL("../../schools/exec/providers/piston.ts", import.meta.url), "utf8"),
+    const importers = files.filter((file) =>
+      /^\s*import[\s\S]*?["'][^"']*python-policy["']/m.test(readFileSync(file, "utf8")),
     );
-    expect(src).toContain("PYTHON_RUNTIME.wireVersion");
-    expect(src).toContain("PYTHON_RUNTIME.pistonLanguage");
-    // And no stray literal left behind beside it.
-    expect(src).not.toMatch(/version:\s*"3\.\*"/);
+    expect(
+      importers.map((f) => path.relative(ROOT, f)),
+      "python-policy.ts is a BACKUP module. Importing it from the active execution path " +
+        "puts Python back in the product's module graph — see the header of " +
+        "schools/execution/python-policy.ts before changing this.",
+    ).toEqual([]);
   });
 
   it("stays a build-time decision rather than an environment variable", async () => {
-    /* Deliberately not `env()`. An operator who can change the interpreter
-       version from a dashboard can make two months of a child's evidence
-       incomparable with no commit and no trace.
+    /* Deliberately not `env()`, and still worth asserting on a backup: a module
+       whose version could be changed from a dashboard is not a record of a
+       decision, it is a surface. Reviving it should start from a constant.
 
-       This used to read `config.exec.python.version`. That key is gone: the
-       course is C++17 now and `schools/config.ts` carries `exec.cpp` instead,
-       from `schools/execution/cpp-runtime.ts`. The pin itself is still asserted
-       here, straight from the policy module — but nothing in the product reads
-       it any more, which is the point this whole FILE is now making. See the
-       header note above about retirement. */
+       This used to read `config.exec.python.version`. That key is gone — the
+       course is C++17 and `schools/config.ts` carries `exec.cpp` instead, from
+       `schools/execution/cpp-runtime.ts`. */
     expect(PINNED_PYTHON_VERSION).toBe("3.12.0");
 
     const src = await import("node:fs/promises").then((fs) =>
@@ -90,19 +183,61 @@ describe("the pinned interpreter has one source of truth", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* Internal consistency of the backup module                                   */
+/* -------------------------------------------------------------------------- */
+
+describe("the backup pin is internally consistent", () => {
+  it("pins an exact triple for installation", () => {
+    /* Exact, not a range. This is what would go to `POST /api/v2/packages`, and
+       it was the entire reproducibility claim: evidence recorded in March is
+       only comparable to evidence recorded in April if the interpreter
+       underneath both is knowable. The same argument now lives, live, in
+       `CPP_RUNTIME`. */
+    expect(PYTHON_RUNTIME.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(PINNED_PYTHON_VERSION).toBe(PYTHON_RUNTIME.version);
+  });
+
+  it("asks for a RANGE on the wire, which the pin makes safe", () => {
+    /* The wire version is deliberately loose while the install is exact. Piston
+       resolves it against the packages the host has, and the host would have
+       exactly one Python, so it could only resolve to the pin — while a
+       patch-level rebuild of the judge stays a rebuild rather than an outage.
+
+       `tests/exec/piston-conformance.test.ts` no longer corroborates this from
+       the other end: it asserts the C++ wire format, because that is what the
+       provider sends. This assertion is now about the backup module alone. */
+    expect(PYTHON_RUNTIME.wireVersion).toBe("3.*");
+    expect(PYTHON_RUNTIME.wireVersion).not.toBe(PYTHON_RUNTIME.version);
+    // The range must actually cover the pin, or the two decisions have drifted.
+    expect(PYTHON_RUNTIME.version.startsWith("3.")).toBe(true);
+  });
+
+  it("uses Piston's package name, not our port's language id", () => {
+    /* `ExecutionRequest.language` was `python3` — our own port's vocabulary.
+       Piston's package is called `python`. Sending the wrong one would have
+       been a 400 on every request and a whole class unmeasured, so they are
+       distinguished here rather than assumed identical.
+
+       The port's union is now the single member `"cpp17"`, which is the
+       structural reason nothing can ask any provider for Python by mistake. */
+    expect(PYTHON_RUNTIME.pistonLanguage).toBe("python");
+  });
+});
+
 describe("the library policy", () => {
   it("forbids third-party packages in year one", () => {
     expect(THIRD_PARTY_PACKAGES_ALLOWED).toBe(false);
   });
 
   it("needs none of the standard library for September", () => {
-    /* Not "few" — none. Every September task is input, int, arithmetic,
-       comparison and print, which is what makes "stdlib only" cost the month
-       nothing at all. */
+    /* Not "few" — none. Every September task in the Python-era curriculum was
+       input, int, arithmetic, comparison and print, which is what made "stdlib
+       only" cost the month nothing at all. */
     expect(SEPTEMBER_STDLIB_REQUIRED).toHaveLength(0);
   });
 
-  it("anticipates the modules later months will reach for", () => {
+  it("anticipates the modules later months would have reached for", () => {
     const modules = ANTICIPATED_STDLIB.map((m) => m.module);
     for (const expected of [
       "math",

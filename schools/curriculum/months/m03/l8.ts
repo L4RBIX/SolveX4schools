@@ -794,7 +794,11 @@ export const M3_L8: LessonBlock[] = [
       "    return 0;\n" +
       "}",
     blanks: [
-      { id: "f1", answer: "vector<int>" },
+      /* `shown`: the template's own `only_even(vector<int> a)` displays this
+         type, so naming it is a reading task, not a recall task. The template
+         has to ship whole — it is the question — so the projection could not
+         withhold the token even if it wanted to. */
+      { id: "f1", answer: "vector<int>", shown: true },
       { id: "f2", answer: "0" },
       { id: "f3", answer: "b" },
     ],
