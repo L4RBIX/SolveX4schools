@@ -14,10 +14,12 @@
  *
  * `scrub` is applied to every piece of text that came back from the judge
  * before it reaches a report field, and the writer refuses to save a document
- * the key still appears in. Two guards, because one of the probes reads
- * `os.environ` and the whole point of a probe is that it returns something
- * nobody predicted.
+ * the key still appears in. Two guards, because one of the probes walks
+ * `environ` and the whole point of a probe is that it returns something nobody
+ * predicted.
  */
+
+import { JUDGE0_CPP_NAME, MIN_GNU_CXX17_MAJOR } from "@schools/execution/cpp-runtime";
 
 export type PhaseName = "languages" | "conformance" | "probes" | "parity" | "cost" | "concurrency";
 
@@ -58,20 +60,36 @@ export interface SpendSnapshot {
 export interface LanguageEntry {
   id: number;
   name: string;
-  /** Does it match the adapter's anchored `^Python\s*\((3(?:\.\d+)*)\)$` rule? */
+  /**
+   * Would the adapter actually submit to this entry?
+   *
+   * BOTH halves of `discoverLanguage`'s rule, not just the name: `JUDGE0_CPP_NAME`
+   * matched AND the major version at or above `MIN_GNU_CXX17_MAJOR`. Reporting
+   * the regex alone would print `yes` beside `C++ (GCC 7.4.0)` — a name that
+   * matches and a compiler discovery refuses — which is the one row a reader of
+   * this table is most likely to act on.
+   */
   matchesDiscoveryRule: boolean;
 }
 
 export interface LanguagesPhase {
   totalLanguages: number | null;
-  /** Every entry whose name mentions Python at all, matching rule or not. */
-  pythonEntries: LanguageEntry[];
+  /** Every entry whose name mentions C++ at all, matching rule or not. */
+  cppEntries: LanguageEntry[];
   catalogueProblem: string | null;
   selected: { id: number; name: string; version: string | null; operatorOverride: boolean } | null;
   selectionProblem: string | null;
-  /** `sys.version` as the interpreter itself reports it. A label is not an interpreter. */
-  interpreterVersion: string | null;
-  interpreterProblem: string | null;
+  /**
+   * What the compiler said about itself when asked — `__VERSION__`,
+   * `__cplusplus`, `__OPTIMIZE__`, and the sign of `-7 / 2`.
+   *
+   * A catalogue name is a string Judge0 wrote next to an id; this is the
+   * toolchain answering. `__cplusplus` is the one that decides whether this
+   * product works at all: `compiler_options` is HTTP 403 on this plan, so the
+   * standard can only come from the compiler's own default.
+   */
+  compilerIdentity: string | null;
+  compilerProblem: string | null;
   /** Every `x-ratelimit-*` (and `retry-after`) seen, under the vendor's own names. */
   quotaHeadersPresent: Record<string, string>;
   /** The names the brief asks about that were NOT on any response. */
@@ -263,7 +281,7 @@ export function renderReport(report: LiveValidationReport): string {
     p(
       `> **This run did NOT talk to RapidAPI.** It talked to \`${cell(report.baseUrl)}\`. ` +
         "Everything below describes that host and is not a claim about the rented judge, " +
-        "its plan, its sandbox or its Python.",
+        "its plan, its sandbox or its compiler.",
     );
     p();
   }
@@ -323,22 +341,29 @@ export function renderReport(report: LiveValidationReport): string {
     p(`Languages the service exposes: **${num(l.totalLanguages)}**.`);
     if (l.catalogueProblem) p(`\nCatalogue problem: ${l.catalogueProblem}`);
     p();
-    p("### Every Python the service offers");
+    p("### Every C++ the service offers");
     p();
-    if (l.pythonEntries.length === 0) {
+    if (l.cppEntries.length === 0) {
       p(`${UNKNOWN} — the catalogue was not read.`);
     } else {
-      p("| id | name | matches the adapter's discovery rule |");
+      p("| id | name | the adapter would submit to it |");
       p("|---|---|---|");
-      for (const e of l.pythonEntries) {
+      for (const e of l.cppEntries) {
         p(`| ${e.id} | \`${cell(e.name)}\` | ${e.matchesDiscoveryRule ? "yes" : "**no**"} |`);
       }
       p();
       p(
-        "The rule is `^Python\\s*\\((3(?:\\.\\d+)*)\\)$`, anchored on purpose so " +
-          "`Python for ML (…)` is refused: that runtime ships numpy, and " +
-          "`schools/execution/python-policy.ts` enforces standard-library-only BY ABSENCE. " +
-          "Among the names that match, the highest version wins, compared numerically.",
+        "The rule is `schools/execution/cpp-runtime.ts`'s own, read from there rather than " +
+          `restated: the name must match \`${JUDGE0_CPP_NAME.source}\` **and** the major ` +
+          `version must be at least ${MIN_GNU_CXX17_MAJOR}. Both halves are refusals, not ` +
+          "preferences. `compiler_options` is answered with HTTP 403 on this plan, so " +
+          "`-std=c++17` cannot be sent and the standard has to come from the compiler's own " +
+          "default — which GCC only supplies from 11 onward, and which the catalogue's Clang " +
+          "does not supply at all. A name-only rule would land on `C++ (GCC 7.4.0)`; a " +
+          "family-blind rule would land on `C++ (Clang 7.0.1)`; either would compile the " +
+          "course's own syntax as C++14 and report the learner wrong for writing what they " +
+          "were taught. Among the entries that pass both halves, the highest version wins, " +
+          "compared numerically.",
       );
     }
     p();
@@ -350,13 +375,21 @@ export function renderReport(report: LiveValidationReport): string {
     p(`| Catalogue name | ${l.selected ? `\`${cell(l.selected.name)}\`` : UNKNOWN} |`);
     p(`| Version parsed from the name | ${l.selected ? text(l.selected.version) : UNKNOWN} |`);
     p(`| Operator override (\`JUDGE0_LANGUAGE_ID\`) | ${l.selected ? String(l.selected.operatorOverride) : UNKNOWN} |`);
-    p(`| \`sys.version\`, from the interpreter itself | ${text(l.interpreterVersion)} |`);
+    p();
+    p("### What the compiler said about itself");
+    p();
+    p(l.compilerIdentity === null ? UNKNOWN : fence(l.compilerIdentity));
     p();
     if (l.selectionProblem) p(`Selection problem: ${l.selectionProblem}\n`);
-    if (l.interpreterProblem) p(`Interpreter problem: ${l.interpreterProblem}\n`);
+    if (l.compilerProblem) p(`Compiler problem: ${l.compilerProblem}\n`);
     p(
-      "A catalogue label is a string Judge0 wrote next to an id. `sys.version` is the " +
-        "interpreter answering for itself, and where the two disagree the interpreter wins.",
+      "A catalogue label is a string Judge0 wrote next to an id. The block above is the " +
+        "toolchain answering for itself, and where the two disagree the compiler wins. " +
+        "`__cplusplus` must read `201703`: it is the whole basis on which this product " +
+        "submits without `compiler_options`, which this plan refuses with HTTP 403. " +
+        "`__OPTIMIZE__` is reported because the judge compiles at `-O0` while the browser " +
+        "runs `-O2`, and `-7 / 2` because C++ truncates toward zero where the Python " +
+        "curriculum this replaced floored — see `docs/cpp17/CPP17_JUDGE_PARITY.md`.",
     );
     p();
     p("### RapidAPI quota headers");
@@ -474,12 +507,14 @@ export function renderReport(report: LiveValidationReport): string {
   p();
   p(
     "The programs are `tests/execution/parity-fixtures.ts` — real September reference " +
-      "solutions and the mutations a fourteen-year-old actually makes — run through Judge0 " +
-      "and compared against what the browser's Pyodide is asserted to produce. " +
-      "**Traceback prose is not compared:** CPython rewrote its diagnostics across 3.13 and " +
-      "3.14, so the wording differs by interpreter vintage and that difference is documented, " +
-      "not a defect. Arithmetic, `//`, `%`, negatives, conditions, strings, Unicode and big " +
-      "integers ARE compared, and a divergence there is a real finding.",
+      "solutions and the mutations a fourteen-year-old actually makes — compiled and run " +
+      "through Judge0 and compared against what the browser engine is declared to produce. " +
+      "**Diagnostic prose is not compared:** the browser is Clang 8 and the judge is GCC 14, " +
+      "and the two phrase the same error differently. That is a documented divergence, not a " +
+      "defect, and pinning the wording would fail this report for the wrong reason. " +
+      "Arithmetic, `/`, `%`, negatives, conditions, strings, Unicode and `long long` ARE " +
+      "compared, and a divergence there is a real finding — `-7 / 2` most of all, because " +
+      "C++ truncates toward zero where Python floored.",
   );
   p();
   if (!report.parity) {

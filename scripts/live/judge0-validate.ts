@@ -9,11 +9,13 @@
  * This block used to open "it has never run against RapidAPI ... there is no key
  * in this repository and none in the shell environment", and it stayed that way
  * after a key was added — so the first thing a reader saw was a claim the
- * deployment had already disproved. It has since been run for real: 42 billable
- * submissions against `judge0-ce.p.rapidapi.com`, Python 3.14.0 (language id
- * 113) confirmed from `sys.version` rather than from the catalogue label, 11/11
- * conformance and 25/25 September parity. `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`
- * carries the measurements and the date.
+ * deployment had already disproved. It has since been run for real against
+ * `judge0-ce.p.rapidapi.com`, and re-run after the curriculum moved from Python
+ * to GNU C++17: **language id 105, `C++ (GCC 14.1.0)`**, confirmed from the
+ * compiler's own `__VERSION__` and `__cplusplus` rather than from the catalogue
+ * label. `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md` carries the run's
+ * measurements and its date; `docs/cpp17/CPP17_JUDGE_PARITY.md` carries the
+ * language facts this script now checks against.
  *
  * Without a key it still detects that, says so, spends nothing and stops — that
  * behaviour is unchanged, and the document is still not created until a run
@@ -22,15 +24,18 @@
  *
  * ## What it does, in order
  *
- * 1. **Identity.** `GET /languages`, every Python the service exposes, which one
- *    the adapter's own discovery selects, and `sys.version` from the interpreter
- *    itself — because a catalogue label is a string Judge0 wrote next to an id.
+ * 1. **Identity.** `GET /languages`, every C++ the service exposes, which one
+ *    the adapter's own discovery selects, and `__VERSION__` / `__cplusplus` from
+ *    the compiler itself — because a catalogue label is a string Judge0 wrote
+ *    next to an id, and the standard here comes from the compiler's DEFAULT:
+ *    `compiler_options` is refused with HTTP 403 on this plan, so `-std=c++17`
+ *    cannot be sent and `__cplusplus` is the only way to know what was used.
  *    Plus every `x-ratelimit-*` header that arrived, and every one that did not.
  * 2. **Conformance.** Eleven programs, asserted on the NORMALISED
  *    `ExecutionResult`, including the row that matters most: the learner's slow
  *    program is `time_limit_exceeded` and the judge's bad day is not.
  * 3. **Sandbox probes.** Network, filesystem, temp files, subprocesses,
- *    `os.environ`. Observational and non-destructive. The honest answer may be
+ *    `environ`. Observational and non-destructive. The honest answer may be
  *    that a boundary is open, and then that is the finding.
  * 4. **Parity.** The real September programs from `tests/execution/parity-fixtures.ts`.
  * 5. **Cost shape.** Submissions and API requests for one Check, measured, not
@@ -53,8 +58,8 @@
  * Read from `JUDGE0_RAPIDAPI_KEY`, carried in a header by the adapter, and never
  * printed, logged, written, or put in an error message. Its presence is
  * reported; its length is not. Everything the judge sends back is passed through
- * `scrub()` before it can reach a report field — one of the probes reads
- * `os.environ`, and "output cannot contain the key" is an assumption, not a
+ * `scrub()` before it can reach a report field — one of the probes walks
+ * `environ`, and "output cannot contain the key" is an assumption, not a
  * fact — and the writer refuses to save a document the key appears in.
  *
  * ## Why it does not use `getExecutionProvider()`
@@ -76,9 +81,15 @@ import type { OutputChecker } from "@schools/exec";
 import type { LessonBlock, Month } from "@schools/curriculum/types";
 import type { ExecutionRequest, ExecutionResult } from "@schools/exec/provider";
 import type { Judge0Options, Judge0RapidApiProvider } from "@schools/exec/providers/judge0";
+import {
+  CPP_STANDARD_MACRO,
+  JUDGE0_CPP_NAME,
+  MEASURED_JUDGE0_CPP_LANGUAGE_ID,
+  MIN_GNU_CXX17_MAJOR,
+} from "@schools/execution/cpp-runtime";
 
 import { loadEnvFiles } from "./env-file";
-import { CONFORMANCE_CASES, SANDBOX_PROBES } from "./programs";
+import { COMPILER_IDENTITY_PROGRAM, CONFORMANCE_CASES, SANDBOX_PROBES } from "./programs";
 import { installMeter, SubmissionCeilingReached, type Meter } from "./wire";
 import {
   PHASE_ORDER,
@@ -172,8 +183,29 @@ const CONFIG_INFO_FIELDS = [
   "max_queue_size",
 ] as const;
 
-/** The adapter's own discovery rule, restated so the report can show what failed it. */
-const PYTHON_3_NAME = /^Python\s*\((3(?:\.\d+)*)\)$/;
+/**
+ * The adapter's own discovery rule, IMPORTED rather than restated.
+ *
+ * This used to be a second copy of the regex, living here so the report could
+ * show what failed it. A second copy of a rule is a rule that disagrees with
+ * itself the day one of them is edited — and it did: after the migration this
+ * file still carried `^Python\s*\((3(?:\.\d+)*)\)$` while the adapter had
+ * moved to GNU C++, so the validator listed every Python on the plan and
+ * reported that none of them matched, about a product that no longer submits
+ * Python at all. `schools/execution/cpp-runtime.ts` is the one place the rule
+ * is declared; this reads it from there.
+ *
+ * Both halves are needed to answer "would the adapter submit to this entry?".
+ * `JUDGE0_CPP_NAME` alone says yes to `C++ (GCC 7.4.0)`, which discovery
+ * refuses, because a GCC below 11 defaults to `gnu++14` and cannot be told
+ * otherwise on a plan that answers `compiler_options` with HTTP 403.
+ */
+function wouldSubmitTo(name: string): boolean {
+  const match = JUDGE0_CPP_NAME.exec(name);
+  if (!match) return false;
+  const major = Number.parseInt(match[1].split(".")[0] ?? "", 10);
+  return Number.isFinite(major) && major >= MIN_GNU_CXX17_MAJOR;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Arguments                                                                   */
@@ -225,7 +257,7 @@ export function parseArgs(argv: readonly string[]): ArgResult {
           };
         }
         /* Kept in PHASE_ORDER rather than the order they were typed: identity
-           first means everything after it knows which interpreter it measured,
+           first means everything after it knows which compiler it measured,
            and the cheap phases genuinely should run before the expensive ones. */
         args.phases = PHASE_ORDER.filter((phase) => wanted.includes(phase));
         break;
@@ -469,12 +501,12 @@ async function execute(ctx: RunContext): Promise<ValidatorOutcome> {
   /**
    * What each phase will cost if it runs. Computed, never guessed.
    *
-   * `languages` is ZERO, and that is deliberate: everything in it except
-   * `sys.version` is free reconnaissance — the catalogue, which Python the
-   * adapter would pick, the quota headers, `/config_info` — and an operator who
-   * runs `--max-submissions=0` should get all of it. The one submission inside
-   * is guarded separately, so a zero budget yields a real identity section
-   * rather than a skipped phase.
+   * `languages` is ZERO, and that is deliberate: everything in it except the
+   * compiler-identity program is free reconnaissance — the catalogue, which C++
+   * the adapter would pick, the quota headers, `/config_info` — and an operator
+   * who runs `--max-submissions=0` should get all of it. The one submission
+   * inside is guarded separately, so a zero budget yields a real identity
+   * section rather than a skipped phase.
    */
   const estimate: Record<PhaseName, number> = {
     languages: 0,
@@ -688,12 +720,12 @@ async function phaseLanguages(
   const { config, write } = ctx;
   const phase: LanguagesPhase = {
     totalLanguages: null,
-    pythonEntries: [],
+    cppEntries: [],
     catalogueProblem: null,
     selected: null,
     selectionProblem: null,
-    interpreterVersion: null,
-    interpreterProblem: null,
+    compilerIdentity: null,
+    compilerProblem: null,
     quotaHeadersPresent: {},
     quotaHeadersAbsent: [],
     configInfo: null,
@@ -715,19 +747,24 @@ async function phaseLanguages(
         if (typeof entry !== "object" || entry === null) continue;
         const record = entry as { id?: unknown; name?: unknown };
         if (typeof record.id !== "number" || typeof record.name !== "string") continue;
-        if (!/python/i.test(record.name)) continue;
+        /* Every C++ on the plan, not only the ones discovery accepts. The
+           four it refuses are the point of the table: three old GCCs and a
+           Clang, all defaulting to `gnu++14` with no flag available to correct
+           them. A report listing only the winner would not show a reader why
+           the other four are traps. */
+        if (!/c\+\+/i.test(record.name)) continue;
         /* Scrubbed like everything else that came off the wire. A catalogue
            name is not a plausible place for a secret; it is also not a place
            anybody checks, and the cost of scrubbing it is one function call. */
         const name = scrub(record.name.trim(), config.apiKey);
-        phase.pythonEntries.push({
+        phase.cppEntries.push({
           id: record.id,
           name,
-          matchesDiscoveryRule: PYTHON_3_NAME.test(name),
+          matchesDiscoveryRule: wouldSubmitTo(name),
         });
       }
-      phase.pythonEntries.sort((a, b) => a.id - b.id);
-      write(`  catalogue: ${phase.totalLanguages} languages, ${phase.pythonEntries.length} mention Python`);
+      phase.cppEntries.sort((a, b) => a.id - b.id);
+      write(`  catalogue: ${phase.totalLanguages} languages, ${phase.cppEntries.length} mention C++`);
     }
   } catch (err) {
     phase.catalogueProblem = safeProblem(err, config.apiKey);
@@ -749,30 +786,44 @@ async function phaseLanguages(
   }
 
   /* One submission, and worth it: §6 of the setup doc is explicit that a
-     catalogue label is not an interpreter, and the version is the single fact
-     this phase exists to establish. It is the ONLY spend in this phase, so it is
-     guarded on its own — everything above is free, and a zero budget should still
-     buy the catalogue and the headers. */
+     catalogue label is not a toolchain, and what the compiler says about itself
+     is the fact this phase exists to establish. It is the ONLY spend in this
+     phase, so it is guarded on its own — everything above is free, and a zero
+     budget should still buy the catalogue and the headers.
+
+     It used to submit `import sys; print(sys.version)`. After the migration
+     that was Python source sent under `language: "cpp17"`, which on the real
+     service is a guaranteed compilation error and on the fake is a program
+     nobody recognises — either way the one measurement this phase exists for
+     could never arrive. `COMPILER_IDENTITY_PROGRAM` is the C++17 replacement,
+     and it asks the four questions the parity document says to ask. */
   if (ctx.meter.remaining() < 1) {
-    phase.interpreterProblem =
+    phase.compilerProblem =
       "not asked: no submission budget left under --max-submissions. The catalogue above " +
-      "is what Judge0 CALLS this runtime, which is a string beside an id and not an " +
-      "interpreter answering for itself.";
+      "is what Judge0 CALLS this toolchain, which is a string beside an id and not a " +
+      "compiler answering for itself.";
   } else {
     try {
-      const result = await provider.run(request("import sys\nprint(sys.version)", "", 5_000));
+      const result = await provider.run(request(COMPILER_IDENTITY_PROGRAM, "", 5_000));
       if (result.infrastructureError) {
-        phase.interpreterProblem = `nothing ran: ${scrub(result.stderr, config.apiKey)}`;
+        phase.compilerProblem = `nothing ran: ${scrub(result.stderr, config.apiKey)}`;
+      } else if (result.status === "compile_error") {
+        /* Named separately, because it is the loudest possible answer: the
+           program below is plain C++17 with one `#include <iostream>`. A judge
+           that cannot compile it is not compiling this curriculum either. */
+        phase.compilerProblem =
+          "the compiler-identity program did not COMPILE, and it is ordinary C++17 with a " +
+          `single <iostream>: ${scrub(result.stderr, config.apiKey).slice(0, 400)}`;
       } else {
         const printed = scrub(result.stdout, config.apiKey).trim();
-        if (printed === "") phase.interpreterProblem = `the program printed nothing (status ${result.status})`;
+        if (printed === "") phase.compilerProblem = `the program printed nothing (status ${result.status})`;
         else {
-          phase.interpreterVersion = printed;
-          write(`  sys.version: ${printed.split("\n")[0]}`);
+          phase.compilerIdentity = printed;
+          for (const line of printed.split("\n")) write(`  compiler: ${line}`);
         }
       }
     } catch (err) {
-      phase.interpreterProblem = safeProblem(err, config.apiKey);
+      phase.compilerProblem = safeProblem(err, config.apiKey);
     }
   }
 
@@ -835,6 +886,60 @@ function safeProblem(err: unknown, key: string): string {
   return scrub(message, key).slice(0, 300);
 }
 
+/**
+ * What `COMPILER_IDENTITY_PROGRAM` printed, as fields.
+ *
+ * Every field is `null` when the program did not answer it, and that is load
+ * bearing: a missing measurement must not be able to look like a failed one.
+ * The program prints `name|value`, one per line, so this parser has nothing to
+ * guess and a judge that printed something unexpected yields nulls rather than
+ * a confident wrong reading.
+ */
+interface CompilerIdentity {
+  /** `GCC 14.1.0`, or whatever the toolchain called itself. */
+  compiler: string | null;
+  /** `__cplusplus`. 201703 is the only acceptable value here. */
+  standard: number | null;
+  /** Whether `__OPTIMIZE__` was defined. Judge0 was measured at -O0. */
+  optimised: boolean | null;
+  /** `-7 / 2`, which C++ truncates to -3 and Python floored to -4. */
+  divide: number | null;
+  /** `-7 % 2`, which C++ makes -1 and Python made 1. */
+  modulo: number | null;
+}
+
+export function parseCompilerIdentity(printed: string | null): CompilerIdentity {
+  const out: CompilerIdentity = {
+    compiler: null,
+    standard: null,
+    optimised: null,
+    divide: null,
+    modulo: null,
+  };
+  if (printed === null) return out;
+
+  const fields = new Map<string, string>();
+  for (const line of printed.split("\n")) {
+    const bar = line.indexOf("|");
+    if (bar === -1) continue;
+    fields.set(line.slice(0, bar).trim(), line.slice(bar + 1).trim());
+  }
+
+  const numeric = (name: string): number | null => {
+    const raw = fields.get(name);
+    if (raw === undefined || !/^-?\d+$/.test(raw)) return null;
+    return Number(raw);
+  };
+
+  out.compiler = fields.get("compiler") ?? null;
+  out.standard = numeric("__cplusplus");
+  const optimise = fields.get("__OPTIMIZE__");
+  out.optimised = optimise === "defined" ? true : optimise === "undefined" ? false : null;
+  out.divide = numeric("-7/2");
+  out.modulo = numeric("-7%2");
+  return out;
+}
+
 function collectLanguageFindings(report: LiveValidationReport): void {
   const l = report.languages;
   if (!l) return;
@@ -860,9 +965,9 @@ function collectLanguageFindings(report: LiveValidationReport): void {
       phase: "languages",
       summary:
         `Language discovery failed${l.catalogueProblem ? ` (${l.catalogueProblem})` : ""}. ` +
-        "No Python runtime was identified, so nothing below it can be trusted and no paid " +
-        "phase should be run. Check the key, the subscription and the plan's quota before " +
-        "spending anything.",
+        "No C++17-capable GCC was identified, so nothing below it can be trusted and no " +
+        "paid phase should be run. Check the key, the subscription and the plan's quota " +
+        "before spending anything.",
     });
   }
 
@@ -896,27 +1001,105 @@ function collectLanguageFindings(report: LiveValidationReport): void {
 
   const version = l.selected?.version ?? null;
   if (version !== null) {
-    const minor = Number.parseInt(version.split(".")[1] ?? "0", 10);
-    if (minor <= 9) {
+    /*
+     * The FLOOR, not an EOL check.
+     *
+     * This used to read `Number.parseInt(version.split(".")[1])` and call
+     * anything at or below 9 an end-of-life Python. Against a GCC that is
+     * nonsense arithmetic on a nonsense claim: `14.1.0` has a second component
+     * of 1, so every correct discovery — the only compiler on this plan that
+     * can be used at all — was reported as a defect and the command exited 1.
+     *
+     * What is actually worth defending is the property `cpp-runtime.ts`
+     * declares: the MAJOR version must be at or above the first GCC whose
+     * default standard is `gnu++17`, because `compiler_options` is HTTP 403 on
+     * this plan and there is no flag to correct an older one with. Discovery
+     * already refuses below the floor; reaching this branch means something got
+     * past it, which is worth saying loudly rather than assuming cannot happen.
+     */
+    const major = Number.parseInt(version.split(".")[0] ?? "", 10);
+    if (!Number.isFinite(major) || major < MIN_GNU_CXX17_MAJOR) {
       report.findings.push({
         severity: "defect",
         phase: "languages",
         summary:
-          `The selected runtime is Python ${version}. Language discovery has no ` +
-          "minimum-version floor, so it took the newest on offer and the newest on offer is " +
-          "EOL. September's semantics survive it; the security posture does not.",
+          `The selected compiler is GCC ${version}, below the GCC ${MIN_GNU_CXX17_MAJOR} floor ` +
+          "that `schools/execution/cpp-runtime.ts` sets. Below it GCC defaults to `gnu++14`, " +
+          "`compiler_options` is refused with HTTP 403 on this plan, and every learner would " +
+          "be graded by a compiler that rejects the syntax the course teaches.",
       });
     }
   }
 
-  if (l.interpreterVersion !== null && version !== null && !l.interpreterVersion.startsWith(version)) {
+  if (l.selected !== null && !l.selected.operatorOverride && l.selected.id !== MEASURED_JUDGE0_CPP_LANGUAGE_ID) {
+    report.findings.push({
+      severity: "note",
+      phase: "languages",
+      summary:
+        `Discovery chose language id ${l.selected.id}; ${MEASURED_JUDGE0_CPP_LANGUAGE_ID} is what ` +
+        "this deployment measured (`MEASURED_JUDGE0_CPP_LANGUAGE_ID`). An observation, not a " +
+        "problem: ids move when the hosted catalogue is rebuilt, which is exactly why nothing " +
+        "submits to a constant. Worth a look before the next paid run.",
+    });
+  }
+
+  /* What the compiler said about itself, checked against what this product
+     depends on. Every one of these is skipped when the program did not answer:
+     "we could not measure" and "we measured and it is wrong" are opposite facts,
+     and only the second is a defect. The first is `compilerProblem`, which is
+     already rendered beside the section it belongs to. */
+  const identity = parseCompilerIdentity(l.compilerIdentity);
+  if (identity.standard !== null && identity.standard !== CPP_STANDARD_MACRO) {
     report.findings.push({
       severity: "defect",
       phase: "languages",
       summary:
-        `The catalogue calls it ${version} and sys.version says ` +
-        `${l.interpreterVersion.split(" ")[0]}. The interpreter wins, and the disagreement ` +
-        "is itself the finding — a catalogue label is a string beside an id.",
+        `__cplusplus is ${identity.standard}, not ${CPP_STANDARD_MACRO}. This is the single ` +
+        "claim the whole submit path rests on: `compiler_options` is refused with HTTP 403 " +
+        "here, so the standard can only come from the compiler's own default, and a judge " +
+        "compiling as anything other than C++17 rejects the language the course teaches " +
+        "while blaming the learner for it.",
+    });
+  }
+
+  /* `-7 / 2` is `-3` and `-7 % 2` is `-1` in C++, where the Python curriculum
+     this replaced floored to `-4` and `1`. Every September task carried over had
+     to be re-checked against that rather than translated, so it is asserted
+     against the judge that actually grades children rather than trusted. */
+  if (identity.divide !== null && (identity.divide !== -3 || identity.modulo !== -1)) {
+    report.findings.push({
+      severity: "defect",
+      phase: "languages",
+      summary:
+        `The judge computes -7/2 = ${identity.divide} and -7%2 = ${String(identity.modulo)}. ` +
+        "C++ truncates toward zero, so it must be -3 and -1. Anything else means the cases " +
+        "in every migrated task were checked against different arithmetic from the one " +
+        "grading them — see `docs/cpp17/CPP17_JUDGE_PARITY.md`.",
+    });
+  }
+
+  if (identity.optimised === true) {
+    report.findings.push({
+      severity: "note",
+      phase: "languages",
+      summary:
+        "`__OPTIMIZE__` is DEFINED on this judge. The recorded measurement is that Judge0 " +
+        "compiles at -O0 while the browser's Run compiles at -O2, and December's time " +
+        "budgets were sized on the -O0 side of that gap. A judge that started optimising " +
+        "would make the two engines agree and make those budgets loose, not tight — worth " +
+        "knowing, not a defect.",
+    });
+  }
+
+  if (identity.compiler !== null && version !== null && !identity.compiler.includes(version)) {
+    report.findings.push({
+      severity: "defect",
+      phase: "languages",
+      summary:
+        `The catalogue calls it GCC ${version} and the compiler reports \`${identity.compiler}\`. ` +
+        "The compiler wins, and the disagreement is itself the finding — a catalogue label " +
+        "is a string Judge0 wrote beside an id, and the floor this system enforces is " +
+        "checked against that string.",
     });
   }
 
@@ -1068,10 +1251,13 @@ async function phaseParity(
       mismatch = `stdout was ${JSON.stringify(actualStdout.slice(0, 120))}, expected ${JSON.stringify(fixture.stdout)}`;
     }
 
-    /* Error rows compare STATUS and the (empty) stdout only. CPython rewrote
-       its diagnostics across 3.13 and 3.14, so traceback prose differs by
-       interpreter vintage — a documented difference, not a defect, and pinning
-       it would make the report fail for the wrong reason. */
+    /* Error rows compare STATUS and the (empty) stdout only. The browser is
+       Clang 8 and the judge is GCC 14, and the two phrase the same diagnostic
+       differently — a documented divergence in
+       `docs/cpp17/CPP17_JUDGE_PARITY.md`, not a defect, and pinning the wording
+       would make the report fail for the wrong reason. What still IS compared is
+       the part a learner is graded on: did it compile, did it run, what did it
+       print. */
     const isErrorRow = fixture.server === "compile_error" || fixture.server === "runtime_error";
 
     rows.push({
@@ -1084,7 +1270,7 @@ async function phaseParity(
       wallMs,
       matched: mismatch === null,
       mismatch,
-      exempt: isErrorRow ? "traceback prose not compared — version-specific error wording" : null,
+      exempt: isErrorRow ? "diagnostic prose not compared — Clang 8 and GCC 14 word it differently" : null,
     });
     ctx.write(`  ${mismatch === null ? "ok  " : "MISS"} ${fixture.id} (${result.status}, ${wallMs} ms)`);
   }

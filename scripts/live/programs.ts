@@ -6,27 +6,89 @@ import { BIG_INT_TEXT, PROGRAMS } from "../../tests/exec/judge0-fake";
  *
  * ## Why the conformance programs are imported rather than retyped
  *
- * `tests/exec/judge0-fake.ts` already holds them, written as REAL Python so
- * that the same source can be answered by the fake in CI and by CPython on a
- * rented judge. Retyping them here would create a second definition that drifts
- * from the first, and the drift would be invisible: both suites would still be
- * green, about different programs. One table, two judges — the same argument
- * the conformance suite makes for being one suite.
+ * `tests/exec/judge0-fake.ts` already holds them, written as REAL C++17 so
+ * that the same source can be answered by the fake in CI and compiled by GCC on
+ * a rented judge. Retyping them here would create a second definition that
+ * drifts from the first, and the drift would be invisible: both suites would
+ * still be green, about different programs. One table, two judges — the same
+ * argument the conformance suite makes for being one suite.
  *
  * ## The sandbox probes are new, and are OBSERVATIONS
  *
- * Nothing below attacks anything. Each probe asks a question a Python program
- * is entitled to ask about its own process — can I resolve a name, what is in
- * my working directory, may I spawn a shell — prints the answer, and cleans up
+ * Nothing below attacks anything. Each probe asks a question a C++ program is
+ * entitled to ask about its own process — can I resolve a name, what is in my
+ * working directory, may I spawn a shell — prints the answer, and cleans up
  * after itself. Nothing is written that is not deleted, nothing is read whose
  * CONTENTS are printed, and no data leaves the judge: the network probe talks to
  * `example.com`, IANA's reserved documentation domain, and sends it nothing.
+ *
+ * They are POSIX C++, not portable C++, and deliberately so. A probe asking
+ * whether the sandbox holds has to use the interfaces a hostile paste would use,
+ * and on this judge those are `<sys/socket.h>`, `popen` and `environ`. Each one
+ * is wrapped so that "the sandbox refused" and "this judge does not have that
+ * header" arrive as different words rather than as the same silence.
  *
  * The honest result may well be that a boundary is open. If `enable_network:
  * false` is not honoured, that is a security limitation of the rented judge and
  * the report says so — it is not something to work around, and it is certainly
  * not something to leave undiscovered because the probe was too polite to ask.
  */
+
+/* -------------------------------------------------------------------------- */
+/* The compiler, asked about itself                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The one submission the identity phase spends, and what it buys.
+ *
+ * A catalogue entry is a string Judge0 wrote next to an id. This is the
+ * toolchain answering, and it answers the four questions that decide whether
+ * this product can grade a child on this plan at all:
+ *
+ * 1. **`__cplusplus`.** `compiler_options` is refused with HTTP 403 here, so
+ *    `-std=c++17` cannot be sent and the standard comes from the compiler's own
+ *    default. `201703` is not a nicety; it is the premise.
+ * 2. **Which compiler.** `__GNUC__` and friends rather than a catalogue label,
+ *    and `__clang__` checked first because Clang also defines `__GNUC__` (as
+ *    4.2.1), which would make a Clang look like an ancient GCC.
+ * 3. **`__OPTIMIZE__`.** Judge0 was measured at `-O0` and the browser's Run
+ *    compiles at `-O2`. December's time budgets were sized on the `-O0` side of
+ *    that gap, so a change here changes what "too slow" means.
+ * 4. **`-7 / 2` and `-7 % 2`.** C++ truncates toward zero: `-3` and `-1`. The
+ *    Python curriculum this replaced floored: `-4` and `1`. Every September task
+ *    carried over had to be re-checked against that rather than translated, and
+ *    it is the single most likely way a task's expected output became quietly
+ *    wrong — so it is asked of the judge that actually grades children.
+ *
+ * The output is `name|value`, one per line, so the parser in
+ * `judge0-validate.ts` has nothing to guess.
+ *
+ * Only `<iostream>`, like every other program this system submits. If a judge
+ * cannot compile this, it cannot compile September.
+ */
+export const COMPILER_IDENTITY_PROGRAM = [
+  "#include <iostream>",
+  "",
+  "int main() {",
+  "#if defined(__clang__)",
+  '  std::cout << "compiler|Clang " << __clang_major__ << "." << __clang_minor__',
+  '            << "." << __clang_patchlevel__ << "\\n";',
+  "#elif defined(__GNUC__)",
+  '  std::cout << "compiler|GCC " << __GNUC__ << "." << __GNUC_MINOR__',
+  '            << "." << __GNUC_PATCHLEVEL__ << "\\n";',
+  "#else",
+  '  std::cout << "compiler|unknown\\n";',
+  "#endif",
+  '  std::cout << "__cplusplus|" << __cplusplus << "\\n";',
+  "#ifdef __OPTIMIZE__",
+  '  std::cout << "__OPTIMIZE__|defined\\n";',
+  "#else",
+  '  std::cout << "__OPTIMIZE__|undefined\\n";',
+  "#endif",
+  '  std::cout << "-7/2|" << (-7 / 2) << "\\n";',
+  '  std::cout << "-7%2|" << (-7 % 2) << "\\n";',
+  "}",
+].join("\n");
 
 /* -------------------------------------------------------------------------- */
 /* Conformance                                                                 */
@@ -93,41 +155,82 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = [
       statusMismatch(r, "ok") ?? (r.stdout === "42\n" ? null : `stdout was ${JSON.stringify(r.stdout)}`),
   },
   {
-    id: "syntax-error",
+    id: "compile-error",
     what:
-      "a missing bracket is a program that NEVER RAN. Judge0 reports NZEC — a runtime " +
-      "failure — because CPython has no compile stage, and the shared " +
-      "`looksLikeCompileError` predicate is what turns that back into `compile_error`. " +
-      "The difference is what a fourteen-year-old is told: check your punctuation, or " +
-      "check your logic",
+      "a missing semicolon is a program that NEVER RAN, and with a compiled language the " +
+      "judge says so STRUCTURALLY: status 6, with the compiler's own diagnostics in " +
+      "`compile_output`, its own field. The Python era had to infer this from prose on " +
+      "stderr because CPython has no compile stage; that inference is gone, and this row " +
+      "is what replaced it. The difference is what a fourteen-year-old is told: check " +
+      "your punctuation, or check your logic",
     source: PROGRAMS.syntax,
     stdin: "",
-    expected: "`compile_error`, stderr naming `SyntaxError`, not infrastructure",
+    expected:
+      "`compile_error`, empty stdout, and GCC's own diagnostic carried through — " +
+      "not infrastructure",
     verify: (r) =>
       statusMismatch(r, "compile_error") ??
-      (r.stderr.includes("SyntaxError") ? null : "stderr did not name SyntaxError"),
+      (r.stdout === "" ? null : `a program that did not compile printed ${JSON.stringify(r.stdout)}`) ??
+      /* The MARKER, not the wording. `docs/cpp17/CPP17_JUDGE_PARITY.md` records
+         that Clang and GCC phrase the same error differently and that the
+         product accepts it; pinning the sentence would make this row fail the
+         day the judge's GCC is upgraded, which says nothing about anybody. What
+         has to survive is that the diagnostics reached us at all — an empty one
+         leaves a learner with "it did not compile" and no reason. */
+      (/\berror\b/i.test(r.stderr) ? null : "the compiler's diagnostics did not survive"),
   },
   {
-    id: "runtime-error",
-    what: "a program that ran and raised is the learner's evidence, and the traceback survives",
+    id: "runtime-error-signal",
+    what:
+      "a program that COMPILED and then died is the learner's evidence, and it must not be " +
+      "reported as the judge having a bad day. Integer division by zero is undefined " +
+      "behaviour and on x86-64 it is SIGFPE: the process is killed, prints nothing, and " +
+      "the only description lives in Judge0's own `message` field, which this product does " +
+      "not forward. So the honest expectation is a correct verdict and NO explanation — a " +
+      "real loss against CPython's traceback, asserted here rather than quietly hoped away",
     source: PROGRAMS.divZero,
     stdin: "",
-    expected: "`runtime_error`, stderr naming `ZeroDivisionError`",
+    expected: "`runtime_error`, `infrastructureError: false`, and empty output",
     verify: (r) =>
       statusMismatch(r, "runtime_error") ??
-      (r.stderr.includes("ZeroDivisionError") ? null : "stderr did not name ZeroDivisionError"),
+      (r.infrastructureError ? "it was reported as an infrastructure failure" : null) ??
+      (r.stdout === "" ? null : `a killed program printed ${JSON.stringify(r.stdout)}`),
   },
   {
-    id: "eof-empty-stdin",
+    id: "runtime-error-exception",
     what:
-      "a learner who pressed Check with an empty input box made a mistake; the judge did " +
-      "not have an outage. `EOFError` must be evidence, never `provider_error`",
-    source: PROGRAMS.sumPair,
+      "the other half of how C++ fails, and the half that DOES say something. `vector::at` " +
+      "throws, libstdc++'s default terminate handler writes a real sentence to stderr, and " +
+      "then aborts. It earns its place beside the signal row because the two fail " +
+      "differently and a learner needs both told correctly",
+    source: PROGRAMS.throwing,
     stdin: "",
-    expected: "`runtime_error`, `infrastructureError: false`",
+    expected: "`runtime_error`, stderr naming `std::out_of_range`",
     verify: (r) =>
       statusMismatch(r, "runtime_error") ??
-      (r.infrastructureError ? "it was reported as an infrastructure failure" : null),
+      (r.stderr.includes("out_of_range")
+        ? null
+        : `stderr did not name the exception: ${JSON.stringify(r.stderr.slice(0, 120))}`),
+  },
+  {
+    id: "empty-stdin",
+    what:
+      "a learner who pressed Check with an empty input box made a mistake; the judge did " +
+      "not have an outage. THE LANGUAGE CHANGED THE ANSWER HERE and the row changed with " +
+      "it: `input()` on an exhausted stdin raised `EOFError` and CPython exited 1, so the " +
+      "Python-era expectation was `runtime_error`. `std::cin >> a` on an exhausted stdin " +
+      "sets `failbit` and, since C++11, VALUE-INITIALISES the target — so the program " +
+      "carries on with zero, prints an answer and exits 0. A RUNNING, WRONG program " +
+      "instead of a crash, which the checker then marks wrong on the answer. What has not " +
+      "changed, and is what this row actually defends, is that an empty input box is never " +
+      "`provider_error`",
+    source: PROGRAMS.sumPair,
+    stdin: "",
+    expected: "`ok`, stdout `0\\n`, `infrastructureError: false`",
+    verify: (r) =>
+      statusMismatch(r, "ok") ??
+      (r.infrastructureError ? "it was reported as an infrastructure failure" : null) ??
+      (r.stdout === "0\n" ? null : `stdout was ${JSON.stringify(r.stdout)}, expected "0\\n"`),
   },
   {
     id: "time-limit-exceeded",
@@ -156,17 +259,20 @@ export const CONFORMANCE_CASES: readonly ConformanceCase[] = [
       (r.stdout === "Сәлем, әлем!\n" ? null : `stdout was ${JSON.stringify(r.stdout)}`),
   },
   {
-    id: "big-integer",
+    id: "wide-integer",
     what:
-      "`10**100` is a hundred and one digits of arbitrary precision. It proves the " +
-      "interpreter is CPython rather than something that quietly used a float, and that " +
-      "nothing in the chain reformatted a long numeric string",
+      "`3000000000LL * 2`. C++ has no arbitrary precision, so the Python row this replaced " +
+      "(`10**100`) had no meaning here — the equivalent claim is the one that actually " +
+      "bites: a value past 32 bits survives because the program said `long long`, and " +
+      "nothing in the chain truncated it to `int` or reformatted it through a float",
     source: PROGRAMS.bigInt,
     stdin: "",
-    expected: "`ok`, stdout exactly 1 followed by a hundred zeros",
+    expected: `\`ok\`, stdout exactly \`${BIG_INT_TEXT}\``,
     verify: (r) =>
       statusMismatch(r, "ok") ??
-      (r.stdout.trim() === BIG_INT_TEXT ? null : `stdout was ${r.stdout.length} characters, not the expected 101`),
+      (r.stdout.trim() === BIG_INT_TEXT
+        ? null
+        : `stdout was ${JSON.stringify(r.stdout.slice(0, 60))}, expected ${BIG_INT_TEXT}`),
   },
   {
     id: "output-bomb",
@@ -238,6 +344,18 @@ function unreadable(result: ExecutionResult): ProbeReading | null {
       securityNote: null,
     };
   }
+  if (result.status === "compile_error") {
+    /* Ours, not the judge's. A probe that does not compile has observed
+       nothing, and saying so in the judge's own words is the difference between
+       "this boundary held" and "we never asked". */
+    return {
+      boundary: "unknown",
+      detail:
+        "the probe did not COMPILE, so no boundary was observed — this is a defect in " +
+        `SolveX's own probe, not a property of the judge:\n${result.stderr.slice(0, 400)}`,
+      securityNote: null,
+    };
+  }
   if (result.stdout.trim() === "") {
     return {
       boundary: "unknown",
@@ -248,45 +366,290 @@ function unreadable(result: ExecutionResult): ProbeReading | null {
   return null;
 }
 
+/**
+ * The probe programs, one per boundary.
+ *
+ * POSIX C++ rather than portable C++, deliberately: a probe asking whether the
+ * sandbox holds has to reach for the interfaces a hostile paste would reach
+ * for, and on this judge those are `<sys/socket.h>`, `popen` and `environ`.
+ * Every one of them is wrapped so that "the sandbox refused" and "this judge
+ * does not have that interface" arrive as different words instead of as the
+ * same silence, and every line is flushed as it is printed — a program the
+ * judge kills on the wall limit still leaves behind everything it had already
+ * learned.
+ *
+ * Held to `-std=gnu++17` with `-Wall` and run before being committed. A probe
+ * that does not compile is not an observation about a sandbox; it is a blank in
+ * this repository's own report.
+ */
+const NETWORK_SOURCE = [
+  "#include <cerrno>",
+  "#include <cstring>",
+  "#include <iostream>",
+  "#include <string>",
+  "#include <arpa/inet.h>",
+  "#include <fcntl.h>",
+  "#include <netdb.h>",
+  "#include <sys/select.h>",
+  "#include <sys/socket.h>",
+  "#include <unistd.h>",
+  "",
+  "static void say(const std::string& name, const std::string& state, const std::string& detail) {",
+  "  std::cout << name << \"|\" << state << \"|\" << detail << std::endl;",
+  "}",
+  "",
+  "/* Non-blocking connect bounded by `select`, so a filtered network costs 2 s",
+  "   rather than the kernel's SYN retry schedule. */",
+  "static bool connect_within(int fd, const sockaddr* addr, socklen_t len, int seconds) {",
+  "  int flags = fcntl(fd, F_GETFL, 0);",
+  "  fcntl(fd, F_SETFL, flags | O_NONBLOCK);",
+  "  if (connect(fd, addr, len) == 0) return true;",
+  "  if (errno != EINPROGRESS) return false;",
+  "  fd_set writable;",
+  "  FD_ZERO(&writable);",
+  "  FD_SET(fd, &writable);",
+  "  timeval timeout{seconds, 0};",
+  "  if (select(fd + 1, nullptr, &writable, nullptr, &timeout) <= 0) return false;",
+  "  int error = 0;",
+  "  socklen_t size = sizeof(error);",
+  "  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size) != 0) return false;",
+  "  errno = error;",
+  "  return error == 0;",
+  "}",
+  "",
+  "int main() {",
+  "  addrinfo hints{};",
+  "  hints.ai_family = AF_INET;",
+  "  hints.ai_socktype = SOCK_STREAM;",
+  "  addrinfo* found = nullptr;",
+  "  const int resolved = getaddrinfo(\"example.com\", \"80\", &hints, &found);",
+  "  if (resolved != 0 || found == nullptr) {",
+  "    say(\"dns\", \"BLOCKED\", gai_strerror(resolved));",
+  "    say(\"tcp\", \"BLOCKED\", \"no address to connect to\");",
+  "    say(\"http\", \"BLOCKED\", \"no address to connect to\");",
+  "    return 0;",
+  "  }",
+  "",
+  "  char text[INET_ADDRSTRLEN] = {};",
+  "  inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(found->ai_addr)->sin_addr, text, sizeof(text));",
+  "  say(\"dns\", \"OPEN\", text);",
+  "",
+  "  const int fd = socket(found->ai_family, found->ai_socktype, found->ai_protocol);",
+  "  if (fd < 0) {",
+  "    say(\"tcp\", \"BLOCKED\", std::strerror(errno));",
+  "    say(\"http\", \"BLOCKED\", \"no socket\");",
+  "    freeaddrinfo(found);",
+  "    return 0;",
+  "  }",
+  "  if (!connect_within(fd, found->ai_addr, found->ai_addrlen, 2)) {",
+  "    say(\"tcp\", \"BLOCKED\", errno == 0 ? \"timed out after 2 s\" : std::strerror(errno));",
+  "    say(\"http\", \"BLOCKED\", \"no connection\");",
+  "    close(fd);",
+  "    freeaddrinfo(found);",
+  "    return 0;",
+  "  }",
+  "  say(\"tcp\", \"OPEN\", text);",
+  "  freeaddrinfo(found);",
+  "",
+  "  const std::string get = \"GET / HTTP/1.0\\r\\nHost: example.com\\r\\nConnection: close\\r\\n\\r\\n\";",
+  "  if (send(fd, get.data(), get.size(), 0) < 0) {",
+  "    say(\"http\", \"BLOCKED\", std::strerror(errno));",
+  "    close(fd);",
+  "    return 0;",
+  "  }",
+  "  fd_set readable;",
+  "  FD_ZERO(&readable);",
+  "  FD_SET(fd, &readable);",
+  "  timeval timeout{2, 0};",
+  "  if (select(fd + 1, &readable, nullptr, nullptr, &timeout) <= 0) {",
+  "    say(\"http\", \"BLOCKED\", \"no reply within 2 s\");",
+  "    close(fd);",
+  "    return 0;",
+  "  }",
+  "  char buffer[128] = {};",
+  "  const ssize_t got = recv(fd, buffer, sizeof(buffer) - 1, 0);",
+  "  close(fd);",
+  "  if (got <= 0) {",
+  "    say(\"http\", \"BLOCKED\", \"the connection closed without a reply\");",
+  "    return 0;",
+  "  }",
+  "  std::string reply(buffer, static_cast<size_t>(got));",
+  "  const size_t line = reply.find('\\r');",
+  "  say(\"http\", \"OPEN\", reply.substr(0, line == std::string::npos ? reply.size() : line));",
+  "}",
+].join("\n");
+
+const FILESYSTEM_SOURCE = [
+  "#include <algorithm>",
+  "#include <filesystem>",
+  "#include <iostream>",
+  "#include <string>",
+  "#include <vector>",
+  "#include <unistd.h>",
+  "",
+  "namespace fs = std::filesystem;",
+  "",
+  "static void say(const std::string& name, const std::string& state, const std::string& detail) {",
+  "  std::cout << name << \"|\" << state << \"|\" << detail << std::endl;",
+  "}",
+  "",
+  "/* NAMES only, capped at forty, sorted so two runs are comparable. Nothing is",
+  "   opened and no file's contents are ever printed. */",
+  "static void list(const std::string& name, const fs::path& where) {",
+  "  std::error_code failed;",
+  "  std::vector<std::string> names;",
+  "  for (const auto& entry : fs::directory_iterator(where, failed)) {",
+  "    names.push_back(entry.path().filename().string());",
+  "    if (names.size() >= 40) break;",
+  "  }",
+  "  if (failed) {",
+  "    say(name, \"BLOCKED\", failed.message());",
+  "    return;",
+  "  }",
+  "  std::sort(names.begin(), names.end());",
+  "  std::string joined;",
+  "  for (const auto& one : names) joined += (joined.empty() ? \"\" : \",\") + one;",
+  "  say(name, \"OPEN\", joined);",
+  "}",
+  "",
+  "int main() {",
+  "  std::error_code failed;",
+  "  const fs::path here = fs::current_path(failed);",
+  "  if (failed) say(\"cwd\", \"BLOCKED\", failed.message());",
+  "  else say(\"cwd\", \"OPEN\", here.string());",
+  "",
+  "  list(\"root_entries\", \"/\");",
+  "  list(\"cwd_entries\", \".\");",
+  "",
+  "  for (const char* path : {\"/etc/passwd\", \"/etc/shadow\", \"/proc/self/environ\", \"/box\"}) {",
+  "    const bool readable = access(path, R_OK) == 0;",
+  "    const bool present = fs::exists(path, failed);",
+  "    std::cout << \"readable \" << path << \"|\" << (readable ? \"OPEN\" : \"BLOCKED\") << \"|\"",
+  "              << (present ? \"exists\" : \"absent\") << std::endl;",
+  "  }",
+  "",
+  "  say(\"identity\", \"OPEN\",",
+  "      \"uid=\" + std::to_string(getuid()) + \" gid=\" + std::to_string(getgid()));",
+  "}",
+].join("\n");
+
+const TEMPFILE_SOURCE = [
+  "#include <filesystem>",
+  "#include <fstream>",
+  "#include <iostream>",
+  "#include <string>",
+  "",
+  "namespace fs = std::filesystem;",
+  "",
+  "static void say(const std::string& name, const std::string& state, const std::string& detail) {",
+  "  std::cout << name << \"|\" << state << \"|\" << detail << std::endl;",
+  "}",
+  "",
+  "/* Twelve bytes, written and then deleted. `remove` runs on every path out,",
+  "   including the failure paths, so nothing this probe creates outlives it. */",
+  "static void write_then_delete(const std::string& name, const fs::path& target, const std::string& where) {",
+  "  std::error_code failed;",
+  "  {",
+  "    std::ofstream handle(target);",
+  "    if (!handle) {",
+  "      say(name, \"BLOCKED\", \"could not open \" + target.string() + \" for writing\");",
+  "      return;",
+  "    }",
+  "    handle << \"solvex probe\";",
+  "  }",
+  "  const auto size = fs::file_size(target, failed);",
+  "  if (failed) {",
+  "    fs::remove(target, failed);",
+  "    say(name, \"BLOCKED\", failed.message());",
+  "    return;",
+  "  }",
+  "  fs::remove(target, failed);",
+  "  say(name, \"OPEN\", std::to_string(size) + \" bytes \" + where);",
+  "}",
+  "",
+  "int main() {",
+  "  std::error_code failed;",
+  "  const fs::path temp = fs::temp_directory_path(failed);",
+  "  if (failed) say(\"tempfile\", \"BLOCKED\", failed.message());",
+  "  else write_then_delete(\"tempfile\", temp / \"solvex_probe.txt\", \"under \" + temp.string());",
+  "",
+  "  write_then_delete(\"cwd_write\", \"solvex_probe.txt\", \"into the working directory\");",
+  "}",
+].join("\n");
+
+const SUBPROCESS_SOURCE = [
+  "#include <cerrno>",
+  "#include <cstdio>",
+  "#include <cstring>",
+  "#include <iostream>",
+  "#include <string>",
+  "",
+  "int main() {",
+  "  /* `id` and `uname -sr` read state and change nothing. stderr is folded into",
+  "     the pipe so a shell that refuses says why on the one stream being read. */",
+  "  FILE* pipe = popen(\"/bin/sh -c 'id; uname -sr' 2>&1\", \"r\");",
+  "  if (pipe == nullptr) {",
+  "    std::cout << \"subprocess|BLOCKED|\" << std::strerror(errno) << std::endl;",
+  "    return 0;",
+  "  }",
+  "  std::string joined;",
+  "  char line[256];",
+  "  while (std::fgets(line, sizeof(line), pipe) != nullptr) {",
+  "    std::string one(line);",
+  "    while (!one.empty() && (one.back() == '\\n' || one.back() == '\\r')) one.pop_back();",
+  "    if (one.empty()) continue;",
+  "    joined += (joined.empty() ? \"\" : \" ~ \") + one;",
+  "  }",
+  "  const int status = pclose(pipe);",
+  "  if (status != 0 && joined.empty()) {",
+  "    std::cout << \"subprocess|BLOCKED|the shell produced nothing, pclose \" << status << std::endl;",
+  "    return 0;",
+  "  }",
+  "  std::cout << \"subprocess|OPEN|rc=\" << status << \" \" << joined << std::endl;",
+  "}",
+].join("\n");
+
+const ENVIRON_SOURCE = [
+  "#include <algorithm>",
+  "#include <iostream>",
+  "#include <string>",
+  "#include <vector>",
+  "#include <unistd.h>",
+  "",
+  "/* POSIX declares this; g++ on glibc already has it from <unistd.h>, and the",
+  "   redeclaration is compatible where it does. NAMES only \u2014 a judge host's",
+  "   environment can hold ITS operator's credentials. */",
+  "extern char** environ;",
+  "",
+  "int main() {",
+  "  std::vector<std::string> names;",
+  "  for (char** entry = environ; entry != nullptr && *entry != nullptr; ++entry) {",
+  "    const std::string one(*entry);",
+  "    names.push_back(one.substr(0, one.find('=')));",
+  "  }",
+  "  std::sort(names.begin(), names.end());",
+  "  std::string joined;",
+  "  for (const auto& name : names) joined += (joined.empty() ? \"\" : \",\") + name;",
+  "  std::cout << \"env_count|OPEN|\" << names.size() << std::endl;",
+  "  std::cout << \"env_names|OPEN|\" << joined << std::endl;",
+  "}",
+].join("\n");
+
 export const SANDBOX_PROBES: readonly SandboxProbe[] = [
   {
     id: "network",
     what:
       "whether `enable_network: false` is honoured. The provider sends it explicitly on " +
       "every submission — it is the CVE-2024-29021 default, and it is also the mechanism " +
-      "behind `python-policy.ts`'s standard-library-only guarantee, which works BY THE " +
-      "JUDGE HAVING NO NETWORK TO PIP FROM",
+      "behind `cpp-runtime.ts`'s standard-library-only guarantee, which works BY THE " +
+      "JUDGE HAVING NO NETWORK TO FETCH A LIBRARY FROM",
     safety:
       "resolves and connects to example.com, IANA's reserved documentation domain, and " +
-      "sends it nothing but an ordinary GET / . No data of ours crosses the wire. Every " +
-      "timeout is 2 s, so three blocked checks still finish inside the 7 s wall limit.",
-    source: [
-      "import socket",
-      "",
-      "def report(name, fn):",
-      "    try:",
-      "        print(name + '|OPEN|' + str(fn()))",
-      "    except Exception as exc:",
-      "        print(name + '|BLOCKED|' + type(exc).__name__)",
-      "",
-      "def dns():",
-      "    return socket.getaddrinfo('example.com', 80)[0][4][0]",
-      "",
-      "def tcp():",
-      "    sock = socket.create_connection(('example.com', 80), timeout=2)",
-      "    peer = sock.getpeername()[0]",
-      "    sock.close()",
-      "    return peer",
-      "",
-      "def http():",
-      "    import urllib.request",
-      "    with urllib.request.urlopen('http://example.com/', timeout=2) as response:",
-      "        return response.status",
-      "",
-      "report('dns', dns)",
-      "report('tcp', tcp)",
-      "report('http', http)",
-    ].join("\n"),
+      "sends it nothing but an ordinary GET / . No data of ours crosses the wire. The " +
+      "connect is non-blocking and bounded by `select` at 2 s and the read at 2 s more, so " +
+      "a filtered network costs four seconds rather than the kernel's SYN retry schedule " +
+      "and three blocked checks still finish inside the 7 s wall limit.",
+    source: NETWORK_SOURCE,
     interpret(result) {
       const early = unreadable(result);
       if (early) return early;
@@ -298,9 +661,10 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
           ? "Outbound network was reachable from inside a submission even though the " +
             "provider sends `enable_network: false` on every one. That is a SECURITY " +
             "LIMITATION of the rented judge, and it also breaks the standard-library-only " +
-            "guarantee `schools/execution/python-policy.ts` enforces by absence: a learner " +
-            "could pip-install or fetch a solution. It is a programme decision, not a " +
-            "provider bug to work around."
+            "guarantee `schools/execution/cpp-runtime.ts` enforces by absence: that policy " +
+            "works because the judge has nothing to fetch a library from, so a judge with a " +
+            "network is a judge where a learner could fetch a solution. It is a programme " +
+            "decision, not a provider bug to work around."
           : null,
       };
     },
@@ -309,29 +673,10 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
     id: "filesystem",
     what: "what a submission can see of the host: the working directory, the root, its own uid",
     safety:
-      "lists directory NAMES and asks os.access whether four well-known paths are " +
-      "readable. It never opens a file and never prints any file's contents.",
-    source: [
-      "import os",
-      "",
-      "print('cwd|OPEN|' + os.getcwd())",
-      "try:",
-      "    print('root_entries|OPEN|' + ','.join(sorted(os.listdir('/'))[:40]))",
-      "except Exception as exc:",
-      "    print('root_entries|BLOCKED|' + type(exc).__name__)",
-      "try:",
-      "    print('cwd_entries|OPEN|' + ','.join(sorted(os.listdir('.'))[:40]))",
-      "except Exception as exc:",
-      "    print('cwd_entries|BLOCKED|' + type(exc).__name__)",
-      "for path in ('/etc/passwd', '/etc/shadow', '/proc/self/environ', '/box'):",
-      "    state = 'OPEN' if os.access(path, os.R_OK) else 'BLOCKED'",
-      "    exists = 'exists' if os.path.exists(path) else 'absent'",
-      "    print('readable ' + path + '|' + state + '|' + exists)",
-      "try:",
-      "    print('identity|OPEN|uid=' + str(os.getuid()) + ' gid=' + str(os.getgid()))",
-      "except Exception as exc:",
-      "    print('identity|BLOCKED|' + type(exc).__name__)",
-    ].join("\n"),
+      "lists directory NAMES through `std::filesystem::directory_iterator`, capped at forty " +
+      "and sorted, and asks `access(2)` whether four well-known paths are readable. It " +
+      "never opens a file and never prints any file's contents.",
+    source: FILESYSTEM_SOURCE,
     interpret(result) {
       const early = unreadable(result);
       if (early) return early;
@@ -358,40 +703,16 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
   {
     id: "tempfile",
     what: "whether a submission may write to disk at all — and where",
-    safety: "writes twelve bytes to a temporary file and to the working directory, then deletes both.",
-    source: [
-      "import os",
-      "import tempfile",
-      "",
-      "def report(name, fn):",
-      "    try:",
-      "        print(name + '|OPEN|' + str(fn()))",
-      "    except Exception as exc:",
-      "        print(name + '|BLOCKED|' + type(exc).__name__)",
-      "",
-      "def temp():",
-      "    with tempfile.NamedTemporaryFile('w', delete=False) as handle:",
-      "        handle.write('solvex probe')",
-      "        path = handle.name",
-      "    size = os.path.getsize(path)",
-      "    os.unlink(path)",
-      "    return str(size) + ' bytes under ' + os.path.dirname(path)",
-      "",
-      "def here():",
-      "    with open('solvex_probe.txt', 'w') as handle:",
-      "        handle.write('solvex probe')",
-      "    size = os.path.getsize('solvex_probe.txt')",
-      "    os.remove('solvex_probe.txt')",
-      "    return str(size) + ' bytes into the working directory'",
-      "",
-      "report('tempfile', temp)",
-      "report('cwd_write', here)",
-    ].join("\n"),
+    safety:
+      "writes twelve bytes to `std::filesystem::temp_directory_path()` and twelve more to " +
+      "the working directory, then deletes both on every path out, including the failing " +
+      "ones. Nothing this probe creates outlives it.",
+    source: TEMPFILE_SOURCE,
     interpret(result) {
       const early = unreadable(result);
       if (early) return early;
-      /* Writing to a scratch directory is what an interpreter does; it is only
-         interesting alongside the other probes, and it is not on its own a
+      /* Writing to a scratch directory is what a compiled program does; it is
+         only interesting alongside the other probes, and it is not on its own a
          limitation. Recorded as an observation, not as a finding. */
       return { boundary: anyOpen(result) ? "open" : "held", detail: lines(result).join("\n"), securityNote: null };
     },
@@ -401,18 +722,8 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
     what:
       "whether a submission can spawn a shell. It is the difference between a program " +
       "sandbox and a machine, and it decides how much a hostile paste could do",
-    safety: "runs `id` and `uname -sr`, which read state and change nothing.",
-    source: [
-      "import subprocess",
-      "",
-      "try:",
-      "    done = subprocess.run(['/bin/sh', '-c', 'id; uname -sr'],",
-      "                          capture_output=True, text=True, timeout=3)",
-      "    joined = ' ~ '.join(line for line in done.stdout.split('\\n') if line)",
-      "    print('subprocess|OPEN|rc=' + str(done.returncode) + ' ' + joined)",
-      "except Exception as exc:",
-      "    print('subprocess|BLOCKED|' + type(exc).__name__)",
-    ].join("\n"),
+    safety: "runs `id` and `uname -sr` through `popen`, which read state and change nothing.",
+    source: SUBPROCESS_SOURCE,
     interpret(result) {
       const early = unreadable(result);
       if (early) return early;
@@ -422,9 +733,11 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
         detail: lines(result).join("\n"),
         securityNote: open
           ? "A submission can spawn a shell. Expected for an isolate-based judge — the " +
-            "isolation is the container and the cgroup, not the Python process — and worth " +
-            "writing down, because it means the only thing between a hostile paste and the " +
-            "judge's host is Judge0's own sandbox, which nothing here can test."
+            "isolation is the container and the cgroup, not the compiled program — and " +
+            "worth writing down, because it means the only thing between a hostile paste " +
+            "and the judge's host is Judge0's own sandbox, which nothing here can test. " +
+            "Note that the browser half has no equivalent: `system()` does not even LINK " +
+            "against the WASI sysroot, so this asymmetry is a property of the judge alone."
           : null,
       };
     },
@@ -433,16 +746,10 @@ export const SANDBOX_PROBES: readonly SandboxProbe[] = [
     id: "environ",
     what: "which environment variables a submission inherits from the judge's host",
     safety:
-      "prints variable NAMES and the count, never a value. A judge host's environment can " +
-      "hold ITS operator's credentials, and a validation run must not copy somebody else's " +
-      "secret into a file in this repository.",
-    source: [
-      "import os",
-      "",
-      "names = sorted(os.environ.keys())",
-      "print('env_count|OPEN|' + str(len(names)))",
-      "print('env_names|OPEN|' + ','.join(names))",
-    ].join("\n"),
+      "walks POSIX `environ` and prints variable NAMES and the count, never a value. A " +
+      "judge host's environment can hold ITS operator's credentials, and a validation run " +
+      "must not copy somebody else's secret into a file in this repository.",
+    source: ENVIRON_SOURCE,
     interpret(result) {
       const early = unreadable(result);
       if (early) return early;

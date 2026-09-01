@@ -84,6 +84,7 @@ async function attempt(subjectId: string, blockId: string, answer: Parameters<ty
   });
 
   await store.appendEvents(rows);
+  return { outcome, verdictName };
 }
 
 describe("unattributed failures", () => {
@@ -128,7 +129,19 @@ describe("unattributed failures", () => {
 
   it("never records an attribution for a correct answer", async () => {
     const subjectId = await store.resolveSubject(randomUUID());
-    await attempt(subjectId, "m1.l1.b4", { kind: "line", line: 1 });
+    // `m1.l1.b4` is a find_bug block. Under Python the bug was `n = input()` on
+    // line 1; the C++ re-authoring replaced it with a missing semicolon, so the
+    // line the learner must fix is 5 — the compiler blames 6, and "6" is the one
+    // answer the author mapped to a failure class.
+    const { verdictName } = await attempt(subjectId, "m1.l1.b4", { kind: "line", line: 5 });
+    // Guards the fixture, not the pipeline. This assertion exists because the
+    // fixture silently stopped being a correct answer once the content moved,
+    // and the only symptom was a mystery +1 in the count below. If a future
+    // re-authoring moves the bug again, it fails here, naming the reason.
+    expect(
+      verdictName,
+      "this test can only say anything about correct answers if it submits one",
+    ).toBe("accepted");
     await runSweep(store, { limit: 50 });
 
     const persisted = await store.getLearnerState(subjectId);

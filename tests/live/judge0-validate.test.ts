@@ -6,7 +6,12 @@ import {
   runValidation,
   type ValidatorInput,
 } from "../../scripts/live/judge0-validate";
-import { startFakeJudge0, type FakeJudge0 } from "../exec/judge0-fake";
+import {
+  decodeMaybeBase64,
+  EXPECTED_CPP_ID,
+  startFakeJudge0,
+  type FakeJudge0,
+} from "../exec/judge0-fake";
 
 /**
  * The live validator, exercised without a live service.
@@ -29,13 +34,19 @@ import { startFakeJudge0, type FakeJudge0 } from "../exec/judge0-fake";
  * accounting. Its `violations` array also checks the reverse direction — that
  * the requests the validator caused are the requests Judge0 documents.
  *
- * It proves NOTHING about RapidAPI. The fake does not run Python; it answers
- * from fixtures written to match what CPython prints for the conformance
- * programs, and it answers an unknown program with an empty stdout. So the
- * conformance assertions below are about the ADAPTER and the validator's
+ * It proves NOTHING about RapidAPI. The fake does not compile anything; it
+ * answers from fixtures written to match what GCC 14 produces for the
+ * conformance programs, and it answers an unknown program with an empty stdout.
+ * So the conformance assertions below are about the ADAPTER and the validator's
  * bookkeeping, and the parity, probe and cost CONTENT assertions are
  * deliberately absent: those are claims about a service, and no service has
  * been contacted.
+ *
+ * The compiler-identity program is in that second category too. `__cplusplus`
+ * and `-7 / 2` are facts about a real GCC, so the fake answers them with an
+ * empty stdout and the validator records "the program printed nothing" — which
+ * is why the run below still exits 0. "We could not measure" and "we measured
+ * and it is wrong" are opposite facts, and only the second is a defect.
  */
 
 /** A distinctive stand-in, so "the key never appears in the report" is testable. */
@@ -159,23 +170,42 @@ describe("judge0:validate — driven against the protocol-faithful fake", () => 
     const report = outcome.report;
     if (!report) throw new Error("no report");
 
-    /* The adapter's own discovery, not a reimplementation of it: the fake's
-       catalogue carries a Python 2.7 and a numpy-preloaded `Python for ML`
-       precisely so a validator that reported the wrong winner would be caught. */
-    expect(report.languages?.selected?.id).toBe(100);
-    expect(report.languages?.selected?.version).toBe("3.12.5");
-    expect(report.languages?.pythonEntries.map((e) => e.id)).toEqual([70, 71, 92, 100, 127]);
-    expect(report.languages?.pythonEntries.find((e) => e.id === 127)?.matchesDiscoveryRule).toBe(false);
+    /*
+     * The adapter's own discovery, not a reimplementation of it.
+     *
+     * This block used to assert Python 3.12.5 at id 100, and the C++17
+     * migration made that false rather than stale: the product no longer
+     * submits Python at all, and the validator that still described one was
+     * reporting on a runtime nothing uses. What is worth defending in its place
+     * is the harder claim — that discovery lands on the ONLY entry in the
+     * catalogue it may use.
+     *
+     * The fake's catalogue is `judge0-ce.p.rapidapi.com`'s real list, and four
+     * of its five C++ entries are traps: three GCCs that default to `gnu++14`
+     * and a Clang that does the same, none of which can be corrected because
+     * `compiler_options` is answered with HTTP 403 on this plan. Taking any of
+     * them would compile the course's own syntax as C++14 and report the
+     * learner wrong for writing what they were taught.
+     */
+    expect(report.languages?.selected?.id).toBe(EXPECTED_CPP_ID);
+    expect(report.languages?.selected?.version).toBe("14.1.0");
+    expect(report.languages?.cppEntries.map((e) => e.id)).toEqual([52, 53, 54, 76, 105]);
+    /* Exactly one entry the adapter would submit to, and the table says so of
+       every other row. Reporting the NAME rule alone would print "yes" beside
+       `C++ (GCC 7.4.0)` — a name that matches and a compiler discovery refuses
+       — which is the one row a reader is most likely to act on. */
+    const submittable = (report.languages?.cppEntries ?? []).filter((e) => e.matchesDiscoveryRule);
+    expect(submittable.map((e) => e.id)).toEqual([EXPECTED_CPP_ID]);
 
-    expect(report.conformance).toHaveLength(11);
+    expect(report.conformance).toHaveLength(12);
     const missed = (report.conformance ?? []).filter((r) => !r.matched);
     expect(missed.map((r) => `${r.id}: ${r.mismatch ?? ""}`)).toEqual([]);
 
     /* Submissions and API requests are different numbers and the report has to
-       keep them different: eleven conformance programs plus one `sys.version`,
-       against far more HTTP calls because every submission is a POST and at
-       least three polls. */
-    expect(outcome.submissionsSpent).toBe(12);
+       keep them different: twelve conformance programs plus one that asks the
+       compiler about itself, against far more HTTP calls because every
+       submission is a POST and at least three polls. */
+    expect(outcome.submissionsSpent).toBe(13);
     expect(outcome.apiRequestsSpent).toBeGreaterThan(outcome.submissionsSpent);
     expect(report.spend.polls).toBeGreaterThan(0);
 
@@ -183,6 +213,36 @@ describe("judge0:validate — driven against the protocol-faithful fake", () => 
        Judge0 documents — units in seconds and kilobytes, `wait=false`,
        `enable_network: false`, and no `expected_output` anywhere. */
     expect(fake.violations).toEqual([]);
+
+    /*
+     * EVERY program this validator submits is C++, and every submission goes to
+     * the C++ language id.
+     *
+     * The identity phase used to submit `import sys; print(sys.version)` under
+     * `language: "cpp17"` — Python source at a GCC, which against RapidAPI is a
+     * guaranteed compilation error and against this fake is a program nobody
+     * recognises. Either way the one measurement that phase exists for could
+     * never arrive, and NOTHING failed: the fake answers an unknown program
+     * with an empty stdout, so the run stayed green while the section it
+     * produced was permanently UNKNOWN.
+     *
+     * A judge is the wrong place to notice that. The wire is the right one.
+     */
+    const posted = fake.requests.filter((r) => r.method === "POST");
+    expect(posted.length).toBe(outcome.submissionsSpent);
+    for (const request of posted) {
+      const body = request.body as { source_code?: unknown; language_id?: unknown };
+      expect(body.language_id).toBe(EXPECTED_CPP_ID);
+      expect(decodeMaybeBase64(body.source_code)).toContain("int main");
+    }
+
+    /* And `compiler_options` on none of them. It is answered with HTTP 403 on
+       this plan, so a validator that sent it would fail every submission of
+       every phase against the real service while passing here — the fake does
+       not check for it, which is exactly why this test does. */
+    for (const request of posted) {
+      expect(Object.keys(request.body as Record<string, unknown>)).not.toContain("compiler_options");
+    }
 
     expect(capture.files.length).toBeGreaterThan(0);
     const document = capture.files[capture.files.length - 1].contents;
@@ -194,9 +254,9 @@ describe("judge0:validate — driven against the protocol-faithful fake", () => 
     const { input } = inputFor(fake, ["--only=languages,conformance", "--max-submissions=1"]);
     const outcome = await runValidation(input);
 
-    /* One submission for `sys.version`, and then a refusal to start an
-       eleven-program phase it cannot finish. Half a conformance table is worse
-       than none, because it is read as a whole one. */
+    /* One submission for the compiler-identity program, and then a refusal to
+       start a twelve-program phase it cannot finish. Half a conformance table
+       is worse than none, because it is read as a whole one. */
     expect(outcome.submissionsSpent).toBe(1);
     expect(outcome.report?.skipped.map((s) => s.phase)).toEqual(["conformance"]);
     expect(outcome.report?.conformance).toBeNull();
@@ -207,13 +267,14 @@ describe("judge0:validate — driven against the protocol-faithful fake", () => 
     const outcome = await runValidation(input);
 
     /* Zero budget is a supported and useful mode, not a refusal to work: the
-       catalogue, which Python the adapter would pick, the quota headers and
-       `/config_info` are all free. Only `sys.version` costs a submission, and
-       it is the one thing the identity section reports as not asked. */
+       catalogue, which C++ the adapter would pick, the quota headers and
+       `/config_info` are all free. Only asking the compiler about itself costs
+       a submission, and it is the one thing the identity section reports as not
+       asked. */
     expect(outcome.submissionsSpent).toBe(0);
-    expect(outcome.report?.languages?.selected?.id).toBe(100);
-    expect(outcome.report?.languages?.interpreterVersion).toBeNull();
-    expect(outcome.report?.languages?.interpreterProblem).toContain("no submission budget");
+    expect(outcome.report?.languages?.selected?.id).toBe(EXPECTED_CPP_ID);
+    expect(outcome.report?.languages?.compilerIdentity).toBeNull();
+    expect(outcome.report?.languages?.compilerProblem).toContain("no submission budget");
     /* `GET /languages` is an API request even though it is not a submission —
        the two numbers are different and the report keeps them apart. */
     expect(outcome.apiRequestsSpent).toBeGreaterThan(0);
@@ -285,15 +346,111 @@ describe("judge0:validate — driven against the protocol-faithful fake", () => 
     const { input, capture } = inputFor(fake, ["--only=parity", "--max-submissions=60"]);
     const outcome = await runValidation(input);
 
-    /* Row count only. The fake does not run Python — it answers an unrecognised
-       program with an empty stdout — so whether September's arithmetic agrees
-       with Judge0 is a question only the live run can ask, and asserting it here
-       would be asserting a fixture against itself. */
+    /* Row count only. The fake does not compile anything — it answers an
+       unrecognised program with an empty stdout — so whether September's
+       arithmetic agrees with Judge0 is a question only the live run can ask, and
+       asserting it here would be asserting a fixture against itself. */
     expect(outcome.report?.parity?.length).toBeGreaterThan(20);
     const document = capture.files[capture.files.length - 1].contents;
     expect(document).not.toContain(FAKE_KEY);
     expect(document).toContain("## 4. Parity with the September curriculum");
   }, 90_000);
+});
+
+describe("the compiler is asked about itself, and the answer is checked", () => {
+  /**
+   * The fake does not compile anything, so it cannot ANSWER the identity
+   * program — but it can be told what a judge would have answered, which is
+   * enough to drive the whole path from stdout to exit code.
+   *
+   * What this pins down is the reason the identity phase spends a submission at
+   * all. `compiler_options` is refused with HTTP 403 on this plan, so
+   * `-std=c++17` cannot be sent and the standard comes from whatever the
+   * compiler defaults to. `__cplusplus` is the only way to know what that was,
+   * and a judge quietly compiling as C++14 would reject the syntax the course
+   * teaches while every catalogue label still read `C++ (GCC 14.1.0)`.
+   */
+  let fake: FakeJudge0;
+
+  beforeEach(async () => {
+    await fake?.close();
+    fake = await startFakeJudge0();
+    resetJudge0GateForTests();
+  });
+  afterAll(async () => {
+    await fake?.close();
+  });
+
+  /** Answer the one submission this phase makes with a chosen stdout. */
+  function answerIdentityWith(stdout: string): void {
+    fake.setHandler((ctx) =>
+      ctx.method === "GET" && ctx.path.startsWith("/submissions/")
+        ? { kind: "submission", body: { stdout } }
+        : { kind: "default" },
+    );
+  }
+
+  const HEALTHY = [
+    "compiler|GCC 14.1.0",
+    "__cplusplus|201703",
+    "__OPTIMIZE__|undefined",
+    "-7/2|-3",
+    "-7%2|-1",
+  ].join("\n");
+
+  it("records what the compiler said and stays clean when it is what we depend on", async () => {
+    answerIdentityWith(HEALTHY);
+    const { input } = inputFor(fake, ["--only=languages"]);
+    const outcome = await runValidation(input);
+
+    expect(outcome.report?.languages?.compilerIdentity).toContain("__cplusplus|201703");
+    expect(outcome.report?.languages?.compilerProblem).toBeNull();
+    expect(outcome.exitCode).toBe(0);
+  }, 30_000);
+
+  it("calls a judge that compiles as C++14 a defect, however the catalogue labels it", async () => {
+    answerIdentityWith(HEALTHY.replace("201703", "201402"));
+    const { input } = inputFor(fake, ["--only=languages"]);
+    const outcome = await runValidation(input);
+
+    const defects = (outcome.report?.findings ?? []).filter(
+      (f) => f.phase === "languages" && f.severity === "defect",
+    );
+    expect(defects.map((f) => f.summary).join("\n")).toContain("__cplusplus is 201402");
+    expect(outcome.exitCode).toBe(1);
+  }, 30_000);
+
+  it("calls a judge whose integer division floors a defect", async () => {
+    /* Python's answers, from a judge claiming to be C++: `-7 // 2` is `-4` and
+       `-7 % 2` is `1`. Every September task carried over from the Python
+       curriculum was re-checked against C++'s truncation toward zero, so a
+       judge that floored would grade a whole month against arithmetic the
+       expected outputs were never computed under. */
+    answerIdentityWith(HEALTHY.replace("-7/2|-3", "-7/2|-4").replace("-7%2|-1", "-7%2|1"));
+    const { input } = inputFor(fake, ["--only=languages"]);
+    const outcome = await runValidation(input);
+
+    const defects = (outcome.report?.findings ?? []).filter(
+      (f) => f.phase === "languages" && f.severity === "defect",
+    );
+    expect(defects.map((f) => f.summary).join("\n")).toContain("-7/2 = -4");
+    expect(outcome.exitCode).toBe(1);
+  }, 30_000);
+
+  it("does not turn a compiler that could not be asked into a compiler that answered wrong", async () => {
+    /* The complement, and the reason the three tests above can exist at all:
+       the ordinary fake answers this program with an empty stdout, and that has
+       to stay a `compilerProblem` rather than becoming a finding. "We could not
+       measure" and "we measured and it is wrong" are opposite facts, and a
+       guard that conflated them would go red on every offline run until
+       somebody deleted it. */
+    const { input } = inputFor(fake, ["--only=languages"]);
+    const outcome = await runValidation(input);
+
+    expect(outcome.report?.languages?.compilerIdentity).toBeNull();
+    expect(outcome.report?.languages?.compilerProblem).toContain("printed nothing");
+    expect(outcome.exitCode).toBe(0);
+  }, 30_000);
 });
 
 describe("a failed discovery stops the run instead of blessing it", () => {
@@ -312,8 +469,8 @@ describe("a failed discovery stops the run instead of blessing it", () => {
 
   /**
    * Found by pointing the validator at the real service with a deliberately
-   * invalid key. It answered 3 × 429, read no catalogue, identified no Python
-   * runtime — and exited **0**.
+   * invalid key. It answered 3 × 429, read no catalogue, identified no
+   * compiler — and exited **0**.
    *
    * Zero means clean. The operator's own instruction for this phase is "if this
    * fails, STOP, do not proceed to paid execution", and exit 0 is exactly the
@@ -369,7 +526,7 @@ describe("a failed discovery stops the run instead of blessing it", () => {
       saveFile: (path, contents) => written.push({ path, contents }),
     });
 
-    expect(outcome.report?.languages?.selected, "the fake does expose a Python").not.toBeNull();
+    expect(outcome.report?.languages?.selected, "the fake does expose a usable GCC").not.toBeNull();
     expect(outcome.exitCode).toBe(0);
 
     /* The report went to the INJECTED sink, not to the filesystem.
