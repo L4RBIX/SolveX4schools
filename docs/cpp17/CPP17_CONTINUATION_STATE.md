@@ -62,10 +62,22 @@ lesson).
 
 ## Not done
 
-- **Pyodide is still on disk and still served.** `src/lib/pyodide/*`,
-  `scripts/sync-pyodide-assets.mjs`, `scripts/build-python-worker.mjs`.
-  Retirement is deliberately last: it happens after a C++ preview deployment
-  passes, not before, so there is a fallback while the new runtime is young.
+- **One 38 KB client chunk still carries the Pyodide glue.** Measured after a
+  real `npm run build`: `public/pyodide` and `public/pyodide-worker.js` are
+  gone (12.9 MB stripped by `scripts/strip-python-assets.mjs`), and no route
+  manifest references the chunk — but Next still emits it, because
+  `/dev/execution` imports `src/lib/pyodide/*` and a route that returns
+  `notFound()` in production is still compiled. It is inert: nothing loads it,
+  and the assets it would fetch no longer exist in the build. Removing it means
+  restructuring the 1346-line dev lab, which is the backup path's only
+  exerciser. `tests/execution/production-is-cpp-only.test.ts` permits exactly
+  this one importer and fails on any other.
+- **Pyodide source is kept deliberately.** `src/lib/pyodide/**`,
+  `scripts/sync-pyodide-assets.mjs`, `scripts/build-python-worker.mjs` and
+  `schools/execution/python-policy.ts` all remain as a labelled BACKUP, on the
+  owner's instruction: production ships C++17 only, and Python stays in the
+  repository. `predev` still builds the Python assets so the backup stays
+  runnable; `prebuild` strips them.
 - **No C++ preview deployment yet**, and production stays on Python until one
   passes.
 - **Per-feature browser↔judge parity is a manual pass, not a suite.** The core
@@ -77,12 +89,20 @@ lesson).
   buffer dies with it. Showing what it printed first would teach a beginner
   more. Needs streaming rather than collect-at-the-end; a protocol change, not a
   patch.
-- **`scripts/check-blocks.ts` is blocked on an import.** It reads
-  `EXECUTION_LIMITS` from `schools/exec/provider.ts`, which imports
-  `server-only` (since 32cb6cb), so the script throws on startup. The fix is to
-  extract the plain constants into a module without that import and re-export
-  them. Until then the fast authoring loop is unavailable even though its C++
-  migration is complete.
+- **Two May tasks are complexity-unmeasured, deliberately.** `m9.l3.b6` and
+  `m9.c3.p4` are graded on the answer only. Measured over 9 runs at both
+  optimisation levels: the worst naive solution takes 0.661 s against a 5 s
+  budget — 7.6x inside at `-O0`, 109x at `-O2` — and both naives also print the
+  correct answer, so there is no output-based fallback either. No robust timing
+  separation exists at any input fitting the 16 KiB stdin ceiling, so the guards
+  were deleted rather than retuned. A guard that sometimes passes the naive
+  algorithm is worse than no guard.
+- **Seven fill_blank blocks put an answer on the same line as its own slot.**
+  Reported as warnings by `curriculum:validate`. Three are real giveaways
+  (`vector<int>`, `||`, `*`); four are coincidence where the token carries a
+  different meaning in the two places (`0` inside `nr >= 0`, `sr`/`sc` as their
+  own subscripts, `2` as an index). Telling them apart needs a token's semantic
+  role, which needs a parser this validator does not have.
 
 ## Things that will bite the next person
 
