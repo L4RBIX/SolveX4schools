@@ -207,4 +207,20 @@ jobs:
           LEARNING_ATTESTATION_SECRET: ${{ secrets.LEARNING_ATTESTATION_SECRET }}
           LEARNING_CRON_SECRET: ${{ secrets.LEARNING_CRON_SECRET }}
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          # LEARNING_CRON_SECRET is excused BY NAME, not because the run was red.
+          #
+          # It has no consumer anywhere in the product: `schools/config.ts` reads
+          # it into `config.cronSecret` and nothing reads that. The route it was
+          # meant to guard does not exist, because there is no cron in this
+          # deployment — see the notes in `schools/leagues/settle.ts`,
+          # `schools/ops/counters.ts`, `src/instrumentation.ts` and
+          # `src/app/api/league/me/route.ts`, all of which record the same thing.
+          # Leagues stays off for the pilot, so the secret stays valueless, and a
+          # value that exists in no environment cannot be in a client bundle.
+          #
+          # This is self-correcting: the moment somebody enables Leagues and
+          # gives the secret a value, the scan reports this entry as stale and
+          # fails until it is removed. Do not extend this list to silence a
+          # secret that HAS a value — that is the leak this step exists to catch.
+          BUNDLE_SCAN_ALLOW_MISSING: LEARNING_CRON_SECRET
         run: npm run check:bundle

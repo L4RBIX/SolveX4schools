@@ -6,6 +6,7 @@ import { enforceHintPolicy } from "@schools/nova/enforce";
 import { buildNovaMessages, type HistoryTurn } from "@schools/nova/prompt";
 import { executionContextFor } from "@schools/nova/execution-context";
 import { getNovaProvider, NovaProviderError } from "@schools/nova";
+import type { NovaFinishReason } from "@schools/nova/provider";
 import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
 import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
 import { guardedStream } from "@schools/nova/guard";
@@ -101,6 +102,36 @@ interface HintBody {
 const MAX_MESSAGE = 2000;
 
 /**
+ * What one Kazakh reply costs against the same reply in Russian.
+ *
+ * MEASURED, on this provider, on this model. Eight equivalent hint questions
+ * were put through `deepseek-v4-flash` in both languages under the same
+ * "1–3 short sentences" instruction and the completion tokens compared:
+ *
+ *   kk  [65, 49, 96, 79, 62, 69, 50, 88]  median 67   1.99 chars/token
+ *   ru  [80, 53, 44, 55, 41, 35, 38, 50]  median 47   3.22 chars/token
+ *
+ * So the same sentence costs a Kazakh learner ~1.43x the tokens, because the
+ * tokeniser splits Kazakh finer — not because the tutor says more.
+ *
+ * ## Why this is a correction and not a raised ceiling
+ *
+ * How much Nova may SAY is set in two places, and neither of them is here.
+ * The prompt states it in sentences ("1-3 short sentences", `voiceContract`),
+ * and the validator enforces the part that matters in code lines
+ * (`codeLineBudget`). This number is the safety net underneath both, and it was
+ * stated in a unit whose exchange rate against meaning differs by language. A
+ * single figure therefore bought Kazakh learners about 70% of the room it
+ * bought Russian ones at every rung, which is why 4 of 20 Kazakh replies were
+ * cut off against 1 of 20 Russian — the cap was doing to Kazakh what it was
+ * never asked to do to anyone.
+ *
+ * Equalising it does not let Nova give more away. It lets the same hint finish
+ * its last word.
+ */
+const KK_TOKEN_COST = 1.45;
+
+/**
  * Room to answer at this rung, and no more.
  *
  * The configured maximum is the ceiling for the top of the ladder; the lower
@@ -108,11 +139,18 @@ const MAX_MESSAGE = 2000;
  * rule as the hint level itself, expressed in the one unit the model actually
  * obeys. A question that gives nothing away is one or two sentences, and a
  * model given room for twelve will write twelve.
+ *
+ * The locale factor above converts that intent into each language's own token
+ * cost. It is deliberately NOT a fix for truncation on its own: a cap this
+ * generous still clips a long tail, the provider still says `finish_reason:
+ * "length"` when it does, and the caller below still has to tell the learner.
+ * Widening a budget hides a class of defect; detecting the cut-off closes it.
  */
-function tokenBudget(granted: number): number {
+function tokenBudget(granted: number, locale: Locale): number {
   const max = config.nova.maxOutputTokens;
   const share = granted <= 0 ? 0.25 : granted === 1 ? 0.35 : granted === 2 ? 0.5 : granted === 3 ? 0.75 : 1;
-  return Math.max(80, Math.round(max * share));
+  const cost = locale === "kk" ? KK_TOKEN_COST : 1;
+  return Math.max(80, Math.round(max * share * cost));
 }
 
 /**
@@ -866,6 +904,37 @@ export async function POST(request: Request) {
     const startedAt = Date.now();
     let firstTokenAt: number | null = null;
 
+    /*
+     * Why the MODEL stopped, as opposed to why the validator did.
+     *
+     * `guardedStream` reports the second and cannot know the first: a response
+     * cut off at the token ceiling is clean text that simply ends, so it passes
+     * every check in `validate.ts` — each of which asks "does this contain
+     * something forbidden", and a truncated answer is a PREFIX, which can only
+     * ever contain less. Measured: across 40 live replies the validator raised
+     * zero violations on the five that ended mid-word.
+     *
+     * So the reason has to come from the provider, and it is held here per
+     * attempt rather than returned, because it belongs to the model call and
+     * `guardedStream`'s return value is already spoken for.
+     */
+    let finish: NovaFinishReason = "unknown";
+    /*
+     * Both read through functions, never inline.
+     *
+     * `finish` is written from a provider callback, which the compiler cannot
+     * see, so a straight-line `finish === "incomplete"` after the call is
+     * narrowed against the initialiser and rejected as a comparison with no
+     * overlap. Reading it inside a closure uses the declared type, which is the
+     * honest one here: the value genuinely is unknown until the stream ends.
+     */
+
+    /** Ended for a reason the learner did not choose. `unknown` claims nothing. */
+    const cutOff = () =>
+      finish === "length" || finish === "content_filter" || finish === "incomplete";
+    /** The stream itself broke, as opposed to the budget running out. */
+    const streamDied = () => finish === "incomplete";
+
     /** One guarded attempt. Returns what the learner saw and why it stopped. */
     const attempt = async (ctx: ValidationContext) => {
       /* Fresh per attempt. See the long note above `overall`: sharing these was
@@ -873,6 +942,11 @@ export async function POST(request: Request) {
       const timeout = AbortSignal.timeout(config.nova.requestTimeoutMs);
       const abort = new AbortController();
       const signal = AbortSignal.any([request.signal, overall, timeout, abort.signal]);
+
+      /* Reset per attempt, for the same reason the signals are. A retry that
+         inherited the first attempt's `length` would report the first
+         attempt's ending on the second attempt's text. */
+      finish = "unknown";
 
       const stream = guardedStream(
         provider.stream({
@@ -882,7 +956,7 @@ export async function POST(request: Request) {
              same budget as a level-4 worked fix will fill it, and length is the
              part of a small hint a learner actually notices — so the ceiling
              would be stated in the prompt and contradicted by the request. */
-          maxTokens: tokenBudget(grant.granted),
+          maxTokens: tokenBudget(grant.granted, locale),
           /*
            * Measured, and kept.
            *
@@ -912,6 +986,9 @@ export async function POST(request: Request) {
           temperature: 0.4,
           signal,
           onUsage,
+          onFinish: (reason) => {
+            finish = reason;
+          },
         }),
         ctx,
         () => {
@@ -940,26 +1017,50 @@ export async function POST(request: Request) {
       let outcome = await attempt(validation);
 
       /*
-       * One retry, stricter, and only when nothing was shown.
+       * One retry, and only when nothing was shown.
        *
        * If the learner has already seen part of the answer there is nothing to
        * retry INTO — a second response would arrive glued to the tail of the
        * first. So the retry is available exactly once, in the case where the
-       * violation happened before a single token was released, and it happens
-       * under a grant that forbids code entirely. A model that produced too
-       * much code with a budget of two will not produce less when asked again
-       * politely; it will when the instruction changes.
+       * turn produced nothing at all, and there are now two ways to arrive
+       * there:
+       *
+       *   - the validator rejected the response before a token was released.
+       *     The retry runs under a grant that forbids code entirely, because a
+       *     model that produced too much code with a budget of two will not
+       *     produce less when asked again politely; it will when the
+       *     instruction changes.
+       *
+       *   - the stream died before a token was released. Nothing about the ASK
+       *     was wrong, so the retry repeats it unchanged; changing the grant
+       *     here would silently demote a learner's hint because a socket
+       *     dropped. This is the case where a retry is genuinely likely to
+       *     work, and it is the only unexpected ending that gets one.
+       *
+       * `length` with nothing released is deliberately NOT retried: the ceiling
+       * is deterministic and the second attempt would end exactly where the
+       * first did, so the learner gets the truthful status below instead of
+       * another thirty seconds of spinner.
        */
-      if (outcome.violations.length > 0 && outcome.released.length === 0) {
-        bump("nova.output_rejected");
-        opsLog("nova.output_rejected", {
-          codes: outcome.violations.map((v) => v.code).join(","),
-          attempt: "1",
-        });
-        outcome = await attempt({
-          ...validation,
-          grant: { ...grant, granted: Math.min(grant.granted, 1), mayIncludeCode: false },
-        });
+      const diedEarly = outcome.violations.length === 0 && streamDied();
+      if (outcome.released.length === 0 && (outcome.violations.length > 0 || diedEarly)) {
+        if (diedEarly) {
+          opsLog("nova.stream_incomplete", { attempt: "1", released: "0", locale });
+        } else {
+          bump("nova.output_rejected");
+          opsLog("nova.output_rejected", {
+            codes: outcome.violations.map((v) => v.code).join(","),
+            attempt: "1",
+          });
+        }
+        outcome = await attempt(
+          diedEarly
+            ? validation
+            : {
+                ...validation,
+                grant: { ...grant, granted: Math.min(grant.granted, 1), mayIncludeCode: false },
+              },
+        );
       }
 
       if (outcome.violations.length > 0) {
@@ -974,11 +1075,57 @@ export async function POST(request: Request) {
         const fallback = validatorFallback(locale);
         send("token", { text: (outcome.released ? "\n\n" : "") + fallback });
         outcome = { ...outcome, released: outcome.released + fallback };
+      } else if (cutOff()) {
+        /*
+         * The answer stops here, and the learner is told so.
+         *
+         * This is the whole defect, closed at the only layer that can close it.
+         * Everything above this line believed the turn succeeded: the provider
+         * saw a clean `[DONE]`, the guard saw a source that stopped yielding,
+         * the validator saw text with nothing forbidden in it, and the panel
+         * rendered a half-word as a finished hint with no mark on it at all.
+         * Measured live before this branch existed: 4 of 20 Kazakh replies and
+         * 1 of 20 Russian ended mid-thought, every one of them presented as an
+         * ordinary complete answer.
+         *
+         * What arrived is KEPT. Two thirds of a hint is two thirds of a hint,
+         * and the precedent is already in the panel for a learner who presses
+         * Stop — the text stays and the reason goes under it. Deleting it would
+         * take a useful sentence away to punish our own ceiling.
+         *
+         * A separate frame rather than an `error`, because this is not one: the
+         * request succeeded, the model answered, the answer is short. `error`
+         * would take the transcript through the panel's failure vocabulary and
+         * tell a fourteen-year-old that something broke when what actually
+         * happened is that Nova ran out of room.
+         */
+        opsLog("nova.output_truncated", {
+          reason: finish,
+          locale,
+          level: grant.granted,
+          budget: tokenBudget(grant.granted, locale),
+          released: String(outcome.released.length),
+          empty: outcome.released.length === 0,
+        });
+        if (outcome.released.length === 0) {
+          /* Nothing at all arrived, twice over where a retry was allowed. There
+             is no partial answer to caption, so this is a failed turn and is
+             reported as one — with a Retry button, because a stream that died
+             before its first token is exactly the thing a second press fixes. */
+          send("error", { kind: "upstream", retryable: true });
+        } else {
+          send("incomplete", { reason: finish });
+        }
       }
 
       /* Delivered, because it arrived. `content_len` is the real length of
          what the learner was SHOWN — not what the model produced — so a
-         truncated response is recorded as the shorter thing it was. */
+         truncated response is recorded as the shorter thing it was.
+         The ledger says how MUCH arrived and not whether it was cut off:
+         `sanitizePayload` drops every key outside the contract's allowlist, so
+         a `finish_reason` added here would be silently discarded rather than
+         stored. The truncation lives in `nova.output_truncated` above, where
+         something actually reads it. */
       await appendOrCount([
         assistanceEvent("assistance_delivered", 1, {
           level: grant.granted,

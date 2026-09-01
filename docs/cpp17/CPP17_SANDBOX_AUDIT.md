@@ -78,3 +78,32 @@ defect.
 The Judge0 side. Submissions run in Judge0's own containers under their
 isolation, which is theirs to make good and is not observable from here.
 Nothing above should be read as a statement about it.
+
+## Test-side coverage
+
+`tests/cpp17/sandbox-contracts.test.ts` pins the contracts behind this audit so
+that widening the sandbox becomes a failing test rather than something you only
+find by opening Chrome again. **The probes above remain the stronger evidence** —
+they are integration results against a real browser, a real Worker and a real
+process boundary, and nothing in a Node test replaces them.
+
+What the pins can honestly do, and do:
+
+- run **hand-assembled WASI programs through the real vendored runtime**, so the
+  environment a learner's program receives is read out of a running program's
+  linear memory — `environ count = 1`, `USER=alice`, and nothing this machine
+  knows;
+- read the **import table of the pinned `memfs.wasm`**, which is five `env.*`
+  functions and no host filesystem call at all — the structural reason the
+  denial above is not a policy that could be misconfigured;
+- link programs importing `sock_send`, `sock_recv`, `sock_accept` and
+  `sock_shutdown` and watch them **fail to instantiate**, with a control row
+  proving the failure is about the name and not about the probe;
+- pin the output ceiling, the same-origin asset base, `-std=c++17`, and the
+  termination-and-recovery behaviour the deadline depends on;
+- pin the two things this document records as **deliberate**: that a timed-out
+  run shows no partial output, and that `USER=alice` is a fabricated constant.
+
+No browser capability is faked. There is no test asserting that `system()` or
+`socket()` is "blocked", because in Node that would prove nothing and would be
+a comforting lie in a green suite.

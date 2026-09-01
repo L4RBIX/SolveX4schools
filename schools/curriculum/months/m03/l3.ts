@@ -35,9 +35,9 @@ import type { LessonBlock } from "../../types";
  * and the two failures that used to produce `None` split cleanly in two:
  *
  * - **Using a `void` result is a compile error.** `int y = show(5);` does not
- *   build, and neither does `cout << show(5);`. That is b5, and it is the
- *   m1.l1.b4 shape — the compiler names line 10 and line 16, and the line to
- *   fix is line 4, where `void` should have been `int`.
+ *   build, and neither does `cout << show(5);`. That is b5: the compiler
+ *   names line 10 and line 16, and the line to fix is line 4, where `void`
+ *   should have been `int`. Measured on both engines (see b5's own note).
  * - **Ignoring a returned value is silent.** `twice(5);` on a line of its own
  *   compiles, runs, computes 10 and throws it away. That is b3, and it is the
  *   half of the old `None` lesson that survives — the learner has to see that a
@@ -316,10 +316,19 @@ export const M3_L3: LessonBlock[] = [
      * function with a result. The body is right, the caller is right, and the
      * ONE word that is wrong is `void` on line 4.
      *
-     * It is the m1.l1.b4 pattern: the compiler names lines the learner must not
-     * fix. Clang and GCC both complain at line 10, where `return s;` sits
-     * inside a function that promised nothing, and again at line 16, where a
-     * `void` result is fed to `cout`. Neither line is the defect. `buggyLine`
+     * The compiler names lines the learner must not fix. MEASURED on both
+     * engines rather than assumed — the claim in this comment used to be
+     * inherited from m1.l1.b4, whose own version of it turned out to be false:
+     *
+     *   Clang 17 -fsyntax-only:
+     *     :10:5:  error: void function 'digit_sum' should not return a value
+     *     :16:10: error: invalid operands to binary expression ('ostream' and 'void')
+     *   GCC 14.1 (Judge0 id 105, live):
+     *     main.cpp:10:12: error: return-statement with a value, in function returning 'void'
+     *     main.cpp:16:10: error: no match for 'operator<<' ... and 'void')
+     *
+     * Both engines name 10 and 16, so the prompt's two numbers are true of
+     * whichever one the learner reached. Neither line is the defect: `buggyLine`
      * is 4, and the prompt says the compiler's numbers out loud so the learner
      * practises distrusting them.
      *

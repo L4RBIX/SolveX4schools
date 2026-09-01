@@ -163,6 +163,17 @@ type FailureKind =
   | "provider"
   /** The model stopped talking, possibly mid-sentence. */
   | "timeout"
+  /**
+   * The answer arrived, and it stops mid-thought.
+   *
+   * Not a failure and deliberately not folded into one: the request worked, the
+   * model answered, and the answer ran out of room. It is here because the
+   * panel had no way to say that at all — a reply cut off at the token ceiling
+   * rendered as an ordinary finished hint, and a fourteen-year-old reading a
+   * sentence that ends in the middle of a word concludes the tutor is broken,
+   * or worse, that the half-sentence was the whole point.
+   */
+  | "incomplete"
   /** The request never reached the server at all. */
   | "offline"
   /** Stop, or the panel closing. Not a failure — the learner did it on purpose. */
@@ -256,6 +267,11 @@ const COPY = {
     failProvider:
       "Nova қазір жауап бере алмайды. Бұл сенің қатең емес — жұмысыңды жалғастыра бер, мұғаліміңе айт.",
     failTimeout: "Жауап тым ұзаққа созылып кетті. Сұрағыңды қысқарақ қылып, қайта жіберші.",
+    /* Says the ONE thing the learner cannot see for themselves: the text above
+       is not the whole answer. It does not apologise and it does not blame the
+       connection — the reply ran out of room, which is ours, not theirs. */
+    failIncomplete:
+      "Жауап осы жерде үзіліп қалды. Жоғарыда жазылғаны дұрыс — қалғанын білу үшін нақтырақ сұрақ қойып көрші.",
     failOffline: "Интернет байланысы үзілген сияқты. Байланысты тексеріп, қайта жіберші.",
     failStopped: "Жауап тоқтатылды.",
     /* Adds the one thing the sentence above it does not have, and repeats none
@@ -290,6 +306,8 @@ const COPY = {
     failProvider:
       "Nova сейчас не может ответить. Это не твоя ошибка — продолжай работать и скажи учителю.",
     failTimeout: "Ответ занял слишком много времени. Задай вопрос покороче и отправь снова.",
+    failIncomplete:
+      "Ответ оборвался на середине. То, что выше, — верное, а чтобы узнать остальное, спроси чуть конкретнее.",
     failOffline: "Похоже, пропало соединение. Проверь интернет и отправь снова.",
     failStopped: "Ответ остановлен.",
     failStreak:
@@ -327,6 +345,8 @@ function failureCopy(failure: Failure, locale: Locale): string {
       return c.failProvider;
     case "timeout":
       return c.failTimeout;
+    case "incomplete":
+      return c.failIncomplete;
     case "offline":
       return c.failOffline;
     case "cancelled":
@@ -833,6 +853,26 @@ export function NovaChat({
               setMessages((m) =>
                 m.map((x) => (x.id === replyId ? { ...x, text: x.text + chunk } : x)),
               );
+            }
+            /*
+             * The answer is real, and it is not all of it.
+             *
+             * Handled apart from `error` because it IS apart: nothing failed,
+             * so `errored` stays false and the failure streak is untouched. A
+             * cut-off hint that a learner can still read must not spend one of
+             * the two presses that the store-outage cap exists to ration, and
+             * `streak: 0` here is the same choice the Stop path makes for the
+             * same reason — text arrived, so the button stays.
+             *
+             * Patched onto the reply rather than appended to its text: the
+             * panel already renders the failure line under the message and
+             * never instead of it, so the half-answer keeps its shape and gets
+             * a caption, in the learner's language, saying it stops early.
+             */
+            if (ev === "incomplete") {
+              patch({
+                failure: { kind: "incomplete", retryable: true, waitSeconds: 0, streak: 0 },
+              });
             }
             if (ev === "error") {
               errored = true;

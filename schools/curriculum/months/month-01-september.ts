@@ -106,20 +106,65 @@ const l1Blocks: LessonBlock[] = [
      * compiler message rather than a wrong number, which is a distinction this
      * course has to teach early — the program did not run, so there is nothing
      * to be wrong about.
+     *
+     * ## The line number in the message is NOT the lesson, and is not in the task
+     *
+     * This block used to open with «компилятор сообщает об ошибке в строке 6»
+     * and teach, in its diagnostic mapping, that a missing semicolon is reported
+     * on the NEXT line. Measured on this exact program, that is false on both
+     * engines a learner uses, and they use both in this lesson:
+     *
+     *   - **Run** is the browser's own clang 8.0.1 (`public/cpp17/clang.wasm`).
+     *     It cannot be driven under node — see `tests/execution/engines.ts` —
+     *     so the diagnostic was taken from a local `clang++ -std=c++17
+     *     -fsyntax-only`, and the wasm binary is confirmed to carry the same
+     *     diagnostic string: `5:26: error: expected ';' after expression`,
+     *     caret on LINE 5.
+     *   - **Submit** is Judge0 language 105, GCC 14.1, submitted live:
+     *     `main.cpp:5:21: error: expected ';' before 'cout'` — line 5 again,
+     *     with line 6 quoted below it and `cout` squiggled as the token it
+     *     tripped over.
+     *
+     * Two compilers, two columns, one line number that neither of them puts
+     * where the old prompt claimed. So the number in the message is not
+     * something a task may be built on: the question asks about the CODE —
+     * which instruction is unfinished — and 5 is the answer because that is
+     * where the semicolon belongs, not because a compiler named it.
+     *
+     * What survives, and is the portable half worth teaching: a diagnostic
+     * points at the place where the program stopped making sense, and the cause
+     * is at that place or just before it. Hence "look at the line in the message
+     * AND the line above it", which is true of both engines rather than of one.
      */
     prompt: {
-      kk: "Бұл бағдарлама тіпті іске қосылмайды: компилятор 6-жолда қате туралы айтады. Шын мәнінде қай жол жөнделуі керек?",
-      ru: "Эта программа даже не запускается: компилятор сообщает об ошибке в строке 6. Какую строку на самом деле нужно исправить?",
+      kk: "Бұл бағдарлама тіпті іске қосылмайды: компилятор оны жинаудан бас тартады. Ол кодты түсінуді тоқтатқан жерді көрсетеді: кейде бұл қатенің өзі тұрған жол, кейде одан кейінгі жол. Сондықтан хабарламада аталған жолға да, дәл оның үстіндегі жолға да қара. Қай жолдың соңында нүктелі үтір жетіспейді?",
+      ru: "Эта программа даже не запускается: компилятор отказывается её собирать. Он показывает место, где перестал понимать код: иногда это сама сломанная строка, иногда следующая за ней. Поэтому смотри и на строку из сообщения, и на строку прямо над ней. В конце какой строки не хватает точки с запятой?",
     },
     code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!"\n    cout << 2 + 2;\n    return 0;\n}',
     buggyLine: 5,
     symptomInput: "",
     fixedCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!";\n    cout << 2 + 2;\n    return 0;\n}',
     diagnosticMapping: {
+      /*
+       * 6 is the one wrong answer worth naming, and the justification below says
+       * nothing about what any compiler prints — which is the whole point of the
+       * re-authoring above. It describes the CODE: line 6 already ends in a
+       * semicolon and is correct as written; it is merely where the program
+       * stops making sense, and a learner who marks it has mistaken the place
+       * the program broke down for the place the repair goes.
+       *
+       * `failureClass` keeps its id deliberately. The name reads oddly now that
+       * both engines report line 5, but the id is never shown to anybody — it is
+       * a key into `TEACHER_FAILURE_CLASS` in `schools/presentation/labels.ts`,
+       * whose sentence («ищет ошибку в той строке, которую назвал компилятор»)
+       * is engine-neutral and still exactly right. Renaming it here without that
+       * file would drop the teacher console back to «одна ошибка» — a worse
+       * outcome than a slightly stale identifier.
+       */
       "6": {
         failureClass: "compiler_points_at_the_next_line",
         justification:
-          "Компилятор 6-жолда шағымданады, себебі 5-жол әлі бітпеген деп санайды. Нүктелі үтір жоқ болғанда қате көбіне КЕЛЕСІ жолда көрінеді — сондықтан хабарламадағы нөмірден бір жол жоғары қарау керек.",
+          "Түзету 5-жолдың соңында: дәл сол нұсқау аяқталмаған, нүктелі үтір сонда жетіспейді. 6-жол дұрыс жазылған, оның нүктелі үтірі бар — бағдарлама тек сол жерге жеткенде түсініксіз болып қалады. 6-жолды таңдау бағдарлама тоқтаған жерді түзету керек жермен шатастырғанды білдіреді.",
       },
     },
   },

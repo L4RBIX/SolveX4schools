@@ -1,7 +1,21 @@
-# Hybrid Python Execution
+# Hybrid Execution
 
 **Run happens in the learner's browser. Submit happens on our server. The two are
 not the same kind of fact, and nothing in the system is allowed to confuse them.**
+
+> **The engine changed; the architecture did not.** This document was written for
+> Pyodide, and every mention of Pyodide/CPython below describes the Python-era
+> implementation. Year One now teaches GNU C++17: Run is the vendored WASI Clang
+> toolchain in `public/cpp17/` (`clang.wasm` + `lld.wasm` + `sysroot.tar`), and
+> Submit goes to Judge0 CE language 105, GCC 14.1.0.
+>
+> Everything this document argues about the SPLIT is unchanged and still load-
+> bearing: what the browser may assert, why a `run_executed` report can never
+> grant a verdict, why the server is the only source of a graded outcome, and why
+> the two halves are allowed to disagree. Read it for that. For the engines
+> themselves see `../cpp17/CPP17_JUDGE_PARITY.md` and `JUDGE0_LIVE_VALIDATION.md`;
+> the Python-era live measurements are preserved in
+> `JUDGE0_LIVE_VALIDATION_PYTHON_ERA.md`.
 
 ---
 

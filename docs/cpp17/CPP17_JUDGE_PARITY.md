@@ -14,9 +14,18 @@ to tell. Measured, both sides, same source.
 Neither `-std=` flag is left to chance. The browser passes `-std=c++17`
 explicitly because `clang -cc1` defaults to C++14 here. Judge0 needs no flag —
 GCC 14 already defaults to `gnu++17` — which was confirmed by asking the judge
-rather than by reading a changelog. `compiler_options` is refused with HTTP 403
-on this RapidAPI plan, so being able to rely on the default is load-bearing, not
-a convenience.
+rather than by reading a changelog. The product sends no `compiler_options`, so
+the judge's default standard is the one that grades every child — which is why
+`MIN_GNU_CXX17_MAJOR` is a hard floor.
+
+> **Correction (measured 2026-09-01).** This paragraph used to state that
+> `compiler_options` is refused with HTTP 403 on this RapidAPI plan. It is not:
+> the option is accepted (HTTP 200) and honoured — `-std=c++11` yields
+> `__cplusplus = 201103` — and `/config_info` reports
+> `enable_compiler_options: true` with an empty allow-list. Nothing in the
+> product changes, because it sends no options and GCC 14 defaults to
+> `gnu++17` (measured `201703`); but the floor now rests on "the default is our
+> contract", not on "the flag is unavailable".
 
 ## Verified identical
 

@@ -17,10 +17,32 @@
  *                      ;
  *
  * Three things about that are hostile at once. It is English. It names a column.
- * And — the one that costs the most hours — **the line it blames is not the
- * line that is wrong**: the semicolon is missing at the end of line 5, and on a
- * multi-line statement the caret routinely lands on the line AFTER. A learner
- * told "look at line 6" stares at a correct line until someone rescues them.
+ * And — the one that costs the most hours — **the line it blames need not be
+ * the line that is wrong**. A parser reports where it NOTICED, which is not
+ * where the mistake HAPPENED, and the distance between the two is not a
+ * constant anyone can teach.
+ *
+ * ## The offset rule this file used to state, and why it was wrong
+ *
+ * Until this was measured, the entry below asserted that the semicolon "is
+ * almost always at the END OF THE LINE ABOVE the line the compiler names" and
+ * told Nova the fix was "usually one line earlier". That is one compiler's
+ * habit written down as a law, and it made Nova name the wrong line to a
+ * learner reading real browser output. Measured on this course's own engines,
+ * on one program each (`int a = 5` with no semicolon, then an `if`):
+ *
+ *     Clang 8 / browser   main.cpp:4:14: error: expected ';' at end of declaration
+ *     GCC 14.1 / judge    main.cpp:5:5:  error: expected ',' or ';' before 'if'
+ *
+ * Same defect, same source, two different line numbers — 4 and 5. Any fixed
+ * offset is therefore wrong for one of the two buttons the learner can press,
+ * and "one line earlier" was wrong for the browser, which is the engine that
+ * produced the text they are looking at when they open this panel.
+ *
+ * The replacement is not a better offset. It is to stop having one: Nova is
+ * given the real stderr and the learner's real source on every turn, and it is
+ * told to read the line the compiler named AND its neighbour and say which one
+ * is actually unfinished.
  *
  * So translating the diagnostic is the single most valuable thing this tutor
  * gained in the migration, and it is not a thing the Python prompt had any
@@ -61,7 +83,7 @@
  * without an explanation fails to compile rather than rendering as nothing.
  */
 export type CompilerDiagnosticKind =
-  /** `expected ';' after expression` — and the compiler blames the NEXT line. */
+  /** `expected ';' after expression` — the line named is where the parser stopped. */
   | "missing_semicolon"
   /** `use of undeclared identifier 'x'` — never declared, or out of scope now. */
   | "undeclared_identifier"
@@ -127,15 +149,22 @@ export const COMPILER_DIAGNOSTICS: readonly Cpp17Diagnostic[] = [
       /* Clang: expected ';' after expression / after return statement / at end of declaration.
          GCC:   expected ';' before '}' token / before 'return' / before 'cout'. */
       /expected\s+['‘"]?;['’"]?\s+(after|before|at\s+end)/i,
+      /* GCC's OTHER phrasing, for a declaration that was not finished:
+         `expected ',' or ';' before 'if'`. This is real judge output — see the
+         fixtures — and it matched nothing here until it was measured, so a
+         learner who pressed Submit on the single most common September typo
+         got no explanation of it at all. */
+      /expected\s+['‘"]?,['’"]?\s+or\s+['‘"]?;['’"]?\s+(after|before|at\s+end)/i,
       /expected\s+initializer\s+before\s+['‘"]?\w+['’"]?/i,
     ],
     meaning:
-      "A statement is not finished. In C++ every statement ends in a semicolon, and the " +
-      "missing one is almost always at the END OF THE LINE ABOVE the line the compiler names.",
+      "A statement is not finished; every C++ statement ends in a semicolon. Where the compiler " +
+      "POINTS and where the semicolon BELONGS are different things and the gap is not fixed: it " +
+      "reads on until the text stops making sense, stopping on the unfinished line or the next one.",
     teach:
-      "Say which line the compiler POINTED at and that the fix is usually one line earlier — " +
-      "that gap is the thing beginners lose an hour to. Do not paste the corrected line unless " +
-      "your level allows code.",
+      "Use the stderr you were actually given and their real code: check the line the compiler " +
+      "named AND the one just before it, and say which does not end in a semicolon. Never apply a " +
+      "fixed line offset. No corrected line unless your level allows code.",
   },
   {
     kind: "undeclared_identifier",
@@ -190,12 +219,13 @@ export const COMPILER_DIAGNOSTICS: readonly Cpp17Diagnostic[] = [
       /at\s+end\s+of\s+input/i,
     ],
     meaning:
-      "The { and } do not pair up — one was never closed, or one closed too early. The compiler " +
-      "reports it at the END of the file, because that is where it finally ran out of program, " +
-      "so the reported line is almost never where the mistake is.",
+      "The { and } do not pair up. The line named is usually where the compiler RAN OUT of " +
+      "program, not where the pairing broke — but both engines then print `note: to match this " +
+      "'{'`, and THAT names the brace that was never closed.",
     teach:
-      "Get them to count braces from the top, or to look at the indentation: the first line whose " +
-      "indentation is not what they expected is where the pairing broke.",
+      "If the 'to match this' note is in the stderr you were given, use the line IT names: the " +
+      "compiler already found the unclosed brace, so do not guess past it. Otherwise have them " +
+      "count braces from the top, or read the indentation for the first line that surprises them.",
   },
   {
     kind: "invalid_operands",
@@ -385,8 +415,9 @@ export function diagnosticPromptLines(kinds: readonly CompilerDiagnosticKind[]):
     "  the reason they opened this panel. Translating it into their language, in one or two",
     "  sentences, is the most useful thing you can do on this turn.",
     "- Explain the FIRST error only. Everything after it is usually wreckage from that one.",
-    "- Give them the line number the compiler gave, and say plainly when the mistake is",
-    "  somewhere else — that gap is not their misreading, it is how the compiler works.",
+    "- Use the line number from the diagnostic IN FRONT OF YOU, never one you calculate. A",
+    "  compiler names where it NOTICED, not always where the mistake is, and the two engines",
+    "  stop in different places on the same file. Read their code at that line and around it.",
     "- Never say 'compilation error' and stop. Say what the compiler wanted at that point.",
   ];
 

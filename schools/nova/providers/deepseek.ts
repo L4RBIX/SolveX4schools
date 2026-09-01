@@ -3,8 +3,34 @@ import { config } from "@schools/config";
 import {
   NovaProviderError,
   type NovaCompletionRequest,
+  type NovaFinishReason,
   type NovaModelProvider,
 } from "../provider";
+
+/**
+ * The provider's word for why it stopped, mapped to ours.
+ *
+ * Only `stop` means the model finished. Everything else is a response that
+ * ended for a reason the learner did not choose, and the two that matter here
+ * are named rather than lumped together: `length` is our own ceiling and is
+ * ours to fix, `content_filter` is the provider's and is not.
+ *
+ * An unrecognised string maps to `unknown` rather than to `stop`. A future
+ * `tool_calls` or a renamed reason must not be able to certify a fragment as
+ * complete by being new.
+ */
+function mapFinishReason(raw: string): NovaFinishReason {
+  switch (raw) {
+    case "stop":
+      return "stop";
+    case "length":
+      return "length";
+    case "content_filter":
+      return "content_filter";
+    default:
+      return "unknown";
+  }
+}
 
 /**
  * DeepSeek.
@@ -77,39 +103,96 @@ export class DeepSeekProvider implements NovaModelProvider {
     const decoder = new TextDecoder();
     let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+    /*
+     * Why the stream ended, and whether the protocol ended with it.
+     *
+     * Both are tracked because they answer different questions and can
+     * disagree. `finish` is the model's own account; `sawDone` is the
+     * transport's. A socket that dies mid-answer produces neither, and that
+     * silence is itself the finding — it is reported as `incomplete` rather
+     * than left to look like a clean end, which is exactly what it looked like
+     * before.
+     */
+    let finish: NovaFinishReason | null = null;
+    let sawDone = false;
 
-      // SSE frames are separated by a blank line and may split mid-chunk.
-      const frames = buffer.split("\n\n");
-      buffer = frames.pop() ?? "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
 
-      for (const frame of frames) {
-        const line = frame.split("\n").find((l) => l.startsWith("data:"));
-        if (!line) continue;
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") return;
-        try {
-          const parsed = JSON.parse(data) as {
-            choices?: { delta?: { content?: string } }[];
-            usage?: { prompt_tokens?: number; completion_tokens?: number };
-          };
-          /* The usage frame arrives last and carries an empty `choices`, so it
-             is read before the text branch rather than instead of it. */
-          if (parsed.usage) {
-            request.onUsage?.({
-              inputTokens: parsed.usage.prompt_tokens ?? 0,
-              outputTokens: parsed.usage.completion_tokens ?? 0,
-            });
+        // SSE frames are separated by a blank line and may split mid-chunk.
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+
+        for (const frame of frames) {
+          const line = frame.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") {
+            /* Noted, not returned on. Returning here is what used to skip the
+               reporting below entirely — and `[DONE]` is sent after a
+               `max_tokens` cut-off exactly as it is after a natural ending, so
+               the one frame that proves the transport was fine was also the
+               one that threw away the reason. */
+            sawDone = true;
+            continue;
           }
-          const text = parsed.choices?.[0]?.delta?.content;
-          if (text) yield text;
-        } catch {
-          /* A partial frame; the next read completes it. */
+          try {
+            const parsed = JSON.parse(data) as {
+              choices?: { delta?: { content?: string }; finish_reason?: string | null }[];
+              usage?: { prompt_tokens?: number; completion_tokens?: number };
+            };
+            /* The usage frame arrives last and carries an empty `choices`, so it
+               is read before the text branch rather than instead of it. */
+            if (parsed.usage) {
+              request.onUsage?.({
+                inputTokens: parsed.usage.prompt_tokens ?? 0,
+                outputTokens: parsed.usage.completion_tokens ?? 0,
+              });
+            }
+            /* Measured against the live API: this arrives on a final frame
+               whose `delta.content` is the empty string, so it has to be read
+               on its own and not inside the text branch below — which is the
+               shape of the original defect. `null` on every frame before it. */
+            const reported = parsed.choices?.[0]?.finish_reason;
+            if (typeof reported === "string" && reported) finish = mapFinishReason(reported);
+
+            const text = parsed.choices?.[0]?.delta?.content;
+            if (text) yield text;
+          } catch {
+            /* A partial frame; the next read completes it. */
+          }
         }
       }
+    } catch (err) {
+      /*
+       * An abort DURING the stream, which used to escape this module untyped.
+       *
+       * The try/catch above covers `fetch` only, and a timeout or a closed
+       * panel fires far more often after the response headers than before
+       * them: `reader.read()` then rejects with a `DOMException` named
+       * `AbortError`, which is not a `NovaProviderError`, so the route's
+       * `err instanceof NovaProviderError` test failed and the learner was
+       * told `kind: "unknown"` — "причина неизвестна" — for the one failure the
+       * panel has exact copy for. Mapped here to the same error the pre-headers
+       * abort produces, so the two halves of one timeout are told as one thing.
+       */
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new NovaProviderError("cancelled", "timeout", false);
+      }
+      throw new NovaProviderError("provider stream failed mid-response", "upstream", true);
     }
+
+    /*
+     * The verdict, once, on every non-throwing path.
+     *
+     * A stream that ended without the model ever saying why is `incomplete` —
+     * the body was cut off. A clean `[DONE]` with no reason attached is
+     * `unknown`: the transport finished, the model did not say, and neither
+     * completion nor truncation may be claimed on its behalf.
+     */
+    request.onFinish?.(finish ?? (sawDone ? "unknown" : "incomplete"));
   }
 }

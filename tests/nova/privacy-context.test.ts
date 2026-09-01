@@ -426,19 +426,36 @@ describe("what is sent stays bounded", () => {
    * The measured worst September system message, on the shape the hint route
    * sends: block id, directive, execution evidence, ledger context and draft.
    *
-   * 12 478 characters — `m1.as.b2` in Russian at level 1 — call it 3 100
+   * 12 917 characters — `m1.l1.b4` in Russian at level 1 — call it 3 200
    * tokens. The ceiling is 13 500, and both halves of that gap are deliberate:
    *
-   *   - 1 022 characters of headroom is more than three times the longest task
-   *     statement in September (326 characters), so ordinary content edits do
-   *     not turn this into a tripwire;
-   *   - and it is LESS than 1 500, so the next generated section — a paragraph
-   *     of policy, a new derived list, a second inventory — trips it. That is
-   *     the failure this test exists for. The last two arrived unmeasured:
+   *   - 583 characters of headroom is still more than the longest task
+   *     statement in September, so an ordinary content edit does not turn this
+   *     into a tripwire;
+   *   - and it is far LESS than 1 500, so the next generated section — a
+   *     paragraph of policy, a new derived list, a second inventory — trips it.
+   *     That is the failure this test exists for. Two arrived unmeasured:
    *     `schools/nova/cpp17.ts` (+2 065) did not exist when the old ceiling was
    *     calibrated, and the capability block (+1 499) began rendering the day
    *     the extractor stopped speaking Python, because the gate that had been
    *     holding it back is detected rather than configured.
+   *
+   * THE MARGIN IS TIGHTER THAN IT WAS, and deliberately so. Two things moved
+   * it, both of them the B1 fix rather than drift:
+   *
+   *   - the worst case is no longer `m1.as.b2` (12 478) but `m1.l1.b4`, whose
+   *     prompt grew when it stopped asserting "the compiler says line 6" — a
+   *     claim measured false on BOTH engines — and started teaching where a
+   *     diagnostic actually points;
+   *   - the diagnostic preamble grew by the same argument, replacing a fixed
+   *     "look one line up" rule with the portable truth plus an instruction to
+   *     use the number in front of it.
+   *
+   * Headroom fell 1 022 -> 583 for that. It was the right trade: the retired
+   * text was cheaper and wrong. But it means this ceiling now has ~1.8x the
+   * longest statement rather than ~3x, so the NEXT edit that lands here should
+   * trim the section rather than raise the number — and if it genuinely cannot,
+   * that is the moment to re-baseline with fresh measurements, not before.
    *
    * Why it matters: input tokens are billed, eighteen learners share one
    * monthly cap, and a context that grows silently is how a pilot runs out of
@@ -446,7 +463,7 @@ describe("what is sent stays bounded", () => {
    */
   const PRODUCTION_CEILING = 13_500;
 
-  /** Same measurement, degraded shape: 8 382 measured, 9 000 stated. */
+  /** Same measurement, degraded shape: 8 390 measured (`m1.as.b2` · kk · L0), 9 000 stated. */
   const DEGRADED_CEILING = 9_000;
 
   function worstOf(build: (s: Situated, l: Locale, n: number) => string) {

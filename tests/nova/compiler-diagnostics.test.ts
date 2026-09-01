@@ -10,6 +10,21 @@ import {
 import { buildNovaMessages } from "@schools/nova/prompt";
 import { executionContextFor } from "@schools/nova/execution-context";
 import type { GrantDecision } from "@solvex/nova-core";
+import {
+  CLANG_MISSING_SEMICOLON,
+  CLANG_TAIL_SEMICOLON,
+  CLANG_UNCLOSED_BRACE,
+  GCC_MISSING_SEMICOLON,
+  GCC_TAIL_SEMICOLON,
+  GCC_UNCLOSED_BRACE,
+  JUDGE_WARNING_SILENCE,
+  MISSING_SEMICOLON_BOTH_ENGINES,
+  MISSING_SEMICOLON_DEFECTIVE_LINE,
+  MISSING_SEMICOLON_SOURCE,
+  TAIL_SEMICOLON_SOURCE,
+  UNCLOSED_BRACE_OPENING_LINE,
+  UNCLOSED_BRACE_SOURCE,
+} from "./fixtures/compiler-output";
 
 /**
  * The job Nova gained when the course stopped being Python.
@@ -64,11 +79,19 @@ const CASES: Case[] = [
       "      |                  ;",
       "1 error generated.",
     ].join("\n"),
+    /* Measured on Judge0 (language 105) rather than remembered. Note that GCC
+       14.1 anchors the prefix on line 5 — the unfinished line — and names a
+       token from line 6 in the message. The shape this file used to carry,
+       `main.cpp:6:5: error: expected ';' before 'cout'`, is the pre-GCC-11
+       phrasing and is NOT what the judge emits today. */
     gcc: [
       "main.cpp: In function 'int main()':",
-      "main.cpp:6:5: error: expected ';' before 'cout'",
+      "main.cpp:5:18: error: expected ';' before 'cout'",
+      "    5 |     cin >> a >> b",
+      "      |                  ^",
+      "      |                  ;",
       "    6 |     cout << a + b;",
-      "      |     ^~~~",
+      "      |     ~~~~",
     ].join("\n"),
   },
   {
@@ -260,15 +283,55 @@ describe("the same failure is recognised whichever compiler said it", () => {
 /* ========================================================================== */
 
 describe("the missing semicolon, and the line the compiler blames", () => {
-  it("says the mistake is usually one line earlier", () => {
-    /* THE fact a beginner cannot discover on their own. Clang's caret in the
-       fixture is at the end of line 5 and GCC points at line 6 — the correct
-       line — because the statement it was still reading began on line 5. A
-       learner told "look at line 6" stares at a correct line until an adult
-       rescues them. */
+  it("separates where the compiler POINTS from where the semicolon BELONGS", () => {
+    /* What replaced "the fix is usually one line earlier". That sentence was
+       GCC's habit stated as a law, and it made Nova name a correct line to a
+       learner reading Clang's output in the browser. The guidance now has to
+       carry the distinction instead of an offset. */
     const lines = diagnosticPromptLines(["missing_semicolon"]).join("\n");
-    expect(lines).toContain("END OF THE LINE ABOVE");
-    expect(lines).toContain("one line earlier");
+    expect(lines).toContain("POINTS");
+    expect(lines).toContain("BELONGS");
+    expect(lines).toContain("not fixed");
+    /* And it must send Nova to the real evidence rather than to arithmetic. */
+    expect(lines).toContain("stderr you were actually given");
+    expect(lines).toContain("the line the compiler named AND the one just before it");
+  });
+
+  it("states no fixed offset anywhere in the rendered guidance", () => {
+    /* The mutation guard. Any of these phrasings reintroduces the defect: they
+       all tell a learner to apply arithmetic to the line number instead of
+       reading their own code. Asserted over EVERY family, not just the
+       semicolon, because the same temptation exists for unbalanced braces. */
+    const everything = diagnosticPromptLines(
+      COMPILER_DIAGNOSTICS.map((d) => d.kind),
+    ).join("\n");
+    const perFamily = COMPILER_DIAGNOSTICS.map((d) =>
+      diagnosticPromptLines([d.kind]).join("\n"),
+    );
+
+    const OFFSET_CLAIMS: RegExp[] = [
+      /line\s+above/i,
+      /one\s+line\s+(earlier|before|back|up)/i,
+      /previous\s+line/i,
+      /the\s+line\s+before\s+the\s+line/i,
+      /subtract\s+(one|1)/i,
+      /always\s+the\s+(next|following|preceding)\s+line/i,
+      /line\s+(number\s+)?minus\s+(one|1)/i,
+    ];
+
+    for (const text of [everything, ...perFamily]) {
+      for (const claim of OFFSET_CLAIMS) {
+        expect(claim.test(text), `offset rule reintroduced: ${claim.source}`).toBe(false);
+      }
+    }
+  });
+
+  it("never claims the two compilers agree", () => {
+    /* The other half of the same defect. A single remembered rule is only safe
+       if both engines behave identically, and they measurably do not. */
+    const lines = diagnosticPromptLines(["missing_semicolon"]).join("\n");
+    expect(/(all|both)\s+compilers?\s+(always|behave|report|point)/i.test(lines)).toBe(false);
+    expect(/every\s+compiler\s+(always|points|reports)/i.test(lines)).toBe(false);
   });
 
   it("tells Nova to explain the first error and not the cascade", () => {
@@ -313,6 +376,129 @@ describe("the missing semicolon, and the line the compiler blames", () => {
 });
 
 /* ========================================================================== */
+/* Two engines, one defect, two different line numbers — measured             */
+/* ========================================================================== */
+
+describe("real output from both compilers on the same broken program", () => {
+  /**
+   * The line each diagnostic's own `file:line:col:` prefix names.
+   *
+   * Read out of the text rather than hardcoded, so these assertions are about
+   * what the compilers said and not about numbers someone typed twice.
+   */
+  function lineNamedBy(text: string): number {
+    const m = /\S+\.(?:cc|cpp):(\d+):\d+:\s*(?:error|warning)/.exec(text);
+    expect(m, `no file:line:col prefix in ${JSON.stringify(text.slice(0, 60))}`).not.toBeNull();
+    return Number(m![1]);
+  }
+
+  it("Clang names the defective line and GCC names the following one", () => {
+    /* The whole reason the old rule was wrong, as data. One source, one
+       missing semicolon on line 4, two engines a learner reaches with two
+       different buttons — and two different line numbers. */
+    expect(lineNamedBy(CLANG_MISSING_SEMICOLON.text)).toBe(MISSING_SEMICOLON_DEFECTIVE_LINE);
+    expect(lineNamedBy(CLANG_MISSING_SEMICOLON.text)).toBe(4);
+
+    expect(lineNamedBy(GCC_MISSING_SEMICOLON.text)).toBe(MISSING_SEMICOLON_DEFECTIVE_LINE + 1);
+    expect(lineNamedBy(GCC_MISSING_SEMICOLON.text)).toBe(5);
+
+    /* Stated as the property rather than as two numbers: they disagree. */
+    expect(lineNamedBy(GCC_MISSING_SEMICOLON.text)).not.toBe(
+      lineNamedBy(CLANG_MISSING_SEMICOLON.text),
+    );
+
+    /* And the line GCC names is a correct line of C++. */
+    const src = MISSING_SEMICOLON_SOURCE.split("\n");
+    expect(src[MISSING_SEMICOLON_DEFECTIVE_LINE - 1].trim()).toBe("int a = 5");
+    expect(src[MISSING_SEMICOLON_DEFECTIVE_LINE].trim()).toBe("if (a > 3) {");
+  });
+
+  it("maps both to the same diagnostic kind, whichever button was pressed", () => {
+    /* The property that makes the tutor's usefulness independent of Run vs
+       Submit. Both texts, different wording, same family. */
+    for (const fixture of MISSING_SEMICOLON_BOTH_ENGINES) {
+      const kinds = recogniseDiagnostics(fixture.text);
+      expect(kinds, `${fixture.engine}: ${fixture.provenance}`).toContain("missing_semicolon");
+    }
+
+    const [clang, gcc] = MISSING_SEMICOLON_BOTH_ENGINES;
+    expect(recogniseDiagnostics(clang.text)).toEqual(recogniseDiagnostics(gcc.text));
+  });
+
+  it("produces guidance that asserts no offset, from either engine's text", () => {
+    /* The fix, checked from the input end: whichever compiler the learner met,
+       what Nova is told must not contain a rule about line arithmetic. */
+    for (const fixture of MISSING_SEMICOLON_BOTH_ENGINES) {
+      const rendered = diagnosticPromptLines(recogniseDiagnostics(fixture.text)).join("\n");
+      expect(rendered).not.toMatch(/line\s+above/i);
+      expect(rendered).not.toMatch(/one\s+line\s+(earlier|before|back)/i);
+      expect(rendered).toContain("not fixed");
+      expect(rendered).toContain("the line the compiler named AND the one just before it");
+    }
+  });
+
+  it("the same compiler gives a different offset on a different program", () => {
+    /* Why no constant can be right. On TAIL_SEMICOLON_SOURCE both engines name
+       line 6 — the defective line — so "one line earlier" would have been
+       wrong for BOTH of them here, while on MISSING_SEMICOLON_SOURCE it would
+       have been right for GCC only. The offset is not even stable per
+       compiler. */
+    expect(lineNamedBy(CLANG_TAIL_SEMICOLON.text)).toBe(6);
+    expect(lineNamedBy(GCC_TAIL_SEMICOLON.text)).toBe(6);
+    expect(TAIL_SEMICOLON_SOURCE.split("\n")[5].trim()).toBe("cout << a + b");
+
+    for (const fixture of [CLANG_TAIL_SEMICOLON, GCC_TAIL_SEMICOLON]) {
+      expect(recogniseDiagnostics(fixture.text)).toContain("missing_semicolon");
+    }
+  });
+
+  it("recognises the judge's OTHER phrasing, which used to match nothing", () => {
+    /* Regression guard for the second defect found here. Real Judge0 output
+       for a declaration is `expected ',' or ';' before 'if'`, and before this
+       change `recogniseDiagnostics` returned [] for it — so a learner who
+       pressed Submit on the commonest September typo got no explanation at
+       all. */
+    expect(GCC_MISSING_SEMICOLON.text).toContain("expected ',' or ';' before");
+    expect(recogniseDiagnostics(GCC_MISSING_SEMICOLON.text)).toContain("missing_semicolon");
+  });
+
+  it("keeps the brace note that both engines actually print", () => {
+    /* The measured pair behind the unbalanced_braces rewrite. Both engines
+       name line 8 in the prefix and both then point at line 3. */
+    for (const fixture of [CLANG_UNCLOSED_BRACE, GCC_UNCLOSED_BRACE]) {
+      expect(recogniseDiagnostics(fixture.text)).toContain("unbalanced_braces");
+      expect(fixture.text, fixture.engine).toContain("note: to match this '{'");
+      expect(fixture.text, fixture.engine).toContain(
+        `:${UNCLOSED_BRACE_OPENING_LINE}:12: note: to match this`,
+      );
+      expect(lineNamedBy(fixture.text)).toBe(8);
+    }
+    expect(UNCLOSED_BRACE_SOURCE.split("\n")[UNCLOSED_BRACE_OPENING_LINE - 1]).toContain(
+      "int main() {",
+    );
+
+    const rendered = diagnosticPromptLines(["unbalanced_braces"]).join("\n");
+    expect(rendered).toContain("to match this");
+    expect(rendered).not.toMatch(/almost never where the mistake is/i);
+  });
+
+  it("records that the judge reports none of the warning families", () => {
+    /* Not a defect in the guidance, but a fact about what ever reaches it:
+       Judge0 compiles at -O0 with no -Wall and refuses compiler_options, so
+       `if (a = b)` and an uninitialised read come back Accepted and silent.
+       Asserted so that a future change of judge flags shows up here. */
+    expect(JUDGE_WARNING_SILENCE.compileOutput).toBe("");
+    expect(recogniseDiagnostics(JUDGE_WARNING_SILENCE.compileOutput)).toEqual([]);
+
+    /* Clang in the browser does report two of the three, and not the third. */
+    const fromClang = recogniseDiagnostics(JUDGE_WARNING_SILENCE.clangDefaultFlags);
+    expect(fromClang).toContain("assignment_in_condition");
+    expect(fromClang).toContain("invalid_operands");
+    expect(fromClang).not.toContain("uninitialised_variable");
+  });
+});
+
+/* ========================================================================== */
 /* The traps that are specific to this course                                 */
 /* ========================================================================== */
 
@@ -332,10 +518,16 @@ describe("what the model is told each family MEANS", () => {
     expect(lines).toContain("Do not teach namespaces");
   });
 
-  it("says an unbalanced brace is reported at the end of the file", () => {
+  it("sends Nova to the 'to match this' note instead of guessing at the brace", () => {
+    /* This entry used to say the compiler "reports it at the END of the file"
+       and that "the reported line is almost never where the mistake is" — a
+       second fixed positional rule, and one that threw away the single most
+       useful line in the output. Measured: BOTH engines print
+       `note: to match this '{'` naming the opening brace exactly. */
     const lines = diagnosticPromptLines(["unbalanced_braces"]).join("\n");
-    expect(lines).toContain("END of the file");
-    expect(lines).toContain("reported line is almost never where the mistake is");
+    expect(lines).toContain("to match this");
+    expect(lines).toContain("RAN OUT of program");
+    expect(lines).toContain("do not guess past it");
   });
 
   it("explains the two-different-types trap without reaching for templates", () => {
@@ -452,8 +644,12 @@ describe("the guidance reaches the system message and the diagnostic does not", 
   it("explains the family in the trusted half", () => {
     const { system } = build(CASES[0].clang);
     expect(system).toContain(DIAGNOSTIC_PROMPT_HEADING);
-    expect(system).toContain("END OF THE LINE ABOVE");
+    expect(system).toContain("Where the compiler POINTS and where the semicolon BELONGS");
     expect(system).toContain("IT DID NOT COMPILE");
+    /* And the offset rule is gone from the assembled system message too, not
+       merely from the family's own two lines. */
+    expect(system).not.toMatch(/line\s+above/i);
+    expect(system).not.toMatch(/one\s+line\s+earlier/i);
   });
 
   it("keeps the compiler's own words in the fenced half, where they belong", () => {

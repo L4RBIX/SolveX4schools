@@ -131,8 +131,10 @@ describe("unattributed failures", () => {
     const subjectId = await store.resolveSubject(randomUUID());
     // `m1.l1.b4` is a find_bug block. Under Python the bug was `n = input()` on
     // line 1; the C++ re-authoring replaced it with a missing semicolon, so the
-    // line the learner must fix is 5 — the compiler blames 6, and "6" is the one
-    // answer the author mapped to a failure class.
+    // line the learner must fix is 5. "6" is the one answer the author mapped to
+    // a failure class — the learner who repairs where the program stopped making
+    // sense instead of where the semicolon belongs. (Both engines in fact name
+    // line 5 here; the block no longer claims otherwise.)
     const { verdictName } = await attempt(subjectId, "m1.l1.b4", { kind: "line", line: 5 });
     // Guards the fixture, not the pipeline. This assertion exists because the
     // fixture silently stopped being a correct answer once the content moved,

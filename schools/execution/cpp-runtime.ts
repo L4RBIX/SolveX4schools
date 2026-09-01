@@ -16,13 +16,26 @@
  *
  * ## The standard is a DEFAULT, and that is load-bearing rather than lucky
  *
- * Judge0 CE on this RapidAPI plan refuses `compiler_options` with **HTTP 403**.
- * There is therefore no way to ask the judge for `-std=c++17`: the only C++ the
- * product can submit is a compiler that already defaults to it. GCC has
- * defaulted to `gnu++17` since GCC 11, which is why `MIN_GNU_CXX17_MAJOR` below
- * is a hard floor and not a preference — a submission routed to GCC 9 would
- * compile as C++14 and reject the language the course teaches, in a way that
- * looks to a learner like their own program being wrong.
+ * The product sends NO `compiler_options`, so the judge's default standard is
+ * the one that grades every child. GCC has defaulted to `gnu++17` since GCC 11,
+ * which is why `MIN_GNU_CXX17_MAJOR` below is a hard floor and not a preference
+ * — a submission routed to GCC 9 would compile as C++14 and reject the language
+ * the course teaches, in a way that looks to a learner like their own program
+ * being wrong.
+ *
+ * CORRECTION, measured 2026-09-01. This comment used to say `compiler_options`
+ * was refused with HTTP 403, and treated that as the REASON the floor had to
+ * exist. That is false today: the option is accepted (HTTP 200) and honoured —
+ * `-std=c++11` on a program printing `__cplusplus` returns `201103`, and
+ * `/config_info` reports `enable_compiler_options: true` with an empty
+ * `allowed_languages_for_compile_options` (empty = unrestricted). Whether the
+ * 403 was a different plan tier, a different request shape or a vendor change
+ * is unknown and was not worth submissions to find out.
+ *
+ * The floor stands anyway, on a better argument: we do not send the flag, so
+ * the default IS the contract, and a compiler whose default is `gnu++14` grades
+ * the wrong language. Relying on the default is now a deliberate choice rather
+ * than the only one available — belt and braces, not a locked door.
  *
  * Measured against the real service, not read off a catalogue name:
  *
@@ -95,10 +108,13 @@ export const JUDGE0_CPP_NAME = /^C\+\+\s*\(GCC\s+(\d+(?:\.\d+)*)\)$/;
  * The oldest GCC whose DEFAULT standard is `gnu++17`.
  *
  * GCC 11 is where the default moved from `gnu++14`. Everything below it would
- * need `-std=c++17` on the command line, and `compiler_options` is refused with
- * HTTP 403 on this plan — so an older GCC is not a slower option, it is not an
- * option. The catalogue this floor excludes, verbatim: `C++ (GCC 7.4.0)`,
- * `C++ (GCC 8.3.0)`, `C++ (GCC 9.2.0)`.
+ * need `-std=c++17` on the command line, and this product deliberately sends no
+ * `compiler_options` at all — so under the request shape we actually submit, an
+ * older GCC is not a slower option, it is not an option. The catalogue this
+ * floor excludes, verbatim: `C++ (GCC 7.4.0)`, `C++ (GCC 8.3.0)`,
+ * `C++ (GCC 9.2.0)`. (The plan does accept the flag — see the correction in the
+ * file header — but sending one would mean the grading standard lived in a
+ * request parameter instead of in this constant.)
  *
  * A judge offering none at or above this floor is a `provider_error`, never a
  * fallback to the newest thing it has. Grading a child under a compiler that

@@ -292,6 +292,31 @@ describe("the judge is unavailable", () => {
 /* ========================================================================== */
 
 describe("Nova is unavailable", () => {
+  /*
+   * Guard, not a test of the product.
+   *
+   * The three tests below simulate an upstream 503 by swapping `EchoProvider`
+   * for one that throws. That only works while `getNovaProvider()` actually
+   * RETURNS the echo provider — and it stops doing so the moment a real
+   * `DEEPSEEK_API_KEY` is visible, because the factory then imports
+   * `DeepSeekProvider` instead and the mock above applies to nothing.
+   *
+   * A developer with a populated `.env.local` therefore sees three confusing
+   * red tests whose messages point at truncation, retries and independence
+   * accounting rather than at their own environment. That happened, and it
+   * cost an hour. Fail here instead, saying the actual reason.
+   */
+  it("is exercising the mocked provider, not a live one", async () => {
+    const { config } = await import("@schools/config");
+    expect(
+      config.nova.provider !== "deepseek" || !config.nova.apiKey,
+      "DEEPSEEK_API_KEY is set in this environment, so getNovaProvider() returns the\n" +
+        "real DeepSeek provider and the EchoProvider mock in this file is inert.\n" +
+        "Run this suite without .env.local (as CI does): `env -u DEEPSEEK_API_KEY npx vitest run`\n" +
+        "or unset the key. Nothing is wrong with the product.",
+    ).toBe(true);
+  });
+
   async function askNova(episodeId: string) {
     const res = await hint.POST(
       new Request("http://localhost/api/nova/hint", {
