@@ -2,8 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import {
+  monthThemeFromDeckId,
+  monthThemeVars,
+  type MonthTheme,
+} from "@schools/presentation/month-theme";
+import { MonthGlyphMark } from "../gameboard/month-glyph";
 import { PedestalActive, PedestalLocked } from "./pedestal";
 
 /**
@@ -36,7 +42,23 @@ export interface DeckCourse {
   href: string;
   image: string;
   thumb: string;
-  lessons: { title: string; href: string; done: boolean; active: boolean }[];
+  /**
+   * The learner may not enter this month yet.
+   *
+   * A locked card keeps its title, its art and its rows — the deck is where a
+   * learner sees the shape of their year — but nothing on it navigates into the
+   * month. Its one link is `href`, the month's own board at `/course/N`, which
+   * renders a panel saying what opens it.
+   */
+  locked?: boolean;
+  lessons: {
+    title: string;
+    /** Absent on a row that cannot be opened. Never substituted for. */
+    href?: string;
+    done: boolean;
+    active: boolean;
+    locked?: boolean;
+  }[];
 }
 
 export interface CourseDeckProps {
@@ -46,9 +68,27 @@ export interface CourseDeckProps {
   heading?: string;
   /** Primary CTA label on the front card. */
   startLabel?: string;
+  /**
+   * Copy for a locked card. Defaults to the reference route's English, which is
+   * never reached in the product — every locked card is fed Kazakh or Russian.
+   */
+  lockedLabels?: {
+    /** One short line under the rows: why nothing here opens. */
+    reason: string;
+    /** The CTA that replaces "Start". It goes to `/course/N`, and it says so. */
+    cta: string;
+    /** Read out on a row that is not a link. Never colour or opacity alone. */
+    row: string;
+  };
   /** Colour of the marker on the active lesson's pedestal. See `pedestal.tsx`. */
   markerColor?: string;
 }
+
+const DEFAULT_LOCKED_LABELS = {
+  reason: "This month is not open yet",
+  cta: "See what opens it",
+  row: "Locked",
+};
 
 /**
  * Per-depth placement, taken straight off the live stack and expressed as
@@ -74,13 +114,33 @@ const DEPTHS = [
   { x: 0.2752, y: 0.1259, s: 1200 / 1600 },
 ];
 
+/**
+ * A card's month identity, or nothing.
+ *
+ * The deck is fed a plain `DeckCourse[]` so the renderer stays independent of
+ * the curriculum — which means the only month identity that reaches here is the
+ * `month-<index>` id the adapter mints. `monthThemeFromDeckId` does the parse;
+ * this wraps it into the scoped custom properties a card paints itself with.
+ *
+ * `null` on the reverse-engineering baseline, whose cards are courses and not
+ * months. Every accented rule below falls back to the literal it used to be, so
+ * that baseline renders exactly as measured.
+ */
+function cardTheme(id: string): { theme: MonthTheme; vars: CSSProperties } | null {
+  const theme = monthThemeFromDeckId(id);
+  if (!theme) return null;
+  return { theme, vars: monthThemeVars(theme) as CSSProperties };
+}
+
 export function CourseDeck({
   courses,
   className,
   heading = "Jump back in",
   startLabel = "Start",
+  lockedLabels,
   markerColor,
 }: CourseDeckProps) {
+  const locked = { ...DEFAULT_LOCKED_LABELS, ...lockedLabels };
   const [index, setIndex] = useState(0);
   const active = courses[index];
 
@@ -113,6 +173,7 @@ export function CourseDeck({
                 key={c.id}
                 aria-hidden={depth !== 0}
                 style={{
+                  ...cardTheme(c.id)?.vars,
                   transform: `translate(${d.x * 100}%, ${d.y * 100}%) scale(${d.s})`,
                   transformOrigin: "top left",
                   zIndex: 5 - depth,
@@ -125,7 +186,14 @@ export function CourseDeck({
                     depth < 2 ? "border-b-edge" : "border-b-fg/5",
                   )}
                 >
-                  {depth === 0 && <DeckCardBody course={c} startLabel={startLabel} markerColor={markerColor} />}
+                  {depth === 0 && (
+                    <DeckCardBody
+                      course={c}
+                      startLabel={startLabel}
+                      lockedLabels={locked}
+                      markerColor={markerColor}
+                    />
+                  )}
                 </div>
               </div>
             );
@@ -133,7 +201,9 @@ export function CourseDeck({
         </div>
       </div>
 
-      {/* thumbnail switcher — 84x60 tiles, 16px gap, active tile #170B29/#7139CC */}
+      {/* thumbnail switcher — 84x60 tiles, 16px gap. The reference's active
+          tile is `#170B29` on `#7139CC`; both are dark-arm literals and both
+          are now derived from the month's accent instead. See the style below. */}
       {/* Nine month tiles need ~668px inside a 540px column. The original had no
           wrap and no scroll, so the overflow simply left the layout. Scrolls
           now, and stays centred while the set still fits. */}
@@ -143,26 +213,62 @@ export function CourseDeck({
           `mx-auto` on the inner track instead of on the scroller). */}
       <div className="my-5 h-[60px] w-full overflow-x-auto overscroll-x-contain px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mx-auto flex h-[60px] w-max gap-4">
-        {courses.map((c, i) => (
+        {courses.map((c, i) => {
+          const ct = cardTheme(c.id);
+          return (
           <button
             key={c.id}
             type="button"
             aria-label={`Go to page ${i + 1}`}
             onClick={() => setIndex(i)}
+            style={ct?.vars}
             className="relative h-[60px] w-[84px] max-w-[84px] min-w-[60px] shrink-0 overflow-clip rounded-lg"
           >
             <div
               className={cn(
-                "flex h-full w-full items-center justify-center rounded-lg border-2 transition-all duration-200",
-                i === index
-                  ? "border-[#7139CC] bg-[#170B29]"
-                  : "border-b-fg/20 bg-b-bg hover:border-b-fg/40",
+                "relative flex h-full w-full items-center justify-center rounded-lg border-2 transition-all duration-200",
+                i !== index && "border-b-fg/20 bg-b-bg hover:border-b-fg/40",
               )}
+              /*
+                `border-[#7139CC] bg-[#170B29]` was the selected tile in both
+                themes: a violet ring round a near-black box, sitting on a white
+                page in the light theme. The border is now the month's accent,
+                and the fill is that accent mixed into the page — derived, so it
+                cannot be a dark box on a light ground in any month, and tinted,
+                so nine tiles do not all light up the same.
+              */
+              style={
+                i === index
+                  ? {
+                      borderColor: "var(--sx-month-accent, var(--color-b-deck-on-edge))",
+                      backgroundColor:
+                        "color-mix(in oklab, var(--sx-month-accent, var(--color-b-deck-on-edge)) 16%, var(--color-b-bg))",
+                    }
+                  : undefined
+              }
             >
               <Image src={c.thumb} alt="" width={40} height={40} className="h-10 w-10" />
+              {/*
+                The tile's non-colour discriminator.
+
+                Nine month accents collapse to ~2 ΔE under tritanopia (see
+                `month-theme.ts`), so "which tile is selected" cannot rest on a
+                ring colour. The glyph is a different SILHOUETTE per month and
+                only the selected tile carries it, which is a shape difference
+                rather than a hue difference.
+              */}
+              {i === index && ct ? (
+                <span
+                  className="absolute right-1 bottom-1"
+                  style={{ color: "var(--sx-month-accent, var(--color-b-deck-on-edge))" }}
+                >
+                  <MonthGlyphMark theme={ct.theme} size={12} />
+                </span>
+              ) : null}
             </div>
           </button>
-        ))}
+          );
+        })}
         </div>
       </div>
 
@@ -178,10 +284,12 @@ export function CourseDeck({
 function DeckCardBody({
   course,
   startLabel,
+  lockedLabels,
   markerColor,
 }: {
   course: DeckCourse;
   startLabel: string;
+  lockedLabels: typeof DEFAULT_LOCKED_LABELS;
   markerColor?: string;
 }) {
   return (
@@ -191,7 +299,15 @@ function DeckCardBody({
           <div className="flex flex-col items-center gap-2">
             <div className="flex h-5 items-center justify-center" />
             <h3 className="text-center text-[24px] leading-[30px] font-bold">{course.title}</h3>
-            <h5 className="b-eyebrow min-h-[15px] text-center leading-[18px] text-[#7139CC]">{course.level}</h5>
+            {/* The month's name — the deck's "month name surface". `#7139CC`
+                was a dark-arm literal painted in both themes; the accent it
+                becomes is authored per arm and per month. */}
+            <h5
+              className="b-eyebrow min-h-[15px] text-center leading-[18px]"
+              style={{ color: "var(--sx-month-accent, var(--color-b-deck-on-edge))" }}
+            >
+              {course.level}
+            </h5>
           </div>
         </Link>
 
@@ -210,56 +326,184 @@ function DeckCardBody({
             the page behind the card. */}
         <div className="w-full max-h-[220px] overflow-y-auto overscroll-contain">
           {course.lessons.map((l) => (
-            <Link
+            <LessonRow
               key={l.title}
-              href={l.href}
-              className={cn(
-                "flex min-h-[60px] items-end justify-between gap-2",
-                !l.active && "opacity-50",
-              )}
-            >
-              {l.active ? (
-                <PedestalActive className="shrink-0" markerColor={markerColor} />
-              ) : (
-                <PedestalLocked className="shrink-0" />
-              )}
-              <div className="flex h-10 flex-1 items-center p-2">
-                <p className={cn("flex-1", l.active && "font-bold")}>{l.title}</p>
-                {/* completion dot: a filled 24-circle drawn at 20px */}
-                {/* `done` was declared on DeckCourse and read nowhere — the dot
-                    was a hardcoded grey rect, so the deck structurally could
-                    not show progress. Wired. */}
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                  className={cn("shrink-0", l.done ? "text-b-green" : "text-b-fg/20")}
-                >
-                  <rect width="24" height="24" rx="12" fill="currentColor" />
-                  {l.done ? (
-                    <path
-                      d="M7 12.5l3.2 3.2L17 9"
-                      stroke="#141414"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  ) : null}
-                </svg>
-              </div>
-            </Link>
+              lesson={l}
+              lockedRowLabel={lockedLabels.row}
+              markerColor={markerColor}
+            />
           ))}
+          {/*
+            One short line, once per card, rather than a sentence on every row.
+
+            `opacity-50` on a row means "not the lesson you are on" and has
+            meant that since the deck was cloned — the first row of a locked
+            month was fully opaque, so the card carried no signal at all that
+            none of it opened. This says it in words, which is the only channel
+            that survives both colour blindness and a screen reader.
+          */}
+          {course.locked ? (
+            <p className="pt-1 pb-1 text-[13px] leading-[18px] text-b-fg/60">
+              {lockedLabels.reason}
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <StartButton
-        href={course.lessons.find((l) => l.active)?.href ?? course.href}
-        label={startLabel}
-      />
+      {/*
+        The CTA resolves to the month's own board on a locked card.
+
+        It used to be `lessons.find(active)?.href ?? course.href`, and on a
+        locked month `nextLesson`'s `?? all[0]` fallback made the first row
+        active — so the most prominent button on the card pointed at a lesson
+        that answers 404. Now no row on a locked card is active and no row has
+        an href, so this cannot resolve to one even if the fallback returns.
+      */}
+      {course.locked ? (
+        <LockedButton href={course.href} label={lockedLabels.cta} />
+      ) : (
+        <StartButton
+          href={course.lessons.find((l) => l.active)?.href ?? course.href}
+          label={startLabel}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * One row of the card's lesson list.
+ *
+ * A row with an `href` is a link. A row without one is a `<div>` — not a link
+ * with `pointer-events: none`, not a link to somewhere else, and not a button
+ * that does nothing. It is announced as closed and it is not in the tab order,
+ * which is the same answer a sighted learner gets from the padlock.
+ */
+function LessonRow({
+  lesson: l,
+  lockedRowLabel,
+  markerColor,
+}: {
+  lesson: DeckCourse["lessons"][number];
+  lockedRowLabel: string;
+  markerColor?: string;
+}) {
+  const body = (
+    <>
+      {l.active ? (
+        <PedestalActive className="shrink-0" markerColor={markerColor} />
+      ) : (
+        <PedestalLocked className="shrink-0" />
+      )}
+      <div className="flex h-10 flex-1 items-center p-2">
+        <p className={cn("flex-1", l.active && "font-bold")}>{l.title}</p>
+        {l.locked ? (
+          <>
+            <LockMark />
+            <span className="sr-only">{lockedRowLabel}</span>
+          </>
+        ) : (
+          /* completion dot: a filled 24-circle drawn at 20px */
+          /* `done` was declared on DeckCourse and read nowhere — the dot
+             was a hardcoded grey rect, so the deck structurally could
+             not show progress. Wired. */
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            className={cn("shrink-0", l.done ? "text-b-green" : "text-b-fg/20")}
+          >
+            <rect width="24" height="24" rx="12" fill="currentColor" />
+            {l.done ? (
+              <path
+                d="M7 12.5l3.2 3.2L17 9"
+                stroke="#141414"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            ) : null}
+          </svg>
+        )}
+      </div>
+    </>
+  );
+
+  const shape = cn(
+    "flex min-h-[60px] items-end justify-between gap-2",
+    !l.active && "opacity-50",
+  );
+
+  if (!l.href) {
+    return (
+      <div className={shape} aria-disabled="true">
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={l.href} className={shape}>
+      {body}
+    </Link>
+  );
+}
+
+/**
+ * The padlock that replaces the completion dot on a closed row.
+ *
+ * A SHAPE, not a colour and not an opacity. The row's own `opacity-50` already
+ * means something else on this card, and the deck's nine month accents are ~2
+ * ΔE apart under tritanopia — see `month-theme.ts` — so nothing on this surface
+ * may rest on hue.
+ */
+function LockMark() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="shrink-0 text-b-fg/40"
+    >
+      <rect x="4" y="10.5" width="16" height="10" rx="3" fill="currentColor" />
+      <path
+        d="M8 10.5V8a4 4 0 0 1 8 0v2.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/**
+ * The CTA on a card the learner cannot enter.
+ *
+ * Deliberately NOT the purple shimmer button. That control means "this is the
+ * next thing you do", and a shimmering primary action in front of a door that
+ * does not open is the exact dark pattern the brief refuses. This is a quiet
+ * secondary link with a padlock on it, and it goes to a page that answers the
+ * question it raises.
+ */
+function LockedButton({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex h-12 w-full items-center justify-center gap-2 rounded-[56px]",
+        "border-2 border-b-lock-edge bg-b-lock-fill",
+        "leading-5 font-medium text-b-fg/70 transition-colors hover:text-b-fg",
+      )}
+    >
+      <LockMark />
+      {label}
+    </Link>
   );
 }
 

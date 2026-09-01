@@ -71,7 +71,7 @@ interface StartedReview {
   block: PublicBlock;
 }
 
-export function SchoolReview() {
+export function SchoolReview({ leagues = false }: { leagues?: boolean }) {
   const { locale, setLocale } = useLocale();
   const loc = locale as Locale;
 
@@ -221,7 +221,7 @@ export function SchoolReview() {
     <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="you"
-        links={SCHOOL_NAV(loc)}
+        links={SCHOOL_NAV(loc, leagues)}
         homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}

@@ -1,4 +1,8 @@
 import { YEAR_ONE_LANGUAGE_LABEL } from "@schools/curriculum/source-of-truth";
+import { LEAGUE_EXPLAIN } from "@schools/leagues/explain";
+import { LEAGUE_TIERS } from "@schools/leagues/tiers";
+import { LEAGUE_UNLOCK_XP } from "@schools/leagues/unlock";
+import { XP_AMOUNTS } from "@schools/leagues/xp-policy";
 import type { HelpArticle, HelpCategory } from "./types";
 
 /**
@@ -697,6 +701,136 @@ export const HELP_ARTICLES: HelpArticle[] = [
       ru: ["проверка", "конец месяца", "незнакомая задача", "экзамен", "контрольная"],
     },
   },
+  /*
+   * THE league explanation. §22 asks for «Как работают лиги» and §19 for the
+   * week; this is the single article both point at, and `/league` links to it
+   * from `HowTheWeekWorks`.
+   *
+   * Its three shared paragraphs are IMPORTED from `schools/leagues/explain.ts`
+   * rather than retyped, and the numbers are imported from the policy and the
+   * ladder. So a threshold change, a rename of `Titan` or a re-pricing of a
+   * solve all reach this page automatically, and the failure this article
+   * exists to avoid — a help page confidently describing a league the product
+   * no longer runs — is not expressible.
+   *
+   * Placed under `learning` rather than under a category of its own: for a
+   * learner the league is a fact about how the week works, and a lone category
+   * holding one article reads as a section that failed to load.
+   */
+  {
+    id: "leagues",
+    category: "learning",
+    title: { kk: "Лигалар қалай жұмыс істейді?", ru: "Как работают лиги?" },
+    summary: {
+      kk: "Апта сайынғы жарыс: оқу нәтижелері үшін XP жинайсың, сыныбыңның тізімінде орын аласың.",
+      ru: "Еженедельное соревнование: за учебные результаты начисляется XP, и ты занимаешь место в таблице своего класса.",
+    },
+    body: [
+      {
+        kind: "p",
+        text: {
+          kk: "Лига — сенің сыныбыңның ішіндегі апталық жарыс. Оқу нәтижелері үшін XP беріледі, апта соңында тізім қорытындыланады.",
+          ru: "Лига — это еженедельное соревнование внутри твоего класса. За учебные результаты начисляется XP, а в конце недели таблица подводится.",
+        },
+      },
+      /* The unlock, before anything else a learner might go looking for. The
+         first question about a locked feature is always "why do I not have
+         it", and the honest answer is a number. */
+      {
+        kind: "p",
+        text: {
+          kk: `Лига бірден ашылмайды. Ол барлық уақытта жинаған XP-ің ${LEAGUE_UNLOCK_XP}-ке жеткенде пайда болады — бұл шамамен бір толық апталық жұмыс. Оған дейін ешқандай тізім де, жарыс та жоқ.`,
+          ru: `Лига открывается не сразу. Она появляется, когда XP за всё время дойдёт до ${LEAGUE_UNLOCK_XP}, — это примерно одна полная неделя работы. До этого никакой таблицы и никакого соревнования нет.`,
+        },
+      },
+      { kind: "p", text: LEAGUE_EXPLAIN.weekBody },
+      { kind: "p", text: LEAGUE_EXPLAIN.weekSettles },
+      {
+        kind: "p",
+        text: {
+          kk: "Кішкентай топта ешкім ауыспайды: төртеуден аз қатысушы болса, апта аяқталғанда бәрі өз лигасында қалады. Ең төменгі лигадан төмен түсу жоқ, ең жоғарғысынан жоғары көтерілу де жоқ.",
+          ru: "В маленькой группе не двигается никто: если участников меньше четырёх, после недели все остаются в своей лиге. Ниже самой нижней лиги не опускают, а выше самой верхней не поднимают.",
+        },
+      },
+      {
+        kind: "p",
+        text: {
+          kk: "XP мынау үшін беріледі:",
+          ru: "XP начисляется за это:",
+        },
+      },
+      {
+        kind: "list",
+        items: [
+          {
+            kk: `Тапсырманы дұрыс шешкенде — ${XP_AMOUNTS.block_solved} XP, ал көмексіз шешсең тағы ${XP_AMOUNTS.block_solved_unaided} XP`,
+            ru: `За верно решённую задачу — ${XP_AMOUNTS.block_solved} XP, и ещё ${XP_AMOUNTS.block_solved_unaided} XP, если решишь без помощи`,
+          },
+          {
+            kk: `Күрделі тапсырма үшін — ${XP_AMOUNTS.challenge_solved} XP`,
+            ru: `За сложную задачу — ${XP_AMOUNTS.challenge_solved} XP`,
+          },
+          {
+            kk: `Жазбаша түсіндірме жібергенде — ${XP_AMOUNTS.explanation_submitted} XP`,
+            ru: `За отправленное письменное объяснение — ${XP_AMOUNTS.explanation_submitted} XP`,
+          },
+          {
+            kk: `Сабақты аяқтағанда — ${XP_AMOUNTS.lesson_completed} XP, айлық тексеруді аяқтағанда — ${XP_AMOUNTS.assessment_completed} XP`,
+            ru: `За завершённый урок — ${XP_AMOUNTS.lesson_completed} XP, за месячную проверку — ${XP_AMOUNTS.assessment_completed} XP`,
+          },
+          {
+            kk: `Қайталауды көмексіз шешкенде — ${XP_AMOUNTS.review_resolved} XP`,
+            ru: `За повторение, решённое без помощи, — ${XP_AMOUNTS.review_resolved} XP`,
+          },
+        ],
+      },
+      {
+        kind: "p",
+        text: {
+          kk: "XP берілмейтін нәрселер: «Іске қосу» батырмасын басу, экранда өткізген уақыт, шешу жылдамдығы, Nova-дан көмек сұрау және бұрын шешілген тапсырманы қайта шешу.",
+          ru: "XP не начисляется за нажатие «Запустить», за время на экране, за скорость, за обращение к Nova и за повторное решение уже решённой задачи.",
+        },
+      },
+      /* The anti-farming claim, in the form a fourteen-year-old will test it in.
+         Stated as a property of the ledger, not as a warning. */
+      {
+        kind: "p",
+        text: {
+          kk: "Әр XP нақты бір тапсырмаға байланған, сондықтан оны екі рет алу мүмкін емес: бір тапсырманы қайта шешсең, екінші жолы XP қосылмайды. Сол себепті XP жинаудың жасанды жолы жоқ — тек жаңа жұмыс.",
+          ru: "Каждое начисление привязано к конкретному заданию, поэтому получить его дважды нельзя: решишь ту же задачу ещё раз — XP не добавится. Накрутить XP не получится, добавляет его только новая работа.",
+        },
+      },
+      {
+        kind: "p",
+        text: {
+          kk: "XP ешқашан алынбайды. Қате жауап та, көмек сұрау да XP азайтпайды.",
+          ru: "XP никогда не отнимается. Ни ошибка, ни просьба о помощи не уменьшают XP.",
+        },
+      },
+      {
+        kind: "p",
+        text: {
+          kk: `Лигалар оннан тұрады, төменнен жоғары қарай: ${LEAGUE_TIERS.map((x) => x.name).join(" · ")}.`,
+          ru: `Лиг всего десять, снизу вверх: ${LEAGUE_TIERS.map((x) => x.name).join(" · ")}.`,
+        },
+      },
+      { kind: "p", text: LEAGUE_EXPLAIN.scope },
+      {
+        kind: "see",
+        article: "who-sees-my-work",
+        text: { kk: "Менің жұмысымды кім көреді", ru: "Кто видит мою работу" },
+      },
+      {
+        kind: "see",
+        article: "independent-solution",
+        text: { kk: "«Көмексіз шешу» дегеніміз не", ru: "Что считается решением без помощи" },
+      },
+    ],
+    keywords: {
+      kk: ["лига", "xp", "жарыс", "тізім", "орын", "апта", "көтерілу", "деңгей"],
+      ru: ["лига", "xp", "опыт", "очки", "соревнование", "таблица", "место", "неделя", "повышение", "уровень"],
+    },
+  },
 
   /* ---- nova ----------------------------------------------------------- */
   {
@@ -1152,9 +1286,27 @@ export const HELP_ARTICLES: HelpArticle[] = [
       {
         kind: "p",
         text: {
-          kk: "Басқа оқушылар сенің жауабыңды да, прогресіңді де көрмейді. Рейтинг те, ашық тізім де жоқ.",
-          ru: "Другие ученики не видят ни твоих ответов, ни прогресса. Ни рейтинга, ни публичного списка нет.",
+          kk: "Басқа оқушылар сенің жауабыңды да, қателеріңді де, прогресіңді де көрмейді.",
+          ru: "Другие ученики не видят ни твоих ответов, ни ошибок, ни прогресса.",
         },
+      },
+      /* This paragraph used to end «Ни рейтинга, ни публичного списка нет»,
+         which stopped being true for a school that turns leagues on. A help
+         page that promises a child something the product no longer does is
+         worse than a missing page: they find out by seeing their own name on a
+         list they were told did not exist. The promise is now the accurate,
+         narrower one — the league shows one number and nothing else. */
+      {
+        kind: "p",
+        text: {
+          kk: "Егер мектебіңде апталық лига қосылған болса, сыныптастарың тізімнен бір ғана нәрсені көреді: сенің осы аптада жинаған XP-іңді. Одан басқа ештеңе көрінбейді.",
+          ru: "Если в твоей школе включена еженедельная лига, одноклассники видят в таблице ровно одно: сколько у тебя XP за эту неделю. Больше ничего.",
+        },
+      },
+      {
+        kind: "see",
+        article: "leagues",
+        text: { kk: "Лигалар қалай жұмыс істейді", ru: "Как работают лиги" },
       },
       {
         kind: "p",

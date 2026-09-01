@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import { requirePageSession } from "@schools/auth/page-guard";
+import { leagueNavVisible } from "@schools/leagues/scope";
 import type { Metadata } from "next";
 import { MONTHS, MONTH_BY_INDEX } from "@schools/curriculum/months";
-import { monthOutline } from "@schools/curriculum/public";
+import { monthOutline, monthOutlines } from "@schools/curriculum/public";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
-import { currentLearnerMayEnter } from "@schools/learning/access";
+import { currentLearnerMayEnter, unlockStateForSubject } from "@schools/learning/access";
+import { knownSubjectId } from "@schools/learning/identity";
+import { blockingRequirement } from "@schools/presentation/adapters";
 import { MonthBoard } from "@/components/brilliant/gameboard/month-board";
 import { MonthNotOpen } from "@/components/brilliant/gameboard/month-not-open";
 
@@ -28,7 +31,7 @@ export default async function CoursePage({
 }: {
   params: Promise<{ index: string }>;
 }) {
-  await requirePageSession();
+  const user = await requirePageSession();
 
   const { index } = await params;
   const month = MONTH_BY_INDEX.get(Number(index));
@@ -55,10 +58,40 @@ export default async function CoursePage({
      board of nodes that each 404 when tapped is not. The learner is told what
      opens it, which is true and is theirs to act on. */
   if (!(await currentLearnerMayEnter(month.index))) {
-    return <MonthNotOpen month={monthOutline(month)} reason="locked" />;
+    /*
+      And say what is actually outstanding.
+
+      The sentence alone («finish the previous month») was a false promise: the
+      assessment completion policy never requires a correct answer, so a learner
+      could satisfy every word of it and still find this door shut. The checklist
+      names the second condition and shows where they stand in both.
+
+      Read only on this branch — the panel is the only thing that wants it, and
+      an unlocked month must not pay for a query it does not use. Counts and
+      booleans cross to the browser; `blockingRequirement` is where that is
+      enforced.
+    */
+    const subjectId = await knownSubjectId();
+    const requirement = subjectId
+      ? blockingRequirement(monthOutlines(MONTHS), await unlockStateForSubject(subjectId))
+      : null;
+
+    return (
+      <MonthNotOpen
+        month={monthOutline(month)}
+        reason="locked"
+        requirement={requirement}
+      />
+    );
   }
 
-  return <MonthBoard month={monthOutline(month, track)} track={track} />;
+  return (
+    <MonthBoard
+      month={monthOutline(month, track)}
+      track={track}
+      leagues={leagueNavVisible(user)}
+    />
+  );
 }
 
 /* Per request, because the answer depends on a cookie. `generateStaticParams`

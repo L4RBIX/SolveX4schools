@@ -28,10 +28,20 @@ import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "../app/school-chrome";
 export interface SettingsShellProps {
   active: "account" | "preferences";
   user: SessionUser;
+  /**
+   * Whether this learner's school has the weekly league.
+   *
+   * Resolved on the server by `leagueNavVisible` and threaded through the
+   * panel, because the gate reads `schools/config.ts` and this is a client
+   * component. Settings is chrome around the product, so the nav here must be
+   * the SAME nav — a tab that exists on /home and vanishes in settings reads as
+   * the product having lost a page.
+   */
+  leagues?: boolean;
   children: ReactNode;
 }
 
-export function SettingsShell({ active, user, children }: SettingsShellProps) {
+export function SettingsShell({ active, user, leagues = false, children }: SettingsShellProps) {
   const { locale, setLocale } = usePreferences();
   const loc = locale as Locale;
 
@@ -51,7 +61,7 @@ export function SettingsShell({ active, user, children }: SettingsShellProps) {
            highlighted. Passing a tab that is not on screen would light up a
            link the learner did not follow. */
         active={user.role === "student" ? "home" : "home"}
-        links={user.role === "student" ? SCHOOL_NAV(loc) : []}
+        links={user.role === "student" ? SCHOOL_NAV(loc, leagues) : []}
         homeHref={user.role === "student" ? "/home" : "/teacher"}
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}

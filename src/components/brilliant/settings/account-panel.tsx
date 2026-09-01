@@ -35,16 +35,19 @@ export function AccountPanel({
   user,
   school,
   classes,
+  leagues = false,
 }: {
   user: SessionUser;
   school: string;
   classes: string[];
+  /** Server-resolved league gate; see `SettingsShellProps.leagues`. */
+  leagues?: boolean;
 }) {
   const { locale } = usePreferences();
   const loc = locale as Locale;
 
   return (
-    <SettingsShell active="account" user={user}>
+    <SettingsShell active="account" user={user} leagues={leagues}>
       <SettingsSection
         title={t(L.accountPersonal, loc)}
         description={t(L.accountPersonalHint, loc)}

@@ -12,6 +12,7 @@ import { accountMenu } from "./account-menu";
 import { CourseDeck } from "./course-deck";
 import { HomeRail } from "./home-rail";
 import { FirstRun } from "./first-run";
+import { HomeLeagueCard, type HomeLeagueData } from "./league/home-league-card";
 import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "./school-chrome";
 
 /**
@@ -80,24 +81,41 @@ function weekDays(locale: Locale, activeDays: string[]) {
 export function SchoolHome({
   months,
   learnerName = null,
+  unlockedThrough,
+  leagues = false,
+  league = null,
 }: {
   months: MonthOutline[];
   /** `null` until enrolment exists. See HomeRailProps.name. */
   learnerName?: string | null;
+  /**
+   * The highest month index this learner may enter.
+   *
+   * Resolved on the SERVER by `unlockStateForSubject` and passed down as a
+   * number. This component cannot work it out: `useProgress()` is localStorage
+   * and the policy needs the ledger, and `schools/policies/unlock.ts` documents
+   * what happens when the rule is handed a presentation-layer projection —
+   * `demonstrated` becomes true everywhere and the whole year opens.
+   */
+  unlockedThrough: number;
+  /** Does this learner's school have a league? `leagueNavVisible`, server-side. */
+  leagues?: boolean;
+  /** The league card's data, or null when this school has no league. */
+  league?: HomeLeagueData | null;
 }) {
   const { locale, setLocale } = useLocale();
   const progress = useProgress();
   const loc = locale as Locale;
   const week = useWeeklyActivity();
 
-  const deck = monthsToDeck(months, progress, loc);
+  const deck = monthsToDeck(months, progress, loc, unlockedThrough);
 
   return (
     <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <FirstRun />
       <AppHeader
         active="home"
-        links={SCHOOL_NAV(loc)}
+        links={SCHOOL_NAV(loc, leagues)}
         homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
@@ -126,8 +144,6 @@ export function SchoolHome({
           labels={{
             welcome: t(L.welcome, loc),
             welcomeAnonymous: t(L.welcomeAnonymous, loc),
-            askPlaceholder: t(L.askPlaceholder, loc),
-            ask: t(L.ask, loc),
             streakPrompt:
               (week?.activeDays.length ?? 0) > 0
                 ? t(L.weekActive, loc)
@@ -143,15 +159,29 @@ export function SchoolHome({
                 ? `${week?.goalMinutes ?? 40} ${t(L.minutes, loc)} ішінен ${week?.activeMinutes ?? 0}`
                 : `${week?.activeMinutes ?? 0} из ${week?.goalMinutes ?? 40} ${t(L.minutes, loc)}`,
           }}
+          /* Only when this school actually has a league. `leagues` and `league`
+             are resolved by the same server predicate, so a card cannot appear
+             without a page behind it, and the nav tab cannot appear without the
+             card. */
+          extra={leagues && league ? <HomeLeagueCard data={league} /> : null}
         />
 
         <CourseDeck
           courses={deck}
           heading={t(L.jumpBackIn, loc)}
           startLabel={t(L.start, loc)}
-          /* Nova's violet, not Brilliant's green. Green means "correct" in this
-             player and the marker only means "you are here". */
-          markerColor="#a78bfa"
+          lockedLabels={{
+            reason: t(L.monthLockedTitle, loc),
+            cta: t(L.deckLockedCta, loc),
+            row: t(L.deckLockedRow, loc),
+          }}
+          /* Not Brilliant's green: green means "correct" in this player and the
+             marker only means "you are here". It was the literal `#a78bfa` —
+             one violet for all nine months, and the same value in both themes.
+             `--sx-month-accent` is scoped per card by `CourseDeck`, so the
+             marker now wears the month whose card is in front, and falls back
+             to the product purple where a card has no month. */
+          markerColor="var(--sx-month-accent, var(--color-b-purple))"
         />
       </div>
     </div>

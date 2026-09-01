@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { currentUser } from "@schools/auth/session";
 import { getStore } from "@schools/store";
+import { leagueNavVisible } from "@schools/leagues/scope";
 import { AccountPanel } from "@/components/brilliant/settings/account-panel";
 
 export const metadata: Metadata = { title: "Аккаунт" };
@@ -29,6 +30,7 @@ export default async function AccountSettingsPage() {
       user={user}
       school={user.schoolId}
       classes={classes.map((c) => c.classId)}
+      leagues={leagueNavVisible(user)}
     />
   );
 }

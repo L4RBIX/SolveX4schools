@@ -210,6 +210,18 @@
   --color-b-ok-progress: light-dark(#34b45f, #9fe8b3); /* progress-bar fill */
 
   /* verdict: locked-out blocks + greyed panel */
+  /*
+     The trench a lit milestone sits in.
+
+     The gameboard rings its current node with a near-black ellipse just outside
+     the rim, so a glowing node has a lip instead of bleeding into the page. It
+     was the literal `#0C0912` in `sx-pedestal.tsx`, drawn in BOTH themes, which
+     put a black 9px ring around every lit node on the light page. The dark arm
+     here IS that literal, so the `/brilliant` baseline is unchanged; the light
+     arm is the page shade stepped down, which does the same job on white.
+  */
+  --color-b-trench: light-dark(#ded7ce, #0c0912);
+
   --color-b-lock-fill: light-dark(#eceae7, #383838);
   --color-b-lock-edge: light-dark(rgba(16, 17, 20, 0.16), #4c4c4c);
   --color-b-lock-panel: light-dark(#eceae7, #4c4c4c);

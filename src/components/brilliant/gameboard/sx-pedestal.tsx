@@ -97,6 +97,31 @@ const RING_DASH = `${Math.round(RING_C * 0.72)} ${Math.round(RING_C * 0.28)}`;
 
 const GAP_W = 6.04;
 
+/**
+ * The lit disc, and where its colour now comes from.
+ *
+ * The four flats were `#7E43E0` rim / `#9D62FF` facet / `#C19CFF` face /
+ * `#FFFFFF` groove — the reference's purple set, sampled off its own artboard,
+ * and they are still exactly what this renders when nothing has themed the
+ * board. They are now the FALLBACK arm of a variable instead of a literal,
+ * because "you have been here" is the strongest identity surface on a month's
+ * board and a nine-month year in one purple is nine months that look alike.
+ *
+ * `--sx-month-rim` / `-facet` / `-face` are set by `CourseGameboard` from
+ * `monthThemeVars()`, which derives the facet and face from the accent using
+ * the same ~22% / ~52% mixes toward white that the sampled purple set already
+ * had. So a themed disc is the reference's disc in another hue, not a different
+ * object — and an unthemed one is byte-identical to what shipped.
+ *
+ * The groove stays pure white in every month. It is the lit edge, not identity.
+ */
+const LIT_SET = {
+  rim: "var(--sx-month-rim, #7E43E0)",
+  facet: "var(--sx-month-facet, #9D62FF)",
+  face: "var(--sx-month-face, #C19CFF)",
+  groove: "#FFFFFF",
+} as const;
+
 export type PedestalState =
   /** Not authored yet. Dimmed, not padlocked — a padlock promises a key. */
   | "future"
@@ -153,7 +178,7 @@ export function SxPedestal({ state, selected, className }: SxPedestalProps) {
    * — which is what shipped first — looks nothing like it.
    */
   const c = lit
-    ? { rim: "#7E43E0", facet: "#9D62FF", face: "#C19CFF", groove: "#FFFFFF" }
+    ? LIT_SET
     : selected
       ? { rim: "#666666", facet: "#858585", face: "#B3B3B3", groove: "#FFFFFF" }
       : { rim: "#999999", facet: "#ADADAD", face: "#E5E5E5", groove: "#CCCCCC" };
@@ -241,7 +266,7 @@ export function SxPedestal({ state, selected, className }: SxPedestalProps) {
           rx={RING.rx}
           ry={RING.ry}
           fill="none"
-          stroke="var(--color-b-purple)"
+          stroke="var(--sx-month-accent, var(--color-b-purple))"
           strokeWidth={RING.width}
           strokeLinecap="round"
           style={{
@@ -263,7 +288,11 @@ export function SxPedestal({ state, selected, className }: SxPedestalProps) {
           rx={g.rim.rx + 6}
           ry={g.rim.ry + 4}
           fill="none"
-          stroke="#0C0912"
+          /* `#0C0912` was drawn in BOTH themes, so on the light page every
+             lit node wore a near-black 9px ring — the single most visible
+             light-theme defect on the board. The token's dark arm is that same
+             value, so the reference baseline is unchanged. */
+          stroke="var(--color-b-trench)"
           strokeWidth="9"
           opacity="0.85"
         />
@@ -340,7 +369,7 @@ export function SxReviewPedestal({
   const uid = useId().replace(/:/g, "");
   const lit = IS_LIT[state];
   const c = lit
-    ? { base: "#7E43E0", facet: "#9D62FF", face: "#C19CFF", groove: "#FFFFFF" }
+    ? { base: LIT_SET.rim, facet: LIT_SET.facet, face: LIT_SET.face, groove: LIT_SET.groove }
     : { base: "#999999", facet: "#ADADAD", face: "#E5E5E5", groove: "#CCCCCC" };
 
   /** 8-point star, flattened about its centre. */
@@ -373,9 +402,19 @@ export function SxReviewPedestal({
       </defs>
 
       {selected && (
-        <ellipse cx="60" cy="80" rx="59" ry="35" fill="var(--color-b-purple)" opacity="0.9" />
+        <ellipse
+          cx="60"
+          cy="80"
+          rx="59"
+          ry="35"
+          fill="var(--sx-month-accent, var(--color-b-purple))"
+          opacity="0.9"
+        />
       )}
-      {selected && <ellipse cx="60" cy="78" rx="50" ry="28" fill="#141414" />}
+      {/* The hole punched through the selection ellipse is the PAGE showing
+          through, and it was hardcoded to `#141414` — a black blob on a white
+          page in the light theme. `--color-b-bg` is `#141414` on its dark arm. */}
+      {selected && <ellipse cx="60" cy="78" rx="50" ry="28" fill="var(--color-b-bg)" />}
 
       {/* the cog base: the same star, wider and dropped below the face */}
       <polygon points={star(60, 81.9, 45.64, 38.7)} fill={c.base} />

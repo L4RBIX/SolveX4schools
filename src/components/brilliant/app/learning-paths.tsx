@@ -33,8 +33,6 @@ export interface LearningPathsPageProps {
     subtitle: string;
     yours: string;
     others: string;
-    askPlaceholder: string;
-    ask: string;
     /** Carousel controls. Default to the reference route's English. */
     prev?: string;
     next?: string;
@@ -57,8 +55,6 @@ const DEFAULT_LABELS = {
   subtitle: "Step-by-step paths to mastery",
   yours: "Your learning paths",
   others: "Other learning paths",
-  askPlaceholder: "What do you want to learn?",
-  ask: "Ask",
   prev: "Previous",
   next: "Next",
   star: "Star learning path",
@@ -78,12 +74,14 @@ export function LearningPathsPage({
     <div className="mx-auto w-full max-w-[1216px] px-4 pb-24 sm:px-6">
       <h1 className="sr-only">{L.title}</h1>
 
-      <div className="flex flex-col items-start justify-between gap-6 pt-8 pb-6 lg:flex-row lg:gap-8">
-        <div>
-          <h2 className="text-[32px] leading-[42px] font-bold">{L.title}</h2>
-          <p className="mt-1 text-b-fg/60">{L.subtitle}</p>
-        </div>
-        <AskBar placeholder={L.askPlaceholder} action={L.ask} />
+      {/* One child, so no flex row. This used to be a `justify-between`
+          row whose only purpose was to seat a global ask control beside the
+          title; that control led nowhere and was removed, and the row with it —
+          a `lg:flex-row justify-between` wrapper around a single block is a
+          layout that reads as though something failed to render. */}
+      <div className="pt-8 pb-6">
+        <h2 className="text-[32px] leading-[42px] font-bold">{L.title}</h2>
+        <p className="mt-1 text-b-fg/60">{L.subtitle}</p>
       </div>
 
       <section>
@@ -105,38 +103,6 @@ export function LearningPathsPage({
         </section>
       ) : null}
     </div>
-  );
-}
-
-/** Same control as the home rail: a button, not an input. */
-function AskBar({ placeholder, action }: { placeholder: string; action: string }) {
-  return (
-    <button
-      type="button"
-      className="flex h-[52px] w-full max-w-[456px] shrink-0 items-center gap-2 rounded-full border-2 border-b-fg/20 bg-b-bg py-1 pr-1 pl-4 text-left"
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        className="shrink-0 text-b-fg/60"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.3-4.3" />
-      </svg>
-      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-b-fg/40">
-        {placeholder}
-      </span>
-      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-b-fg/5 px-[14px] py-2 leading-5 font-medium text-b-fg/20">
-        {action}
-      </span>
-    </button>
   );
 }
 

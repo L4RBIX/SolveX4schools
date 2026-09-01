@@ -61,3 +61,39 @@ export async function leagueScopeForCurrentUser(): Promise<LeagueScope | null> {
      inventing a second answer to a question the product has not settled. */
   return { schoolId: enrolled.schoolId, classId: enrolled.classId };
 }
+
+/**
+ * Does this signed-in user get a league tab, and a league page?
+ *
+ * The one predicate every SURFACE asks, and it deliberately matches
+ * `leagueScopeForCurrentUser` above rather than being a looser version of it:
+ * enabled for the deployment, enabled for their school, and a student.
+ *
+ * ## The role check is not decoration
+ *
+ * Without it a teacher at an enabled school could open `/league`, because the
+ * page gate only knew about the school. `GET /api/league/me` would then refuse
+ * them — `requireLearner` 403s anybody who is not an enrolled student — and the
+ * screen would render its "the board did not load" state. An adult would report
+ * a bug; a head teacher would report it to a parent. Refusing at the page is the
+ * same answer `leagueScopeForCurrentUser` already gives, in the same words.
+ *
+ * ## Synchronous, and takes the user
+ *
+ * It reads `config`, so it is server-only and a page calls it after
+ * `requirePageSession()`. It does NOT touch the database — enrolment is checked
+ * where a group is actually needed, and a nav tab must not cost a query on every
+ * page render. A student enrolled in no class sees the tab and lands on a page
+ * that renders its own empty state, which is the correct outcome for somebody
+ * whose enrolment has not been recorded yet.
+ *
+ * `null` — the anonymous development path — is false. An anonymous subject has
+ * no school and therefore no competition.
+ */
+export function leagueNavVisible(
+  user: { schoolId: string; role: string } | null,
+): boolean {
+  if (!user) return false;
+  if (user.role !== "student") return false;
+  return leaguesEnabledForSchool(config.leagues, user.schoolId);
+}

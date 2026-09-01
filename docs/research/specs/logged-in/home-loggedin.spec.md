@@ -36,9 +36,16 @@ Children, measured (x, y, w, h):
 | # | Element | Box | Notes |
 |---|---|---|---|
 | 1 | `Welcome, bekarys` | `239, 105, 384, 30` | mock the name |
-| 2 | Ask bar | `239, 155, 384, 52` | pill; `border-radius: full`; placeholder `What do you want to learn?` + `Ask` |
+| 2 | Ask bar | `239, 155, 384, 52` | pill; `border-radius: full`; placeholder `What do you want to learn?` + `Ask` — **measured on brilliant.org; NOT shipped in SolveX, see the note below** |
 | 3 | Streak card | `239, 227, 384, 248` | |
 | 4 | Leagues card wrapper | `239, 495, 384, 108` | flex column, `gap: 20px` |
+
+> **Not cloned (2026-09-02).** The product's rail has no ask bar. The control
+> was reproduced here in an early pass and shipped inert — a `<button>` with no
+> handler and no endpoint behind it — and it has been removed. The product rail
+> is: greeting, weekly-goal card, streak card, and (where the school has one)
+> the league card. The row above records what brilliant.org does, which is still
+> accurate for brilliant.org.
 
 ### Streak card content (verbatim)
 `0` · `Streak Charges` · `Solve 3 problems to start a streak` · day pills `T` `W` `Th` `F` `S`
@@ -95,5 +102,5 @@ Rive here.
 
 ## Outstanding
 
-Computed styles for every card, the ask bar, day pills, the card deck stacking geometry,
+Computed styles for every card, day pills, the card deck stacking geometry,
 the thumbnail switcher, the top nav, and hover/active states.

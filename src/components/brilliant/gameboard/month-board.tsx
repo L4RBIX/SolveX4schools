@@ -4,6 +4,7 @@ import type { Locale, TrackLevel } from "@schools/curriculum/types";
 import type { MonthOutline } from "@schools/curriculum/public";
 import { monthToGameboard } from "@schools/presentation/adapters";
 import { L, lessonsLabel, t, tasksLabel } from "@schools/presentation/labels";
+import { monthTheme } from "@schools/presentation/month-theme";
 import { useLocale } from "@/components/sx/i18n";
 import { useProgress } from "@/lib/progress";
 import { AppHeader } from "../app/app-header";
@@ -30,11 +31,20 @@ import { TrackSwitch } from "./track-switch";
  * the cookie is read by `resolveTrack` on the server, so this component never
  * has to guess what the payload it is about to receive was filtered by.
  */
-export function MonthBoard({ month, track }: { month: MonthOutline; track: TrackLevel }) {
+export function MonthBoard({
+  month,
+  track,
+  leagues = false,
+}: {
+  month: MonthOutline;
+  track: TrackLevel;
+  leagues?: boolean;
+}) {
   const { locale, setLocale } = useLocale();
   const progress = useProgress();
 
   const loc = locale as Locale;
+  const theme = monthTheme(month.index);
   const { course, levels } = monthToGameboard(month, progress, loc, {
     lessons: (n) => lessonsLabel(n, loc),
     tasks: (n) => tasksLabel(n, loc),
@@ -44,7 +54,7 @@ export function MonthBoard({ month, track }: { month: MonthOutline; track: Track
     <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="courses"
-        links={SCHOOL_NAV(loc)}
+        links={SCHOOL_NAV(loc, leagues)}
         homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
@@ -72,6 +82,17 @@ export function MonthBoard({ month, track }: { month: MonthOutline; track: Track
           done: loc === "kk" ? "Аяқталды" : "Пройдено",
         }}
         ownMascot
+        /* Month identity. The board paints five scoped custom properties from
+           this and nothing else on the page changes colour.
+
+           `monthLabel` is resolved here because `CourseGameboard` is shared
+           with the reference baseline and has no locale. It comes from the
+           theme rather than from `month.monthName` on purpose: the registry's
+           copy is the one a surface holding only an index can reach, and a test
+           asserts the two are identical, so using it is what keeps that
+           assertion honest rather than decorative. */
+        theme={theme}
+        monthLabel={t(theme.name, loc)}
         /* The reference puts nothing above its first level header, so the
            track switch lives in the left column beside the course card, where
            course-level meta belongs. Below `lg` that column is hidden, so the

@@ -82,44 +82,76 @@ export function LocaleSwitch({
   );
 }
 
-export function SCHOOL_NAV(locale: Locale): AppNavLink[] {
-  return [
-    { id: "home", label: t(L.navHome, locale), href: "/home", aria: t(L.navHome, locale) },
-    {
-      id: "courses",
-      label: t(L.navCourses, locale),
-      href: "/program",
-      aria: t(L.navCourses, locale),
-    },
-    { id: "you", label: t(L.navYou, locale), href: "/you", aria: t(L.navYou, locale) },
-  ];
-}
-
 /**
- * The nav, with the league in it.
+ * The product's three tabs, plus the league when this school has one.
  *
- * A separate function rather than a flag on `SCHOOL_NAV`, because the league is
- * feature-gated per school and the gate is a SERVER decision — `config` is
- * `server-only` and cannot be read from a client component. The page resolves
- * it and passes the right list down, so a school without leagues never renders
- * a tab that 404s.
+ * ## `leagues` is an ARGUMENT, and that is the whole design
  *
- * Placed before «Прогресс»/«Сен», not after: the league is a weekly thing a
- * learner checks in passing, and `/you` is the reflective page they arrive at
- * last. Ordering it that way also keeps `/you` in the rightmost position it has
- * always occupied, so the tab a learner's muscle memory reaches for has not
- * moved.
+ * The league is feature-gated per school and the gate is a SERVER decision:
+ * `schools/config.ts` is `server-only`, and a client component importing it
+ * fails `npm run check:bundle`. Every surface below the header is a client
+ * component. So the page resolves `leagueNavVisible(user)` — one predicate,
+ * `schools/leagues/scope.ts` — and passes the answer down as a prop, and this
+ * function takes it as a plain boolean it cannot get wrong.
+ *
+ * ## Why it defaults to false rather than to "add it"
+ *
+ * A surface that forgets to thread the gate renders the nav it renders today:
+ * three tabs, no league, nothing broken. The failure mode of the other default
+ * is a tab that 404s, shown to a school that never agreed to a competition —
+ * which is the same asymmetry `LEAGUES_ENABLED === "true"` exists to protect,
+ * one layer up. The gate is off by default at every level or it is not a gate.
+ *
+ * ## Position
+ *
+ * Before «Прогресс»/«Сен», not after: the league is a weekly thing a learner
+ * checks in passing, and `/you` is the reflective page they arrive at last.
+ * That also keeps `/you` rightmost, where it has always been, so the tab a
+ * learner's muscle memory reaches for has not moved.
  */
-export function SCHOOL_NAV_WITH_LEAGUE(locale: Locale): AppNavLink[] {
-  const base = SCHOOL_NAV(locale);
+export function SCHOOL_NAV(locale: Locale, leagues = false): AppNavLink[] {
+  const home: AppNavLink = {
+    id: "home",
+    label: t(L.navHome, locale),
+    href: "/home",
+    aria: t(L.navHome, locale),
+  };
+  const courses: AppNavLink = {
+    id: "courses",
+    label: t(L.navCourses, locale),
+    href: "/program",
+    aria: t(L.navCourses, locale),
+  };
+  const you: AppNavLink = {
+    id: "you",
+    label: t(L.navYou, locale),
+    href: "/you",
+    aria: t(L.navYou, locale),
+  };
+
+  if (!leagues) return [home, courses, you];
+
   return [
-    ...base.slice(0, 2),
+    home,
+    courses,
     {
       id: "league",
       label: t(L.navLeague, locale),
       href: "/league",
       aria: t(L.navLeague, locale),
     },
-    ...base.slice(2),
+    you,
   ];
+}
+
+/**
+ * The nav as `/league` itself renders it.
+ *
+ * Kept as its own name because on that page the gate is not a prop to thread —
+ * the page has already `notFound()` unless leagues are on for this learner, so
+ * `true` is a fact about the render rather than a value that could be wrong.
+ * Everywhere else, pass the resolved gate to `SCHOOL_NAV`.
+ */
+export function SCHOOL_NAV_WITH_LEAGUE(locale: Locale): AppNavLink[] {
+  return SCHOOL_NAV(locale, true);
 }

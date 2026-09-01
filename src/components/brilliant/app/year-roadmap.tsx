@@ -21,7 +21,13 @@ import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "./school-chrome";
  * The horizontal tile carousel, the category art, the per-tile progress bars
  * and the favourite star are all the original's.
  */
-export function YearRoadmap({ months }: { months: MonthOutline[] }) {
+export function YearRoadmap({
+  months,
+  leagues = false,
+}: {
+  months: MonthOutline[];
+  leagues?: boolean;
+}) {
   const { locale, setLocale } = useLocale();
   const progress = useProgress();
 
@@ -37,7 +43,7 @@ export function YearRoadmap({ months }: { months: MonthOutline[] }) {
     <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="courses"
-        links={SCHOOL_NAV(loc)}
+        links={SCHOOL_NAV(loc, leagues)}
         homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}
@@ -59,8 +65,6 @@ export function YearRoadmap({ months }: { months: MonthOutline[] }) {
           subtitle: t(L.yearRoadmapSub, loc),
           yours: t(L.yourPath, loc),
           others: "",
-          askPlaceholder: t(L.askPlaceholder, loc),
-          ask: t(L.ask, loc),
           prev: t(L.carouselPrev, loc),
           next: t(L.carouselNext, loc),
         }}

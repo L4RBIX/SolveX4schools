@@ -9,6 +9,27 @@ A parallel student UI was built next to a richer one that already worked. Of
 93 components inventoried, 92 are reusable and exactly one
 is worth removing. Almost none of them were used.
 
+> **Correction, 2026-09-02 — the ask control is gone.** Four places below still
+> read as though the home rail and `/program` carry a «Что хочешь разобрать?»
+> bar. They did until this release. It was a `<button>` with no `onClick`, no
+> state, no handler and no endpoint anywhere in the repository — driven in
+> Chromium it produced zero network requests, no navigation and no panel — so it
+> was removed from `home-rail.tsx`, `learning-paths.tsx` and `labels.ts` rather
+> than wired up. The two plan steps at "Step 3" and "Step 10" that say *drop
+> AskBar* / *delete AskBar* are now actually done; the reference-runtime
+> descriptions in the tables are left as measured, because they describe
+> brilliant.org and that is still what brilliant.org has.
+>
+> Nova is untouched by it. Nova's four entry points are all inside the lesson —
+> the floating avatar, the «Спросить Nova» pill, «Помощь» and «Почему?» — and
+> none of them read any label the removal deleted. `L.ask` was the dead bar;
+> `L.askNova` is the live pill, and they are one character apart in a grep.
+>
+> The rail was rebalanced rather than merely shortened: the bar was 72px of the
+> column (52px control + one 20px gap) at both 1440 and 375, so the greeting was
+> given real weight (20/30 → 26/32) and the weekly-goal card was promoted into
+> the space, where it is the one card carrying a number a learner can act on.
+
 ---
 
 ## 1. Classification of every visible part

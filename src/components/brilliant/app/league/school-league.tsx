@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale, Localized } from "@schools/curriculum/types";
 import { L, t } from "@schools/presentation/labels";
+import { LEAGUE_EXPLAIN, LEAGUE_HELP_HREF } from "@schools/leagues/explain";
 import { useLocale } from "@/components/sx/i18n";
 import { AppHeader } from "../app-header";
 import { accountMenu } from "../account-menu";
@@ -241,8 +243,9 @@ function Loaded({ data, locale }: { data: LeaguePayload; locale: Locale }) {
             <Breakdown data={data} locale={locale} />
           ) : null}
         </div>
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-6">
           <Rules data={data} locale={locale} />
+          <HowTheWeekWorks locale={locale} />
         </div>
       </div>
 
@@ -552,6 +555,72 @@ function Rules({ data, locale }: { data: LeaguePayload; locale: Locale }) {
       <p className="mt-5 border-t-2 border-b-fg/10 pt-4 text-[13px] leading-[19px] text-b-fg/60">
         {t(L.leagueXpNeverLost, locale)}
       </p>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The week                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What a week IS, in prose, beside the countdown that says how much is left.
+ *
+ * §19 asks six questions and the hero answers five of them with numbers. The
+ * sixth — "when does it reset, and what happens to me when it does" — is the
+ * one a number cannot answer: «3 дня» tells a learner the clock is running and
+ * nothing about what the clock is FOR. Without this paragraph the first Monday
+ * of the pilot is eighteen children opening a page that says 0 XP with no
+ * statement anywhere that last week's total was supposed to go away.
+ *
+ * ## Three sentences, and each is a different question
+ *
+ *   - `weekBody`     — when it starts and ends, and that the tier survives it.
+ *   - `weekSettles`  — what the boundary DOES: top up, middle stays, bottom down.
+ *   - `scope`        — who is in the table, and what it does not show. §20.
+ *
+ * The strings come from `schools/leagues/explain.ts` and are the same ones the
+ * Help Center article quotes, so the short answer here and the long answer at
+ * `/help/leagues` cannot drift into saying different things about the same
+ * Monday.
+ *
+ * ## The link is a real link
+ *
+ * `next/link` to a route that exists, not a modal and not a tooltip. §27's rule
+ * that the rules are never hidden applies to the explanation as much as to the
+ * amounts, and a learner who wants the whole thing gets a page they can read,
+ * search and send to a parent.
+ */
+function HowTheWeekWorks({ locale }: { locale: Locale }) {
+  return (
+    <section
+      className="rounded-[20px] sx-card border-2 border-b-fg/20 p-6"
+      aria-labelledby="league-week"
+    >
+      <h2 id="league-week" className="text-[17px] leading-[24px] font-bold">
+        {t(LEAGUE_EXPLAIN.weekTitle, locale)}
+      </h2>
+
+      <p className="mt-3 text-[14px] leading-[21px] text-b-fg/75">
+        {t(LEAGUE_EXPLAIN.weekBody, locale)}
+      </p>
+      <p className="mt-2.5 text-[14px] leading-[21px] text-b-fg/75">
+        {t(LEAGUE_EXPLAIN.weekSettles, locale)}
+      </p>
+      <p className="mt-2.5 text-[13px] leading-[19px] text-b-fg/55">
+        {t(LEAGUE_EXPLAIN.scope, locale)}
+      </p>
+
+      <Link
+        href={LEAGUE_HELP_HREF}
+        className="mt-4 inline-flex items-center gap-1.5 text-[14px] font-bold text-b-purple underline-offset-4 hover:underline"
+      >
+        {t(LEAGUE_EXPLAIN.helpLink, locale)}
+        {/* Decorative: the link already reads as a link and already says where
+            it goes. An arrow announced by a screen reader would just be noise
+            after the sentence that carries the meaning. */}
+        <span aria-hidden="true">→</span>
+      </Link>
     </section>
   );
 }

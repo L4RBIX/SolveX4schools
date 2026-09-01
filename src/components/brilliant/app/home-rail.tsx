@@ -56,19 +56,26 @@ export interface HomeRailProps {
    * The reference hides this rail entirely below 1024 because brilliant.org
    * serves a different mobile design there. We do not have a different mobile
    * design, so hiding it means a learner on a phone never sees their greeting,
-   * their week, their goal, or the Ask control — the whole left half of the
-   * product. Off by default so /brilliant/app/home keeps the measured
-   * behaviour.
+   * their week or their goal — the whole left half of the product. Off by
+   * default so /brilliant/app/home keeps the measured behaviour.
    */
   stackOnMobile?: boolean;
+  /**
+   * Rendered last in the rail, under the week.
+   *
+   * The league card is the only thing that uses it, and it is a slot rather
+   * than a prop because whether a learner HAS a league is a server decision
+   * (`leagueNavVisible`, resolved in `src/app/home/page.tsx`) and this
+   * component must not learn how to ask it. Nothing here renders when the
+   * caller passes nothing, so `/brilliant/app/home` is unchanged.
+   */
+  extra?: React.ReactNode;
 }
 
 export interface RailLabels {
   welcome: string;
   /** Used when no name is known. Not `welcome` with the name cut off. */
   welcomeAnonymous: string;
-  askPlaceholder: string;
-  ask: string;
   streakPrompt: React.ReactNode;
   /** Screen-reader name for the week strip. */
   daysLabel: string;
@@ -77,8 +84,6 @@ export interface RailLabels {
 const DEFAULT_LABELS: RailLabels = {
   welcome: "Welcome",
   welcomeAnonymous: "Welcome",
-  askPlaceholder: "What do you want to learn?",
-  ask: "Ask",
   streakPrompt: (
     <>
       Solve <strong className="font-bold">3 problems</strong> to start a streak
@@ -105,6 +110,7 @@ export function HomeRail({
   labels,
   goal = { eyebrow: "Unlock Leagues", detail: "", badge: undefined },
   stackOnMobile = false,
+  extra = null,
 }: HomeRailProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
   return (
@@ -116,11 +122,58 @@ export function HomeRail({
         className,
       )}
     >
-      <p className="w-full text-[20px] leading-[30px] font-bold">
+      {/*
+        The greeting carries the top of the rail on its own now.
+
+        It used to be a 30px line of text with a 52px ask control under it, and
+        the control was removed because it led nowhere. At 20px it was the
+        smallest thing in the column and the eye went straight past it to the
+        246px streak card; at 26/32 it reads as the head of the rail, which is
+        the job the two of them used to share. The weekly-goal card moved up
+        into the rest of the space — see below.
+      */}
+      <p className="w-full text-[26px] leading-[32px] font-bold">
         {name ? `${L.welcome}, ${name}` : L.welcomeAnonymous}
       </p>
 
-      <AskBar placeholder={L.askPlaceholder} action={L.ask} />
+      {/*
+        goal card — radius 20, padding 20.
+
+        FIRST of the two cards, where the ask control used to sit. This is the
+        one card on the rail carrying a number the learner can act on today
+        («0 из 40 мин»), and it is 108px against the streak card's 246 — a
+        mid-weight element between a line of text and a heavy bordered block,
+        which is exactly the role the 52px control was playing structurally
+        while doing nothing functionally.
+      */}
+      {goal ? (
+        <div className="flex w-full items-center rounded-[20px] sx-card border-2 border-b-edge p-5">
+          {goal.badge ? (
+            <Image
+              src={goal.badge}
+              alt=""
+              width={64}
+              height={64}
+              className="mr-4 h-16 w-16 shrink-0"
+            />
+          ) : (
+            /* The reference puts `leagues-locked.svg` here — a padlocked
+               shield. Two problems: it is Brilliant's file, and a padlock next
+               to a weekly practice target says the target is something the
+               learner has to unlock. It is not; it is 40 minutes. */
+            <GoalRing
+              filled={goalFraction(goal.detail)}
+              className="mr-4 h-16 w-16 shrink-0"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="b-eyebrow leading-[18px]">{goal.eyebrow}</p>
+            <p className="leading-6 text-b-fg/60">
+              {goal.detail || `${xp} of ${xpGoal} XP`}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {/* streak card — 2px #4C4C4C border, radius 16 */}
       <div className="w-full rounded-2xl sx-card border-2 border-b-edge">
@@ -150,73 +203,8 @@ export function HomeRail({
         </div>
       </div>
 
-      {/* goal card — radius 20, padding 20 */}
-      {goal ? (
-        <div className="flex w-full items-center rounded-[20px] sx-card border-2 border-b-edge p-5">
-          {goal.badge ? (
-            <Image
-              src={goal.badge}
-              alt=""
-              width={64}
-              height={64}
-              className="mr-4 h-16 w-16 shrink-0"
-            />
-          ) : (
-            /* The reference puts `leagues-locked.svg` here — a padlocked
-               shield. Two problems: it is Brilliant's file, and a padlock next
-               to a weekly practice target says the target is something the
-               learner has to unlock. It is not; it is 40 minutes. */
-            <GoalRing
-              filled={goalFraction(goal.detail)}
-              className="mr-4 h-16 w-16 shrink-0"
-            />
-          )}
-          <div className="min-w-0">
-            <p className="b-eyebrow leading-[18px]">{goal.eyebrow}</p>
-            <p className="leading-6 text-b-fg/60">
-              {goal.detail || `${xp} of ${xpGoal} XP`}
-            </p>
-          </div>
-        </div>
-      ) : null}
+      {extra}
     </aside>
-  );
-}
-
-/**
- * The ask field. It is a `<button>` in the original, not an input — the real
- * search UI opens elsewhere — so the "placeholder" is a span and the whole
- * row is clickable.
- */
-function AskBar({ placeholder, action }: { placeholder: string; action: string }) {
-  return (
-    <button
-      type="button"
-      className="flex h-[52px] w-full items-center gap-2 rounded-full sx-card border-2 border-b-fg/20 py-1 pr-1 pl-4 text-left"
-    >
-      {/* lucide-search, 24 viewBox drawn at 16 */}
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        className="shrink-0 text-b-fg/60"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.3-4.3" />
-      </svg>
-      <span className="flex-1 overflow-hidden text-[14px] leading-[21px] text-b-fg/40">
-        {placeholder}
-      </span>
-      <span className="flex h-10 items-center justify-center rounded-[54px] border-2 border-transparent bg-b-fg/5 px-[14px] py-2 leading-5 font-medium text-b-fg/20">
-        {action}
-      </span>
-    </button>
   );
 }
 

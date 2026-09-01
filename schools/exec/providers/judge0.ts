@@ -69,9 +69,16 @@ import {
  * narrow and is recorded in `docs/cpp17/CPP17_JUDGE_PARITY.md`: the C++
  * catalogue, that `language_id 105` is GCC 14.1 and reports `__cplusplus`
  * 201703 with no flag, and that `compiler_options` is refused with HTTP 403 on
- * this plan. Still UNKNOWN: the ceilings on `cpu_time_limit` and `memory_limit`,
- * whether `POST /submissions/batch` is available, and what the rate limit
- * actually is. Where that matters, the code fails loudly rather than guessing.
+ * this plan. Since measured too, and no longer unknown: `GET /config_info`
+ * reports the plan's own ceilings (nothing we send is clamped;
+ * `max_submission_batch_size` is 20), and **`POST /submissions/batch` works** —
+ * HTTP 201 with correct per-case results, which is why `runBatch` defaults to
+ * it. Still UNKNOWN, and the reason `JUDGE0_MAX_CONCURRENT_REQUESTS` has not
+ * moved: **what the rate limit actually is.** The service sends
+ * `x-ratelimit-submissions-limit: 0` with a negative `remaining` and none of
+ * the nine headers `schools/ops/provider-quota.ts` reads, so there is no
+ * ceiling to read. Where that matters, the code fails loudly rather than
+ * guessing.
  *
  * ## Residency
  *
@@ -176,6 +183,16 @@ const WALL_TIME_MARGIN_SECONDS = 2;
 /** Backoff for polling: gentle, because each poll is a billable request. */
 const POLL_BACKOFF = 1.5;
 const MAX_POLL_INTERVAL_MS = 1_000;
+
+/**
+ * The plan's own `max_submission_batch_size`, measured — not chosen by us.
+ *
+ * `GET /config_info` on the subscribed plan reports 20, recorded in
+ * `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md` §3. A batch one over the
+ * judge's ceiling is refused WHOLE, so this is the number `runBatch` chunks at
+ * when a block declares more cases than one request may carry.
+ */
+const DEFAULT_MAX_BATCH_SIZE = 20;
 
 /**
  * How many consecutive transient poll failures we ride out.
@@ -437,8 +454,25 @@ export interface Judge0Options {
   queueWaitMs: number;
   /** How much longer than the learner's own limit we wait for an answer. */
   overheadBudgetMs: number;
-  /** `POST /submissions/batch`. Off by default and UNVERIFIED — see `runBatch`. */
+  /** `POST /submissions/batch`. MEASURED to work on this plan — see `runBatch`. */
   batchEnabled: boolean;
+  /**
+   * The most submissions this judge will accept in one `POST /submissions/batch`.
+   *
+   * `GET /config_info` on the subscribed plan reports
+   * `max_submission_batch_size: 20`, and the largest block in the curriculum
+   * declares 18 cases — so today nothing chunks. The bound is here anyway
+   * because the alternative failure is silent and expensive: a nineteenth case
+   * added to a block by an author, or a plan whose ceiling is lowered, turns
+   * one whole Check into "we could not measure this" for every learner who
+   * presses it, and nothing in the content pipeline would catch it.
+   *
+   * Optional so that the several harnesses which construct this provider by
+   * hand — the live validator, four suites — do not each have to restate the
+   * plan's own number. `DEFAULT_MAX_BATCH_SIZE` is what they get, and it is the
+   * measured one. Production passes it explicitly from `schools/config.ts`.
+   */
+  maxBatchSize?: number;
 }
 
 /**
@@ -528,23 +562,61 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
    * costs four post-and-poll cycles end to end — enough that a learner watches
    * a spinner for several seconds after pressing Check.
    *
-   * Two implementations, and the one that is ON is the boring one:
+   * Two implementations, and the one that is ON is now the batch:
    *
-   * - **Bounded parallelism (default).** N ordinary submissions issued at once,
-   *   held to `JUDGE0_MAX_CONCURRENT_REQUESTS` by the same process-wide gate as
-   *   everything else. Uses only endpoints this file already depends on.
-   * - **`POST /submissions/batch` (`JUDGE0_BATCH=true`, default OFF).** One POST
-   *   for every case and one poll loop for all of them — materially cheaper on
-   *   a metered plan. **UNVERIFIED:** whether the subscribed plan exposes the
-   *   batch endpoints at all, and what its `max_submission_batch_size` is,
-   *   cannot be known without a key. It stays off until someone has checked.
+   * - **Bounded parallelism (`JUDGE0_BATCH=false`).** N ordinary submissions
+   *   issued at once, held to `JUDGE0_MAX_CONCURRENT_REQUESTS` by the same
+   *   process-wide gate as everything else. Uses only endpoints this file
+   *   already depends on. Kept as the escape hatch, not as the default.
+   * - **`POST /submissions/batch` (default ON).** One POST for every case and
+   *   one poll loop for all of them.
    *
-   * Both preserve what `runCases` promises. The visible result of an outage is
-   * identical — the first infrastructure failure, in case order, stops the
-   * report and nothing is recorded about the learner. What differs is spend: a
-   * batch has already paid for case 4 by the time it learns case 1 failed. That
-   * is a handful of requests during an outage, traded for a Check that answers
-   * in one round trip instead of four.
+   * ## Why the default flipped, measured
+   *
+   * The bounded-parallelism path takes one gate slot PER CASE, and the gate is
+   * 2 in production. The median code block declares 8 cases, so a median Check
+   * was 8 submissions in 4 sequential waves. Measured end to end against the
+   * real service on `m2.l6.b6` (8 cases, its own reference solution, the same
+   * `runCases` and the same checker):
+   *
+   * | | wall clock | billable HTTP requests |
+   * |---|---|---|
+   * | `JUDGE0_BATCH=false`, gate 2 | **9 746 ms** | 30 (8 POST + 22 polls) |
+   * | `JUDGE0_BATCH=true` | **2 668 ms** | 4 (1 POST + 3 polls) |
+   *
+   * Same eight cases, same judge, same output checking, and the eight verdicts
+   * were byte-identical between the two runs. Nothing is skipped, nothing is
+   * trusted that was not trusted before, and no case is dropped — the only
+   * thing that changed is how many round trips the same work is spread over.
+   * `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md` §3 records the plan
+   * advertising `enable_batched_submissions: true`; the run above is the plan
+   * actually honouring it (HTTP 201, correct results, no 429).
+   *
+   * Note which counter it spends: the service decremented
+   * `x-ratelimit-batched-submissions-remaining` and left
+   * `x-ratelimit-submissions-remaining` alone, so a batch is not simply N
+   * singles as far as the marketplace is concerned.
+   *
+   * ## What the batch costs, honestly
+   *
+   * Both paths preserve what `runCases` promises. The visible result of an
+   * outage is identical — the first infrastructure failure, in case order,
+   * stops the report and nothing is recorded about the learner. What differs is
+   * spend: a batch has already paid for case 4 by the time it learns case 1
+   * failed. That is a handful of requests during an outage, traded for a Check
+   * that answers in one round trip instead of four.
+   *
+   * The gate also changes meaning, and for the better. A slot used to be one
+   * CASE; it is now one learner's whole Check. Eighteen learners pressing Check
+   * at once used to queue 144 submissions through a gate of 2 (72 waves); they
+   * now queue 18 batches through it (9 waves), and each wave sends four
+   * requests rather than thirty. Raising `JUDGE0_MAX_CONCURRENT_REQUESTS` is
+   * therefore NOT part of this change: the plan's real rate limit is still
+   * unknown (`x-ratelimit-*-limit` arrives as `0` with a negative
+   * `remaining`, which is unreadable), and the safe direction for an unknown
+   * ceiling is still well under it. This change lowers the request rate at the
+   * same gate; raising the gate would raise it against a ceiling nobody has
+   * read.
    */
   async runBatch(requests: readonly ExecutionRequest[]): Promise<ExecutionResult[]> {
     if (requests.length === 0) return [];
@@ -552,7 +624,28 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
     if (!this.options.batchEnabled) {
       return Promise.all(requests.map((r) => this.run(r)));
     }
-    return this.runBatchEndpoint(requests);
+
+    /*
+     * Chunked at the plan's declared ceiling.
+     *
+     * `max_submission_batch_size` is 20 on this plan and the largest block in
+     * the curriculum declares 18 cases, so in practice there is exactly one
+     * chunk and this loop is a no-op. It exists because the failure it prevents
+     * is invisible until it happens to a class: a batch one case over the
+     * ceiling is refused WHOLE, which `runCases` reads as "the judge did not
+     * answer" and reports to every learner as unmeasured. Chunking turns a
+     * cliff into a second round trip.
+     */
+    const size = Math.max(1, Math.floor(this.options.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE));
+    if (requests.length <= size) return this.runBatchEndpoint(requests);
+
+    const chunks: ExecutionRequest[][] = [];
+    for (let i = 0; i < requests.length; i += size) chunks.push(requests.slice(i, i + size));
+    /* Through the gate, like everything else — `runBatchEndpoint` acquires its
+       own slot per chunk, so a 41-case block is three queued batches and not
+       three simultaneous ones on a gate of 2. */
+    const settled = await Promise.all(chunks.map((chunk) => this.runBatchEndpoint(chunk)));
+    return settled.flat();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -1343,5 +1436,6 @@ export function judge0FromConfig(): Judge0RapidApiProvider {
     queueWaitMs: judge0.queueWaitMs,
     overheadBudgetMs: judge0.overheadBudgetMs,
     batchEnabled: judge0.batchEnabled,
+    maxBatchSize: judge0.maxBatchSize,
   });
 }

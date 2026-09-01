@@ -95,7 +95,7 @@ interface StatePayload {
   skills: SkillEvidence[];
 }
 
-export function SchoolYou() {
+export function SchoolYou({ leagues = false }: { leagues?: boolean }) {
   const { locale, setLocale } = useLocale();
   const loc = locale as Locale;
 
@@ -118,7 +118,7 @@ export function SchoolYou() {
     <div className="min-h-dvh bg-sx-page font-b-sans text-b-fg">
       <AppHeader
         active="you"
-        links={SCHOOL_NAV(loc)}
+        links={SCHOOL_NAV(loc, leagues)}
         homeHref="/home"
         wordmark={<SolveXWordmark />}
         wordmarkLabel={t(L.brand, loc)}

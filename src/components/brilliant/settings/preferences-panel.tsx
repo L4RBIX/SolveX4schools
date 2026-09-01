@@ -25,13 +25,20 @@ import {
  * voice for the learner's language. Offering a switch that produces silence is
  * worse than not offering it, and Kazakh voices are genuinely rare.
  */
-export function PreferencesPanel({ user }: { user: SessionUser }) {
+export function PreferencesPanel({
+  user,
+  leagues = false,
+}: {
+  user: SessionUser;
+  /** Server-resolved league gate; see `SettingsShellProps.leagues`. */
+  leagues?: boolean;
+}) {
   const { preferences, setPreferences, locale } = usePreferences();
   const loc = locale as Locale;
   const hasVoice = useHasVoice(loc);
 
   return (
-    <SettingsShell active="preferences" user={user}>
+    <SettingsShell active="preferences" user={user} leagues={leagues}>
       <SettingsSection
         title={t(L.prefAppearance, loc)}
         description={t(L.prefAppearanceHint, loc)}

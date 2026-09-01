@@ -224,6 +224,17 @@ export const config = {
        * real burst, the free tier's true limits are unknown without a key, and
        * the safe direction for an unknown ceiling is well under it: waiting is a
        * slower Check, exceeding is a class told nothing could be measured.
+       *
+       * Still 2, deliberately, and it now bounds something different. With
+       * `batchEnabled` on, a slot is one learner's whole Check rather than one
+       * test case, so 2 no longer costs a single learner four sequential waves
+       * — the batch collapsed those — and raising it would only widen the class
+       * burst. The plan's real rate limit is STILL unknown: the live run read
+       * `x-ratelimit-submissions-limit: 0` with a negative `remaining`, which
+       * is not a readable ceiling, and RapidAPI sends none of the nine headers
+       * `schools/ops/provider-quota.ts` knows how to read. Raising an unknown
+       * ceiling's usage to buy latency we already bought elsewhere is a bad
+       * trade, so this stays where it is.
        */
       maxConcurrentRequests: intEnv("JUDGE0_MAX_CONCURRENT_REQUESTS", 2),
       /** First poll delay. Each poll is a billable request, so it backs off. */
@@ -239,14 +250,37 @@ export const config = {
        */
       overheadBudgetMs: intEnv("JUDGE0_OVERHEAD_BUDGET_MS", 15_000),
       /**
-       * `POST /submissions/batch`. Default OFF, and UNVERIFIED.
+       * `POST /submissions/batch`. Default **ON**, and MEASURED.
        *
-       * Whether the subscribed plan exposes the batch endpoints, and what its
-       * maximum batch size is, cannot be known without a key. With this off the
-       * provider still runs a submission's cases in parallel — bounded by the
-       * concurrency gate — which needs no endpoint we do not already depend on.
+       * This read `env("JUDGE0_BATCH") === "true"` — off unless asked for —
+       * while the two things it was waiting on were unknown. Both have since
+       * been measured against the subscribed plan with a real key: the batch
+       * endpoints answer HTTP 201 with correct per-case results, and
+       * `GET /config_info` reports `max_submission_batch_size: 20`.
+       *
+       * What it buys, on the median 8-case block and its own reference
+       * solution, end to end through `runCases`: **9 746 ms → 2 668 ms** and 30
+       * billable requests → 4, with the eight verdicts identical between the
+       * two runs. The whole of that is scheduling — same cases, same judge,
+       * same `schools/exec/checker.ts`. See `runBatch` in
+       * `schools/exec/providers/judge0.ts` for the table and the caveats.
+       *
+       * `JUDGE0_BATCH=false` restores the old bounded-parallel path, which uses
+       * no endpoint this deployment does not already depend on. It is the thing
+       * to reach for if a future plan withdraws the batch endpoints, and it is
+       * why the flag survives rather than being deleted.
        */
-      batchEnabled: env("JUDGE0_BATCH") === "true",
+      batchEnabled: env("JUDGE0_BATCH") !== "false",
+      /**
+       * The plan's `max_submission_batch_size`, which is 20 on this one.
+       *
+       * A block declaring more cases than this is split across several batches
+       * rather than sent as one the judge will refuse whole. Nothing in the
+       * curriculum reaches it today — the largest block declares 18 — so this
+       * is a guard against a content change and a plan change, not a tuning
+       * knob.
+       */
+      maxBatchSize: intEnv("JUDGE0_MAX_BATCH_SIZE", 20),
     },
     /**
      * Compiler for the local dev provider.

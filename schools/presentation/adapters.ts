@@ -6,6 +6,12 @@ import type {
 } from "@schools/curriculum/public";
 import { ATTEMPT_BLOCK_TYPES } from "@schools/curriculum/types";
 import { monthCompletables } from "@schools/curriculum/inventory";
+/* TYPE ONLY, and it has to stay that way. `unlock.ts` is the progression
+   policy; this module is imported by client components, and a value import
+   would put the rule — and the temptation to run it in a browser over a
+   projection that silently unlocks the whole year — into the bundle. The state
+   is computed once on the server and only its answer travels. */
+import type { UnlockState } from "@schools/policies/unlock";
 import { ASSESSMENT_ART, monthArt, PROGRAMME_ART } from "./illustrations";
 
 /**
@@ -139,7 +145,32 @@ export interface DeckCourseData {
   href: string;
   image: string;
   thumb: string;
-  lessons: { title: string; href: string; done: boolean; active: boolean }[];
+  /**
+   * This learner may not enter this month yet.
+   *
+   * The card still renders — a learner is entitled to see the shape of their
+   * year — but nothing on it may navigate into the month's content. See
+   * `monthToDeckCourse`.
+   */
+  locked: boolean;
+  lessons: DeckLessonData[];
+}
+
+/**
+ * One row on a deck card.
+ *
+ * `href` is OPTIONAL and that is the whole fix. It mirrors `GameboardNodeData`
+ * below, which has always emitted `href: undefined` for a node the learner
+ * cannot open — the deck was the one surface that emitted a link regardless and
+ * then relied on the lesson route to 404 it.
+ */
+export interface DeckLessonData {
+  title: string;
+  /** Absent when the row is not enterable. The renderer must not invent one. */
+  href?: string;
+  done: boolean;
+  active: boolean;
+  locked: boolean;
 }
 
 /**
@@ -152,23 +183,44 @@ export interface DeckCourseData {
  * The deck shows at most `maxLessons` rows because the card has a fixed height
  * and the original truncates rather than scrolls. The remainder are reachable
  * from the month's own board.
+ *
+ * ## `unlocked` is required, and it is required because it was not
+ *
+ * Every one of the nine months is authored and published, so every card used to
+ * emit `/lesson/<id>` for its first three lessons and an `active` row for the
+ * first of them. Measured on a learner with no completions: 24 lesson links and
+ * 8 Start buttons on the home screen, all of them two clicks from a generic 404,
+ * because `src/app/lesson/[lessonId]/page.tsx` correctly refuses a month this
+ * learner has not earned. The gate was right; the links were wrong.
+ *
+ * So a locked month keeps its card, keeps its title link to `/course/N` — which
+ * renders a panel that says what opens it — and carries no lesson href and no
+ * active row at all. `nextLesson` is not even consulted: its `?? all[0]`
+ * fallback is what used to make the Start button on a locked card point at that
+ * month's first lesson.
+ *
+ * It is a required argument rather than a defaulted one so that a future caller
+ * cannot re-introduce the defect by forgetting it. There is no safe default:
+ * `true` ships the 404s back, and `false` locks September.
  */
 export function monthToDeckCourse(
   month: Month,
   progress: ProgressSnapshot,
   locale: Locale,
-  maxLessons = 3,
+  options: { unlocked: boolean; maxLessons?: number },
 ): DeckCourseData {
-  const upcoming = nextLesson(month, progress);
+  const { unlocked, maxLessons = 3 } = options;
+  const upcoming = unlocked ? nextLesson(month, progress) : null;
 
   const rows = monthLessons(month)
     .filter((e) => isLessonReady(e.lesson))
     .slice(0, maxLessons)
-    .map(({ lesson }) => ({
+    .map<DeckLessonData>(({ lesson }) => ({
       title: pick(lesson.title, locale),
-      href: `/lesson/${lesson.id}`,
+      href: unlocked ? `/lesson/${lesson.id}` : undefined,
       done: progress.completedLessons.has(lesson.id),
-      active: upcoming?.id === lesson.id,
+      active: unlocked && upcoming?.id === lesson.id,
+      locked: !unlocked,
     }));
 
   return {
@@ -178,6 +230,7 @@ export function monthToDeckCourse(
     href: `/course/${month.index}`,
     image: monthArt(month.index),
     thumb: monthArt(month.index),
+    locked: !unlocked,
     lessons: rows,
   };
 }
@@ -186,19 +239,30 @@ export function monthToDeckCourse(
  * The deck, ordered so the current month leads.
  *
  * Draft months are included — the deck is where a learner sees the shape of
- * their year — but they carry no lesson rows, so the card reads as "not open
- * yet" instead of offering a link that 404s.
+ * their year — and so are months this learner has not reached. Neither carries
+ * a lesson link: a draft month has no authored lesson to link to, and a locked
+ * one is rendered as locked. See `monthToDeckCourse`.
+ *
+ * `unlockedThrough` is the highest month index this learner may enter, and it
+ * comes from `unlockStateForSubject` on the SERVER. It is a number rather than
+ * the months themselves on purpose — `schools/policies/unlock.ts` documents at
+ * length that handing a presentation-layer projection to the policy silently
+ * unlocks the whole year, so the policy runs once, server-side, over the
+ * authored curriculum, and only its answer travels.
  */
 export function monthsToDeck(
   months: Month[],
   progress: ProgressSnapshot,
   locale: Locale,
+  unlockedThrough: number,
 ): DeckCourseData[] {
   const ordered = [
     ...months.filter((m) => m.index >= progress.currentMonth),
     ...months.filter((m) => m.index < progress.currentMonth),
   ];
-  return ordered.map((m) => monthToDeckCourse(m, progress, locale));
+  return ordered.map((m) =>
+    monthToDeckCourse(m, progress, locale, { unlocked: m.index <= unlockedThrough }),
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -415,6 +479,81 @@ export function monthToGameboard(
       activeHref: upcoming ? `/lesson/${upcoming.id}` : `/course/${month.index}`,
     },
     levels,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* What is still missing before the next month opens                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The four honest quantities behind a closed month.
+ *
+ * Counts and booleans, never ids. `MonthUnlock.independenceBlocks` names the
+ * hidden `verify:unseen_problem` items inside a monthly check, and the lesson
+ * route's own history records what shipping authored objects to the browser
+ * cost the last time. The COUNT of lessons and the FACT that a check is
+ * outstanding are things the learner can already read off their own board;
+ * which block proves independence is not.
+ */
+export interface MonthRequirement {
+  /** The month whose remaining work opens the next one. */
+  index: number;
+  /**
+   * Lessons finished, out of the month's authored lessons.
+   *
+   * The denominator is the LESSON completables only. `MonthUnlock.required`
+   * counts the monthly check as well — 13 for September against 12 lessons —
+   * and printing that as "9 of 13 lessons" would be a lie in the one place the
+   * product is explaining a refusal.
+   */
+  lessonsDone: number;
+  lessonsTotal: number;
+  /** The monthly check has no completion row yet. */
+  checkPending: boolean;
+  /**
+   * No unseen problem from this month's check has been solved.
+   *
+   * The SECOND condition of the gate, and the one the old copy did not mention.
+   * `ASSESSMENT_COMPLETION_POLICY` never requires `passed`, so a learner can
+   * finish every lesson AND the check with wrong answers, satisfy every word of
+   * "finish the previous month", and still find the next month shut.
+   */
+  independencePending: boolean;
+}
+
+/**
+ * What is still outstanding in the month that is holding the year up.
+ *
+ * `unlockStateFor` walks the months in order and closes everything after the
+ * first one that is not both complete and demonstrated, so the blocker is
+ * always the highest UNLOCKED month — `state.unlockedThrough`. There is exactly
+ * one frontier by construction; this reads it rather than searching for it.
+ *
+ * Returns `null` when the state and the months disagree about which months
+ * exist, which is a programming error rather than a learner state. The panel
+ * then shows its sentence without the checklist, which is the safe direction.
+ */
+export function blockingRequirement(
+  months: Month[],
+  state: UnlockState,
+): MonthRequirement | null {
+  const blocker = state.unlockedThrough;
+  const month = months.find((m) => m.index === blocker);
+  const unlock = state.months.find((m) => m.index === blocker);
+  if (!month || !unlock) return null;
+
+  const completables = monthCompletables(month);
+  const lessonIds = completables.filter((c) => c.kind === "lesson").map((c) => c.id);
+  const assessmentId = completables.find((c) => c.kind === "assessment")?.id ?? null;
+  const remaining = new Set(unlock.remaining);
+
+  return {
+    index: month.index,
+    lessonsTotal: lessonIds.length,
+    lessonsDone: lessonIds.filter((id) => !remaining.has(id)).length,
+    checkPending: assessmentId !== null && remaining.has(assessmentId),
+    independencePending: !unlock.demonstrated,
   };
 }
 

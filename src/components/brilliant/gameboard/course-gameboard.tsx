@@ -2,8 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
+import { monthThemeVars, type MonthTheme } from "@schools/presentation/month-theme";
+import { MonthBadge } from "./month-glyph";
 import { GameboardPedestal } from "./gameboard-pedestal";
 import { SxMilestone } from "./sx-milestone";
 import {
@@ -37,10 +46,23 @@ import {
  * card offers the learner's current lesson with "Start".
  */
 
-/* The header's purple/grey slab is a sibling rectangle offset behind the
-   button, not a border: 460x72 at top:-2px, translated -230px on x. */
-const HEADER_SHADOW_ACTIVE = "#7139CC";
-const HEADER_SHADOW_IDLE = "#4C4C4C";
+/*
+ * The header's slab is a sibling rectangle offset behind the button, not a
+ * border: 460x72 at top:-2px, translated -230px on x.
+ *
+ * Its two colours used to be the literals `#7139CC` and `#4C4C4C`. Both are
+ * dark-arm values from a reference that is pinned to dark, and this product is
+ * not — so on a light page the idle slab was a heavy charcoal bar behind a
+ * white button. They are now the month's own accent and the theme's edge token,
+ * whose dark arm IS `#4c4c4c`, so `/brilliant/*` renders byte-identically and
+ * the light theme stops shouting.
+ *
+ * `var(--sx-month-accent, #7139CC)`: the fallback is the reference's literal,
+ * not the product purple, because an unthemed board must still be the board
+ * that was measured.
+ */
+const HEADER_SLAB_CURRENT = "var(--sx-month-accent, #7139CC)";
+const HEADER_SLAB_IDLE = "var(--color-b-edge)";
 
 export interface CourseGameboardProps {
   /**
@@ -99,6 +121,23 @@ export interface CourseGameboardProps {
    * pass the control through `beforeBoard` for narrow screens.
    */
   asideExtra?: ReactNode;
+  /**
+   * The month this board belongs to.
+   *
+   * Omitted on `/brilliant/app/course`, which is a course and not a month. When
+   * it is omitted NOTHING here changes colour: every accented surface reads
+   * `var(--sx-month-accent, <the literal it used to be>)`, and the variable is
+   * only defined when a theme arrives.
+   */
+  theme?: MonthTheme;
+  /**
+   * The month's name, already in the reader's language.
+   *
+   * A resolved string rather than the theme's `Localized`, because this file is
+   * shared with the reference baseline and has no locale — the same reason
+   * `labels` is a bag of plain strings.
+   */
+  monthLabel?: string;
 }
 
 export function CourseGameboard({
@@ -109,6 +148,8 @@ export function CourseGameboard({
   ownMascot = false,
   beforeBoard = null,
   asideExtra = null,
+  theme,
+  monthLabel,
 }: CourseGameboardProps = {}) {
   const [selected, setSelected] = useState<GameboardNode | null>(null);
   const [showTop, setShowTop] = useState(false);
@@ -179,6 +220,15 @@ export function CourseGameboard({
       /* `min-w-0` on the board below: the reference pins it at 364px, which
          with the container's own padding overflows a 375px phone and gives the
          whole page a horizontal scrollbar. */
+      /*
+        The month's identity, scoped to this board and nowhere else.
+
+        Five custom properties on one element rather than nine `--color-*`
+        entries in the global `@theme` block: only month surfaces may use these,
+        and a token in `@theme` is a token every surface can reach for. It is
+        the same call `tiers.ts` makes about the ten league hues.
+      */
+      style={theme ? (monthThemeVars(theme) as CSSProperties) : undefined}
       className="fixed inset-x-0 top-[65px] bottom-0 flex justify-start gap-8 overflow-x-hidden overflow-y-auto px-3 pt-5 sm:px-6 xl:justify-center xl:px-28"
     >
       {/*
@@ -202,6 +252,7 @@ export function CourseGameboard({
       {/* ---- left: course summary, sticky ---------------------------- */}
       <aside className="sticky top-[41px] my-5 hidden h-fit w-full min-w-[350px] max-w-[487px] flex-[1_1_350px] flex-col gap-4 lg:flex">
         <div className="flex flex-col items-start gap-4 rounded-[20px] sx-card border-2 border-b-fg/20 p-8">
+          {theme && monthLabel ? <MonthBadge theme={theme} label={monthLabel} /> : null}
           <Image
             src={course.art}
             alt=""
@@ -237,6 +288,12 @@ export function CourseGameboard({
       <div className="relative z-[1] mt-5 w-full max-w-[488px] min-w-0 flex-[2_1_364px] sm:min-w-[364px]">
         {/* Section gap is 30px, same as the gap between rows. */}
         <div className="flex flex-col items-center gap-[30px]">
+          {/* The aside is `hidden lg:flex`, so on a phone the badge above is
+              off-screen and the month would be identified by artwork alone.
+              One instance is visible at any width. */}
+          {theme && monthLabel ? (
+            <MonthBadge theme={theme} label={monthLabel} className="self-start lg:hidden" />
+          ) : null}
           {beforeBoard}
 
           {levels.map((level, li) => (
@@ -408,7 +465,13 @@ function LevelHeader({
           <h3 className="flex flex-col gap-1">
             <span
               className="b-eyebrow leading-[13.2px]"
-              style={{ color: current ? HEADER_SHADOW_ACTIVE : "rgba(255,255,255,0.6)" }}
+              /*
+                `rgba(255,255,255,0.6)` was WHITE TEXT ON A WHITE PAGE in the
+                light theme — the eyebrow of every non-current level header was
+                simply not there. `--color-b-text-2` is that exact value on its
+                dark arm and a readable near-black on its light one.
+              */
+              style={{ color: current ? HEADER_SLAB_CURRENT : "var(--color-b-text-2)" }}
             >
               {levelLabel} {index}
             </span>
@@ -430,7 +493,7 @@ function LevelHeader({
         <div
           aria-hidden="true"
           className="absolute -inset-x-0.5 -top-0.5 -bottom-1.5 z-0 rounded-[20px] group-active:top-0.5"
-          style={{ backgroundColor: current ? HEADER_SHADOW_ACTIVE : HEADER_SHADOW_IDLE }}
+          style={{ backgroundColor: current ? HEADER_SLAB_CURRENT : HEADER_SLAB_IDLE }}
         />
       </div>
     </div>
@@ -461,7 +524,12 @@ function FooterCard({
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -top-12 left-1/2 h-[386px] w-[803px] -translate-x-1/2 rounded-full opacity-40 blur-3xl transition-opacity duration-300 ease-in-out"
-          style={{ backgroundColor: "var(--color-b-purple)" }}
+          /* The board's one large ambience wash, and the largest single piece
+             of month identity on the screen. Restrained on purpose: 40%
+             opacity behind a blur, so the month is a temperature rather than a
+             colour field. The CTA itself stays `b-purple` — that is the
+             product's action colour and it must mean "act" in every month. */
+          style={{ backgroundColor: "var(--sx-month-accent, var(--color-b-purple))" }}
         />
         <div className="relative z-[1] flex flex-col gap-4 rounded-[40px] border-2 border-b-edge bg-b-elevated px-4 pt-6 pb-4">
           <div className="flex w-full flex-col items-center gap-4 text-center">

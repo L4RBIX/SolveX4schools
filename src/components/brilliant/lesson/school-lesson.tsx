@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
@@ -22,11 +22,20 @@ import {
   policyBlocksFromPublic,
   type CompletionPolicy,
 } from "@schools/policies/completion";
-import { L, t } from "@schools/presentation/labels";
+import { L, SUBMIT_BUSY, t } from "@schools/presentation/labels";
 import { lessonArt } from "@schools/presentation/illustrations";
 import type { LearningPayload } from "@solvex/learning-contracts";
 
 import { Button3D } from "./button-3d";
+import {
+  canPressCheck,
+  isCheckBusy,
+  submitProgressCopy,
+  SUBMIT_PROGRESS_REVEAL_MS,
+  SUBMIT_STAGES,
+  SUBMIT_STAGE_START_MS,
+  type SubmitStage,
+} from "./submit-progress";
 import { ChatIcon } from "./icons";
 import { NovaAvatar, useNovaState } from "@/components/nova/nova-avatar";
 import { NovaChat, type NovaDraft } from "@/components/nova/nova-chat";
@@ -675,6 +684,17 @@ export function SchoolLesson({
     if (!block) return;
     const answer = state.answer;
 
+    /* One press, one submission.
+     *
+     * A Check is a graded attempt against a metered judge that takes seconds to
+     * answer, and the footer button used to be disabled only on whether the
+     * ANSWER was submittable — so a double click, or an impatient second press
+     * during the wait, sent a second one. The button is now `busy` while a
+     * Check is in flight, but a rendering can be a frame behind a click, so the
+     * handler asks the same question the button asks. `canPressCheck` is that
+     * question, in one place, tested. */
+    if (!canPressCheck({ pending: state.pending, answerReady: true })) return;
+
     /* A concept or worked example has nothing to grade — it settles locally and
        nothing is sent. Everything else is decided by the server. */
     if (!isAttemptBlock(block)) {
@@ -685,13 +705,19 @@ export function SchoolLesson({
       return;
     }
 
+    /* `pending` is what makes the footer acknowledge the press, and it must be
+       cleared by something. Every real caller passes `onSubmit`; a preview or a
+       story that does not would otherwise leave the button busy for ever, so
+       the busy state is only claimed when there is a round trip to wait for. */
+    const submit = onSubmit;
+
     setStates((prev) => ({
       ...prev,
       [block.id]: {
         ...(prev[block.id] ?? FRESH),
         answer,
         verdict: "unchecked",
-        pending: true,
+        pending: submit !== undefined,
         attempt: (prev[block.id]?.attempt ?? 0) + 1,
         /* The learner is answering now, so whatever is on screen from here on
            is this session's, not a restoration of an earlier one. Clearing it
@@ -714,7 +740,7 @@ export function SchoolLesson({
       blockType: block.type,
     });
 
-    void onSubmit?.({
+    void submit?.({
       blockId: block.id,
       episodeId: episodeFor(block.id),
       submissionId: submissionFor(block.id, answer),
@@ -792,7 +818,19 @@ export function SchoolLesson({
           },
         }));
       });
-  }, [block, state.answer, onInteraction, onSubmit, episodeFor, submissionFor, requestNova]);
+    /* `state.pending` joins the dependencies because the guard above reads it.
+       Without it the callback closes over a stale `false` and the second click
+       of a double click gets through — the exact bug this is here to stop. */
+  }, [
+    block,
+    state.answer,
+    state.pending,
+    onInteraction,
+    onSubmit,
+    episodeFor,
+    submissionFor,
+    requestNova,
+  ]);
 
   /**
    * A Run happened on one block.
@@ -893,6 +931,51 @@ export function SchoolLesson({
       attempts: attemptCount,
     });
   }, [page, blocks, states, lesson.id, attemptCount, onComplete, decision]);
+
+  /**
+   * The Check, while the judge has it.
+   *
+   * Two pieces of state and no more. `checkBusy` is derived from the block's
+   * own `pending` — the flag the press already set and, until now, nothing read
+   * — so the button, its `aria-busy` and the line above it cannot disagree.
+   * `progressStage` is which of the three sentences is on screen, advanced by
+   * timers rather than by anything the server said, because the server says
+   * nothing until it is finished.
+   *
+   * The timers are the only invention here, and they invent no fact about the
+   * learner's program: they change the WORDING of "still working", never the
+   * verdict, never a count of cases, never a percentage.
+   */
+  const checkBusy = isCheckBusy({ pending: state.pending, answerReady: true });
+  /* `null` is "nothing drawn yet", not "stage zero". A multiple-choice Check
+     answers in about 13 ms, and a line of text that appears and vanishes inside
+     one frame is a flicker, not feedback — so the sentence waits 150 ms while
+     the button acknowledges the press immediately. */
+  const [progressStage, setProgressStage] = useState<SubmitStage | null>(null);
+  useEffect(() => {
+    if (!checkBusy) {
+      setProgressStage(null);
+      return;
+    }
+    setProgressStage(null);
+    const timers = [
+      /* The reveal. The stage it reveals is still the one measured from the
+         press, so an 800 ms Check shows the second line rather than the first
+         one late. */
+      setTimeout(() => setProgressStage("sent"), SUBMIT_PROGRESS_REVEAL_MS),
+      ...SUBMIT_STAGES.filter((s) => SUBMIT_STAGE_START_MS[s] > 0).map((s) =>
+        setTimeout(() => setProgressStage(s), SUBMIT_STAGE_START_MS[s]),
+      ),
+    ];
+    /* Cleared on the answer arriving, on leaving the block, and on unmount —
+       a timer that outlives the Check would rewrite a settled card's copy. */
+    return () => {
+      for (const timer of timers) clearTimeout(timer);
+    };
+    /* `block?.id` and `attempt` restart the sequence for a second Check on the
+       same block; without them a retry would inherit the previous press's
+       "taking longer than usual". */
+  }, [checkBusy, block?.id, state.attempt]);
 
   if (done) {
     return (
@@ -1088,8 +1171,26 @@ export function SchoolLesson({
                 not need. Without it "optional" is a fact about the schema that
                 no learner can observe: the Skip button appears and nothing on
                 screen says why this card has one and the last one did not. */}
-            {(isOptional || isContest) &&
-            (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
+            {/* ---- the Check, in progress ---------------------------------
+                One line, in the strip the optional note already owned, so
+                nothing on the card moves and the learner's code stays exactly
+                where it was. Deliberately NOT a modal: a dialog over a lesson
+                for two and a half seconds hides the one thing the learner
+                wants to keep looking at while they wait — what they wrote.
+
+                `aria-live="polite"` because the sentence changes without the
+                learner doing anything; `polite` rather than `assertive` so it
+                waits its turn instead of interrupting. */}
+            {checkBusy && progressStage !== null ? (
+              <p
+                data-slot="check-progress"
+                aria-live="polite"
+                className="mx-auto flex max-w-[367px] items-center justify-center gap-2 px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60"
+              >
+                {t(submitProgressCopy(progressStage), locale)}
+              </p>
+            ) : (isOptional || isContest) &&
+              (verdict === "unchecked" || verdict === "wrong" || verdict === "partial") ? (
               <p className="mx-auto max-w-[367px] px-4 pb-1 text-center text-[13px] leading-5 text-b-fg/60">
                 {/* Two different sentences, because they are two different
                     promises. Optional means the task can be declined; contest
@@ -1101,7 +1202,15 @@ export function SchoolLesson({
             <div data-shake-stable="true" className="h-20 shrink-0">
               <div className="mx-auto flex h-full w-full max-w-[367px] items-center justify-center gap-2 bg-b-dark py-4 pl-[68px] sm:pl-0">
                 {mode === "check" && (
-                  <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
+                  <Button3D
+                    onClick={check}
+                    /* `busy` keeps the button's own colour and holds it pressed;
+                       `disabled` greys it out. They are different sentences and
+                       the wait needs the first one. Both block the click. */
+                    busy={checkBusy}
+                    busyLabel={t(SUBMIT_BUSY, locale)}
+                    disabled={!canCheckAnswer(block, state.answer)}
+                  >
                     {t(L.check, locale)}
                   </Button3D>
                 )}
@@ -1111,13 +1220,23 @@ export function SchoolLesson({
                     footer mode already had. */}
                 {(mode === "check-optional" || mode === "check-contest") && (
                   <>
-                    <Button3D onClick={check} disabled={!canCheckAnswer(block, state.answer)}>
+                    <Button3D
+                      onClick={check}
+                      busy={checkBusy}
+                      busyLabel={t(SUBMIT_BUSY, locale)}
+                      disabled={!canCheckAnswer(block, state.answer)}
+                    >
                       {t(L.check, locale)}
                     </Button3D>
                     {/* On the last page this control ends the lesson, so it says
                         so. Labelling it «Өткізіп жіберу» there told the learner
-                        they were skipping ahead when they were finishing. */}
-                    <Button3D variant="secondary" onClick={advance}>
+                        they were skipping ahead when they were finishing.
+
+                        Held while a Check is in flight: skipping a block whose
+                        answer is being graded navigates away from a verdict
+                        that is about to arrive and write itself into the state
+                        of a block the learner is no longer looking at. */}
+                    <Button3D variant="secondary" onClick={advance} disabled={checkBusy}>
                       {onLastPage ? finishLabel : t(isContest ? L.leaveForLater : L.skipOptional, locale)}
                     </Button3D>
                   </>

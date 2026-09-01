@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requirePageSession } from "@schools/auth/page-guard";
+import { leagueNavVisible } from "@schools/leagues/scope";
 import { SchoolReview } from "@/components/brilliant/app/school-review";
 
 /**
@@ -18,6 +19,6 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Қайталау" };
 
 export default async function ReviewPage() {
-  await requirePageSession();
-  return <SchoolReview />;
+  const user = await requirePageSession();
+  return <SchoolReview leagues={leagueNavVisible(user)} />;
 }

@@ -245,10 +245,19 @@ export const L = {
    * a school product is a child being called something that is not theirs.
    */
   welcomeAnonymous: { kk: "Сәлем!", ru: "Привет!" },
-  askPlaceholder: { kk: "Нені түсінгің келеді?", ru: "Что хочешь разобрать?" },
-  ask: { kk: "Сұрау", ru: "Спросить" },
   jumpBackIn: { kk: "Жалғастыр", ru: "Продолжить" },
   start: { kk: "Бастау", ru: "Начать" },
+
+  /* The deck card for a month this learner has not reached.
+
+     `deckLockedCta` replaces «Бастау»/«Начать» there, and the wording is the
+     point: the button does not start anything, it goes to `/course/N`, which
+     lists what is still outstanding. A shimmering «Начать» in front of a door
+     that does not open is the thing this whole change exists to remove. */
+  deckLockedCta: { kk: "Не ашатынын көр", ru: "Что откроет месяц" },
+  /* Read out on a row that is deliberately not a link. Never opacity alone —
+     `opacity-50` on this card already means "not the lesson you are on". */
+  deckLockedRow: { kk: "Жабық", ru: "Закрыто" },
   streakPrompt: {
     kk: "Серияны бастау үшін 3 есеп шығар",
     ru: "Реши 3 задачи, чтобы начать серию",
@@ -851,10 +860,32 @@ export const L = {
      kind of small untruth that teaches them the product does not know what is
      going on. */
   monthLockedTitle: { kk: "Бұл ай әлі жабық", ru: "Этот месяц ещё закрыт" },
+  /* BOTH halves of the rule, because the first half alone was a false promise.
+
+     This used to say the month opens when you finish the previous month's
+     lessons and its check. `ASSESSMENT_COMPLETION_POLICY` never requires
+     `passed` — `attemptFloor: "answered"`, `gradedFloor: "measured"` — so a
+     learner can answer every question in the monthly check wrongly, satisfy
+     every word of that sentence, and find the month still shut. They would have
+     been told the product is broken. `hasDemonstratedIndependence` is the
+     second condition and it is now in the sentence. */
   monthLockedBody: {
-    kk: "Алдыңғы айдың сабақтары мен айлық сынағын аяқтасаң, бұл ай өзі ашылады.",
-    ru: "Он откроется сам, когда ты закончишь уроки и месячную проверку предыдущего месяца.",
+    kk: "Алдыңғы айдың сабақтары мен айлық сынағын аяқтап, сол сынақтағы жаңа есепті өзің шығарсаң, бұл ай ашылады.",
+    ru: "Месяц откроется, когда закончишь уроки и месячную проверку предыдущего месяца и самостоятельно решишь новую задачу из этой проверки.",
   },
+
+  /* The checklist above the sentence: what is actually outstanding, counted.
+
+     No percentage and no hidden content — see `MonthRequirement` in
+     `schools/presentation/adapters.ts` for what may cross to the browser and
+     what may not. */
+  monthOpensChecklist: { kk: "Ашылу үшін не қалды:", ru: "Что осталось, чтобы открыть:" },
+  monthReqCheck: { kk: "Айлық сынақ", ru: "Месячная проверка" },
+  monthReqIndependence: { kk: "Дербес есеп", ru: "Самостоятельная задача" },
+  /* Screen-reader words for the tick and the ring. The glyphs are decoration;
+     these are the state. */
+  monthReqDone: { kk: "дайын", ru: "готово" },
+  monthReqPending: { kk: "әлі жоқ", ru: "ещё не сделано" },
 
   /* --- sign in (migration 0012 identity) --------------------------------- */
   signInTitle: { kk: "Кіру", ru: "Вход" },
@@ -1250,6 +1281,31 @@ export const L = {
   leagueOf: { kk: "{name} лигасы", ru: "Лига {name}" },
   leagueTitle: { kk: "Апталық лига", ru: "Недельная лига" },
 
+  /* --- the home card ------------------------------------------------------
+
+     One card, two states, and both of them say only what is true. Below the
+     threshold there is no leaderboard, no tier, no peer name and no rank —
+     showing a fourteen-year-old a list of people who are ahead of them on their
+     first afternoon is the thing the threshold exists to prevent. Above it, the
+     card still refuses to claim a position the learner has not earned: a league
+     that is OPEN and a learner who is RANKED are different facts, and
+     `LeagueView.you` is null until they have earned XP in the current week. */
+  leagueUnlockEyebrow: { kk: "ЛИГАЛАРДЫ АШ", ru: "РАЗБЛОКИРУЙ ЛИГИ" },
+  /* The accessible name of the meter. The visible «40 / 175 XP» is tabular
+     numerals in a bar; this is the same two numbers as a sentence. */
+  leagueUnlockMeter: {
+    kk: "{xp} XP жиналды, барлығы {goal} XP қажет",
+    ru: "Набрано {xp} XP из {goal} XP",
+  },
+  /* Said when the league is open and the learner is not in this week's table
+     yet. NOT "you are 12th" — they are nowhere, and inventing a position is the
+     one thing a competition surface must never do. */
+  leagueNotRankedYet: {
+    kk: "Тізімге кіру үшін осы аптада XP жина",
+    ru: "Заработай XP на этой неделе, чтобы войти в таблицу",
+  },
+  leagueOpenCta: { kk: "Лигаға өту", ru: "Открыть лигу" },
+
   leagueXpThisWeek: { kk: "Осы аптадағы XP", ru: "XP на этой неделе" },
   leagueYourRank: { kk: "Орның", ru: "Твоё место" },
   leagueGroupSize: { kk: "қатысушы", ru: "участников" },
@@ -1513,6 +1569,25 @@ export function lessonsLabel(n: number, locale: Locale): string {
   return locale === "kk" ? `${n} сабақ` : `${n} ${plural(n, "урок", "урока", "уроков")}`;
 }
 
+/**
+ * `9/12 сабақ` / `9 из 12 уроков`.
+ *
+ * The denominator is the month's LESSON count and never `MonthUnlock.required`,
+ * which counts the monthly check too. Kazakh takes the bare ratio: the
+ * possessive suffix on a numeral («12 сабақтың 9-ы») varies with the numeral's
+ * final sound, and a template cannot pick it correctly.
+ */
+export function lessonsProgressLabel(done: number, total: number, locale: Locale): string {
+  return locale === "kk"
+    ? `${done}/${total} сабақ`
+    : `${done} из ${total} ${plural(total, "урока", "уроков", "уроков")}`;
+}
+
+/** `3 күн` / `3 дня`. Whole days remaining, never a fabricated countdown. */
+export function daysLeftLabel(n: number, locale: Locale): string {
+  return locale === "kk" ? `${n} күн` : `${n} ${plural(n, "день", "дня", "дней")}`;
+}
+
 /** `n тапсырма` / `n заданий`. */
 export function tasksLabel(n: number, locale: Locale): string {
   return locale === "kk"
@@ -1533,3 +1608,66 @@ function plural(n: number, one: string, few: string, many: string): string {
   if (mod10 >= 2 && mod10 <= 4) return few;
   return many;
 }
+
+/* ========================================================================== */
+/* NEW BLOCK — Submit progress copy (unit: submit latency & pending UX)       */
+/*                                                                            */
+/* Appended at the END of the file, in its own block, because another change  */
+/* is editing `L` above in the same wave. Nothing here belongs in `L` anyway:  */
+/* these are the three sentences of ONE interaction and they only make sense   */
+/* read together, next to the thresholds that choose between them.            */
+/* ========================================================================== */
+
+/**
+ * What a learner is told while a trusted judge is working.
+ *
+ * ## Why there are three and not one
+ *
+ * A Check is not fast and cannot be made fast: measured end to end, a median
+ * 8-case block spends 2.7 s inside Judge0 and about 20 ms inside SolveX. One
+ * sentence held for that long stops being information — it reads as a frozen
+ * screen. Three sentences, each true when it appears, say "the press landed",
+ * then "your program is actually being run", then "this is longer than usual".
+ *
+ * ## What is deliberately NOT here
+ *
+ * No percentage, and no case counter. The browser does not know how many of
+ * the block's cases have finished — the whole point of the trusted path is
+ * that the judge decides and tells us once, at the end — so "3 из 8 тестов
+ * пройдено" would be an invented number in a product whose entire claim is
+ * that its verdicts are earned. A spinner that admits it does not know is
+ * honest; a progress bar that does not is not.
+ *
+ * The third line says the check is taking longer. It does NOT say anything has
+ * gone wrong, because at that point nothing has: a slow judge and a broken one
+ * look identical from here, and only the answer can tell them apart.
+ */
+export const SUBMIT_PROGRESS: Readonly<Record<"sent" | "running" | "slow", Localized>> = {
+  /* The press landed. Shown for the first 700 ms, which is under the round trip
+     even on the fastest possible Check. */
+  sent: {
+    kk: "Шешімді тексеріп жатырмыз…",
+    ru: "Проверяем решение…",
+  },
+  /* The normal case: the judge has the program and is running it. */
+  running: {
+    kk: "Тесттерді іске қосып жатырмыз…",
+    ru: "Запускаем тесты…",
+  },
+  /* Longer than a measured Check should take. Still not an error. */
+  slow: {
+    kk: "Тексеру сәл көбірек уақыт алып жатыр",
+    ru: "Проверка занимает чуть больше времени",
+  },
+};
+
+/**
+ * Read out by assistive technology when the Check button goes busy.
+ *
+ * The button keeps its own label — a control that renames itself mid-press is
+ * harder to follow, not easier — so this is what `aria-label`s the spinner.
+ */
+export const SUBMIT_BUSY: Localized = {
+  kk: "Тексерілуде",
+  ru: "Идёт проверка",
+};
