@@ -803,6 +803,16 @@ export const M3_PRACTICE: LessonBlock[] = [
     skillRefs: ["func.define", "func.parameters", "func.return", "func.reuse", "loops.while", "arith.remainder"],
     sourceType: "curriculum-derived",
     pdfPage: 8,
+    /* Restored. The C++ rewrite reconstructed this block field by field and
+       dropped `tracks` alone — id, type, skillRefs, sourceType, pdfPage and
+       both prompts all survived. Losing it promoted an advanced-route task onto
+       the core route, which is a real change to what an ordinary learner is
+       asked to do, and it moved every core-route total in the programme by one
+       (613→614 blocks, 500→501 attempt, 446→447 practice). Three of the four
+       stale-count test failures were this one missing line, so the fix is to
+       put the line back rather than to update the documents to match an
+       accident. Swept the other eight months: this was the only loss. */
+    tracks: ["advanced"],
     prompt: {
       kk: "Бүтін сан n беріледі (1 ≤ n ≤ 1000). n-нен ҚАТАҢ кіші неше жай сан бар екенін шығар. Екі функция жаз: біріншісі бір санды қабылдап, ол жай сан болса 1, болмаса 0 қайтарсын; екіншісі n-ді қабылдап, бірінші функцияны шақыра отырып, жай сандардың санын қайтарсын. Екеуінің де түрі `int`, екеуі де нәтижені `return` арқылы қайтарады және ішінде `cout` жоқ. Жай сан деп 1-ден үлкен, әрі 1-ден және өзінен басқа бөлгіші жоқ санды айтамыз; 1 жай сан емес. Мысалы, n = 10 үшін жауап 4 — бұл 2, 3, 5 және 7.",
       ru: "Дано целое число n (1 ≤ n ≤ 1000). Выведи, сколько простых чисел СТРОГО меньше n. Напиши две функции: первая принимает число и возвращает 1, если оно простое, и 0, если нет; вторая принимает n и, вызывая первую, возвращает количество простых чисел. У обеих тип `int`, обе возвращают результат через `return` и внутри не используют `cout`. Простое число — это число больше 1, у которого нет делителей, кроме 1 и самого себя; 1 простым не считается. Например, при n = 10 ответ 4 — это 2, 3, 5 и 7.",
