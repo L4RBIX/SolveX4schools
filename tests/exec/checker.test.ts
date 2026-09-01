@@ -343,16 +343,36 @@ describe("September still passes under the default checker", () => {
     expect(withCases.length).toBeGreaterThan(10);
   });
 
-  it("declares no checker anywhere — the frozen month is governed by the default", () => {
-    /* `docs/releases/SEPTEMBER_V1_FREEZE.md`. The month was not edited to make
-       this feature work; if it ever is, this test says so out loud rather than
-       letting the freeze quietly lapse. */
+  it("declares a checker only where floating point forced one", () => {
+    /* This used to assert NO checker anywhere: `docs/releases/SEPTEMBER_V1_FREEZE.md`
+       froze the month, and the token default governed all of it.
+
+       The language migration lifted exactly one block out of that, and the
+       reason is worth reading before anyone adds a second. `m1.l10.b5` is
+       `(a + b + c) / 3.0`, and `cout` prints a double at SIX significant digits
+       by default — so the expected output is `4.33333`. A learner who writes
+       `setprecision`, or who computes the same value by a different route, can
+       produce `4.33333` or `4.333330` or a last digit that differs by one ulp,
+       and the token checker compares those as strings and marks them wrong.
+       Python's `repr` was exact and shortest-round-trip, so the Python original
+       of this task needed no tolerance and did not have one.
+
+       The exemption is NAMED rather than counted, so a second block acquiring a
+       checker is a red test and a decision, not a drift. */
+    const EXPECTED_TO_DECLARE = new Set(["m1.l10.b5"]);
+
     for (const { id, block } of withCases) {
-      expect("checker" in block ? block.checker : undefined, `${id} declares a checker`).toBeUndefined();
+      const checker = "checker" in block ? block.checker : undefined;
+      if (EXPECTED_TO_DECLARE.has(id)) {
+        expect(checker, `${id} is the float task; it must still declare its tolerance`).toBeDefined();
+        expect(checker!.kind, `${id} should be graded numerically`).toBe("numeric");
+      } else {
+        expect(checker, `${id} declares a checker`).toBeUndefined();
+      }
     }
   });
 
-  it("accepts every expected output as its own answer, with and without Python's newline", () => {
+  it("accepts every expected output as its own answer, with and without a trailing newline", () => {
     for (const { id, block } of withCases) {
       const cases = (block as { cases: { input: string; expectedOutput: string }[] }).cases;
       for (const c of cases) {

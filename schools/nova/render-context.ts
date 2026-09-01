@@ -1,5 +1,4 @@
 import "server-only";
-import type { Locale } from "@schools/curriculum/types";
 import type { NovaContext } from "./context";
 
 /**
@@ -23,11 +22,6 @@ import type { NovaContext } from "./context";
  * What the LEARNER is currently typing goes in the fenced half. The seam
  * follows authorship, not usefulness.
  */
-
-const T: Record<Locale, Record<string, string>> = {
-  kk: { correct: "дұрыс", incorrect: "қате" },
-  ru: { correct: "верно", incorrect: "неверно" },
-};
 
 /** How the verdict is stated to the model. Plain English; the model replies in KK/RU. */
 const VERDICT_PROSE: Record<string, string> = {

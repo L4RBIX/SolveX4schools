@@ -36,9 +36,17 @@ import type { LessonBlock } from "../../types";
  *    over, which is the first defect class the adversarial review named. So
  *    `b7` breaks the OTHER walk this lesson mentions — the mirror check, where
  *    both indices move every step — and its bug is the one that matters here:
- *    an index moving away from its partner instead of towards it. It is also a
- *    deliberate callback: the learner wrote that walk in October (`m2.p6`), so
- *    the shape is familiar and only the direction is in question.
+ *    the right index is stepped from the WRONG variable, so it never travels
+ *    towards its partner. It is also a deliberate callback: the learner wrote
+ *    that walk in October (`m2.p6`), so the shape is familiar and only the
+ *    movement is in question.
+ *
+ *    The Python original made the same point with `right = right + 1` and an
+ *    `IndexError`. C++ has no such answer: reading past the end of a `vector`
+ *    is undefined behaviour, not an error message, and a task whose whole
+ *    symptom is undefined cannot be graded or trusted on two compilers. So the
+ *    bug is now `right = left - 1` — one token, a plausible typo, and it
+ *    terminates on every input while giving the wrong answer on `1 2 3 1`.
  *
  * 2. **How repeats are counted in `b9`, decided once and stated in both
  *    prompts.** Equal numbers standing in different positions are different
@@ -57,11 +65,12 @@ import type { LessonBlock } from "../../types";
  *    option 1 is unavailable here and option 3 belongs to the month's
  *    assessment, which already asks for the oral defence.
  *
- * 4. **No `import`, and no `in` in the search solutions.** `bisect` is the
- *    obvious one, but `s - x in a` is the quieter one: it answers this
- *    lesson's question with a linear scan and no pointers at all. It is left
- *    reachable — the construct is October's — and it is killed on the case
- *    where it pairs a number with itself (`1 3 4 9`, s = 8).
+ * 4. **No `<algorithm>` shortcut, and no linear rescan.** `binary_search` and
+ *    `lower_bound` are the obvious ones, but the quieter one is a nested scan
+ *    looking for `s - a[i]` somewhere in the list: it answers this lesson's
+ *    question with no pointers at all. It is left reachable — every construct
+ *    in it is October's — and it is killed on the case where it pairs a number
+ *    with itself (`1 3 4 9`, s = 8).
  */
 
 const P = 9;
@@ -79,7 +88,7 @@ export const M5_L4: LessonBlock[] = [
     },
     body: {
       kk:
-        "Тізім өспелі ретпен реттелген болсын. Екі көрсеткіш аламыз: `left` тізімнің басында тұрады (индексі 0), `right` соңында тұрады (индексі `len(a) - 1`). Олардың астындағы сандардың қосындысы — `a[left] + a[right]`.\n\n" +
+        "Тізім өспелі ретпен реттелген болсын. Екі көрсеткіш аламыз: `left` тізімнің басында тұрады (индексі 0), `right` соңында тұрады (индексі `(int)a.size() - 1`). Олардың астындағы сандардың қосындысы — `a[left] + a[right]`.\n\n" +
         "Мақсат — қосындысы `s` болатын жұп табу. Әр қадамда осы қосындыны `s`-пен салыстырамыз, ал ереже екеу.\n\n" +
         "**Қосынды тым кіші болса, `left` бір қадам оңға жылжиды.** Себебі қалған сандардың ішінде `a[left]`-тің ең үлкен серігі — `a[right]`, ал онымен де қосынды `s`-ке жетпей тұр. Кішірек серікпен ол одан да аз болады. Демек `a[left]` ешқандай жұпқа жарамайды, оны сегменттен алып тастауға болады.\n\n" +
         "**Қосынды тым үлкен болса, `right` бір қадам солға жылжиды.** Себебі қалғандардың ішінде `a[right]`-тің ең кіші серігі — `a[left]`, ал онымен де қосынды `s`-тен асып тұр. Үлкенірек серікпен ол одан да көп болады. Демек `a[right]` де жарамайды.\n\n" +
@@ -87,7 +96,7 @@ export const M5_L4: LessonBlock[] = [
         "Желтоқсанда бір есептің баяу және жылдам шешімін қатар қойып салыстырғанбыз. Бұл — сол салыстырудың екінші жағы: жылдам шешімнің өзі қайдан шығатыны.\n\n" +
         "Ескерту: екі көрсеткішпен жүрудің басқа түрі де бар — онда екеуі де әр қадамда жылжиды (мысалы, тізімнің симметриялы екенін тексергенде). Ондай жүрісті осы сабақта бір рет жөндейміз. Ал қосындысы бар жұпты іздегенде әр қадамда тек біреуі жылжиды.",
       ru:
-        "Пусть список отсортирован по возрастанию. Возьмём два указателя: `left` стоит в начале списка (индекс 0), `right` — в конце (индекс `len(a) - 1`). Сумма чисел под ними — это `a[left] + a[right]`.\n\n" +
+        "Пусть список отсортирован по возрастанию. Возьмём два указателя: `left` стоит в начале списка (индекс 0), `right` — в конце (индекс `(int)a.size() - 1`). Сумма чисел под ними — это `a[left] + a[right]`.\n\n" +
         "Цель — найти пару с суммой `s`. На каждом шаге сравниваем текущую сумму с `s`, и правил ровно два.\n\n" +
         "**Сумма слишком мала — `left` сдвигается на шаг вправо.** Ведь среди оставшихся чисел самый большой партнёр для `a[left]` — это `a[right]`, а даже с ним сумма не дотягивает до `s`. С меньшим партнёром она будет ещё меньше. Значит, `a[left]` не подходит ни к одной паре, и его можно убрать из отрезка.\n\n" +
         "**Сумма слишком велика — `right` сдвигается на шаг влево.** Ведь среди оставшихся самый маленький партнёр для `a[right]` — это `a[left]`, а даже с ним сумма превышает `s`. С бо́льшим партнёром она будет ещё больше. Значит, `a[right]` тоже не подходит.\n\n" +
@@ -95,7 +104,7 @@ export const M5_L4: LessonBlock[] = [
         "В декабре мы ставили рядом медленное и быстрое решение одной задачи и сравнивали их. Это — вторая сторона того же сравнения: откуда берётся само быстрое решение.\n\n" +
         "Замечание: бывает и другой ход с двумя указателями — там на каждом шаге двигаются оба (например, при проверке списка на зеркальность). Такой ход мы один раз починим на этом уроке. А при поиске пары с нужной суммой на каждом шаге двигается только один.",
     },
-    code: "a = [4, 7, 10, 15, 21]\nleft = 0\nright = len(a) - 1\nprint(a[left] + a[right])",
+    code: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {4, 7, 10, 15, 21};\n    int n = (int)a.size();\n    int left = 0;\n    int right = n - 1;\n    cout << a[left] + a[right];\n    return 0;\n}",
   },
   {
     /*
@@ -149,24 +158,7 @@ export const M5_L4: LessonBlock[] = [
       },
     ],
     code:
-      "a = [1, 4, 6, 9, 12, 15, 20]\n" +
-      "target = 18\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "found = 0\n" +
-      "while left < right:\n" +
-      "    t = a[left] + a[right]\n" +
-      "    if t == target:\n" +
-      "        found = 1\n" +
-      "        break\n" +
-      "    if t < target:\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "if found == 1:\n" +
-      "    print(a[left], a[right])\n" +
-      "else:\n" +
-      '    print("none")',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {1, 4, 6, 9, 12, 15, 20};\n    int target = 18;\n    int n = (int)a.size();\n    int left = 0;\n    int right = n - 1;\n    int found = 0;\n    while (left < right) {\n        int t = a[left] + a[right];\n        if (t == target) {\n            found = 1;\n            break;\n        }\n        if (t < target) {\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    if (found == 1) {\n        cout << a[left] << \" \" << a[right];\n    } else {\n        cout << \"none\";\n    }\n    return 0;\n}",
     result: {
       kk: "Экранға `6 12` шығады — бес қадамнан кейін табылған жұп.",
       ru: "На экран выводится `6 12` — пара, найденная за пять шагов.",
@@ -192,15 +184,7 @@ export const M5_L4: LessonBlock[] = [
       ru: "Список отсортирован, искомая сумма `target = 17`. Указатели сейчас стоят на `left = 1` и `right = 4`. Программа делает ровно один шаг и выводит новые значения `left` и `right` через пробел. Что она выведет?",
     },
     code:
-      "a = [3, 6, 9, 14, 20]\n" +
-      "target = 17\n" +
-      "left = 1\n" +
-      "right = 4\n" +
-      "if a[left] + a[right] < target:\n" +
-      "    left = left + 1\n" +
-      "else:\n" +
-      "    right = right - 1\n" +
-      "print(left, right)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {3, 6, 9, 14, 20};\n    int target = 17;\n    int left = 1;\n    int right = 4;\n    if (a[left] + a[right] < target) {\n        left = left + 1;\n    } else {\n        right = right - 1;\n    }\n    cout << left << \" \" << right;\n    return 0;\n}",
     answer: "1 3",
     options: ["1 3", "2 4", "1 4", "2 3"],
     diagnosticMapping: {
@@ -228,33 +212,19 @@ export const M5_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Қағазға үш баған сыз: `left`, `right`, `t`. Циклдің әр айналымында 7-жол орындалғаннан кейінгі мәндерді жаз. Цикл тоқтағанда `steps` нешеге тең болатынын да көрсет.",
-      ru: "Начерти на бумаге три столбца: `left`, `right`, `t`. На каждом обороте цикла записывай значения после выполнения строки 7. Когда цикл остановится, укажи ещё и чему равно `steps`.",
+      kk: "Қағазға үш баған сыз: `left`, `right`, `t`. Циклдің әр айналымында 14-жол орындалғаннан кейінгі мәндерді жаз. Цикл тоқтағанда `steps` нешеге тең болатынын да көрсет.",
+      ru: "Начерти на бумаге три столбца: `left`, `right`, `t`. На каждом обороте цикла записывай значения после выполнения строки 14. Когда цикл остановится, укажи ещё и чему равно `steps`.",
     },
     code:
-      "a = [2, 5, 7, 9, 12, 16, 20, 27]\n" +
-      "target = 19\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "steps = 0\n" +
-      "while left < right:\n" +
-      "    t = a[left] + a[right]\n" +
-      "    steps = steps + 1\n" +
-      "    if t == target:\n" +
-      "        break\n" +
-      "    if t < target:\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "print(steps)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {2, 5, 7, 9, 12, 16, 20, 27};\n    int target = 19;\n    int n = (int)a.size();\n    int left = 0;\n    int right = n - 1;\n    int steps = 0;\n    int t = 0;\n    while (left < right) {\n        t = a[left] + a[right];\n        steps = steps + 1;\n        if (t == target) {\n            break;\n        }\n        if (t < target) {\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    cout << steps;\n    return 0;\n}",
     steps: [
-      { line: 7, vars: { left: "0", right: "7", t: "29" } },
-      { line: 7, vars: { left: "0", right: "6", t: "22" } },
-      { line: 7, vars: { left: "0", right: "5", t: "18" } },
-      { line: 7, vars: { left: "1", right: "5", t: "21" } },
-      { line: 7, vars: { left: "1", right: "4", t: "17" } },
-      { line: 7, vars: { left: "2", right: "4", t: "19" } },
-      { line: 15, vars: { left: "2", right: "4", t: "19", steps: "6" } },
+      { line: 14, vars: { left: "0", right: "7", t: "29" } },
+      { line: 14, vars: { left: "0", right: "6", t: "22" } },
+      { line: 14, vars: { left: "0", right: "5", t: "18" } },
+      { line: 14, vars: { left: "1", right: "5", t: "21" } },
+      { line: 14, vars: { left: "1", right: "4", t: "17" } },
+      { line: 14, vars: { left: "2", right: "4", t: "19" } },
+      { line: 25, vars: { left: "2", right: "4", t: "19", steps: "6" } },
     ],
   },
   {
@@ -332,20 +302,11 @@ export const M5_L4: LessonBlock[] = [
     skillRefs: ["twopointers.core", "loops.while"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда өспелі ретпен реттелген сандар, екінші жолда қосынды `s` беріледі. Қосындысы `s` болатын жұп міндетті түрде бар, сондықтан цикл сол қосынды табылғанда тоқтайды. Бағдарлама сол екі санның индексін (нөлден басталатын нөмірін) бос орынмен бөліп шығарады. Екі жылжу ережесін толықтыр.",
-      ru: "В первой строке даны числа, отсортированные по возрастанию, во второй — сумма `s`. Пара с суммой `s` гарантированно существует, поэтому цикл останавливается, когда эта сумма найдена. Программа выводит индексы этих двух чисел (нумерация с нуля) через пробел. Дополни два правила сдвига.",
+      kk: "Бірінші жолда n саны, екінші жолда өспелі ретпен реттелген n сан, үшінші жолда қосынды `s` беріледі. Қосындысы `s` болатын жұп міндетті түрде бар, сондықтан цикл сол қосынды табылғанда тоқтайды. Бағдарлама сол екі санның индексін (нөлден басталатын нөмірін) бос орынмен бөліп шығарады. Екі жылжу ережесін толықтыр.",
+      ru: "В первой строке дано n, во второй — n чисел, отсортированных по возрастанию, в третьей — сумма `s`. Пара с суммой `s` гарантированно существует, поэтому цикл останавливается, когда эта сумма найдена. Программа выводит индексы этих двух чисел (нумерация с нуля) через пробел. Дополни два правила сдвига.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "while a[left] + a[right] != s:\n" +
-      "    if a[left] + a[right] < s:\n" +
-      "        left = ___\n" +
-      "    else:\n" +
-      "        right = ___\n" +
-      "print(left, right)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = n - 1;\n    while (a[left] + a[right] != s) {\n        if (a[left] + a[right] < s) {\n            left = ___;\n        } else {\n            right = ___;\n        }\n    }\n    cout << left << \" \" << right;\n    return 0;\n}",
     blanks: [
       { id: "f1", answer: "left + 1" },
       { id: "f2", answer: "right - 1" },
@@ -364,50 +325,27 @@ export const M5_L4: LessonBlock[] = [
      *
      * symptomInput is required: the fallback probe feeds single numbers, and on
      * a single number the loop never runs, so both programs print `yes` and the
-     * bug reads as absent. On `1 2 2 1` the broken one walks off the end.
+     * bug reads as absent. On `4 / 1 2 3 1` the broken one compares only the
+     * outermost pair and calls the list a mirror.
      *
-     * No diagnosticMapping. Blaming line 8 could mean «сол көрсеткіш те қате
-     * жылжиды» or «екеуі бірге жылжымауы керек» — two causes, so the engine
-     * asks instead of telling.
+     * No diagnosticMapping. Blaming the `left` update could mean «сол көрсеткіш
+     * те қате жылжиды» or «екеуі бірге жылжымауы керек» — two causes, so the
+     * engine asks instead of telling.
      */
     id: "m5.l4.b7",
     type: "find_bug",
     skillRefs: ["twopointers.core", "debug.boundary", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бұл бағдарлама тізімнің айнадағыдай симметриялы екенін тексеруі керек: бірінші санды соңғысымен, екіншісін соңынан екіншісімен салыстырады, солай ортаға қарай жүреді. Симметриялы болса `yes`, болмаса `no` шығуы тиіс. Мұнда екі көрсеткіш те әр қадамда жылжиды. Бірақ `1 2 2 1` енгізгенде бағдарлама `yes` шығармай, «list index out of range» деген қатемен тоқтап қалады. Қай жол кінәлі және неге?",
-      ru: "Эта программа должна проверять, зеркально ли симметричен список: первое число сравнивается с последним, второе — со вторым с конца, и так к середине. Если список симметричен, нужно вывести `yes`, иначе `no`. Здесь на каждом шаге двигаются оба указателя. Но при вводе `1 2 2 1` программа не выводит `yes`, а останавливается с ошибкой «list index out of range». Какая строка виновата и почему?",
+      kk: "Бұл бағдарлама тізімнің айнадағыдай симметриялы екенін тексеруі керек: бірінші санды соңғысымен, екіншісін соңынан екіншісімен салыстырады, солай ортаға қарай жүреді. Симметриялы болса `yes`, болмаса `no` шығуы тиіс. Кіріс: бірінші жолда n, екінші жолда n сан. Мұнда екі көрсеткіш те әр қадамда жылжуы керек. Бірақ `4 / 1 2 3 1` енгізгенде бағдарлама `yes` шығарады, ал бұл тізім симметриялы емес: ортадағы 2 мен 3 тең емес. Оң көрсеткіш неге тек бір рет қана салыстырғаннан кейін тоқтап қалатынын тауып, қате жолды көрсет.",
+      ru: "Эта программа должна проверять, зеркально ли симметричен список: первое число сравнивается с последним, второе — со вторым с конца, и так к середине. Если список симметричен, нужно вывести `yes`, иначе `no`. Ввод: в первой строке n, во второй — n чисел. Здесь на каждом шаге должны двигаться оба указателя. Но при вводе `4 / 1 2 3 1` программа выводит `yes`, хотя список не симметричен: в середине 2 и 3 не равны. Найди, почему правый указатель останавливается уже после одного сравнения, и укажи строку с ошибкой.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "same = 1\n" +
-      "while left < right:\n" +
-      "    if a[left] != a[right]:\n" +
-      "        same = 0\n" +
-      "    left = left + 1\n" +
-      "    right = right + 1\n" +
-      "if same == 1:\n" +
-      '    print("yes")\n' +
-      "else:\n" +
-      '    print("no")',
-    buggyLine: 9,
-    symptomInput: "1 2 2 1",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int left = 0;\n    int right = n - 1;\n    int same = 1;\n    while (left < right) {\n        if (a[left] != a[right]) {\n            same = 0;\n        }\n        left = left + 1;\n        right = left - 1;\n    }\n    if (same == 1) {\n        cout << \"yes\";\n    } else {\n        cout << \"no\";\n    }\n    return 0;\n}",
+    buggyLine: 20,
+    symptomInput: "4\n1 2 3 1",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "same = 1\n" +
-      "while left < right:\n" +
-      "    if a[left] != a[right]:\n" +
-      "        same = 0\n" +
-      "    left = left + 1\n" +
-      "    right = right - 1\n" +
-      "if same == 1:\n" +
-      '    print("yes")\n' +
-      "else:\n" +
-      '    print("no")',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int left = 0;\n    int right = n - 1;\n    int same = 1;\n    while (left < right) {\n        if (a[left] != a[right]) {\n            same = 0;\n        }\n        left = left + 1;\n        right = right - 1;\n    }\n    if (same == 1) {\n        cout << \"yes\";\n    } else {\n        cout << \"no\";\n    }\n    return 0;\n}",
   },
   {
     /*
@@ -443,37 +381,22 @@ export const M5_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бірінші жолда өспелі ретпен реттелген бүтін сандар беріледі (кемінде екеу, бірдей сандар кездесуі мүмкін). Екінші жолда бүтін сан `s` беріледі. Тізімде қосындысы дәл `s` болатын, әр түрлі екі орында тұрған сан бар ма? Бар болса `yes`, болмаса `no` деген сөзді шығар. Бір орындағы санды екі рет қосуға болмайды: жұп екі бөлек орыннан алынады. Кеңес: тізім реттелген, сондықтан оны екі көрсеткішпен бір өтуде шешуге болады — баға тек жауап бойынша қойылады.",
-      ru: "В первой строке даны целые числа, отсортированные по возрастанию (их хотя бы два, одинаковые числа встречаться могут). Во второй строке дано целое число `s`. Есть ли в списке два числа на разных позициях, сумма которых ровно `s`? Если есть, выведи слово `yes`, если нет — `no`. Одно и то же число с одной позиции нельзя брать дважды: пара берётся с двух разных позиций. Совет: список отсортирован, поэтому задачу можно решить двумя указателями за один проход — оценивается только ответ.",
+      kk: "Бірінші жолда n саны беріледі (2 ≤ n ≤ 100 000), екінші жолда өспелі ретпен реттелген n бүтін сан (бірдей сандар кездесуі мүмкін, әрқайсысы модулі бойынша 10⁹-нан аспайды). Үшінші жолда бүтін сан `s` беріледі. Тізімде қосындысы дәл `s` болатын, әр түрлі екі орында тұрған сан бар ма? Бар болса `yes`, болмаса `no` деген сөзді шығар. Бір орындағы санды екі рет қосуға болмайды: жұп екі бөлек орыннан алынады. Кеңес: тізім реттелген, сондықтан оны екі көрсеткішпен бір өтуде шешуге болады — баға тек жауап бойынша қойылады.",
+      ru: "В первой строке дано n (2 ≤ n ≤ 100 000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа встречаться могут, каждое по модулю не больше 10⁹). В третьей строке дано целое число `s`. Есть ли в списке два числа на разных позициях, сумма которых ровно `s`? Если есть, выведи слово `yes`, если нет — `no`. Одно и то же число с одной позиции нельзя брать дважды: пара берётся с двух разных позиций. Совет: список отсортирован, поэтому задачу можно решить двумя указателями за один проход — оценивается только ответ.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "found = 0\n" +
-      "while left < right and found == 0:\n" +
-      "    if a[left] + a[right] == s:\n" +
-      "        found = 1\n" +
-      "    elif a[left] + a[right] < s:\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "if found == 1:\n" +
-      '    print("yes")\n' +
-      "else:\n" +
-      '    print("no")',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = n - 1;\n    int found = 0;\n    while (left < right && found == 0) {\n        if (a[left] + a[right] == s) {\n            found = 1;\n        } else if (a[left] + a[right] < s) {\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    if (found == 1) {\n        cout << \"yes\";\n    } else {\n        cout << \"no\";\n    }\n    return 0;\n}",
     cases: [
-      { input: "1 4 5 9\n9", expectedOutput: "yes" },
-      { input: "2 4 6\n11", expectedOutput: "no" },
-      { input: "2 3 5 8 13 21\n16", expectedOutput: "yes", hidden: true },
-      { input: "1 3 4 9\n8", expectedOutput: "no", hidden: true },
-      { input: "5 7\n12", expectedOutput: "yes", hidden: true },
-      { input: "5 7\n11", expectedOutput: "no", hidden: true },
-      { input: "1 1\n2", expectedOutput: "yes", hidden: true },
-      { input: "-5 -1 0 3 8\n-6", expectedOutput: "yes", hidden: true },
-      { input: "1 2 3 4 5 6 7 8 9 10\n19", expectedOutput: "yes", hidden: true },
-      { input: "1 2 3 4 5 6 7 8 9 10\n3", expectedOutput: "yes", hidden: true },
+      { input: "4\n1 4 5 9\n9", expectedOutput: "yes" },
+      { input: "3\n2 4 6\n11", expectedOutput: "no" },
+      { input: "6\n2 3 5 8 13 21\n16", expectedOutput: "yes", hidden: true },
+      { input: "4\n1 3 4 9\n8", expectedOutput: "no", hidden: true },
+      { input: "2\n5 7\n12", expectedOutput: "yes", hidden: true },
+      { input: "2\n5 7\n11", expectedOutput: "no", hidden: true },
+      { input: "2\n1 1\n2", expectedOutput: "yes", hidden: true },
+      { input: "5\n-5 -1 0 3 8\n-6", expectedOutput: "yes", hidden: true },
+      { input: "10\n1 2 3 4 5 6 7 8 9 10\n19", expectedOutput: "yes", hidden: true },
+      { input: "10\n1 2 3 4 5 6 7 8 9 10\n3", expectedOutput: "yes", hidden: true },
     ],
   },
   {
@@ -508,39 +431,24 @@ export const M5_L4: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бірінші жолда өспелі ретпен реттелген бүтін сандар беріледі (кемінде біреу, бірдей сандар кездесуі мүмкін). Екінші жолда бүтін сан `s` беріледі. Сандарды жұптастырамыз: әр жұптың қосындысы дәл `s` болуы керек, ал әр орындағы сан ең көбі бір жұпқа кіреді. Ең көп неше жұп құруға болады? Сол санды шығар. Мысалы `1 2 3 4` тізімі мен `s = 5` үшін жауап 2 — (1, 4) және (2, 3). Ал `2 2 2 5` тізімі мен `s = 4` үшін жауап 1: екі екілік бір жұп құрады, ал үшінші екіліктің серігі қалмайды.",
-      ru: "В первой строке даны целые числа, отсортированные по возрастанию (хотя бы одно, одинаковые числа встречаться могут). Во второй строке дано целое число `s`. Составляем пары: сумма каждой пары должна быть ровно `s`, а число с каждой позиции входит не более чем в одну пару. Сколько пар удастся составить самое большее? Выведи это число. Например, для списка `1 2 3 4` и `s = 5` ответ 2 — это (1, 4) и (2, 3). А для списка `2 2 2 5` и `s = 4` ответ 1: две двойки образуют пару, а третьей двойке партнёра уже не остаётся.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100 000), екінші жолда өспелі ретпен реттелген n бүтін сан (бірдей сандар кездесуі мүмкін, әрқайсысы модулі бойынша 10⁹-нан аспайды). Үшінші жолда бүтін сан `s` беріледі. Сандарды жұптастырамыз: әр жұптың қосындысы дәл `s` болуы керек, ал әр орындағы сан ең көбі бір жұпқа кіреді. Ең көп неше жұп құруға болады? Сол санды шығар. Мысалы `1 2 3 4` тізімі мен `s = 5` үшін жауап 2 — (1, 4) және (2, 3). Ал `2 2 2 5` тізімі мен `s = 4` үшін жауап 1: екі екілік бір жұп құрады, ал үшінші екіліктің серігі қалмайды.",
+      ru: "В первой строке дано n (1 ≤ n ≤ 100 000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа встречаться могут, каждое по модулю не больше 10⁹). В третьей строке дано целое число `s`. Составляем пары: сумма каждой пары должна быть ровно `s`, а число с каждой позиции входит не более чем в одну пару. Сколько пар удастся составить самое большее? Выведи это число. Например, для списка `1 2 3 4` и `s = 5` ответ 2 — это (1, 4) и (2, 3). А для списка `2 2 2 5` и `s = 4` ответ 1: две двойки образуют пару, а третьей двойке партнёра уже не остаётся.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      "count = 0\n" +
-      "while left < right:\n" +
-      "    t = a[left] + a[right]\n" +
-      "    if t == s:\n" +
-      "        count = count + 1\n" +
-      "        left = left + 1\n" +
-      "        right = right - 1\n" +
-      "    elif t < s:\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "print(count)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = n - 1;\n    int count = 0;\n    while (left < right) {\n        int t = a[left] + a[right];\n        if (t == s) {\n            count = count + 1;\n            left = left + 1;\n            right = right - 1;\n        } else if (t < s) {\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    cout << count;\n    return 0;\n}",
     cases: [
-      { input: "1 2 3 4\n5", expectedOutput: "2" },
-      { input: "2 2 2 5\n4", expectedOutput: "1" },
-      { input: "1 2 3\n100", expectedOutput: "0", hidden: true },
-      { input: "1 1 1 3\n4", expectedOutput: "1", hidden: true },
-      { input: "1 1 3\n4", expectedOutput: "1", hidden: true },
-      { input: "2 2 2 2\n4", expectedOutput: "2", hidden: true },
-      { input: "1 3 4\n8", expectedOutput: "0", hidden: true },
-      { input: "5\n5", expectedOutput: "0", hidden: true },
-      { input: "3 7\n10", expectedOutput: "1", hidden: true },
-      { input: "-4 -1 0 1 5 9\n5", expectedOutput: "2", hidden: true },
-      { input: "1 2 3 4 5 6\n7", expectedOutput: "3", hidden: true },
-      { input: "2 2 3 3\n5", expectedOutput: "2", hidden: true },
+      { input: "4\n1 2 3 4\n5", expectedOutput: "2" },
+      { input: "4\n2 2 2 5\n4", expectedOutput: "1" },
+      { input: "3\n1 2 3\n100", expectedOutput: "0", hidden: true },
+      { input: "4\n1 1 1 3\n4", expectedOutput: "1", hidden: true },
+      { input: "3\n1 1 3\n4", expectedOutput: "1", hidden: true },
+      { input: "4\n2 2 2 2\n4", expectedOutput: "2", hidden: true },
+      { input: "3\n1 3 4\n8", expectedOutput: "0", hidden: true },
+      { input: "1\n5\n5", expectedOutput: "0", hidden: true },
+      { input: "2\n3 7\n10", expectedOutput: "1", hidden: true },
+      { input: "6\n-4 -1 0 1 5 9\n5", expectedOutput: "2", hidden: true },
+      { input: "6\n1 2 3 4 5 6\n7", expectedOutput: "3", hidden: true },
+      { input: "4\n2 2 3 3\n5", expectedOutput: "2", hidden: true },
     ],
   },
   {
@@ -571,7 +479,7 @@ export const M5_L4: LessonBlock[] = [
      * that survive are the ones whose text occurs exactly ONCE — and they
      * happen to be the two decisions January is actually about:
      *
-     *   `len(a) - 1` — the right pointer starts on the last index, not past it.
+     *   `n - 1`      — the right pointer starts on the last index, not past it.
      *                  The off-by-one this whole month is written around.
      *   `left < right` — the loop stops when the pointers MEET, not after.
      *                  With `<=` the element at that position is paired with
@@ -588,27 +496,13 @@ export const M5_L4: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бағдарлама реттелген тізімнен қосындысы `s` болатын жұптарды санайды: әр орындағы сан ең көбі бір жұпқа кіреді. Циклдің ішіндегі үш тармақ түгел жазылған. Сен екі ШЕКАРАНЫ толықтырасың: оң көрсеткіш қай индекстен басталады және цикл қашан тоқтайды? Есіңде болсын: `left` пен `right` бір орынға келгенде, ол сан өзімен жұп құра алмайды.",
-      ru: "Программа считает пары с суммой `s` в отсортированном списке: число с каждой позиции входит не более чем в одну пару. Все три ветки внутри цикла уже написаны. Тебе нужно дополнить две ГРАНИЦЫ: с какого индекса начинается правый указатель и когда цикл останавливается? Помни: когда `left` и `right` сходятся в одной позиции, это число не может составить пару само с собой.",
+      kk: "Бағдарлама реттелген тізімнен қосындысы `s` болатын жұптарды санайды: әр орындағы сан ең көбі бір жұпқа кіреді. Циклдің ішіндегі үш тармақ түгел жазылған. Кіріс: бірінші жолда n, екінші жолда n сан, үшінші жолда `s`. Сен екі ШЕКАРАНЫ толықтырасың: оң көрсеткіш қай индекстен басталады және цикл қашан тоқтайды? Есіңде болсын: `left` пен `right` бір орынға келгенде, ол сан өзімен жұп құра алмайды.",
+      ru: "Программа считает пары с суммой `s` в отсортированном списке: число с каждой позиции входит не более чем в одну пару. Все три ветки внутри цикла уже написаны. Ввод: в первой строке n, во второй — n чисел, в третьей — `s`. Тебе нужно дополнить две ГРАНИЦЫ: с какого индекса начинается правый указатель и когда цикл останавливается? Помни: когда `left` и `right` сходятся в одной позиции, это число не может составить пару само с собой.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = ___\n" +
-      "pairs = 0\n" +
-      "while ___:\n" +
-      "    if a[left] + a[right] < s:\n" +
-      "        left = left + 1\n" +
-      "    elif a[left] + a[right] > s:\n" +
-      "        right = right - 1\n" +
-      "    else:\n" +
-      "        pairs = pairs + 1\n" +
-      "        left = left + 1\n" +
-      "        right = right - 1\n" +
-      "print(pairs)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = ___;\n    int pairs = 0;\n    while (___) {\n        if (a[left] + a[right] < s) {\n            left = left + 1;\n        } else if (a[left] + a[right] > s) {\n            right = right - 1;\n        } else {\n            pairs = pairs + 1;\n            left = left + 1;\n            right = right - 1;\n        }\n    }\n    cout << pairs;\n    return 0;\n}",
     blanks: [
-      { id: "f1", answer: "len(a) - 1" },
+      { id: "f1", answer: "n - 1", alternatives: ["(int)a.size() - 1"] },
       { id: "f2", answer: "left < right", alternatives: ["right > left"] },
     ],
   },

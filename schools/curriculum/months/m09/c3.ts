@@ -47,6 +47,20 @@ import type { LessonBlock } from "../../types";
  * Each block's comment lists those degenerate programs by name and points at
  * the case that kills each.
  *
+ * ## Where the type boundary sits, worked out per problem
+ *
+ * p1's answer is at most n = 100 000. p2's is at most a million ones. p3's is at
+ * most 100 000 days of 10 000 points taken every other day, which is 5 · 10⁸ —
+ * inside `int` by a factor of four. p4's is at most n boats. All four are `int`
+ * problems and their references say so by using `int`.
+ *
+ * **p5 is not**, and that is new. Its answer is a count of routes, and on an
+ * open 18 × 18 map that count is 2 333 606 220 — past `int` by nine per cent.
+ * The statement warns that the answer passes two billion, which is what a real
+ * contest statement does, and the last hidden case is the map that charges for
+ * it. A learner whose table is `int` gets a correct method and a wrong number,
+ * with no message of any kind: m9.l2.b1's second point, arriving in a contest.
+ *
  * ## Structural requirements
  *
  * Of the authoring contract's three honest options, this lesson takes **option
@@ -65,29 +79,59 @@ import type { LessonBlock } from "../../types";
  * — not in quietly handing one route a shorter contest. The written defence
  * that «тереңдетілген» owes is m9.l4's, not this lesson's.
  */
+
 /**
- * The witness for `m9.c3.p4`'s own stated ceiling.
+ * A large input for `m9.c3.p4`, and an honest note about what it no longer does.
  *
- * The prompt says n ≤ 100 000 and the largest case tested n = 6. Two 4s among
- * 7 998 5s with L = 9: only the two 4s can ever share a boat, so a quadratic
- * pairing loop scans the whole list for every 5 before giving up.
+ * Under Python this was a complexity guard and the file said so: two 4s among
+ * 7 998 5s with L = 9 denies an early-exit pairing scan every partner, so the
+ * quadratic solution took over 8 s against the reference's 0.10 s.
  *
- * The weights are not arbitrary. With a random 1..9 fill the early-exit scan
- * finds partners quickly and finishes inside the budget; this shape denies it
- * every one.
+ * **Re-measured under C++17 at -O2 the same two programs take 0.04 s and
+ * 0.00 s.** The quadratic scan is now some two hundred times faster than it was,
+ * and ~3 · 10⁷ operations is nothing against a 5 s budget. The guard cannot be
+ * restored through stdin: at two bytes a value `EXECUTION_LIMITS.maxStdinBytes`
+ * (16 KiB) caps a case at about 8 190 numbers, which caps the naive work at
+ * ~3 · 10⁷ — and that is fast in C++. Restoring it would mean generating the
+ * weights in-program from a seed, as `m9.c1.p4` and `m9.c4.p3` now do; it is not
+ * done here because those two are the contest's own complexity lessons and a
+ * third copy of the same device in the same month would teach the device rather
+ * than the algorithm.
  *
- * The solution it is aimed at is the RIGHT idea implemented the long way —
- * sort, then scan down from the heavy end for each lightest-remaining
- * passenger. That answers all seven of the small cases correctly and takes
- * over 8 s here against the reference's 0.10 s. It is deliberately not aimed
- * at the unsorted greedy, which is simply wrong and which three existing small
- * cases already catch: a complexity guard aimed at a solution the small cases
- * can already fault is not the thing doing the catching.
+ * So the case stays and its job is stated correctly: it is the stated ceiling
+ * actually exercised — 8 000 weights read, a shape where almost nobody can share
+ * a boat, and an answer of 7 998 that no small case reaches. It does not
+ * separate the two-pointer solution from the quadratic one, and no prompt
+ * claimed it did.
  *
- * 16 007 bytes with the appended newline, inside
- * `EXECUTION_LIMITS.maxStdinBytes`.
+ * 16 007 bytes with the appended newline, inside `EXECUTION_LIMITS.maxStdinBytes`.
  */
 const M9_C3_P4_LARGE_INPUT = `8000 9\n4 4 ${"5 ".repeat(7997)}5`;
+
+/**
+ * The case that makes `m9.c3.p5` mean what its prompt says.
+ *
+ * An open 18 × 18 map: 2 333 606 220 routes, which is both the answer and the
+ * reason the answer needs `long long`. It does two jobs that no smaller map can
+ * do at once.
+ *
+ * **The complexity guard, re-derived.** The Python version used a 15 × 15 map
+ * with 40 116 600 routes and said that walking them one at a time «does not
+ * finish». Measured in C++ at -O2 that walk now takes **0.65 s** — it finishes
+ * comfortably inside the 5 s budget, so the claim had become false and the bound
+ * had stopped meaning anything. 17 × 17 takes 11.7 s, which clears the judge but
+ * sits inside the harness's own 10 s only by luck; 18 × 18 was still running
+ * after forty seconds. So the stated bound moved from 15 to 18, which is the
+ * smallest change that makes the sentence true again, and the table still fills
+ * 324 cells in well under a millisecond.
+ *
+ * **The type boundary.** `int` holds 2 147 483 647 and this answer is
+ * 2 333 606 220. At 15 × 15 an `int` table was correct and the bound taught
+ * nothing about types; at 18 × 18 it is a wrong answer with no message attached,
+ * which is the failure m9.l2.b1 exists to make familiar. The statement says the
+ * answer passes two billion, exactly as a real problem would.
+ */
+const M9_C3_P5_OPEN_18 = `18 18\n${(".".repeat(18) + "\n").repeat(17)}${".".repeat(18)}`;
 
 export const M9_C3: LessonBlock[] = [
   {
@@ -114,18 +158,27 @@ export const M9_C3: LessonBlock[] = [
       ru: "**A. Серия побед.** Школьная команда сыграла n матчей. Результаты даны в том порядке, в котором матчи шли: 1 — победа, 0 — поражение.\n\nИз скольких матчей состоит самая длинная серия побед подряд?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 100000). Во второй строке n чисел через пробел, каждое равно 0 или 1.\n\n**Выход.** Одно целое число — наибольшее количество побед подряд. Если команда не выиграла ни одного матча, выведи 0.\n\n**Пример.**\n\n```\n8\n1 1 0 1 1 1 0 1\n```\n\nОтвет: `3`.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "best = 0\n" +
-      "cur = 0\n" +
-      "for i in range(n):\n" +
-      "    if a[i] == 1:\n" +
-      "        cur += 1\n" +
-      "        if cur > best:\n" +
-      "            best = cur\n" +
-      "    else:\n" +
-      "        cur = 0\n" +
-      "print(best)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int best = 0;\n" +
+      "    int cur = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] == 1) {\n" +
+      "            cur = cur + 1;\n" +
+      "            if (cur > best) best = cur;\n" +
+      "        } else {\n" +
+      "            cur = 0;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "8\n1 1 0 1 1 1 0 1", expectedOutput: "3" },
       /* The longest run is the whole list: a program that records `best` only
@@ -143,7 +196,7 @@ export const M9_C3: LessonBlock[] = [
     /*
      * p2 · APRIL — a greedy whose rule really is correct («әр қадамда ең тиімді
      * нұсқаны таңдап, оның шынымен ең жақсы жауапқа жеткізетінін тексеру»),
-     * carried out with September's `//` and `%`.
+     * carried out with September's `/` and `%`.
      *
      * The rule is safe here for a reason the learner can check: every
      * denomination divides the next one up (1|5, 5|10, 10|50, 50|100, 100|500,
@@ -152,10 +205,18 @@ export const M9_C3: LessonBlock[] = [
      * belongs to April's own lesson; putting both in one contest would tell the
      * learner which of the two they are looking at.
      *
+     * S is at least 0 and never negative, so `s / notes[i]` and `s % notes[i]`
+     * behave exactly as Python's `//` and `%` did and no expected output moved.
+     * The Python-era degenerate «uses `/` instead of `//` and prints a float» is
+     * simply impossible in C++: `/` on two `int`s already truncates. What
+     * replaces it is the mirror-image mistake — declaring `s` as a `double`,
+     * after which `s / 1000` is 1.234 and the program prints a decimal point the
+     * checker does not expect.
+     *
      * The degenerate programs, and what kills each:
      *  - keeps only the round denominations 1000/100/10/1 → "999" (answer 15,
      *    it prints 27) and "6" (answer 2, it prints 6);
-     *  - uses `/` instead of `//` and prints a float → every case;
+     *  - `s` declared as a `double` → every case, on the decimal point;
      *  - never updates the remainder → "1234";
      *  - assumes at least one note is always needed → "0".
      */
@@ -168,13 +229,21 @@ export const M9_C3: LessonBlock[] = [
       ru: "**B. Сдача в кассе.** В кассе неограниченно много купюр и монет достоинством 1000, 500, 100, 50, 10, 5 и 1 тенге. Покупателю нужно выдать ровно S тенге, причём как можно меньшим количеством купюр и монет.\n\n**Вход.** Одно целое число S (0 ≤ S ≤ 1000000).\n\n**Выход.** Одно целое число — наименьшее количество купюр и монет.\n\n**Пример.** При S = 1234 ответ `10`: одна купюра 1000, две по 100, три по 10 и четыре монеты по 1.",
     },
     referenceSolution:
-      "s = int(input())\n" +
-      "notes = [1000, 500, 100, 50, 10, 5, 1]\n" +
-      "count = 0\n" +
-      "for i in range(len(notes)):\n" +
-      "    count += s // notes[i]\n" +
-      "    s = s % notes[i]\n" +
-      "print(count)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int s;\n" +
+      "    cin >> s;\n" +
+      "    int notes[7] = {1000, 500, 100, 50, 10, 5, 1};\n" +
+      "    int count = 0;\n" +
+      "    for (int i = 0; i < 7; i++) {\n" +
+      "        count = count + s / notes[i];\n" +
+      "        s = s % notes[i];\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "1234", expectedOutput: "10" },
       /* Zero notes is a real answer, and it is the one a `while` written the
@@ -200,6 +269,10 @@ export const M9_C3: LessonBlock[] = [
      * day and the answer is dp[i - 1], or it is a training day and the answer
      * is dp[i - 2] + a[i].
      *
+     * `int` is enough and it was checked rather than assumed: 100 000 days at
+     * 10 000 points, taken every other day, is 5 · 10⁸ — a quarter of what `int`
+     * holds. p5 is where this contest's type boundary actually bites.
+     *
      * THE STATEMENT DOES NOT WARN THAT GREEDY FAILS, and that is deliberate —
      * finding it out is the exercise. The sample was chosen because greedy gets
      * it right: on `2 7 9 3 1` both the largest-first rule and the table print
@@ -214,7 +287,11 @@ export const M9_C3: LessonBlock[] = [
      *    "5 1 1 5" scores 6, the answer is 10;
      *  - dp[i] = max(dp[i-1], dp[i-2]) + a[i], the recurrence written with the
      *    `+ a[i]` outside the max → the visible sample already gives 20;
-     *  - a table that never handles n = 1 or n = 2 → "7" and "3 8".
+     *  - a table that never handles n = 1 or n = 2 → "7" and "3 8". In C++ the
+     *    second of those is not an `IndexError` with a line number: `dp[1]` on a
+     *    one-element vector is undefined behaviour, so the program either stops
+     *    with nothing readable attached or prints a number that is not the
+     *    answer. Both are caught by the case; only one of them looks like a bug.
      */
     id: "m9.c3.p3",
     type: "challenge",
@@ -225,17 +302,23 @@ export const M9_C3: LessonBlock[] = [
       ru: "**C. Тренировочный лагерь.** Лагерь длится n дней. Если ученик тренируется в день i, он получает a[i] очков, но на следующий день обязан отдыхать: поэтому два подряд идущих дня выбрать нельзя. В день отдыха очки не начисляются, а дни тренировок ученик выбирает сам.\n\nСколько очков можно набрать самое большее?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 100000). Во второй строке n чисел через пробел: a[1] … a[n] (0 ≤ a[i] ≤ 10000).\n\n**Выход.** Одно целое число — наибольшее количество очков.\n\n**Пример.**\n\n```\n5\n2 7 9 3 1\n```\n\nОтвет: `12` — тренировки в 1-й, 3-й и 5-й дни.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "dp = []\n" +
-      "for i in range(n):\n" +
-      "    dp.append(0)\n" +
-      "dp[0] = a[0]\n" +
-      "if n > 1:\n" +
-      "    dp[1] = max(a[0], a[1])\n" +
-      "for i in range(2, n):\n" +
-      "    dp[i] = max(dp[i - 1], dp[i - 2] + a[i])\n" +
-      "print(dp[n - 1])",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    vector<int> dp(n, 0);\n" +
+      "    dp[0] = a[0];\n" +
+      "    if (n > 1) dp[1] = max(a[0], a[1]);\n" +
+      "    for (int i = 2; i < n; i++) {\n" +
+      "        dp[i] = max(dp[i - 1], dp[i - 2] + a[i]);\n" +
+      "    }\n" +
+      "    cout << dp[n - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n2 7 9 3 1", expectedOutput: "12" },
       /* Largest-first greedy takes the 5 and stops. */
@@ -264,6 +347,13 @@ export const M9_C3: LessonBlock[] = [
      * goes alone. Either way the heaviest is dealt with, so `hi` always moves
      * and the loop always ends.
      *
+     * `hi` is an `int` index and goes to −1 when the two pointers cross, which
+     * is why the loop condition is `lo <= hi` on `int`s and not on anything
+     * unsigned — `w.size()` is unsigned and a `size_t hi` would wrap to a huge
+     * number instead of going negative, hang the loop and read off the end of
+     * the vector. That is a C++ hazard with no Python counterpart and it is the
+     * reason both indices are declared `int` here rather than left to `auto`.
+     *
      * The degenerate programs, and what kills each:
      *  - two pointers WITHOUT sorting first → "4 5 / 4 1 3 2" is the same
      *    multiset as the visible sample and gives 3 instead of 2;
@@ -273,7 +363,7 @@ export const M9_C3: LessonBlock[] = [
      *  - `<` where `<=` belongs → "2 6 / 3 3", exactly on the limit, gives 2
      *    instead of 1;
      *  - "half the people, rounded up" → "3 5 / 4 4 4" gives 2 instead of 3;
-     *  - a loop written `while lo < hi`, which loses the last passenger when
+     *  - a loop written `while (lo < hi)`, which loses the last passenger when
      *    the two pointers meet → "1 10 / 7" gives 0 instead of 1.
      */
     id: "m9.c3.p4",
@@ -285,18 +375,26 @@ export const M9_C3: LessonBlock[] = [
       ru: "**D. Переправа.** n учеников летнего лагеря должны переправиться через реку. В одну лодку садятся не больше двух учеников, и сумма их весов не должна превышать L килограммов. Вес каждого ученика по отдельности не превышает L, так что перевезти каждого отдельно можно всегда.\n\nСколько лодок нужно самое меньшее, чтобы переправить всех?\n\n**Вход.** В первой строке числа n и L (1 ≤ n ≤ 100000, 1 ≤ L ≤ 1000). Во второй строке n чисел через пробел — веса учеников (1 ≤ w[i] ≤ L).\n\n**Выход.** Одно целое число — наименьшее количество лодок.\n\n**Пример.**\n\n```\n4 5\n1 2 3 4\n```\n\nОтвет: `2` — в одной лодке 1 и 4, в другой 2 и 3.",
     },
     referenceSolution:
-      "n, limit = map(int, input().split())\n" +
-      "w = list(map(int, input().split()))\n" +
-      "w.sort()\n" +
-      "lo = 0\n" +
-      "hi = n - 1\n" +
-      "boats = 0\n" +
-      "while lo <= hi:\n" +
-      "    if w[lo] + w[hi] <= limit:\n" +
-      "        lo += 1\n" +
-      "    hi -= 1\n" +
-      "    boats += 1\n" +
-      "print(boats)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, limit;\n" +
+      "    cin >> n >> limit;\n" +
+      "    vector<int> w(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> w[i];\n" +
+      "    sort(w.begin(), w.end());\n" +
+      "    int lo = 0;\n" +
+      "    int hi = n - 1;\n" +
+      "    int boats = 0;\n" +
+      "    while (lo <= hi) {\n" +
+      "        if (w[lo] + w[hi] <= limit) lo = lo + 1;\n" +
+      "        hi = hi - 1;\n" +
+      "        boats = boats + 1;\n" +
+      "    }\n" +
+      "    cout << boats;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4 5\n1 2 3 4", expectedOutput: "2" },
       /* One passenger: the pointers start on the same person. */
@@ -310,7 +408,8 @@ export const M9_C3: LessonBlock[] = [
          forgot to sort gives 3 here and 2 on the sample. */
       { input: "4 5\n4 1 3 2", expectedOutput: "2", hidden: true },
       { input: "5 6\n1 1 5 5 6", expectedOutput: "3", hidden: true },
-      /* The stated ceiling, actually tested. See M9_C3_P4_LARGE_INPUT. */
+      /* The stated ceiling, actually exercised. See M9_C3_P4_LARGE_INPUT — it
+         no longer separates the quadratic solution, and the note says so. */
       { input: M9_C3_P4_LARGE_INPUT, expectedOutput: "7998", hidden: true },
     ],
   },
@@ -326,18 +425,19 @@ export const M9_C3: LessonBlock[] = [
      * holds the sum of the cell above and the cell to the left — the neighbours
      * a right-or-down walk can have arrived from.
      *
-     * The last hidden case is a 15 × 15 map with no walls, whose answer is
-     * 40116600. It is there for one reason: a solution that walks every route
-     * one at a time instead of filling a table has to visit forty million of
-     * them and will not finish. That is the honest way to require the table —
-     * a constraint the other method cannot meet — rather than a sentence in the
-     * prompt that no checker could enforce.
+     * TWO THINGS CHANGED FOR C++, and both are in `M9_C3_P5_OPEN_18`. The bound
+     * moved from 15 to 18 because a 15 × 15 route walk finishes in 0.65 s in C++
+     * where it did not finish in Python, so the claim this block rests on had
+     * gone false; and at 18 the answer is 2 333 606 220, which does not fit
+     * `int`, so the table has to be `long long` and the statement says the answer
+     * passes two billion. One case now carries both lessons.
      *
      * The degenerate programs, and what kills each:
      *  - counting routes as though the map were empty → "3 3" with a wall in
      *    the middle prints 6 instead of 2, and "2 2 / .# / #." prints 2
      *    instead of 0;
-     *  - route-by-route enumeration → the 15 × 15 case does not finish;
+     *  - route-by-route enumeration → the 18 × 18 case does not finish;
+     *  - an `int` table → the 18 × 18 case, silently, with no message;
      *  - a table that only starts at row 1 and column 1 and never fills the
      *    first row and first column → "1 5 / ..#.." and "5 1", the maps that
      *    are a single line, print the wrong answer;
@@ -348,34 +448,36 @@ export const M9_C3: LessonBlock[] = [
     skillRefs: ["contest.upsolving", "dp.core", "dp.table", "grid.cells"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**E. Тордағы жолдар.** Курьер n жол мен m бағаннан тұратын тордың сол жақ жоғарғы ұяшығында тұр және оң жақ төменгі ұяшыққа жетуі керек. Бір қадамда ол тек оңға немесе төмен жүре алады. Кейбір ұяшықтарда жөндеу жүріп жатыр, оларға баспайды.\n\nСол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа неше түрлі жол бар? Екі жол кемінде бір қадамымен өзгеше болса, олар түрлі жол саналады.\n\n**Кіріс.** Бірінші жолда n мен m сандары (1 ≤ n, m ≤ 15). Келесі n жолда тор: әр жолда m таңба, `.` — бос ұяшық, `#` — жабық ұяшық. Сол жақ жоғарғы және оң жақ төменгі ұяшықтар әрқашан бос.\n\n**Шығыс.** Бір бүтін сан — жолдардың саны. Бірде-бір жол болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n3 3\n...\n.#.\n...\n```\n\nЖауап: `2`.\n\nШешімнің құрылымын өзің таңдайсың: бөлек функция жазасың ба, бәрін бір бағдарламаға сыйдырасың ба — тексеруші тек шыққан санды салыстырады.",
-      ru: "**E. Пути в таблице.** Курьер стоит в левой верхней клетке таблицы из n строк и m столбцов и должен добраться до правой нижней клетки. За один шаг он идёт только вправо или вниз. В некоторых клетках идёт ремонт, наступать на них нельзя.\n\nСколько существует различных путей из левой верхней клетки в правую нижнюю? Два пути считаются различными, если они отличаются хотя бы одним шагом.\n\n**Вход.** В первой строке числа n и m (1 ≤ n, m ≤ 15). В следующих n строках таблица: в каждой строке m символов, `.` — свободная клетка, `#` — закрытая клетка. Левая верхняя и правая нижняя клетки всегда свободны.\n\n**Выход.** Одно целое число — количество путей. Если пути нет ни одного, выведи 0.\n\n**Пример.**\n\n```\n3 3\n...\n.#.\n...\n```\n\nОтвет: `2`.\n\nСтруктуру решения выбираешь сам: писать ли отдельную функцию или уместить всё в одну программу — проверяющая система сравнивает только выведенное число.",
+      kk: "**E. Тордағы жолдар.** Курьер n жол мен m бағаннан тұратын тордың сол жақ жоғарғы ұяшығында тұр және оң жақ төменгі ұяшыққа жетуі керек. Бір қадамда ол тек оңға немесе төмен жүре алады. Кейбір ұяшықтарда жөндеу жүріп жатыр, оларға баспайды.\n\nСол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа неше түрлі жол бар? Екі жол кемінде бір қадамымен өзгеше болса, олар түрлі жол саналады.\n\n**Кіріс.** Бірінші жолда n мен m сандары (1 ≤ n, m ≤ 18). Келесі n жолда тор: әр жолда m таңба, `.` — бос ұяшық, `#` — жабық ұяшық. Сол жақ жоғарғы және оң жақ төменгі ұяшықтар әрқашан бос.\n\n**Шығыс.** Бір бүтін сан — жолдардың саны. Бірде-бір жол болмаса, 0 шығар.\n\n**Ескерту.** Жауап үлкен болуы мүмкін: 18 × 18 бос торда жолдар саны екі миллиардтан асады. Оның қандай сан түріне сыятынын өзің шеш.\n\n**Мысал.**\n\n```\n3 3\n...\n.#.\n...\n```\n\nЖауап: `2`.\n\nШешімнің құрылымын өзің таңдайсың: бөлек функция жазасың ба, бәрін бір бағдарламаға сыйдырасың ба — тексеруші тек шыққан санды салыстырады.",
+      ru: "**E. Пути в таблице.** Курьер стоит в левой верхней клетке таблицы из n строк и m столбцов и должен добраться до правой нижней клетки. За один шаг он идёт только вправо или вниз. В некоторых клетках идёт ремонт, наступать на них нельзя.\n\nСколько существует различных путей из левой верхней клетки в правую нижнюю? Два пути считаются различными, если они отличаются хотя бы одним шагом.\n\n**Вход.** В первой строке числа n и m (1 ≤ n, m ≤ 18). В следующих n строках таблица: в каждой строке m символов, `.` — свободная клетка, `#` — закрытая клетка. Левая верхняя и правая нижняя клетки всегда свободны.\n\n**Выход.** Одно целое число — количество путей. Если пути нет ни одного, выведи 0.\n\n**Примечание.** Ответ может оказаться большим: на пустой таблице 18 × 18 путей больше двух миллиардов. Какой числовой тип для него подойдёт, реши сам.\n\n**Пример.**\n\n```\n3 3\n...\n.#.\n...\n```\n\nОтвет: `2`.\n\nСтруктуру решения выбираешь сам: писать ли отдельную функцию или уместить всё в одну программу — проверяющая система сравнивает только выведенное число.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "dp = []\n" +
-      "for i in range(n):\n" +
-      "    row = []\n" +
-      "    for j in range(m):\n" +
-      "        row.append(0)\n" +
-      "    dp.append(row)\n" +
-      "for i in range(n):\n" +
-      "    for j in range(m):\n" +
-      '        if g[i][j] == "#":\n' +
-      "            dp[i][j] = 0\n" +
-      "        elif i == 0 and j == 0:\n" +
-      "            dp[i][j] = 1\n" +
-      "        else:\n" +
-      "            total = 0\n" +
-      "            if i > 0:\n" +
-      "                total = total + dp[i - 1][j]\n" +
-      "            if j > 0:\n" +
-      "                total = total + dp[i][j - 1]\n" +
-      "            dp[i][j] = total\n" +
-      "print(dp[n - 1][m - 1])",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> g[i];\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (g[i][j] == '#') {\n" +
+      "                dp[i][j] = 0;\n" +
+      "            } else if (i == 0 && j == 0) {\n" +
+      "                dp[i][j] = 1;\n" +
+      "            } else {\n" +
+      "                long long total = 0;\n" +
+      "                if (i > 0) total = total + dp[i - 1][j];\n" +
+      "                if (j > 0) total = total + dp[i][j - 1];\n" +
+      "                dp[i][j] = total;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[n - 1][m - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 3\n...\n.#.\n...", expectedOutput: "2" },
       { input: "3 3\n...\n...\n...", expectedOutput: "6", hidden: true },
@@ -388,14 +490,10 @@ export const M9_C3: LessonBlock[] = [
       { input: "1 5\n..#..", expectedOutput: "0", hidden: true },
       { input: "5 1\n.\n.\n#\n.\n.", expectedOutput: "0", hidden: true },
       { input: "4 4\n....\n.#..\n..#.\n....", expectedOutput: "4", hidden: true },
-      /* Forty million routes: the table finishes instantly, walking them one
-         by one does not finish at all. */
-      {
-        input:
-          "15 15\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............\n...............",
-        expectedOutput: "40116600",
-        hidden: true,
-      },
+      /* Two billion routes: the table finishes instantly, walking them one by
+         one does not finish, and an `int` answer is wrong. See
+         M9_C3_P5_OPEN_18. */
+      { input: M9_C3_P5_OPEN_18, expectedOutput: "2333606220", hidden: true },
     ],
   },
 ];

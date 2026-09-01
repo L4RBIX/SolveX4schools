@@ -54,7 +54,7 @@ function ctx(locale: Locale = "kk", grant = grantAt(0)) {
     monthTitle: "Қыркүйек",
     lessonTitle: "Шарттар",
     blockPrompt: "Екі санның үлкенін тап",
-    blockCode: "a = int(input())\nb = int(input())",
+    blockCode: "int a, b;\ncin >> a >> b;",
     skills: ["cond.if_else"],
     directive: null,
     grant,
@@ -283,7 +283,12 @@ describe("even a model that obeys the attack is stopped", () => {
   });
 
   it("refuses a full solution handed over at a rung that forbids it", () => {
-    const solution = "a = int(input())\nb = int(input())\nprint(max(a, b))";
+    /* The whole of the September acceptance bar, in the language the course
+       now teaches. The body alone is the answer — the frame around it is given
+       to the learner already written — so the fixture is what a model would
+       actually paste when it decided to hand the task over. */
+    const solution =
+      "int a, b;\ncin >> a >> b;\nif (a > b) cout << a;\nelse cout << b;";
     for (const level of [0, 1, 2, 3]) {
       const violations = validateOutput(`Міне:\n\`\`\`python\n${solution}\n\`\`\``, {
         grant: grantAt(level, true),

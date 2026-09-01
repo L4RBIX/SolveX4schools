@@ -27,18 +27,19 @@ import { capabilityFor } from "./trust-policy";
  */
 export type ReleaseMode =
   /**
-   * Pyodide in the browser for Run, a trusted judge for Submit.
+   * The browser's own compiler for Run, a trusted judge for Submit.
    *
    * The design this whole subsystem was built for. Iteration is free and
    * private, and the claims a school makes about a child come from our server.
    */
   | "HYBRID_PRODUCTION"
   /**
-   * Pyodide for Run, and no trusted judge at all (`EXEC_PROVIDER=none`).
+   * The browser compiler for Run, and no trusted judge at all
+   * (`EXEC_PROVIDER=none`).
    *
    * A real, supported way to run the programme, and the honest name for what a
-   * school has when nobody has stood up a sandbox yet. Learners write code, run
-   * it, and see genuine Python output; every check that would produce evidence
+   * school has when nobody has stood up a sandbox yet. Learners write code,
+   * compile it and see genuine output; every check that would produce evidence
    * becomes a teacher's job instead. Nothing is scored on a browser result.
    */
   | "LOCAL_PILOT"
@@ -46,7 +47,9 @@ export type ReleaseMode =
    * No browser execution — the trusted judge does both Run and Submit.
    *
    * Not a configuration anyone chooses globally; it is what an individual
-   * learner falls back to when Pyodide will not load in their browser. Named
+   * learner falls back to when the compiler will not load in their browser.
+   * That is a 57.5 MB download over a school link, so it is a likelier
+   * fallback than it was at 13 MB. Named
    * here because the product must behave correctly in it: `/api/exec/run`
    * still exists for exactly this reason and must not be deleted.
    */
@@ -118,7 +121,7 @@ export function releaseCapability(input: {
       trustedJudge: false,
       surfacesWithoutEvidence,
       summary:
-        `No trusted judge is configured. Learners can write and run Python, but ` +
+        `No trusted judge is configured. Learners can write, compile and run code, but ` +
         `${surfacesWithoutEvidence.length} of ${EVERY_SURFACE.length} surfaces produce no ` +
         `evidence — those checks are a teacher's to mark, and contests cannot run.`,
     };
@@ -130,7 +133,7 @@ export function releaseCapability(input: {
     trustedJudge: trustedProviderConfigured,
     surfacesWithoutEvidence,
     summary: trustedProviderConfigured
-      ? "Python will not run in this browser; Run and Submit both go to the server judge."
-      : "Python will not run in this browser and no judge is configured. Nothing can execute.",
+      ? "The compiler will not load in this browser; Run and Submit both go to the server judge."
+      : "The compiler will not load in this browser and no judge is configured. Nothing can execute.",
   };
 }

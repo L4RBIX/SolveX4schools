@@ -2,9 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { EXECUTION_LIMITS } from "@schools/exec";
 import { isLearnerEvidence, type ExecutionRequest } from "@schools/exec/provider";
 import { Judge0RapidApiProvider } from "@schools/exec/providers/judge0";
+import { MIN_GNU_CXX17_MAJOR } from "@schools/execution/cpp-runtime";
 import {
   BIG_INT_TEXT,
-  EXPECTED_PYTHON_ID,
+  EXPECTED_CPP_ID,
   PROGRAMS,
   startFakeJudge0,
   type FakeJudge0,
@@ -63,7 +64,7 @@ const LIVE = LIVE_FLAG && LIVE_KEY;
 const LIVE_TIMEOUT_MS = 60_000;
 
 const REQUEST: Omit<ExecutionRequest, "sourceCode" | "stdin"> = {
-  language: "python3",
+  language: "cpp17",
   timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
   memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,
 };
@@ -109,31 +110,53 @@ function conformanceMatrix(judge: () => Judge0RapidApiProvider) {
   );
 
   it(
-    "3. a syntax error is a COMPILE error, not a runtime one",
+    "3. a program that never compiled is a COMPILE error, not a runtime one",
     async () => {
-      /* Python has no compile stage, so CPython reports a missing bracket as a
-         non-zero exit and Judge0 reports NZEC — a RUNTIME failure. Piston fell
-         into exactly this trap once and it is regression-tested there; the
-         shared `looksLikeCompileError` predicate exists so two judges cannot
-         disagree about one missing bracket.
-         The difference is what a fourteen-year-old is told: look at your
-         punctuation, or look at your logic. */
+      /* The distinction a fourteen-year-old actually needs: look at your
+         punctuation, or look at your logic.
+         It is now STRUCTURAL. Judge0 answers status id 6 and puts the
+         compiler's diagnostics in `compile_output`, its own field — where the
+         Python era had CPython reporting a missing bracket as an ordinary
+         non-zero exit, Judge0 reporting NZEC, and a shared prose-matching
+         predicate at the port doing the guessing. That predicate is gone; this
+         assertion is what replaced it.
+         The diagnostics must SURVIVE the normalisation. A `compile_error` whose
+         stderr is empty tells the learner nothing at all. */
       const r = await run(PROGRAMS.syntax);
       expect(r.status).toBe("compile_error");
       expect(r.status).not.toBe("runtime_error");
-      expect(r.stderr).toContain("SyntaxError");
+      expect(r.stderr).toContain("error:");
       expect(r.infrastructureError).toBe(false);
     },
     LIVE_TIMEOUT_MS,
   );
 
   it(
-    "4. dividing by zero is a runtime error, and the traceback survives",
+    "4. a crash is a runtime error, and whatever the program said survives",
     async () => {
-      const r = await run(PROGRAMS.divZero);
-      expect(r.status).toBe("runtime_error");
-      expect(r.stderr).toContain("ZeroDivisionError");
-      expect(isLearnerEvidence(r.status)).toBe(true);
+      /* Two shapes, because C++ has two and a learner meets both.
+
+         An uncaught exception runs libstdc++'s terminate handler, which writes
+         a real sentence to stderr before aborting. That text is the only thing
+         the learner has to work from, so it must survive normalisation. */
+      const threw = await run(PROGRAMS.throwing);
+      expect(threw.status).toBe("runtime_error");
+      expect(threw.stderr).toContain("std::out_of_range");
+      expect(isLearnerEvidence(threw.status)).toBe(true);
+
+      /* Integer division by zero is a SIGNAL. The process dies without printing
+         anything, and the only description is in Judge0's own `message` field,
+         which this provider deliberately does not forward. So the verdict is
+         right and the explanation is empty.
+         That is a real regression against CPython's `ZeroDivisionError`
+         traceback and it is asserted rather than glossed: if someone later
+         decides to surface `message` for signal statuses, this line fails and
+         they are made to think about what a vendor's internal text may say in
+         front of a classroom. */
+      const divided = await run(PROGRAMS.divZero);
+      expect(divided.status).toBe("runtime_error");
+      expect(divided.stderr).toBe("");
+      expect(isLearnerEvidence(divided.status)).toBe(true);
     },
     LIVE_TIMEOUT_MS,
   );
@@ -208,30 +231,35 @@ function conformanceMatrix(judge: () => Judge0RapidApiProvider) {
   );
 
   it(
-    "9. a hundred-and-one digit integer arrives exactly",
+    "9. a value past 32 bits arrives exactly",
     async () => {
-      /* Python's arbitrary-precision ints are a real curriculum fact and a real
-         serialisation hazard: anything that touched this number as a float
-         would return 1e+100. */
+      /* `3000000000LL * 2`. C++ has no arbitrary precision, so the curriculum
+         fact this defends is the one that actually bites: a learner who wrote
+         `long long` must get 6000000000 and not a value truncated to `int`.
+         Measured identical on both engines: docs/cpp17/CPP17_JUDGE_PARITY.md. */
       const r = await run(PROGRAMS.bigInt);
       expect(r.status).toBe("ok");
       expect(r.stdout.trim()).toBe(BIG_INT_TEXT);
-      expect(r.stdout.trim()).toHaveLength(101);
+      expect(Number(r.stdout.trim())).toBeGreaterThan(2 ** 32);
     },
     LIVE_TIMEOUT_MS,
   );
 
   it(
-    "10. the interpreter is a Python 3, and the provider says which",
+    "10. the compiler is a GCC new enough to default to C++17, and the provider says which",
     async () => {
       const language = await judge().language();
       expect(typeof language.id).toBe("number");
       /* An operator override reports `version: null` on purpose — an id with no
-         name behind it means nothing here knows which interpreter produced a
+         name behind it means nothing here knows which compiler produced a
          learner's evidence, and saying so is the honest answer. */
       if (!language.operatorOverride) {
-        expect(language.name).toMatch(/^Python\s*\(3/);
-        expect(language.version).toMatch(/^3\./);
+        expect(language.name).toMatch(/^C\+\+\s*\(GCC /);
+        /* The floor, asserted rather than assumed. `compiler_options` is 403 on
+           this plan, so a GCC older than 11 could not be told to use C++17 and
+           would compile the course's own syntax as C++14. */
+        const major = Number.parseInt((language.version ?? "0").split(".")[0], 10);
+        expect(major).toBeGreaterThanOrEqual(MIN_GNU_CXX17_MAJOR);
       }
     },
     LIVE_TIMEOUT_MS,
@@ -284,15 +312,29 @@ describe("judge0 conformance — against the protocol-faithful FAKE (no key, no 
     expect(fake.requests.filter((r) => r.method === "POST").length).toBeGreaterThan(0);
   });
 
-  it("asked the judge which Python it has, once, instead of hardcoding an id", () => {
+  it("asked the judge which C++ it has, once, instead of hardcoding an id", () => {
     const asked = fake.requests.filter((r) => r.path === "/languages");
     /* Cached per process per base URL: a dozen submissions, one catalogue. */
     expect(asked).toHaveLength(1);
     const posted = fake.requests.find((r) => r.method === "POST")!;
-    /* The highest PLAIN Python 3 — not the Python 2, and not `Python for ML`,
-       whose preloaded numpy would silently turn "standard library only" from a
-       guarantee enforced by absence into a preference. */
-    expect((posted.body as { language_id: number }).language_id).toBe(EXPECTED_PYTHON_ID);
+    /* The catalogue the fake serves is the real one, and four of its five C++
+       entries are traps: three GCCs and a Clang that all default to `gnu++14`
+       and cannot be told otherwise, because `compiler_options` is refused with
+       HTTP 403 on this plan. Landing on any of them would compile the course's
+       own syntax as C++14 and mark the learner wrong for what they were
+       taught. */
+    expect((posted.body as { language_id: number }).language_id).toBe(EXPECTED_CPP_ID);
+  });
+
+  it("never sends compiler_options, because the plan answers 403 to it", () => {
+    /* The standard has to come from the compiler's default, which is the whole
+       reason discovery insists on GCC 11 or newer. A well-meaning edit that
+       "just passes -std=c++17" would 403 every submission on this plan and take
+       the graded path down with it — silently, since a 403 normalises to an
+       infrastructure error and nothing about a learner is recorded. */
+    for (const posted of fake.requests.filter((r) => r.method === "POST")) {
+      expect(posted.body).not.toHaveProperty("compiler_options");
+    }
   });
 
   it("sent nothing the judge would have quietly reinterpreted", () => {

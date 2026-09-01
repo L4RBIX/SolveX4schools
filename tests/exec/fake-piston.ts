@@ -10,11 +10,20 @@ import type { AddressInfo } from "node:net";
  * contract. It proves ONE thing: that `PistonExecutionProvider` sends what
  * Piston accepts and correctly interprets everything Piston can send back.
  *
- * It proves NOTHING about a deployed Piston. It does not run Python, it does
- * not isolate anything, it has no cgroups and no containers. Every Python
- * result below is a fixture written to match what CPython actually prints —
- * the real-interpreter evidence lives in `tests/exec/execution.test.ts`, which
- * drives `LocalExecutionProvider` against a real `python3`.
+ * It proves NOTHING about a deployed Piston. It compiles nothing, it does not
+ * isolate anything, it has no cgroups and no containers. Every result below is
+ * a fixture written to match what a real toolchain produces — the
+ * real-compiler evidence lives in `tests/exec/execution.test.ts`, which drives
+ * `LocalExecutionProvider` against an actual `g++`.
+ *
+ * ## The open question this fake CANNOT close
+ *
+ * Piston drives C, C++ and D from one `gcc` package, and whether that package's
+ * run script passes `-std=c++17` is a property of the script rather than of
+ * GCC. Nobody has asked a real Piston. This fake will happily accept a request
+ * and answer with whatever fixture a test hands it, so a green run here says
+ * nothing about which standard a deployed judge would compile with. See
+ * `schools/execution/cpp-runtime.ts`, which records the question.
  *
  * The split is deliberate: adapter correctness and service correctness are
  * different claims, and a fake that pretended to be both would let a broken
@@ -127,9 +136,21 @@ export function stage(partial: {
   };
 }
 
-/** A python3 job that ran to completion. Piston sends no `compile` stage for python3. */
+/**
+ * A job that compiled and then ran to completion.
+ *
+ * The `compile` stage is present and successful, which is the shape that
+ * changed with the language: the python3 runtime had NO compile stage at all,
+ * so `body.compile` was always absent and a program that failed to start
+ * arrived indistinguishable from one that crashed. A gcc job always has one.
+ */
 export function pistonRun(partial: Parameters<typeof stage>[0]): PistonExecuteResponse {
-  return { language: "python", version: "3.12.0", run: stage(partial) };
+  return {
+    language: "c++",
+    version: "10.2.0",
+    compile: stage({ code: 0 }),
+    run: stage(partial),
+  };
 }
 
 /**
@@ -140,14 +161,27 @@ export function pistonRun(partial: Parameters<typeof stage>[0]): PistonExecuteRe
  * evidence — and it must never be read as the judge failing to answer.
  */
 export function pistonKilled(partialStdout = ""): PistonExecuteResponse {
-  return { language: "python", version: "3.12.0", run: stage({ stdout: partialStdout, code: null, signal: "SIGKILL" }) };
+  return {
+    language: "c++",
+    version: "10.2.0",
+    compile: stage({ code: 0 }),
+    run: stage({ stdout: partialStdout, code: null, signal: "SIGKILL" }),
+  };
 }
 
-/** A runtime with a real compile step, failing it. Kept for adapters other than python3. */
+/**
+ * A job that never compiled.
+ *
+ * No longer a shape "kept for adapters other than python3" — it is now the
+ * ORDINARY way a beginner's mistake arrives, and the run stage is empty because
+ * nothing ran. The adapter reads the compile stage's code and nothing else; it
+ * has no heuristic over the diagnostics, and this fixture is what makes that
+ * safe to rely on.
+ */
 export function pistonCompileFailure(stderr: string): PistonExecuteResponse {
   return {
-    language: "python",
-    version: "3.12.0",
+    language: "c++",
+    version: "10.2.0",
     compile: stage({ stderr, code: 1 }),
     // Piston still sends a run stage; it is empty because the job never ran.
     run: stage({ code: null }),

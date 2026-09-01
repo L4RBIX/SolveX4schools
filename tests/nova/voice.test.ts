@@ -46,14 +46,14 @@ describe("the linter catches the tells it exists for", () => {
   });
 
   it("flags two questions in one short reply", () => {
-    const f = lintVoice("Что внутри кавычек? И что делает print?", { locale: "ru" });
+    const f = lintVoice("Что внутри кавычек? И что делает cout?", { locale: "ru" });
     expect(f.map((x) => x.code)).toContain("multiple_questions");
   });
 
   it("flags a reply that reads the task back", () => {
     const prompt = "Прочитай число и выведи его вдвое больше значения";
     const f = lintVoice(
-      "Задание просит прочитай число и выведи его вдвое больше значения, поэтому смотри на input.",
+      "Задание просит прочитай число и выведи его вдвое больше значения, поэтому смотри на cin.",
       { locale: "ru", prompt },
     );
     expect(f.map((x) => x.code)).toContain("restates_task");
@@ -63,7 +63,7 @@ describe("the linter catches the tells it exists for", () => {
     /* The shape the contract is asking for. If this ever trips, the linter has
        started punishing the thing it exists to encourage. */
     const f = lintVoice(
-      'Внутри кавычек в `print("2 + 2")` стоит текст. Что Python делает с текстом в кавычках?',
+      'Внутри кавычек в `cout << "2 + 2"` стоит текст. Что попадёт на экран?',
       { locale: "ru", prompt: "Что выведет эта программа?" },
     );
     expect(f, JSON.stringify(f)).toHaveLength(0);
@@ -71,7 +71,7 @@ describe("the linter catches the tells it exists for", () => {
 
   it("does NOT flag the Kazakh equivalent", () => {
     const f = lintVoice(
-      '`print("2 + 2")` ішіндегі тырнақшаға қара. Тырнақша ішіндегі мәтінмен Python не істейді?',
+      '`cout << "2 + 2"` ішіндегі тырнақшаға қара. Экранға не шығады?',
       { locale: "kk", prompt: "Бұл бағдарлама экранға нені шығарады?" },
     );
     expect(f, JSON.stringify(f)).toHaveLength(0);
@@ -205,7 +205,7 @@ describe("the fixture set covers what it claims to", () => {
 
   it("covers all thirteen situations in both languages", () => {
     const wanted = [
-      "wrong_mcq", "wrong_prediction", "syntax_error", "runtime_error",
+      "wrong_mcq", "wrong_prediction", "compile_error", "runtime_error",
       "string_int_confusion", "condition_boundary", "successful_correction",
       "stuck", "productive_struggle", "assistance_dependent", "strong_learner",
       "assessment", "no_attempt_since_hint",

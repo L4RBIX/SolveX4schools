@@ -282,10 +282,10 @@ export const M5_L6: LessonBlock[] = [
      *
      * The answer is a COUNT rather than `left` itself, and that is not
      * decoration. `m5.l2.b7` already has the learner turn a yes/no search into
-     * one that prints `left` — so a block whose repair is the line `print(left)`
+     * one that prints `left` — so a block whose repair is the line `cout << left`
      * would be answerable from memory of a task they finished two lessons ago,
      * without ever asking what `right` holds at exit. Wrapping the answer in
-     * `len(a) - ...` keeps the defect (the wrong one of two variables) and
+     * `n - ...` keeps the defect (the wrong one of two variables) and
      * removes the recall shortcut.
      */
     id: "m5.l6.b6",

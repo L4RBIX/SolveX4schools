@@ -179,7 +179,7 @@ describe("the guard around the provider", () => {
     const guarded = limits.sizeGuarded(spy);
 
     const result = await guarded.run({
-      language: "python3",
+      language: "cpp17",
       sourceCode: "x".repeat(provider.EXECUTION_LIMITS.maxSourceBytes + 1),
       stdin: "",
       timeLimitMs: 1000,
@@ -198,7 +198,7 @@ describe("the guard around the provider", () => {
        ran. */
     const guarded = limits.sizeGuarded(spy);
     const result = await guarded.run({
-      language: "python3",
+      language: "cpp17",
       sourceCode: "print(1)",
       stdin: "x".repeat(provider.EXECUTION_LIMITS.maxStdinBytes + 1),
       timeLimitMs: 1000,
@@ -213,7 +213,7 @@ describe("the guard around the provider", () => {
     spy.calls = 0;
     const guarded = limits.sizeGuarded(spy);
     await guarded.run({
-      language: "python3",
+      language: "cpp17",
       sourceCode: "n = int(input())\nprint(n * n)",
       stdin: "5\n",
       timeLimitMs: 1000,
@@ -227,7 +227,7 @@ describe("the guard around the provider", () => {
     const secret = "SECRET_LEARNER_TEXT";
     const guarded = limits.sizeGuarded(spy);
     const result = await guarded.run({
-      language: "python3",
+      language: "cpp17",
       sourceCode: secret + "x".repeat(provider.EXECUTION_LIMITS.maxSourceBytes),
       stdin: "",
       timeLimitMs: 1000,
@@ -295,7 +295,7 @@ describe("POST /api/exec/run refuses oversized work", () => {
        submission twice. Nothing of the sort belongs here: running the same
        program again is the entire point of a Run button, and this route writes
        no evidence for a second run to corrupt. */
-    const source = "print(6 * 7)";
+    const source = '#include <iostream>\nint main() { std::cout << 6 * 7 << "\\n"; }\n';
     const first = await postRun({ sourceCode: source, stdin: "" });
     const second = await postRun({ sourceCode: source, stdin: "" });
 

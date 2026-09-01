@@ -56,6 +56,29 @@ import type { LessonBlock } from "../../types";
  * teacher to watch with their own eyes. The lesson declares the contest skills in
  * `month-09-may.ts`; the problems declare what they really measure.
  *
+ * ## Every input carries its own count, and where the C++ shapes changed
+ *
+ * A used to open with a bare line of words. In C++ a line of unknown length
+ * needs `while (cin >> x)`, an idiom the year has never shown, so A now states n
+ * first — which it already did — and the words are read one at a time with
+ * `cin >> w`, which is September's `cin` applied to a `string`. Nothing else
+ * about any statement changed shape.
+ *
+ * Two of the five reference solutions pass their data by reference (`&`) rather
+ * than reaching for a global, because November taught `&` and nothing in the
+ * year taught a global. D's fill and E's wave are the two, and their signatures
+ * are longer for it; that is the honest price of staying inside what the course
+ * has actually shown.
+ *
+ * ## Where `int` is enough, checked rather than assumed
+ *
+ * All five. A counts at most 1000 passwords; B counts at most 161 700 triples;
+ * C's values are bounded by 10⁹ and every intermediate is a remainder of two of
+ * them; D counts at most 400 cells; E's distances are at most 60 · 60 = 3600 on
+ * each of two legs. Nothing here can leave `int`, and no reference solution
+ * reaches for `long long` to look careful — a month where the answer is always
+ * `long long` teaches a reflex instead of the check `m9.l2.b1` asks for.
+ *
  * ## The structural requirements, and which honest option each took
  *
  * A wants a helper function; C wants a self-calling one. Output comparison sees
@@ -73,18 +96,31 @@ import type { LessonBlock } from "../../types";
  *     broke a rule that was never checked.
  *   · E takes **option 1**, the only place it genuinely works: the 25 × 25 open
  *     map in its hidden cases cannot be answered by walking routes one at a time.
- *     The wave finishes it instantly; enumeration does not finish at all. That is
- *     a constraint the other method cannot meet, not a sentence in a prompt.
+ *     The wave finishes it instantly; enumeration does not finish at all, in any
+ *     language, because the number of routes is exponential and a constant factor
+ *     does not touch it. That is a constraint the other method cannot meet, not a
+ *     sentence in a prompt.
  *
- * ## What the stated bounds promise and what the cases can prove
+ * ## What the stated bounds promise and what the cases can prove, re-measured
  *
- * B says n ≤ 100 to make exhaustive checking of every triple legitimate, and C
- * says a[i] ≤ 10⁹ to rule out trying every divisor from the smallest number
- * downwards. Those bounds are real contest constraints and they are the
- * statement telling the learner which method it wants. What they are NOT is
- * something this judge measures: except for E's big map, the cases are small and
- * a needlessly slow but correct program passes them. Recorded here rather than
- * dressed up; no prompt claims the checker times anything.
+ * B says n ≤ 100 to make exhaustive checking of every triple legitimate, and
+ * that is a promise the statement keeps rather than a guard.
+ *
+ * C says a[i] ≤ 10⁹ to rule out trying every divisor from the smallest number
+ * downwards, and under Python the two nine-digit primes in its hidden cases were
+ * a real guard: a billion trial divisions did not finish. **Re-measured under
+ * C++17 at -O2, that same scan takes about 2 s of CPU** — inside the judge's 5 s
+ * budget, so it now passes. The case stays because the ANSWER is still worth
+ * testing (two coprime primes must give 1), but it no longer rules the slow
+ * method out, and this file says so rather than carrying the old claim. Raising
+ * the bound would not help: the scan is linear in the value, and the value is
+ * already at the top of `int`. Making it a real guard would mean generating the
+ * data in-program the way `m9.c1.p4` now does, and C's data is two numbers —
+ * there is nothing to generate.
+ *
+ * D and E's cases are small except for E's big map, and a needlessly slow but
+ * correct program passes them. Recorded here rather than dressed up; no prompt
+ * claims the checker times anything.
  *
  * ## No `tracks`
  *
@@ -99,17 +135,26 @@ export const M9_C2: LessonBlock[] = [
     /*
      * A · five minutes. OCTOBER for the traversal of a list of words and for
      * «жолды таңбалар тізбегі ретінде өңдеу» (m2.l6), NOVEMBER for the helper
-     * that takes one word and returns a verdict (m3.l1–l3, m3.l5). The `in`
-     * test against a string of digits is October's `logic.in`, shown in m2.
+     * that takes one word and returns a verdict (m3.l1–l3, m3.l5).
      *
-     * The three conditions are joined by `and` on purpose: each one alone is a
+     * The `in "0123456789"` test the Python version used has no C++ spelling the
+     * year has shown, so the digit test is the comparison September taught:
+     * `w[i] >= '0' && w[i] <= '9'`. A character IS a number in C++, and that is
+     * the one language fact this problem leans on that Python did not have; it
+     * needs no new topic, only `&&` from September and indexing from October.
+     *
+     * The helper returns `int` rather than `bool` for the same reason every
+     * other flag in this month is an `int`: the year has never shown `bool`, and
+     * a contest is the wrong place to meet a type for the first time.
+     *
+     * The three conditions are joined by `&&` on purpose: each one alone is a
      * program a learner in a hurry writes, and each has its own case.
      *
      * The degenerate programs, and what kills each:
      *   · length only, ignoring digits and letters — «abcdefgh» answers 1, the
      *     truth is 0;
      *   · length + digit, forgetting the letter — «12345678» answers 1, truth 0;
-     *   · `or` where `and` belongs — «a123456» is seven characters with both a
+     *   · `||` where `&&` belongs — «a123456» is seven characters with both a
      *     digit and a letter and answers 1, truth 0;
      *   · `>` instead of `>=` on 8 — «a1234567» sits exactly on the boundary and
      *     answers 0, truth 1;
@@ -124,31 +169,38 @@ export const M9_C2: LessonBlock[] = [
     skillRefs: ["func.define", "func.return", "strings.sequence", "lists.traverse", "loops.counter"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**A. Мықты құпиясөз.**\n\nМектеп сайтына тіркелу кезінде оқушылар n құпиясөз ұсынды. Әр құпиясөз тек кіші латын әріптерінен және цифрлардан тұрады.\n\nҚұпиясөзді МЫҚТЫ деп атаймыз, егер ол мына үш шартты бірдей қанағаттандырса: ұзындығы кемінде 8 таңба; ішінде кемінде бір цифр бар; ішінде кемінде бір әріп бар. Осы үшеуінің біреуі орындалмаса, құпиясөз мықты болмайды.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n құпиясөз; әрқайсысының ұзындығы 1-ден 20-ға дейін.\n\n**Шығыс.** Бір бүтін сан — мықты құпиясөздердің саны. Мықты құпиясөз болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n4\nabc12 password1 12345678 qwertyui9\n```\n\nЖауап: `2`. Мықтылары — `password1` және `qwertyui9`. `abc12` тым қысқа, ал `12345678`-де бірде-бір әріп жоқ.\n\n**Кеңес.** Бір құпиясөзді тексеретін жеке функция жазып, оны әр құпиясөзге шақырған ыңғайлы. Бұл — кеңес, талап емес: тексеру жүйесі тек шыққан санды салыстырады.",
-      ru: "**A. Надёжный пароль.**\n\nПри регистрации на школьном сайте ученики предложили n паролей. Каждый пароль состоит только из строчных латинских букв и цифр.\n\nНазовём пароль НАДЁЖНЫМ, если у него есть все три свойства: длина не меньше 8 символов, внутри есть хотя бы одна цифра, внутри есть хотя бы одна буква. Если хотя бы одно из трёх не выполнено, пароль ненадёжный.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 1000). Во второй строке через пробел n паролей; длина каждого от 1 до 20.\n\n**Выход.** Одно целое число — количество надёжных паролей. Если надёжных нет, выведи 0.\n\n**Пример.**\n\n```\n4\nabc12 password1 12345678 qwertyui9\n```\n\nОтвет: `2`. Надёжны `password1` и `qwertyui9`. Пароль `abc12` слишком короткий, а в `12345678` нет ни одной буквы.\n\n**Совет.** Удобно написать отдельную функцию, которая проверяет один пароль, и вызывать её для каждого. Это совет, а не требование: проверяющая система сравнивает только выведенное число.",
+      kk: "**A. Мықты құпиясөз.**\n\nМектеп сайтына тіркелу кезінде оқушылар n құпиясөз ұсынды. Әр құпиясөз тек кіші латын әріптерінен және цифрлардан тұрады.\n\nҚұпиясөзді МЫҚТЫ деп атаймыз, егер ол мына үш шартты бірдей қанағаттандырса: ұзындығы кемінде 8 таңба; ішінде кемінде бір цифр бар; ішінде кемінде бір әріп бар. Осы үшеуінің біреуі орындалмаса, құпиясөз мықты болмайды.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n құпиясөз; әрқайсысының ұзындығы 1-ден 20-ға дейін.\n\n**Шығыс.** Бір бүтін сан — мықты құпиясөздердің саны. Мықты құпиясөз болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n4\nabc12 password1 12345678 qwertyui9\n```\n\nЖауап: `2`. Мықтылары — `password1` және `qwertyui9`. `abc12` тым қысқа, ал `12345678`-де бірде-бір әріп жоқ.\n\n**Кеңес.** Бір құпиясөзді тексеретін жеке функция жазып, оны әр құпиясөзге шақырған ыңғайлы. Таңба цифр екенін `w[i] >= '0' && w[i] <= '9'` арқылы тексересің. Бұл — кеңес, талап емес: тексеру жүйесі тек шыққан санды салыстырады.",
+      ru: "**A. Надёжный пароль.**\n\nПри регистрации на школьном сайте ученики предложили n паролей. Каждый пароль состоит только из строчных латинских букв и цифр.\n\nНазовём пароль НАДЁЖНЫМ, если у него есть все три свойства: длина не меньше 8 символов, внутри есть хотя бы одна цифра, внутри есть хотя бы одна буква. Если хотя бы одно из трёх не выполнено, пароль ненадёжный.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 1000). Во второй строке через пробел n паролей; длина каждого от 1 до 20.\n\n**Выход.** Одно целое число — количество надёжных паролей. Если надёжных нет, выведи 0.\n\n**Пример.**\n\n```\n4\nabc12 password1 12345678 qwertyui9\n```\n\nОтвет: `2`. Надёжны `password1` и `qwertyui9`. Пароль `abc12` слишком короткий, а в `12345678` нет ни одной буквы.\n\n**Совет.** Удобно написать отдельную функцию, которая проверяет один пароль, и вызывать её для каждого. Символ является цифрой, если `w[i] >= '0' && w[i] <= '9'`. Это совет, а не требование: проверяющая система сравнивает только выведенное число.",
     },
     referenceSolution:
-      "def is_strong(w):\n" +
-      "    if len(w) < 8:\n" +
-      "        return False\n" +
-      "    digits = 0\n" +
-      "    letters = 0\n" +
-      "    for i in range(len(w)):\n" +
-      '        if w[i] in "0123456789":\n' +
-      "            digits = digits + 1\n" +
-      "        else:\n" +
-      "            letters = letters + 1\n" +
-      "    if digits > 0 and letters > 0:\n" +
-      "        return True\n" +
-      "    return False\n" +
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "words = input().split()\n" +
-      "count = 0\n" +
-      "for i in range(n):\n" +
-      "    if is_strong(words[i]):\n" +
-      "        count = count + 1\n" +
-      "print(count)",
+      "int is_strong(string w) {\n" +
+      "    int len = w.size();\n" +
+      "    if (len < 8) return 0;\n" +
+      "    int digits = 0;\n" +
+      "    int letters = 0;\n" +
+      "    for (int i = 0; i < len; i++) {\n" +
+      "        if (w[i] >= '0' && w[i] <= '9') digits = digits + 1;\n" +
+      "        else letters = letters + 1;\n" +
+      "    }\n" +
+      "    if (digits > 0 && letters > 0) return 1;\n" +
+      "    return 0;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    int count = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string w;\n" +
+      "        cin >> w;\n" +
+      "        if (is_strong(w) == 1) count = count + 1;\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\nabc12 password1 12345678 qwertyui9", expectedOutput: "2" },
       /* Eight letters, not one digit: this is what "length only" dies on. */
@@ -180,7 +232,11 @@ export const M9_C2: LessonBlock[] = [
      * n ≤ 100 is what makes the exhaustive check legitimate rather than lazy:
      * 161 700 triples is the whole search space and the statement says so out
      * loud, because February's point is knowing WHEN checking everything is
-     * allowed. The 100-ones case below is that number exactly.
+     * allowed. The 100-ones case below is that number exactly, and at C++'s
+     * ~10⁸ operations a second it is under a hundredth of a second.
+     *
+     * Every value here is at most 1000 and the count at most 161 700, so `int`
+     * is enough everywhere and `x + y` cannot overflow.
      *
      * The degenerate programs, and what kills each:
      *   · checking only a[i] + a[j] > a[k] and trusting the input order —
@@ -200,22 +256,32 @@ export const M9_C2: LessonBlock[] = [
     skillRefs: ["enumerate.all", "loops.nested", "logic.and_or_not", "compare.operators"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**B. Үшбұрыш құрайтын үштіктер.**\n\nШеберханада n таяқша жатыр, i-таяқшаның ұзындығы a[i]. Үш таяқшадан ауданы нөлден үлкен үшбұрыш құрастыруға болады, егер кез келген екеуінің ұзындықтарының қосындысы үшіншісінен ҚАТАҢ үлкен болса. Қосынды үшіншісіне дәл тең болса, үшбұрыш шықпайды — таяқшалар бір түзудің бойына түседі.\n\nОсындай үштік нешеу?\n\nТаяқшалар өз орнымен ажыратылады: ұзындығы бірдей екеуі — бәрібір екі бөлек таяқша, ал бір таяқшаны бір үштікте екі рет алуға болмайды.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 100). Екінші жолда бос орынмен бөлінген n бүтін сан: a[1] … a[n] (1 ≤ a[i] ≤ 1000).\n\n**Шығыс.** Бір бүтін сан — үшбұрыш құрайтын үштіктердің саны. Бірде-бір үштік болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n4\n3 4 5 10\n```\n\nЖауап: `1` — тек (3, 4, 5). Мысалы (4, 5, 10) жарамайды: 4 + 5 = 9, ал 9 < 10.\n\nn 100-ден аспайды, сондықтан үштіктердің бәрін бірінен соң бірін тексеріп шығуға уақыт жетеді.",
-      ru: "**B. Тройки, из которых складывается треугольник.**\n\nВ мастерской лежат n палочек, длина i-й равна a[i]. Из трёх палочек можно сложить треугольник с ненулевой площадью, если сумма длин любых двух СТРОГО больше третьей. Если сумма в точности равна третьей, треугольника не получится — палочки лягут на одну прямую.\n\nСколько существует таких троек?\n\nПалочки различаются своим местом: две палочки одинаковой длины — всё равно две разные палочки, а одну и ту же палочку взять в тройку дважды нельзя.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 100). Во второй строке через пробел n целых чисел: a[1] … a[n] (1 ≤ a[i] ≤ 1000).\n\n**Выход.** Одно целое число — количество троек, из которых складывается треугольник. Если таких троек нет, выведи 0.\n\n**Пример.**\n\n```\n4\n3 4 5 10\n```\n\nОтвет: `1` — только (3, 4, 5). Например, (4, 5, 10) не подходит: 4 + 5 = 9, а 9 < 10.\n\nn не превышает 100, поэтому времени хватит, чтобы перебрать все тройки подряд.",
+      kk: "**B. Үшбұрыш құрайтын үштіктер.**\n\nШеберханада n таяқша жатыр, i-таяқшаның ұзындығы a[i]. Үш таяқшадан ауданы нөлден үлкен үшбұрыш құрастыруға болады, егер кез келген екеуінің ұзындықтарының қосындысы үшіншісінен ҚАТАҢ үлкен болса. Қосынды үшіншісіне дәл тең болса, үшбұрыш шықпайды — таяқшалар бір түзудің бойына түседі.\n\nОсындай үштік нешеу?\n\nТаяқшалар өз орнымен ажыратылады: ұзындығы бірдей екеуі — бәрібір екі бөлек таяқша, ал бір таяқшаны бір үштікте екі рет алуға болмайды.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 100). Екінші жолда бос орынмен бөлінген n бүтін сан: a[1] … a[n] (1 ≤ a[i] ≤ 1000).\n\n**Шығыс.** Бір бүтін сан — үшбұрыш құрайтын үштіктердің саны. Бірде-бір үштік болмаса, 0 шығар.\n\n**Мысал.**\n\n```\n4\n3 4 5 10\n```\n\nЖауап: `1` — тек (3, 4, 5). Мысалы (4, 5, 10) жарамайды: 4 + 5 = 9, ал 9 < 10.\n\nn 100-ден аспайды, сондықтан үштіктердің бәрін бірінен соң бірін тексеріп шығуға уақыт жетеді: олардың саны ең көбі 161 700, ал C++ бір секундта шамамен 100 000 000 әрекет жасайды.",
+      ru: "**B. Тройки, из которых складывается треугольник.**\n\nВ мастерской лежат n палочек, длина i-й равна a[i]. Из трёх палочек можно сложить треугольник с ненулевой площадью, если сумма длин любых двух СТРОГО больше третьей. Если сумма в точности равна третьей, треугольника не получится — палочки лягут на одну прямую.\n\nСколько существует таких троек?\n\nПалочки различаются своим местом: две палочки одинаковой длины — всё равно две разные палочки, а одну и ту же палочку взять в тройку дважды нельзя.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 100). Во второй строке через пробел n целых чисел: a[1] … a[n] (1 ≤ a[i] ≤ 1000).\n\n**Выход.** Одно целое число — количество троек, из которых складывается треугольник. Если таких троек нет, выведи 0.\n\n**Пример.**\n\n```\n4\n3 4 5 10\n```\n\nОтвет: `1` — только (3, 4, 5). Например, (4, 5, 10) не подходит: 4 + 5 = 9, а 9 < 10.\n\nn не превышает 100, поэтому времени хватит, чтобы перебрать все тройки подряд: их не больше 161 700, а C++ успевает около 100 000 000 действий в секунду.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "total = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(i + 1, n):\n" +
-      "        for k in range(j + 1, n):\n" +
-      "            x = a[i]\n" +
-      "            y = a[j]\n" +
-      "            z = a[k]\n" +
-      "            if x + y > z and x + z > y and y + z > x:\n" +
-      "                total = total + 1\n" +
-      "print(total)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int total = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = i + 1; j < n; j++) {\n" +
+      "            for (int k = j + 1; k < n; k++) {\n" +
+      "                int x = a[i];\n" +
+      "                int y = a[j];\n" +
+      "                int z = a[k];\n" +
+      "                if (x + y > z && x + z > y && y + z > x) total = total + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << total;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\n3 4 5 10", expectedOutput: "1" },
       /* 1 + 2 = 3 exactly: the boundary, and what `>=` dies on. */
@@ -261,23 +327,25 @@ export const M9_C2: LessonBlock[] = [
      * can be built two at a time is an arithmetic fact, not a programming
      * technique, and withholding it would test maths the year never covered.
      *
+     * `a % b` on two POSITIVE numbers is the same operation in both languages —
+     * every value here is at least 1, so C++'s negative-remainder rule never
+     * comes into play and no expected output changed.
+     *
      * NO RULE ABOUT RECURSION IS STATED. A learner who turns the recurrence into
      * a `while` loop prints the same number and is correct; a checker cannot see
      * the difference, so the prompt does not pretend to.
      *
-     * AND ONE THING THE JUDGE GENUINELY CANNOT STOP. The runner is plain
-     * `python3`, so a learner who already knows `math.gcd` can import it and be
-     * marked correct. Nothing here pretends otherwise. What the titles do is
-     * decline to hand over the search term: both are «the common divisor of all
-     * the numbers» rather than the textbook name of the function, so nobody is
-     * pointed at a library by the statement. The year has shown no import in any
-     * lesson, and the recurrence in the statement is the route the course has
-     * actually prepared a fourteen-year-old to take.
+     * AND ONE THING THE JUDGE GENUINELY CANNOT STOP. `bits/stdc++.h` brings in
+     * `__gcd` on both engines and `std::gcd` from `<numeric>` on the judge's GCC,
+     * so a learner who already knows either can call it and be marked correct.
+     * Nothing here pretends otherwise. What the titles do is decline to hand over
+     * the search term: both are «the common divisor of all the numbers» rather
+     * than the textbook name of the function, so nobody is pointed at a library
+     * by the statement. The year has shown no such call in any lesson, and the
+     * recurrence in the statement is the route the course has actually prepared a
+     * fourteen-year-old to take.
      *
      * The degenerate programs, and what kills each:
-     *   · every divisor tried from the smallest number downwards — the two
-     *     nine-digit primes need a billion steps and finish nowhere near the
-     *     clock, while the intended solution answers in an instant;
      *   · the smallest number printed as the answer — the sample already
      *     answers 12 instead of 6, and «12 18 25» answers 12 instead of 1;
      *   · only the first two numbers folded — «12 18 25» answers 6, truth 1;
@@ -285,35 +353,51 @@ export const M9_C2: LessonBlock[] = [
      *   · a fold that starts at a[1] and forgets a[0] — «5 10 20 40» answers 10,
      *     truth 5;
      *   · the stop rule omitted, or the arguments swapped to f(a % b, b) — every
-     *     case, with a RecursionError;
+     *     case. In C++ that is not a `RecursionError` with a message: it is a
+     *     stack overflow, the program stops with nothing readable attached, and
+     *     m9.l2.b1's third point is where the learner was told to expect exactly
+     *     that;
      *   · n = 1 not surviving the loop — one number is a legal input and its own
      *     answer.
+     *
+     * NOT killed any more: every divisor tried from the smallest number
+     * downwards. Under Python the two nine-digit primes made that a billion
+     * trial divisions and it did not finish; re-measured in C++ at -O2 it takes
+     * about 2 s of CPU and passes. The case is kept for its answer, not for its
+     * clock, and the file header says so.
      */
     id: "m9.c2.p3",
     type: "challenge",
     skillRefs: ["recursion.core", "recursion.base_case", "func.return", "arith.remainder"],
     sourceType: "product-authored",
     prompt: {
-      kk: "**C. Барлығының ортақ бөлгіші.**\n\nn бүтін сан берілген. Солардың бәрін қалдықсыз бөлетін ең үлкен санды тап.\n\nЕкі санның ең үлкен ортақ бөлгішін f деп белгілейік. Оны мына екі ереже толық анықтайды:\n\n· f(a, 0) = a;\n· f(a, b) = f(b, a % b), егер b > 0 болса.\n\nЕкінші ереже f-ті өзін-өзі шақыруға мәжбүрлейді, ал әр шақыруда екінші сан кішірейеді. Сондықтан b ерте ме, кеш пе нөлге айналады да, тоқтау шарты болып тұрған бірінші ереже жұмысты аяқтайды.\n\nБірнеше санның ортақ бөлгіші жұптап есептеледі: алдымен алғашқы екеуінің ортақ бөлгішін тап, содан кейін шыққан нәтиже мен келесі санның, әрі қарай солай.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 500). Екінші жолда бос орынмен бөлінген n бүтін сан (1 ≤ a[i] ≤ 1 000 000 000).\n\n**Шығыс.** Бір бүтін сан — берілген сандардың бәрін бөлетін ең үлкен сан.\n\n**Мысал.**\n\n```\n4\n12 18 30 42\n```\n\nЖауап: `6`.\n\nСандар миллиардқа дейін жетеді, сондықтан ең кіші саннан бастап әр бөлгішті бірінен соң бірін сынап көруге уақыт жетпейді.",
-      ru: "**C. Общий делитель всех чисел.**\n\nДаны n целых чисел. Найди наибольшее число, на которое все они делятся без остатка.\n\nОбозначим наибольший общий делитель двух чисел через f. Его полностью задают два правила:\n\n· f(a, 0) = a;\n· f(a, b) = f(b, a % b), если b > 0.\n\nВторое правило заставляет f вызывать саму себя, и на каждом вызове второе число уменьшается. Значит, рано или поздно b станет нулём и сработает первое правило — условие остановки.\n\nОбщий делитель нескольких чисел считается по парам: сначала найди общий делитель первых двух, потом — полученного результата и следующего числа, и так далее.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 500). Во второй строке через пробел n целых чисел (1 ≤ a[i] ≤ 1 000 000 000).\n\n**Выход.** Одно целое число — наибольшее число, на которое делятся все данные числа.\n\n**Пример.**\n\n```\n4\n12 18 30 42\n```\n\nОтвет: `6`.\n\nЧисла доходят до миллиарда, поэтому перебирать делители подряд, начиная с наименьшего из чисел, времени не хватит.",
+      kk: "**C. Барлығының ортақ бөлгіші.**\n\nn бүтін сан берілген. Солардың бәрін қалдықсыз бөлетін ең үлкен санды тап.\n\nЕкі санның ең үлкен ортақ бөлгішін f деп белгілейік. Оны мына екі ереже толық анықтайды:\n\n· f(a, 0) = a;\n· f(a, b) = f(b, a % b), егер b > 0 болса.\n\nЕкінші ереже f-ті өзін-өзі шақыруға мәжбүрлейді, ал әр шақыруда екінші сан кішірейеді. Сондықтан b ерте ме, кеш пе нөлге айналады да, тоқтау шарты болып тұрған бірінші ереже жұмысты аяқтайды. Тоқтау шартын ұмытсаң, C++ саған ешқандай хабарлама бермейді: бағдарлама жай ғана тоқтап қалады.\n\nБірнеше санның ортақ бөлгіші жұптап есептеледі: алдымен алғашқы екеуінің ортақ бөлгішін тап, содан кейін шыққан нәтиже мен келесі санның, әрі қарай солай.\n\n**Кіріс.** Бірінші жолда n саны (1 ≤ n ≤ 500). Екінші жолда бос орынмен бөлінген n бүтін сан (1 ≤ a[i] ≤ 1 000 000 000).\n\n**Шығыс.** Бір бүтін сан — берілген сандардың бәрін бөлетін ең үлкен сан.\n\n**Мысал.**\n\n```\n4\n12 18 30 42\n```\n\nЖауап: `6`.\n\nСандар миллиардқа дейін жетеді, сондықтан ең кіші саннан бастап әр бөлгішті бірінен соң бірін сынап көру миллиард қадам алар еді.",
+      ru: "**C. Общий делитель всех чисел.**\n\nДаны n целых чисел. Найди наибольшее число, на которое все они делятся без остатка.\n\nОбозначим наибольший общий делитель двух чисел через f. Его полностью задают два правила:\n\n· f(a, 0) = a;\n· f(a, b) = f(b, a % b), если b > 0.\n\nВторое правило заставляет f вызывать саму себя, и на каждом вызове второе число уменьшается. Значит, рано или поздно b станет нулём и сработает первое правило — условие остановки. Если забыть про условие остановки, C++ не выдаст никакого сообщения: программа просто остановится.\n\nОбщий делитель нескольких чисел считается по парам: сначала найди общий делитель первых двух, потом — полученного результата и следующего числа, и так далее.\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 500). Во второй строке через пробел n целых чисел (1 ≤ a[i] ≤ 1 000 000 000).\n\n**Выход.** Одно целое число — наибольшее число, на которое делятся все данные числа.\n\n**Пример.**\n\n```\n4\n12 18 30 42\n```\n\nОтвет: `6`.\n\nЧисла доходят до миллиарда, поэтому перебор делителей подряд, начиная с наименьшего из чисел, занял бы миллиард шагов.",
     },
     referenceSolution:
-      "def common(a, b):\n" +
-      "    if b == 0:\n" +
-      "        return a\n" +
-      "    return common(b, a % b)\n" +
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "g = a[0]\n" +
-      "for i in range(1, n):\n" +
-      "    g = common(g, a[i])\n" +
-      "print(g)",
+      "int common(int a, int b) {\n" +
+      "    if (b == 0) return a;\n" +
+      "    return common(b, a % b);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int g = a[0];\n" +
+      "    for (int i = 1; i < n; i++) g = common(g, a[i]);\n" +
+      "    cout << g;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\n12 18 30 42", expectedOutput: "6" },
       /* One number, at the top of the range: it is its own answer. */
       { input: "1\n1000000000", expectedOutput: "1000000000", hidden: true },
-      /* Two nine-digit primes: the divisor scan needs a billion steps. */
+      /* Two nine-digit primes: the answer is 1 and nothing shares a factor. */
       { input: "2\n999999937 999999893", expectedOutput: "1", hidden: true },
       /* Folding only the first two answers 6; the third number breaks it. */
       { input: "3\n12 18 25", expectedOutput: "1", hidden: true },
@@ -346,10 +430,19 @@ export const M9_C2: LessonBlock[] = [
      * afterwards — and printing the reachable count instead of the unreachable
      * one is the first mistake the sample is built to catch.
      *
-     * n, m ≤ 20 is deliberate and it is not laziness: a recursive fill on a
-     * fully open map reaches a depth equal to the number of free cells, and 400
-     * frames is comfortable where 2500 would end the contest in a crash for a
-     * reason that has nothing to do with the problem.
+     * WHY n, m ≤ 20, RE-DERIVED. Under Python the bound was about recursion
+     * depth: a recursive fill on a fully open map reaches a depth equal to the
+     * number of free cells, and CPython's default limit of 1000 turned 2500 into
+     * a crash. **In C++ that reason is gone** — 2 500 frames of a four-variable
+     * function is a few hundred kilobytes of an eight-megabyte stack, and even
+     * 10 000 would be comfortable. The bound stays because of what it is now
+     * for: an eleven-minute contest problem whose map has to be printable inside
+     * a statement and readable by a fourteen-year-old, and a 20 × 20 map is
+     * that. It is no longer protecting anybody from a crash, and this comment
+     * says so rather than carrying the old reason forward.
+     *
+     * The fill passes the map and the visited grid by reference, because
+     * November taught `&` and nothing in this year taught a global variable.
      *
      * The degenerate programs, and what kills each:
      *   · the reachable count printed instead of the unreachable one — the
@@ -357,14 +450,16 @@ export const M9_C2: LessonBlock[] = [
      *   · diagonal moves allowed — the 2 × 2 map «.#» / «#.» answers 0, truth 1;
      *   · the start cell never marked, so it counts itself as unreached — the
      *     1 × 1 map and the walled-in guard both answer 1 instead of 0;
-     *   · the bounds check missing, so index −1 wraps to the far side of the map
-     *     — «..#» / «###» / «#..» is built so that row −1 is the last row and
-     *     joins two regions that do not touch. Such a program either reaches the
-     *     bottom region through the wrap or falls over on an index past the end
-     *     of a row; the truth is 2 and neither outcome is 2;
+     *   · the bounds check missing. In Python index −1 wrapped to the far side
+     *     of the map, which was wrong but defined; in C++ it is undefined
+     *     behaviour — there is no wrap, the program reads memory that is not the
+     *     map, and it either stops with nothing readable attached or prints a
+     *     number that is not the answer. «..#» / «###» / «#..» is the case built
+     *     for it: the truth is 2 and neither outcome is 2;
      *   · the visited mark set after the recursive call instead of before, the
      *     error March's page names by hand («бір ұяшықтың екі рет өңделуіне
-     *     әкелетін қате») — the 20 × 20 open map never finishes;
+     *     әкелетін қате») — the 20 × 20 open map never finishes, because that
+     *     defect is exponential and a faster language does not touch it;
      *   · walls treated as walkable — the sample answers 0.
      * The unreachable cell sits in the very last scanned position in one case
      * and the very first in another, so a scan with either bound wrong is seen.
@@ -378,32 +473,40 @@ export const M9_C2: LessonBlock[] = [
       ru: "**D. Клетки, до которых охранник не дойдёт.**\n\nПлан музея задан таблицей из n строк и m столбцов: `.` — клетка, по которой можно ходить, `#` — стена.\n\nОхранник стоит в клетке (r, c), эта клетка всегда свободна. За один шаг он переходит в соседнюю клетку — вверх, вниз, влево или вправо. На стену не наступает, за пределы таблицы не выходит, по диагонали не ходит.\n\nДо скольких свободных клеток охранник не доберётся никогда?\n\n**Вход.** В первой строке числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20). В следующих n строках таблица: в каждой строке m символов, `.` или `#`. В последней строке через пробел числа r и c — номер строки и номер столбца клетки охранника (0 ≤ r < n, 0 ≤ c < m; нумерация с нуля).\n\n**Выход.** Одно целое число — количество свободных клеток, до которых охранник не доберётся. Клетка, где он стоит, считается достигнутой. Если он обойдёт все, выведи 0.\n\n**Пример.**\n\n```\n3 4\n.#..\n.#..\n.#..\n0 0\n```\n\nОтвет: `6`. Охранник обойдёт только три клетки левого столбца, а до шести свободных клеток за стеной хода нет.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "r, c = map(int, input().split())\n" +
-      "vis = []\n" +
-      "for i in range(n):\n" +
-      "    vis.append([0] * m)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "def fill(r, c):\n" +
-      "    vis[r][c] = 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      '        if nr >= 0 and nr < n and nc >= 0 and nc < m and g[nr][nc] == "." and vis[nr][nc] == 0:\n' +
-      "            fill(nr, nc)\n" +
+      "void fill_from(int r, int c, int n, int m, vector<string> &g, vector<vector<int>> &vis) {\n" +
+      "    vis[r][c] = 1;\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    for (int k = 0; k < 4; k++) {\n" +
+      "        int nr = r + dr[k];\n" +
+      "        int nc = c + dc[k];\n" +
+      "        if (nr >= 0 && nr < n && nc >= 0 && nc < m && g[nr][nc] == '.' && vis[nr][nc] == 0) {\n" +
+      "            fill_from(nr, nc, n, m, g, vis);\n" +
+      "        }\n" +
+      "    }\n" +
+      "}\n" +
       "\n" +
-      "fill(r, c)\n" +
-      "left = 0\n" +
-      "for i in range(n):\n" +
-      "    for j in range(m):\n" +
-      '        if g[i][j] == "." and vis[i][j] == 0:\n' +
-      "            left = left + 1\n" +
-      "print(left)",
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> g[i];\n" +
+      "    int r, c;\n" +
+      "    cin >> r >> c;\n" +
+      "    vector<vector<int>> vis(n, vector<int>(m, 0));\n" +
+      "    fill_from(r, c, n, m, g, vis);\n" +
+      "    int left = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (g[i][j] == '.' && vis[i][j] == 0) left = left + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << left;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 4\n.#..\n.#..\n.#..\n0 0", expectedOutput: "6" },
       /* The smallest map there is: the guard is already everywhere. */
@@ -422,9 +525,8 @@ export const M9_C2: LessonBlock[] = [
       { input: "4 4\n.##.\n.##.\n.##.\n.##.\n0 3", expectedOutput: "4", hidden: true },
       /* Walled in on all four sides: he reaches only himself, and that is 0. */
       { input: "3 3\n###\n#.#\n###\n1 1", expectedOutput: "0", hidden: true },
-      /* Row -1 is the last row of a three-row map, so a fill with no bounds
-         check either wraps into the bottom region or falls off the end of a
-         row. The truth is 2 and neither of those is 2. */
+      /* A fill with no bounds check reads outside the map here, which in C++ is
+         undefined rather than a wrap. The truth is 2. */
       { input: "3 3\n..#\n###\n#..\n0 0", expectedOutput: "2", hidden: true },
       /* The largest open map the constraints allow. A fill that marks a cell
          after recursing instead of before never finishes this one. */
@@ -440,8 +542,8 @@ export const M9_C2: LessonBlock[] = [
     /*
      * E · thirteen minutes, and the one problem of the five that is genuinely
      * hard. MARCH: «лабиринттегі ең қысқа жол» (m7.l3) — the wave, with the
-     * queue written as a list plus a head index, which is January's two-pointer
-     * idea reused and is the only queue this programme ever teaches.
+     * queue written as two vectors plus a head index, which is January's
+     * two-pointer idea reused and is the only queue this programme ever teaches.
      *
      * What is new is not the wave but running it twice. The shortest walk that
      * must pass through K is the shortest walk to K plus the shortest walk from
@@ -453,8 +555,12 @@ export const M9_C2: LessonBlock[] = [
      * prompt could force a learner to use the wave rather than search every
      * route. The 25 × 25 open map in the hidden cases does: the wave answers 72
      * immediately, and route-by-route enumeration on an open map that size does
-     * not finish in this century. A constraint the other method cannot meet, in
-     * the authoring contract's own words.
+     * not finish in this century — that is an exponential count, so C++ being a
+     * hundred times faster than Python changes nothing about it. A constraint the
+     * other method cannot meet, in the authoring contract's own words.
+     *
+     * The distances are at most 3600 on each leg, so `int` is right everywhere
+     * and the sum of two legs cannot leave it.
      *
      * The degenerate programs, and what kills each:
      *   · K ignored, the direct distance printed — the sample answers 4 instead
@@ -488,41 +594,49 @@ export const M9_C2: LessonBlock[] = [
       ru: "**E. Через магазин.**\n\nПлан города задан таблицей из n строк и m столбцов: `.` — свободная клетка, `#` — закрытая. За один шаг курьер переходит в соседнюю свободную клетку — вверх, вниз, влево или вправо; по диагонали ходить нельзя.\n\nКурьер выходит из клетки S и должен добраться до клетки F, но по дороге обязан заглянуть в магазин — клетку K. Проходить через одну и ту же клетку несколько раз можно, каждый шаг считается одинаково.\n\nСколько шагов нужно курьеру самое меньшее?\n\n**Вход.** В первой строке числа n и m (1 ≤ n ≤ 60, 1 ≤ m ≤ 60). В следующих n строках таблица: в каждой строке m символов. В последней строке через пробел шесть чисел: sr sc kr kc fr fc — номера строк и столбцов клеток S, K и F (нумерация с нуля). Эти три клетки всегда свободны и могут совпадать.\n\n**Выход.** Одно целое число — наименьшее количество шагов. Если из S нельзя добраться до K или из K нельзя добраться до F, выведи `-1`.\n\n**Пример.**\n\n```\n4 5\n.....\n.###.\n.....\n.....\n0 0 2 0 0 4\n```\n\nОтвет: `8`. Курьер спускается к магазину за два шага, а потом за шесть выходит к F. Напрямую от S до F хватило бы четырёх шагов, но зайти в магазин обязательно.\n\nТаблица доходит до 60 × 60, поэтому перебирать все маршруты подряд не получится: вспомни мартовскую волну.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc, kr, kc, fr, fc = map(int, input().split())\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "def walk(r0, c0):\n" +
-      "    dist = []\n" +
-      "    for i in range(n):\n" +
-      "        dist.append([-1] * m)\n" +
-      "    dist[r0][c0] = 0\n" +
-      "    qr = [r0]\n" +
-      "    qc = [c0]\n" +
-      "    head = 0\n" +
-      "    while head < len(qr):\n" +
-      "        r = qr[head]\n" +
-      "        c = qc[head]\n" +
-      "        head = head + 1\n" +
-      "        for k in range(4):\n" +
-      "            nr = r + dr[k]\n" +
-      "            nc = c + dc[k]\n" +
-      '            if nr >= 0 and nr < n and nc >= 0 and nc < m and g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "    return dist\n" +
+      "vector<vector<int>> walk(int r0, int c0, int n, int m, vector<string> &g) {\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    dist[r0][c0] = 0;\n" +
+      "    vector<int> qr;\n" +
+      "    vector<int> qc;\n" +
+      "    qr.push_back(r0);\n" +
+      "    qc.push_back(c0);\n" +
+      "    int head = 0;\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    while (head < (int)qr.size()) {\n" +
+      "        int r = qr[head];\n" +
+      "        int c = qc[head];\n" +
+      "        head = head + 1;\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m && g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                qr.push_back(nr);\n" +
+      "                qc.push_back(nc);\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return dist;\n" +
+      "}\n" +
       "\n" +
-      "first = walk(sr, sc)\n" +
-      "second = walk(kr, kc)\n" +
-      "if first[kr][kc] == -1 or second[fr][fc] == -1:\n" +
-      "    print(-1)\n" +
-      "else:\n" +
-      "    print(first[kr][kc] + second[fr][fc])",
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> g[i];\n" +
+      "    int sr, sc, kr, kc, fr, fc;\n" +
+      "    cin >> sr >> sc >> kr >> kc >> fr >> fc;\n" +
+      "    vector<vector<int>> first = walk(sr, sc, n, m, g);\n" +
+      "    vector<vector<int>> second = walk(kr, kc, n, m, g);\n" +
+      "    if (first[kr][kc] == -1 || second[fr][fc] == -1) cout << -1;\n" +
+      "    else cout << first[kr][kc] + second[fr][fc];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4 5\n.....\n.###.\n.....\n.....\n0 0 2 0 0 4", expectedOutput: "8" },
       /* The smallest map, all three cells the same one: zero steps. */

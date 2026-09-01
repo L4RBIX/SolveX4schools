@@ -33,10 +33,47 @@ import type { LessonBlock } from "../../types";
  *
  * `m8.l4.b7` is the same mistake as a defect: the row loop runs bottom to top,
  * so every cell reads its upstairs neighbour before it has been written. The
- * table was created full of zeros, so nothing crashes — Python is perfectly
- * happy to add a zero that means "not computed yet". The program prints a full,
+ * table was created with `, 0`, so nothing crashes — adding a zero that means
+ * "not computed yet" is perfectly legal arithmetic. The program prints a full,
  * plausible, wrong table. That is worth a whole block, and it is why `b1` ends
  * by saying the zeros are the dangerous part.
+ *
+ * ## The C++17 migration: what changed here
+ *
+ * **The table declaration is one line and it is new writing**, so `b1` names it
+ * in prose: `vector<vector<long long>> dp(n, vector<long long>(m, 0));` — n rows,
+ * each of them a row of m cells all set to 0. March built `vector<vector<int>>`
+ * grids, so the shape is familiar; the fill value and the `long long` are what
+ * this card adds.
+ *
+ * **Why `long long` for a 12×12 grid whose largest answer is 705 432.** The
+ * type is chosen for the QUESTION, not for the case list. The same recurrence
+ * on the 20×20 grid `m8.p7` states runs to 35 345 263 800, which is sixteen times
+ * past `int`, and a learner who writes `int` here and carries it there gets a
+ * silently wrong number with nothing to see. The two blocks are the same
+ * program; giving them different types would be teaching the wrong lesson to
+ * save four characters.
+ *
+ * **`b10` uses `min` and the prompt says the one thing about it that bites**:
+ * both arguments must have the SAME type. `min(0, someLongLong)` does not
+ * compile, and that is a real C++ error a fourteen-year-old meets the first
+ * time they mix a literal with a wide accumulator. Here both sides are `int`
+ * and the costs are small — 10 × 10 cells at 99 each is 1881 — so `int` is
+ * honest and the sentence is a warning rather than a workaround.
+ *
+ * **Printing a whole table changed shape.** Python's `print(dp[r])` produced
+ * `[1, 0, 1, 2]`; C++ prints the numbers separated by spaces. `b2`'s expected
+ * answer, `b3`'s stated result, `b6`'s trace column and `b7`'s prompt all say
+ * `1 0 1 2` now, because that is what the program on the screen prints.
+ *
+ * **`b7` gained a `symptomInput`.** Its program reads `n` and `m`; the
+ * fallback probe feeds single numbers, and in C++ a failed `cin >>` leaves the
+ * second variable at 0, so both halves would build a zero-sized table and both
+ * would be undefined behaviour in the same way. The witness `3 3` is declared
+ * so the defect is provoked rather than guessed at.
+ *
+ * **No number moved.** Every case in this file is unchanged: the walks are
+ * counted the same way and every count fits comfortably in `long long`.
  *
  * ## «Жол» means two things in Kazakh, so one of them is renamed
  *
@@ -58,7 +95,12 @@ import type { LessonBlock } from "../../types";
  * whose PDF sentence — «әр аралық нәтиженің нені білдіретінін сөзбен
  * тұжырымдайды» — is exactly this question. Option 1 was not available: the
  * grids are at most 12×12, so a slow enumeration of every route would also
- * finish, and pretending otherwise would be a second unenforceable rule.
+ * finish, and pretending otherwise would be a second unenforceable rule. That
+ * was already true under Python and is more true under C++: the judge compiles
+ * at -O0 and still manages about 10^9 simple operations a second
+ * (`docs/cpp17/CPP17_JUDGE_PARITY.md`), so a 12×12 enumeration is not slow
+ * there either. The option was re-checked rather than assumed, and it did not
+ * change.
  *
  * `b10` is the one place option 1 does bite, and only partly: the greedy walk
  * that this month spends two lessons breaking loses on the visible sample and
@@ -88,27 +130,37 @@ export const M8_L4: LessonBlock[] = [
     skillRefs: ["dp.table", "dp.core", "grid.cells"],
     sourceType: "curriculum-derived",
     pdfPage: P,
-    title: {
-      kk: "Ұяшықты есептер алдында не дайын болуы керек",
-      ru: "Что должно быть готово до того, как считать клетку",
-    },
     /* The «жол» / «маршрут» split is stated here, in the learner's words, and
        every later prompt in the file obeys it. Naming it once beats hoping a
        fourteen-year-old works out which of two meanings a word carries in the
        middle of an input specification. */
+    title: {
+      kk: "Ұяшықты есептер алдында не дайын болуы керек",
+      ru: "Что должно быть готово до того, как считать клетку",
+    },
     body: {
-      kk: "Торда сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін жүреміз: әр қадамда не бір ұяшық оңға, не бір ұяшық төмен. Әр ұяшық үшін бір сан сақтаймыз — `dp[r][c]`, яғни бастапқы ұяшықтан дәл сол ұяшыққа дейін неше түрлі жүру нұсқасы бар екені. Тордың көлденең қатарын «жол» дейміз, ал жүріп өткен жолды одан ажырату үшін «маршрут» дейміз.\n\n`dp[r][c]` мәні қайдан шығады? (r, c) ұяшығына кірер алдындағы соңғы қадам не жоғарыдан төмен, не солдан оңға жасалған — үшінші нұсқа жоқ. Сондықтан `dp[r][c] = dp[r-1][c] + dp[r][c-1]`. Ұяшық қабырға болса, оған жетуге болмайды: `dp[r][c] = 0`. Бастапқы ұяшық бос болса, оған жету үшін бір ғана бос маршрут бар: `dp[0][0] = 1`.\n\nТолтыру реті осы формуладан шығады, оны жаттаудың қажеті жоқ: ұяшықты есептер алдында оның ЖОҒАРҒЫ көршісі мен СОЛ ЖАҚ көршісі есептеліп қойылуы керек. Жолдарды жоғарыдан төмен қарай, әр жолдың ішінде солдан оңға қарай жүрсек, екеуі де дайын болады.\n\nКестені былай құрамыз: `[0] * m` — ішінде m нөл тұрған тізім, әр жол үшін сондай тізімді `dp`-ге `append` арқылы қосамыз. Мұнда бір қауіп бар: барлық ұяшық басында нөлге тең, сондықтан әлі толтырылмаған ұяшықты оқысаң, бағдарлама қатемен тоқтамайды — ол жай ғана 0 оқиды да, дұрыс емес жауапты сабырмен шығарады.",
-      ru: "В сетке мы идём из левой верхней клетки в правую нижнюю: на каждом шаге либо на одну клетку вправо, либо на одну клетку вниз. Для каждой клетки храним одно число — `dp[r][c]`, то есть сколько разных маршрутов ведёт из стартовой клетки именно в неё.\n\nОткуда берётся значение `dp[r][c]`? Последний шаг перед входом в клетку (r, c) был сделан либо сверху вниз, либо слева направо — третьего варианта нет. Поэтому `dp[r][c] = dp[r-1][c] + dp[r][c-1]`. Если клетка — стена, попасть в неё нельзя: `dp[r][c] = 0`. Если стартовая клетка свободна, в неё ведёт ровно один пустой маршрут: `dp[0][0] = 1`.\n\nПорядок заполнения вытекает из этой формулы, заучивать его не нужно: перед тем как считать клетку, уже должны быть посчитаны её ВЕРХНИЙ сосед и сосед СЛЕВА. Если идти по строкам сверху вниз, а внутри строки слева направо, оба соседа окажутся готовы.\n\nСаму таблицу строим так: `[0] * m` — это список из m нулей, и для каждой строки мы добавляем такой список в `dp` через `append`. Здесь есть опасность: вначале все клетки равны нулю, поэтому при чтении ещё не заполненной клетки программа не остановится с ошибкой — она просто прочитает 0 и спокойно выведет неверный ответ.",
+      kk: "Торда сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін жүреміз: әр қадамда не бір ұяшық оңға, не бір ұяшық төмен. Әр ұяшық үшін бір сан сақтаймыз — `dp[r][c]`, яғни бастапқы ұяшықтан дәл сол ұяшыққа дейін неше түрлі жүру нұсқасы бар екені. Тордың көлденең қатарын «жол» дейміз, ал жүріп өткен жолды одан ажырату үшін «маршрут» дейміз.\n\n`dp[r][c]` мәні қайдан шығады? (r, c) ұяшығына кірер алдындағы соңғы қадам не жоғарыдан төмен, не солдан оңға жасалған — үшінші нұсқа жоқ. Сондықтан `dp[r][c] = dp[r-1][c] + dp[r][c-1]`. Ұяшық қабырға болса, оған жетуге болмайды: `dp[r][c] = 0`. Бастапқы ұяшық бос болса, оған жету үшін бір ғана бос маршрут бар: `dp[0][0] = 1`.\n\nТолтыру реті осы формуладан шығады, оны жаттаудың қажеті жоқ: ұяшықты есептер алдында оның ЖОҒАРҒЫ көршісі мен СОЛ ЖАҚ көршісі есептеліп қойылуы керек. Жолдарды жоғарыдан төмен қарай, әр жолдың ішінде солдан оңға қарай жүрсек, екеуі де дайын болады.\n\nКестені былай құрамыз:\n\n```\nvector<vector<long long>> dp(n, vector<long long>(m, 0));\n```\n\nІшкі `vector<long long>(m, 0)` — m ұяшықтан тұратын, бәрі нөлге тең бір жол; сыртқы жақшадағы n — сондай жолдың саны. Наурызда `vector<vector<int>>` торларын жасағанбыз, жаңа нәрсе — толтыратын мән мен түр. Түр неге `long long`? Тор үлкейгенде маршруттар саны тез өседі: 20×20 торда ол 35 345 263 800 болады, ал `int` 2 147 483 647-де тоқтайды. Түрді нақты бір мысалға емес, сұрақтың өзіне қарап таңдаймыз.\n\nМұнда бір қауіп бар: барлық ұяшық басында нөлге тең, сондықтан әлі толтырылмаған ұяшықты оқысаң, бағдарлама қатемен тоқтамайды — ол жай ғана 0 оқиды да, дұрыс емес жауапты сабырмен шығарады.",
+      ru: "В сетке мы идём из левой верхней клетки в правую нижнюю: на каждом шаге либо на одну клетку вправо, либо на одну клетку вниз. Для каждой клетки храним одно число — `dp[r][c]`, то есть сколько разных маршрутов ведёт из стартовой клетки именно в неё. Горизонтальный ряд сетки называем «строка», а пройденный путь, чтобы их не путать, — «маршрут».\n\nОткуда берётся значение `dp[r][c]`? Последний шаг перед входом в клетку (r, c) был сделан либо сверху вниз, либо слева направо — третьего варианта нет. Поэтому `dp[r][c] = dp[r-1][c] + dp[r][c-1]`. Если клетка — стена, попасть в неё нельзя: `dp[r][c] = 0`. Если стартовая клетка свободна, в неё ведёт ровно один пустой маршрут: `dp[0][0] = 1`.\n\nПорядок заполнения вытекает из этой формулы, заучивать его не нужно: перед тем как считать клетку, уже должны быть посчитаны её ВЕРХНИЙ сосед и сосед СЛЕВА. Если идти по строкам сверху вниз, а внутри строки слева направо, оба соседа окажутся готовы.\n\nСаму таблицу строим так:\n\n```\nvector<vector<long long>> dp(n, vector<long long>(m, 0));\n```\n\nВнутреннее `vector<long long>(m, 0)` — одна строка из m клеток, все равны нулю; n во внешних скобках — сколько таких строк. Сетки `vector<vector<int>>` мы делали ещё в марте, новое здесь — значение заполнения и тип. Почему `long long`? Потому что с ростом сетки количество маршрутов растёт быстро: на сетке 20×20 оно равно 35 345 263 800, а `int` останавливается на 2 147 483 647. Тип выбирают не под конкретный пример, а под сам вопрос.\n\nЗдесь есть опасность: вначале все клетки равны нулю, поэтому при чтении ещё не заполненной клетки программа не остановится с ошибкой — она просто прочитает 0 и спокойно выведет неверный ответ.",
     },
     code:
-      "n = 3\n" +
-      "m = 4\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "dp[0][0] = 1\n" +
-      "print(dp[0])\n" +
-      "print(dp[1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 3;\n" +
+      "    int m = 4;\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    dp[0][0] = 1;\n" +
+      "    for (int c = 0; c < m; c++) {\n" +
+      "        cout << dp[0][c] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    for (int c = 0; c < m; c++) {\n" +
+      "        cout << dp[1][c] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -122,42 +174,53 @@ export const M8_L4: LessonBlock[] = [
      * unreachability propagates forever, because there is no second dimension
      * to go round it. `b6` then shows the same wall being survived. The
      * contrast is the point, and it is why the same 5-wide shape is used twice.
+     *
+     * `int` and not `long long`: a single row of five cells can only ever hold
+     * 0 or 1, and the type is not what this card is about.
      */
     id: "m8.l4.b2",
     type: "prediction",
     skillRefs: ["dp.table", "precompute.prefix", "lists.traverse"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бір ғана жолдан тұратын тор берілген: `..#..` — үшінші ұяшық қабырға. Бағдарлама сол жақтағы ұяшықтан бастап әр ұяшыққа неше маршрутпен жетуге болатынын есептейді де, толған кестені бір жолға шығарады. Экранға не шығады?",
-      ru: "Дана сетка из одной строки: `..#..` — третья клетка стена. Программа считает, сколькими маршрутами можно попасть в каждую клетку, начиная с самой левой, и печатает заполненную таблицу одной строкой. Что появится на экране?",
+      kk: "Бір ғана жолдан тұратын тор берілген: `..#..` — үшінші ұяшық қабырға. Бағдарлама сол жақтағы ұяшықтан бастап әр ұяшыққа неше маршрутпен жетуге болатынын есептейді де, толған кестені бір жолға, сандарды бос орынмен бөліп шығарады. Экранға не шығады?",
+      ru: "Дана сетка из одной строки: `..#..` — третья клетка стена. Программа считает, сколькими маршрутами можно попасть в каждую клетку, начиная с самой левой, и печатает заполненную таблицу одной строкой, разделяя числа пробелами. Что появится на экране?",
     },
     code:
-      's = "..#.."\n' +
-      "n = 5\n" +
-      "dp = [0] * n\n" +
-      "for i in range(n):\n" +
-      '    if s[i] == "#":\n' +
-      "        dp[i] = 0\n" +
-      "    else:\n" +
-      "        if i == 0:\n" +
-      "            dp[i] = 1\n" +
-      "        else:\n" +
-      "            dp[i] = dp[i - 1]\n" +
-      "print(dp)",
-    answer: "[1, 1, 0, 0, 0]",
-    options: [
-      "[1, 1, 0, 0, 0]",
-      "[1, 1, 0, 1, 1]",
-      "[1, 1, 1, 1, 1]",
-      "[1, 2, 0, 0, 0]",
-    ],
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s = \"..#..\";\n" +
+      "    int n = 5;\n" +
+      "    vector<int> dp(n, 0);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (s[i] == '#') {\n" +
+      "            dp[i] = 0;\n" +
+      "        } else {\n" +
+      "            if (i == 0) {\n" +
+      "                dp[i] = 1;\n" +
+      "            } else {\n" +
+      "                dp[i] = dp[i - 1];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << dp[i] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    answer: "1 1 0 0 0",
+    options: ["1 1 0 0 0", "1 1 0 1 1", "1 1 1 1 1", "1 2 0 0 0"],
     diagnosticMapping: {
-      /* Only this one is mapped. `[1, 1, 1, 1, 1]` contradicts the `#` branch
+      /* Only this one is mapped. `1 1 1 1 1` contradicts the `'#'` branch
          that is on the screen, so choosing it means the code was not read at
-         all — several causes, no diagnosis. `[1, 2, 0, 0, 0]` is the addition
+         all — several causes, no diagnosis. `1 2 0 0 0` is the addition
          from the two-dimensional formula misapplied to one dimension, which is
          also reachable by simple miscounting. */
-      "[1, 1, 0, 1, 1]": {
+      "1 1 0 1 1": {
         failureClass: "unreachability_not_propagated",
         justification:
           "Бұл жауапта қабырғадан кейінгі екі ұяшық қайтадан 1 болып тұр. Оны алу үшін бос ұяшыққа `dp[i - 1]` емес, тұрақты 1 жазу керек — яғни оқушы қабырғаны тек өз ұяшығын жабатын кедергі деп есептеген. Кестенің мәні дәл осында: жетуге болмайтындық солға қарай емес, ОҢҒА қарай таралады, сондықтан нөл әрі қарай көшеді.",
@@ -201,31 +264,50 @@ export const M8_L4: LessonBlock[] = [
       },
     ],
     code:
-      'g = ["....", ".#..", "...."]\n' +
-      "n = 3\n" +
-      "m = 4\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      '        if g[r][c] == "#":\n' +
-      "            dp[r][c] = 0\n" +
-      "        elif r == 0 and c == 0:\n" +
-      "            dp[r][c] = 1\n" +
-      "        else:\n" +
-      "            up = 0\n" +
-      "            left = 0\n" +
-      "            if r > 0:\n" +
-      "                up = dp[r - 1][c]\n" +
-      "            if c > 0:\n" +
-      "                left = dp[r][c - 1]\n" +
-      "            dp[r][c] = up + left\n" +
-      "for r in range(n):\n" +
-      "    print(dp[r])",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<string> g;\n" +
+      "    g.push_back(\"....\");\n" +
+      "    g.push_back(\".#..\");\n" +
+      "    g.push_back(\"....\");\n" +
+      "    int n = 3;\n" +
+      "    int m = 4;\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == '#') {\n" +
+      "                dp[r][c] = 0;\n" +
+      "            } else if (r == 0 && c == 0) {\n" +
+      "                dp[r][c] = 1;\n" +
+      "            } else {\n" +
+      "                long long up = 0;\n" +
+      "                long long left = 0;\n" +
+      "                if (r > 0) {\n" +
+      "                    up = dp[r - 1][c];\n" +
+      "                }\n" +
+      "                if (c > 0) {\n" +
+      "                    left = dp[r][c - 1];\n" +
+      "                }\n" +
+      "                dp[r][c] = up + left;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            cout << dp[r][c] << \" \";\n" +
+      "        }\n" +
+      "        cout << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
-      kk: "Экранға үш жол шығады: `[1, 1, 1, 1]`, содан кейін `[1, 0, 1, 2]`, содан кейін `[1, 1, 2, 4]`. Жауап — соңғы жолдың соңғы саны: 4.",
-      ru: "На экран выйдут три строки: `[1, 1, 1, 1]`, затем `[1, 0, 1, 2]`, затем `[1, 1, 2, 4]`. Ответ — последнее число последней строки: 4.",
+      kk: "Экранға үш жол шығады: `1 1 1 1`, содан кейін `1 0 1 2`, содан кейін `1 1 2 4`. Жауап — соңғы жолдың соңғы саны: 4.",
+      ru: "На экран выйдут три строки: `1 1 1 1`, затем `1 0 1 2`, затем `1 1 2 4`. Ответ — последнее число последней строки: 4.",
     },
   },
   {
@@ -236,10 +318,10 @@ export const M8_L4: LessonBlock[] = [
      * and the month's mastery sentence («кіші жағдайлар үшін табылған
      * жауаптарды пайдаланып») is the same claim from the other side.
      *
-     * The counter is a one-element list rather than a `global`, which is the
-     * pattern March already relies on: `m7.l3`'s `fill` writes into `vis` from
-     * inside the function without any declaration. `global` is November's
-     * hazard demonstration and is not repeated here.
+     * The counter travels as a REFERENCE parameter, which is November's `&`
+     * used for exactly what November taught it for: a function that has to
+     * change something belonging to its caller. A global would work and is not
+     * used — nothing in Year 1 needs one, and the reference says what it means.
      *
      * Numbers verified by running the program: 19 calls for a 3×4 grid whose
      * table has 12 cells, and 6863 calls for 8×8 whose table has 64.
@@ -254,20 +336,27 @@ export const M8_L4: LessonBlock[] = [
       ru: "Февральская рекурсия и сегодняшняя таблица — одна формула",
     },
     body: {
-      kk: "Ақпанда сен дәл осы есепті рекурсиямен шығардың: `paths(r, c) = paths(r - 1, c) + paths(r, c - 1)`. Формула сол қалпында — бүгін өзгергені формула емес, ЖҰМЫСТЫҢ РЕТІ.\n\nТөмендегі бағдарлама — сол ақпандағы функцияң, оған бір ғана нәрсе қосылды: `cnt` тізімі шақырулардың санын жинайды. 3×4 тор үшін ол екі сан шығарады: 10 — маршрут саны, 19 — функцияның шақырылу саны. Ал кестеде бар болғаны 12 ұяшық бар. 8×8 тор үшін айырма қорқынышты болады: кестеде 64 ұяшық, ал рекурсия 6863 рет шақырылады.\n\nСебебі қарапайым: рекурсия бір ұяшықтың жауабын бірнеше рет қайта есептейді, өйткені оған жоғарыдан да, солдан да қайта соғады. Кесте әр ұяшықты бір рет есептеп, жауабын жазып қояды — сол жазып қою ғана артық жұмысты жояды. Есеп те, формула да сол күйінде қалды.",
-      ru: "В феврале ты решал ровно эту задачу рекурсией: `paths(r, c) = paths(r - 1, c) + paths(r, c - 1)`. Формула осталась той же — сегодня изменилась не формула, а ПОРЯДОК РАБОТЫ.\n\nПрограмма ниже — та самая февральская функция, к ней добавлено ровно одно: список `cnt` копит число вызовов. Для сетки 3×4 она печатает два числа: 10 — количество маршрутов и 19 — сколько раз вызвана функция. А в таблице всего 12 клеток. Для сетки 8×8 разрыв становится страшным: в таблице 64 клетки, а рекурсия вызывается 6863 раза.\n\nПричина простая: рекурсия пересчитывает ответ для одной и той же клетки по нескольку раз, потому что приходит в неё и сверху, и слева. Таблица считает каждую клетку один раз и записывает ответ — именно эта запись и убирает лишнюю работу. Ни задача, ни формула при этом не изменились.",
+      kk: "Ақпанда сен дәл осы есепті рекурсиямен шығардың: `paths(r, c) = paths(r - 1, c) + paths(r, c - 1)`. Формула сол қалпында — бүгін өзгергені формула емес, ЖҰМЫСТЫҢ РЕТІ.\n\nТөмендегі бағдарлама — сол ақпандағы функцияң, оған бір ғана нәрсе қосылды: `cnt` айнымалысы шақырулардың санын жинайды. Ол функцияға `long long &cnt` деп, яғни сілтеме арқылы беріледі — қарашада көрсетілгендей, функция шақырушының айнымалысын өзгерте алуы үшін. 3×4 тор үшін бағдарлама екі сан шығарады: 10 — маршрут саны, 19 — функцияның шақырылу саны. Ал кестеде бар болғаны 12 ұяшық бар. 8×8 тор үшін айырма қорқынышты болады: кестеде 64 ұяшық, ал рекурсия 6863 рет шақырылады.\n\nСебебі қарапайым: рекурсия бір ұяшықтың жауабын бірнеше рет қайта есептейді, өйткені оған жоғарыдан да, солдан да қайта соғады. Кесте әр ұяшықты бір рет есептеп, жауабын жазып қояды — сол жазып қою ғана артық жұмысты жояды. Есеп те, формула да сол күйінде қалды.",
+      ru: "В феврале ты решал ровно эту задачу рекурсией: `paths(r, c) = paths(r - 1, c) + paths(r, c - 1)`. Формула осталась той же — сегодня изменилась не формула, а ПОРЯДОК РАБОТЫ.\n\nПрограмма ниже — та самая февральская функция, к ней добавлено ровно одно: переменная `cnt` копит число вызовов. Она передаётся в функцию как `long long &cnt`, то есть по ссылке, — как показывали в ноябре, чтобы функция могла менять переменную вызывающего. Для сетки 3×4 программа печатает два числа: 10 — количество маршрутов и 19 — сколько раз вызвана функция. А в таблице всего 12 клеток. Для сетки 8×8 разрыв становится страшным: в таблице 64 клетки, а рекурсия вызывается 6863 раза.\n\nПричина простая: рекурсия пересчитывает ответ для одной и той же клетки по нескольку раз, потому что приходит в неё и сверху, и слева. Таблица считает каждую клетку один раз и записывает ответ — именно эта запись и убирает лишнюю работу. Ни задача, ни формула при этом не изменились.",
     },
     code:
-      "cnt = [0]\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "def paths(r, c):\n" +
-      "    cnt[0] = cnt[0] + 1\n" +
-      "    if r == 1 or c == 1:\n" +
-      "        return 1\n" +
-      "    return paths(r - 1, c) + paths(r, c - 1)\n" +
+      "long long paths(int r, int c, long long &cnt) {\n" +
+      "    cnt = cnt + 1;\n" +
+      "    if (r == 1 || c == 1) {\n" +
+      "        return 1;\n" +
+      "    }\n" +
+      "    return paths(r - 1, c, cnt) + paths(r, c - 1, cnt);\n" +
+      "}\n" +
       "\n" +
-      "print(paths(3, 4))\n" +
-      "print(cnt[0])",
+      "int main() {\n" +
+      "    long long cnt = 0;\n" +
+      "    cout << paths(3, 4, cnt) << endl;\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -349,39 +438,52 @@ export const M8_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Тордың екі жолы бар, әрқайсысында 5 ұяшық. Бірінші жол толтырылып қойған: `row0 = [1, 1, 1, 1, 1]`. Екінші жолдың ұяшықтары `.#...` — екінші ұяшық қабырға. Қағазға үш баған сыз: `c`, `row1[c]`, `row1`. Циклдің әр айналымында `row1[c]`-ға мән жазылған сәттегі күйді жаз (7-жол немесе 13-жол), ең соңғы жолға 14-жолдағы күйді жаз. Ескерт: `up` — үстіңгі жолдан, `left` — дәл осы жолдағы сол жақ көршіден.",
-      ru: "В сетке две строки, в каждой по 5 клеток. Первая строка уже заполнена: `row0 = [1, 1, 1, 1, 1]`. Клетки второй строки — `.#...`, вторая клетка стена. Начерти на бумаге три столбца: `c`, `row1[c]`, `row1`. На каждом обороте цикла записывай состояние в момент, когда в `row1[c]` записано значение (строка 7 или строка 13), а в последнюю строку — состояние на строке 14. Помни: `up` берётся из верхней строки, `left` — у соседа слева в этой же строке.",
+      kk: "Тордың екі жолы бар, әрқайсысында 5 ұяшық. Бірінші жол толтырылып қойған: `row0` — бесеуі де 1. Екінші жолдың ұяшықтары `.#...` — екінші ұяшық қабырға. Қағазға үш баған сыз: `c`, `row1[c]`, `row1`. Циклдің әр айналымында `row1[c]`-ға мән жазылған сәттегі күйді жаз (13-жол немесе 20-жол), ең соңғы жолға 23-жолдағы күйді жаз. `row1` бағанына бүкіл жолды бос орынмен бөліп жаз. Ескерт: `up` — үстіңгі жолдан, `left` — дәл осы жолдағы сол жақ көршіден.",
+      ru: "В сетке две строки, в каждой по 5 клеток. Первая строка уже заполнена: в `row0` все пять чисел равны 1. Клетки второй строки — `.#...`, вторая клетка стена. Начерти на бумаге три столбца: `c`, `row1[c]`, `row1`. На каждом обороте цикла записывай состояние в момент, когда в `row1[c]` записано значение (строка 13 или строка 20), а в последнюю строку — состояние на строке 23. В столбце `row1` выписывай всю строку целиком, разделяя числа пробелами. Помни: `up` берётся из верхней строки, `left` — у соседа слева в этой же строке.",
     },
     code:
-      "row0 = [1, 1, 1, 1, 1]\n" +
-      'g = ".#..."\n' +
-      "m = 5\n" +
-      "row1 = [0] * m\n" +
-      "for c in range(m):\n" +
-      '    if g[c] == "#":\n' +
-      "        row1[c] = 0\n" +
-      "    else:\n" +
-      "        up = row0[c]\n" +
-      "        left = 0\n" +
-      "        if c > 0:\n" +
-      "            left = row1[c - 1]\n" +
-      "        row1[c] = up + left\n" +
-      "print(row1)",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<long long> row0(5, 1);\n" +
+      "    string g = \".#...\";\n" +
+      "    int m = 5;\n" +
+      "    vector<long long> row1(m, 0);\n" +
+      "    for (int c = 0; c < m; c++) {\n" +
+      "        if (g[c] == '#') {\n" +
+      "            row1[c] = 0;\n" +
+      "        } else {\n" +
+      "            long long up = row0[c];\n" +
+      "            long long left = 0;\n" +
+      "            if (c > 0) {\n" +
+      "                left = row1[c - 1];\n" +
+      "            }\n" +
+      "            row1[c] = up + left;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int c = 0; c < m; c++) {\n" +
+      "        cout << row1[c] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 13, vars: { c: "0", "row1[c]": "1", row1: "[1, 0, 0, 0, 0]" } },
-      { line: 7, vars: { c: "1", "row1[c]": "0", row1: "[1, 0, 0, 0, 0]" } },
-      { line: 13, vars: { c: "2", "row1[c]": "1", row1: "[1, 0, 1, 0, 0]" } },
-      { line: 13, vars: { c: "3", "row1[c]": "2", row1: "[1, 0, 1, 2, 0]" } },
-      { line: 13, vars: { c: "4", "row1[c]": "3", row1: "[1, 0, 1, 2, 3]" } },
-      { line: 14, vars: { c: "4", "row1[c]": "3", row1: "[1, 0, 1, 2, 3]" } },
+      { line: 20, vars: { c: "0", "row1[c]": "1", row1: "1 0 0 0 0" } },
+      { line: 13, vars: { c: "1", "row1[c]": "0", row1: "1 0 0 0 0" } },
+      { line: 20, vars: { c: "2", "row1[c]": "1", row1: "1 0 1 0 0" } },
+      { line: 20, vars: { c: "3", "row1[c]": "2", row1: "1 0 1 2 0" } },
+      { line: 20, vars: { c: "4", "row1[c]": "3", row1: "1 0 1 2 3" } },
+      { line: 23, vars: { c: "4", "row1[c]": "3", row1: "1 0 1 2 3" } },
     ],
   },
   {
     /*
      * The wrong fill order as a defect, and it is the worst kind: no crash, no
      * warning, a full and plausible table that is simply not the answer. The
-     * table was created full of zeros, so reading a cell that has not been
-     * written is a legal read of a legal number.
+     * table was created with `, 0`, so reading a cell that has not been written
+     * is a legal read of a legal number.
      *
      * The program deliberately has NO grid: it counts routes on an empty n×m
      * rectangle and prints the whole table. That keeps the repaired program
@@ -390,10 +492,15 @@ export const M8_L4: LessonBlock[] = [
      * shows. It also makes the symptom easier to read, because every number in
      * a correct table is non-zero.
      *
-     * symptomInput "3 3": the broken program prints [1,1,1] / [1,1,1] /
-     * [0,0,0] and the repaired one prints [1,1,1] / [1,2,3] / [1,3,6]. The
-     * bottom row is zero because it was computed FIRST, when everything above
-     * it was still zero.
+     * symptomInput "3 3" is REQUIRED and not a nicety. The fallback probe feeds
+     * one number at a time; in C++ the second `cin >>` then fails and leaves
+     * `m` at 0, so both halves would build a zero-sized table and write past
+     * its end in exactly the same way — undefined behaviour twice over, and a
+     * "these two behave identically" verdict on a real defect.
+     *
+     * On `3 3` the broken program prints 1 1 1 / 1 1 1 / 0 0 0 and the repaired
+     * one prints 1 1 1 / 1 2 3 / 1 3 6. The bottom row is zero because it was
+     * computed FIRST, when everything above it was still zero.
      */
     id: "m8.l4.b7",
     type: "find_bug",
@@ -401,39 +508,74 @@ export const M8_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бұл бағдарлама қабырғасыз n×m торда әр ұяшыққа неше маршрутпен жетуге болатынын есептеп, кестені жол-жолымен шығаруы керек. Ол қатемен тоқтамайды, экранға толық кесте шығарады — бірақ сандар дұрыс емес. `3 3` берсең, ол `[1, 1, 1]`, `[1, 1, 1]`, `[0, 0, 0]` шығарады, ал дұрысы — `[1, 1, 1]`, `[1, 2, 3]`, `[1, 3, 6]`. Соңғы жол неге түгел нөл? Қай жол қате және неге бағдарлама бұл қатеге шағымданбайды?",
-      ru: "Эта программа должна посчитать, сколькими маршрутами можно попасть в каждую клетку сетки n×m без стен, и вывести таблицу построчно. Она не падает с ошибкой и печатает полную таблицу — но числа неверные. Если дать ей `3 3`, она выведет `[1, 1, 1]`, `[1, 1, 1]`, `[0, 0, 0]`, а правильный ответ — `[1, 1, 1]`, `[1, 2, 3]`, `[1, 3, 6]`. Почему последняя строка сплошь нулевая? Какая строка кода неверна и почему программа никак не жалуется на эту ошибку?",
+      kk: "Бұл бағдарлама қабырғасыз n×m торда әр ұяшыққа неше маршрутпен жетуге болатынын есептеп, кестені жол-жолымен шығаруы керек. Ол қатемен тоқтамайды, экранға толық кесте шығарады — бірақ сандар дұрыс емес. `3 3` берсең, ол `1 1 1`, `1 1 1`, `0 0 0` шығарады, ал дұрысы — `1 1 1`, `1 2 3`, `1 3 6`. Соңғы жол неге түгел нөл? Қай жол қате және неге бағдарлама бұл қатеге шағымданбайды?",
+      ru: "Эта программа должна посчитать, сколькими маршрутами можно попасть в каждую клетку сетки n×m без стен, и вывести таблицу построчно. Она не падает с ошибкой и печатает полную таблицу — но числа неверные. Если дать ей `3 3`, она выведет `1 1 1`, `1 1 1`, `0 0 0`, а правильный ответ — `1 1 1`, `1 2 3`, `1 3 6`. Почему последняя строка сплошь нулевая? Какая строка кода неверна и почему программа никак не жалуется на эту ошибку?",
     },
     code:
-      "n, m = map(int, input().split())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "dp[0][0] = 1\n" +
-      "for r in range(n - 1, -1, -1):\n" +
-      "    for c in range(m):\n" +
-      "        if r > 0:\n" +
-      "            dp[r][c] = dp[r][c] + dp[r - 1][c]\n" +
-      "        if c > 0:\n" +
-      "            dp[r][c] = dp[r][c] + dp[r][c - 1]\n" +
-      "for r in range(n):\n" +
-      "    print(dp[r])",
-    buggyLine: 6,
-    fixedCode:
-      "n, m = map(int, input().split())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "dp[0][0] = 1\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      "        if r > 0:\n" +
-      "            dp[r][c] = dp[r][c] + dp[r - 1][c]\n" +
-      "        if c > 0:\n" +
-      "            dp[r][c] = dp[r][c] + dp[r][c - 1]\n" +
-      "for r in range(n):\n" +
-      "    print(dp[r])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    dp[0][0] = 1;\n" +
+      "    for (int r = n - 1; r >= 0; r--) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (r > 0) {\n" +
+      "                dp[r][c] = dp[r][c] + dp[r - 1][c];\n" +
+      "            }\n" +
+      "            if (c > 0) {\n" +
+      "                dp[r][c] = dp[r][c] + dp[r][c - 1];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            cout << dp[r][c] << \" \";\n" +
+      "        }\n" +
+      "        cout << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 10,
     symptomInput: "3 3",
+    fixedCode:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    dp[0][0] = 1;\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (r > 0) {\n" +
+      "                dp[r][c] = dp[r][c] + dp[r - 1][c];\n" +
+      "            }\n" +
+      "            if (c > 0) {\n" +
+      "                dp[r][c] = dp[r][c] + dp[r][c - 1];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            cout << dp[r][c] << \" \";\n" +
+      "        }\n" +
+      "        cout << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    diagnosticMapping: {
+      "9": {
+        failureClass: "start_cell_blamed_for_a_fill_order_defect",
+        justification:
+          "9-жолдағы `dp[0][0] = 1` дұрыс: бастапқы ұяшыққа бір ғана бос маршрут апарады. Бұл жауап нөлдердің себебін бастапқы мәннен іздегенді көрсетеді, ал шын себеп — жолдардың толтырылу реті: төменгі жол бәрінен бұрын, әлі ештеңе жазылмай тұрып есептеледі.",
+      },
+    },
   },
   {
     /*
@@ -455,6 +597,10 @@ export const M8_L4: LessonBlock[] = [
      * The fourth blank is the one that catches a learner who filled the first
      * three by pattern-matching: which cell of the finished table is the
      * answer? Not the bottom right one any more.
+     *
+     * The first blank is a CHARACTER literal, `'#'`, not a string — the grid
+     * row is a `string` and `g[r][c]` is one `char`. That distinction is C++'s
+     * and it belongs in a blank rather than in a footnote.
      */
     id: "m8.l4.b8",
     type: "fill_blank",
@@ -462,34 +608,49 @@ export const M8_L4: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бұл жолы маршрут СОЛ ЖАҚ ТӨМЕНГІ ұяшықтан басталып, ОҢ ЖАҚ ЖОҒАРҒЫ ұяшықта аяқталады, ал әр қадамда тек бір ұяшық оңға немесе бір ұяшық ЖОҒАРЫ жүруге болады. Бағдарламада төрт орын жоқ. Циклге қара: жолдар төменнен жоғары қарай толтырылады — демек ұяшықты есептер сәтте оның қай екі көршісі дайын болады? Соңғы бос орында жауап тұрған ұяшықты жаз. Кіріс: бірінші жолда n және m, келесі n жолда m таңба (`.` — бос, `#` — қабырға).",
-      ru: "На этот раз маршрут начинается в ЛЕВОЙ НИЖНЕЙ клетке и заканчивается в ПРАВОЙ ВЕРХНЕЙ, а на каждом шаге разрешено идти только на одну клетку вправо или на одну клетку ВВЕРХ. В программе не хватает четырёх мест. Посмотри на цикл: строки заполняются снизу вверх — значит, какие два соседа готовы к моменту, когда считается клетка? В последнем пропуске укажи клетку, в которой стоит ответ. Ввод: в первой строке n и m, в следующих n строках по m символов (`.` — свободно, `#` — стена).",
+      kk: "Бұл жолы маршрут СОЛ ЖАҚ ТӨМЕНГІ ұяшықтан басталып, ОҢ ЖАҚ ЖОҒАРҒЫ ұяшықта аяқталады, ал әр қадамда тек бір ұяшық оңға немесе бір ұяшық ЖОҒАРЫ жүруге болады. Бағдарламада төрт орын жоқ. Циклге қара: жолдар төменнен жоғары қарай толтырылады — демек ұяшықты есептер сәтте оның қай екі көршісі дайын болады? Соңғы бос орында жауап тұрған ұяшықты жаз. Бірінші бос орынға абайла: `g[r][c]` — бір ғана таңба, ал бір таңба C++-та қос тырнақшамен емес, жалғыз тырнақшамен жазылады. Кіріс: бірінші жолда n және m, келесі n жолда m таңба (`.` — бос, `#` — қабырға).",
+      ru: "На этот раз маршрут начинается в ЛЕВОЙ НИЖНЕЙ клетке и заканчивается в ПРАВОЙ ВЕРХНЕЙ, а на каждом шаге разрешено идти только на одну клетку вправо или на одну клетку ВВЕРХ. В программе не хватает четырёх мест. Посмотри на цикл: строки заполняются снизу вверх — значит, какие два соседа готовы к моменту, когда считается клетка? В последнем пропуске укажи клетку, в которой стоит ответ. С первым пропуском будь внимателен: `g[r][c]` — это один символ, а одиночный символ в C++ пишется не в двойных кавычках, а в одинарных. Ввод: в первой строке n и m, в следующих n строках по m символов (`.` — свободно, `#` — стена).",
     },
     template:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n - 1, -1, -1):\n" +
-      "    for c in range(m):\n" +
-      "        if g[r][c] == ___:\n" +
-      "            dp[r][c] = 0\n" +
-      "        elif r == n - 1 and c == 0:\n" +
-      "            dp[r][c] = 1\n" +
-      "        else:\n" +
-      "            down = 0\n" +
-      "            left = 0\n" +
-      "            if r < n - 1:\n" +
-      "                down = dp[___][c]\n" +
-      "            if c > 0:\n" +
-      "                left = dp[r][___]\n" +
-      "            dp[r][c] = down + left\n" +
-      "print(___)",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string row;\n" +
+      "        cin >> row;\n" +
+      "        g.push_back(row);\n" +
+      "    }\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int r = n - 1; r >= 0; r--) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == ___) {\n" +
+      "                dp[r][c] = 0;\n" +
+      "            } else if (r == n - 1 && c == 0) {\n" +
+      "                dp[r][c] = 1;\n" +
+      "            } else {\n" +
+      "                long long down = 0;\n" +
+      "                long long left = 0;\n" +
+      "                if (r < n - 1) {\n" +
+      "                    down = dp[___][c];\n" +
+      "                }\n" +
+      "                if (c > 0) {\n" +
+      "                    left = dp[r][___];\n" +
+      "                }\n" +
+      "                dp[r][c] = down + left;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << ___;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: '"#"', alternatives: ["'#'"] },
+      { id: "f1", answer: "'#'" },
       { id: "f2", answer: "r + 1", alternatives: ["r+1"] },
       { id: "f3", answer: "c - 1", alternatives: ["c-1"] },
       { id: "f4", answer: "dp[0][m - 1]", alternatives: ["dp[0][m-1]"] },
@@ -531,32 +692,47 @@ export const M8_L4: LessonBlock[] = [
     pdfPage: P,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін неше түрлі маршрут бар екенін тап. Әр қадамда тек бір ұяшық оңға немесе бір ұяшық төмен жүруге болады, қабырғаға түсуге болмайды.\n\nКіріс: бірінші жолда бос орынмен бөлінген n және m — тордың жол саны мен баған саны (1 ≤ n ≤ 12, 1 ≤ m ≤ 12). Келесі n жолдың әрқайсысында m таңба: `.` — бос ұяшық, `#` — қабырға. Шығыс: бір бүтін сан.\n\nШекаралар: бастапқы немесе соңғы ұяшықтың өзі қабырға болуы мүмкін — ондай жағдайда жауап 0. Бір ғана бос ұяшықтан тұратын тор үшін жауап 1. Жол мүлдем болмаса, 0 шығар.\n\nБүгінгі әдіспен жаз: кесте құрып, жолдарды жоғарыдан төмен, әр жолдың ішінде солдан оңға толтыр. Тексеруші тек шыққан санды салыстыратынын білесің — демек бұл машина тексеретін ереже емес, кеңес; кестең туралы сұрақты мұғалім қояды.",
-      ru: "Найди, сколько разных маршрутов ведёт из левой верхней клетки в правую нижнюю. На каждом шаге разрешено пройти только на одну клетку вправо или на одну клетку вниз, наступать на стену нельзя.\n\nВвод: в первой строке через пробел n и m — количество строк и столбцов сетки (1 ≤ n ≤ 12, 1 ≤ m ≤ 12). В следующих n строках по m символов: `.` — свободная клетка, `#` — стена. Вывод: одно целое число.\n\nГраницы: стартовая или конечная клетка сама может оказаться стеной — тогда ответ 0. Для сетки из одной свободной клетки ответ 1. Если пути нет вовсе, выведи 0.\n\nПиши сегодняшним способом: построй таблицу и заполняй строки сверху вниз, а внутри строки слева направо. Ты знаешь, что проверяющая программа сравнивает только выведенное число, — значит, это не правило, которое проверяет машина, а совет; про твою таблицу спросит учитель.",
+      kk: "Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін неше түрлі маршрут бар екенін тап. Әр қадамда тек бір ұяшық оңға немесе бір ұяшық төмен жүруге болады, қабырғаға түсуге болмайды.\n\nКіріс: бірінші жолда бос орынмен бөлінген n және m — тордың жол саны мен баған саны (1 ≤ n ≤ 12, 1 ≤ m ≤ 12). Келесі n жолдың әрқайсысында m таңба: `.` — бос ұяшық, `#` — қабырға. Шығыс: бір бүтін сан.\n\nШекаралар: бастапқы немесе соңғы ұяшықтың өзі қабырға болуы мүмкін — ондай жағдайда жауап 0. Бір ғана бос ұяшықтан тұратын тор үшін жауап 1. Жол мүлдем болмаса, 0 шығар.\n\nБүгінгі әдіспен жаз: кесте құрып, жолдарды жоғарыдан төмен, әр жолдың ішінде солдан оңға толтыр. Кестені `long long` етіп ал: тор үлкейгенде маршруттар саны `int`-тен асып кетеді, ал дәл осы бағдарламаны кейін үлкенірек торға да қолданасың. Тексеруші тек шыққан санды салыстыратынын білесің — демек толтыру реті машина тексеретін ереже емес, кеңес; кестең туралы сұрақты мұғалім қояды.",
+      ru: "Найди, сколько разных маршрутов ведёт из левой верхней клетки в правую нижнюю. На каждом шаге разрешено пройти только на одну клетку вправо или на одну клетку вниз, наступать на стену нельзя.\n\nВвод: в первой строке через пробел n и m — количество строк и столбцов сетки (1 ≤ n ≤ 12, 1 ≤ m ≤ 12). В следующих n строках по m символов: `.` — свободная клетка, `#` — стена. Вывод: одно целое число.\n\nГраницы: стартовая или конечная клетка сама может оказаться стеной — тогда ответ 0. Для сетки из одной свободной клетки ответ 1. Если пути нет вовсе, выведи 0.\n\nПиши сегодняшним способом: построй таблицу и заполняй строки сверху вниз, а внутри строки слева направо. Таблицу бери из `long long`: с ростом сетки количество маршрутов вылезает за `int`, а эту же программу ты потом применишь и к сетке побольше. Ты знаешь, что проверяющая программа сравнивает только выведенное число, — значит, порядок заполнения не правило, которое проверяет машина, а совет; про твою таблицу спросит учитель.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      '        if g[r][c] == "#":\n' +
-      "            dp[r][c] = 0\n" +
-      "        elif r == 0 and c == 0:\n" +
-      "            dp[r][c] = 1\n" +
-      "        else:\n" +
-      "            up = 0\n" +
-      "            left = 0\n" +
-      "            if r > 0:\n" +
-      "                up = dp[r - 1][c]\n" +
-      "            if c > 0:\n" +
-      "                left = dp[r][c - 1]\n" +
-      "            dp[r][c] = up + left\n" +
-      "print(dp[n - 1][m - 1])",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string row;\n" +
+      "        cin >> row;\n" +
+      "        g.push_back(row);\n" +
+      "    }\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == '#') {\n" +
+      "                dp[r][c] = 0;\n" +
+      "            } else if (r == 0 && c == 0) {\n" +
+      "                dp[r][c] = 1;\n" +
+      "            } else {\n" +
+      "                long long up = 0;\n" +
+      "                long long left = 0;\n" +
+      "                if (r > 0) {\n" +
+      "                    up = dp[r - 1][c];\n" +
+      "                }\n" +
+      "                if (c > 0) {\n" +
+      "                    left = dp[r][c - 1];\n" +
+      "                }\n" +
+      "                dp[r][c] = up + left;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[n - 1][m - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 3\n...\n.#.\n...", expectedOutput: "2" },
       { input: "3 3\n...\n...\n...", expectedOutput: "6", hidden: true },
@@ -613,51 +789,81 @@ export const M8_L4: LessonBlock[] = [
       ru: "Перед тобой программа, которую ты дополнил в прошлом задании: она считает маршруты из левой НИЖНЕЙ клетки в правую ВЕРХНЮЮ (шаги вправо и вверх). Переделай её на обычное направление: маршрут начинается в левой ВЕРХНЕЙ клетке и заканчивается в правой НИЖНЕЙ, а шаги — вправо и вниз.\n\nИзменятся четыре места, найди их сам: (1) в какую клетку записывается 1, (2) каких двух соседей складывает клетка, (3) в каком направлении заполняются строки, (4) какая клетка выводится в конце. Ввод и вывод те же: в первой строке n и m (1 ≤ n ≤ 12, 1 ≤ m ≤ 12), в следующих n строках по m символов (`.` — свободно, `#` — стена), ответ — одно целое число. Если стартовая или конечная клетка — стена, ответ 0.",
     },
     code:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n - 1, -1, -1):\n" +
-      "    for c in range(m):\n" +
-      '        if g[r][c] == "#":\n' +
-      "            dp[r][c] = 0\n" +
-      "        elif r == n - 1 and c == 0:\n" +
-      "            dp[r][c] = 1\n" +
-      "        else:\n" +
-      "            down = 0\n" +
-      "            left = 0\n" +
-      "            if r < n - 1:\n" +
-      "                down = dp[r + 1][c]\n" +
-      "            if c > 0:\n" +
-      "                left = dp[r][c - 1]\n" +
-      "            dp[r][c] = down + left\n" +
-      "print(dp[0][m - 1])",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string row;\n" +
+      "        cin >> row;\n" +
+      "        g.push_back(row);\n" +
+      "    }\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int r = n - 1; r >= 0; r--) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == '#') {\n" +
+      "                dp[r][c] = 0;\n" +
+      "            } else if (r == n - 1 && c == 0) {\n" +
+      "                dp[r][c] = 1;\n" +
+      "            } else {\n" +
+      "                long long down = 0;\n" +
+      "                long long left = 0;\n" +
+      "                if (r < n - 1) {\n" +
+      "                    down = dp[r + 1][c];\n" +
+      "                }\n" +
+      "                if (c > 0) {\n" +
+      "                    left = dp[r][c - 1];\n" +
+      "                }\n" +
+      "                dp[r][c] = down + left;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[0][m - 1];\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      '        if g[r][c] == "#":\n' +
-      "            dp[r][c] = 0\n" +
-      "        elif r == 0 and c == 0:\n" +
-      "            dp[r][c] = 1\n" +
-      "        else:\n" +
-      "            up = 0\n" +
-      "            left = 0\n" +
-      "            if r > 0:\n" +
-      "                up = dp[r - 1][c]\n" +
-      "            if c > 0:\n" +
-      "                left = dp[r][c - 1]\n" +
-      "            dp[r][c] = up + left\n" +
-      "print(dp[n - 1][m - 1])",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string row;\n" +
+      "        cin >> row;\n" +
+      "        g.push_back(row);\n" +
+      "    }\n" +
+      "    vector<vector<long long>> dp(n, vector<long long>(m, 0));\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == '#') {\n" +
+      "                dp[r][c] = 0;\n" +
+      "            } else if (r == 0 && c == 0) {\n" +
+      "                dp[r][c] = 1;\n" +
+      "            } else {\n" +
+      "                long long up = 0;\n" +
+      "                long long left = 0;\n" +
+      "                if (r > 0) {\n" +
+      "                    up = dp[r - 1][c];\n" +
+      "                }\n" +
+      "                if (c > 0) {\n" +
+      "                    left = dp[r][c - 1];\n" +
+      "                }\n" +
+      "                dp[r][c] = up + left;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[n - 1][m - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Nine of the earlier cases are unchanged by flipping the grid vertically, so the
          UNMODIFIED program passed them. This one is not symmetric: the given program answers 0
@@ -707,6 +913,12 @@ export const M8_L4: LessonBlock[] = [
      * A single row, a single column, a 1×1 grid and an all-zero grid are all
      * present: they are where a solution that assumes both neighbours exist
      * falls over.
+     *
+     * `int` throughout, and honestly: 10 × 10 cells at 99 each is at most 1881.
+     * The prompt still warns about `min`'s one hard rule — both arguments must
+     * be the same type — because that is the error a learner meets the moment
+     * they mix a literal with a wider accumulator, and it is a compile error
+     * rather than a wrong number.
      */
     id: "m8.l4.b10",
     type: "challenge",
@@ -714,28 +926,41 @@ export const M8_L4: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Тордың әр ұяшығында сол ұяшыққа кірудің құны жазылған. Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін тек оңға және төмен жүресің. Маршруттың құны — сол маршрут өтетін барлық ұяшық құнының қосындысы, бастапқы және соңғы ұяшық та қосылады. Ең арзан маршруттың құнын шығар.\n\nКіріс: бірінші жолда бос орынмен бөлінген n және m (1 ≤ n ≤ 10, 1 ≤ m ≤ 10), келесі n жолдың әрқайсысында бос орынмен бөлінген m бүтін сан — ұяшықтардың құны (0 ≤ құн ≤ 99). Шығыс: бір сан.\n\nАбайла: «әр қадамда арзанырақ көршіні таңда» деген ашкөз ереже мұнда жұмыс істемейді. Көрсетілген мысалда ол 8 береді, ал шын жауап 6. Себебін ойлан: ұяшықта оның өз құны емес, сол ұяшыққа дейінгі ЕҢ АРЗАН маршруттың құны сақталуы керек. Екі санның кішісін `min` қайтарады.",
-      ru: "В каждой клетке сетки записана стоимость входа в эту клетку. Из левой верхней клетки в правую нижнюю ты идёшь только вправо и вниз. Стоимость маршрута — сумма стоимостей всех клеток, через которые он проходит, включая стартовую и конечную. Выведи стоимость самого дешёвого маршрута.\n\nВвод: в первой строке через пробел n и m (1 ≤ n ≤ 10, 1 ≤ m ≤ 10), в следующих n строках по m целых чисел через пробел — стоимости клеток (0 ≤ стоимость ≤ 99). Вывод: одно число.\n\nОсторожно: жадное правило «на каждом шаге выбирай соседа подешевле» здесь не работает. На показанном примере оно даёт 8, а верный ответ — 6. Подумай почему: в клетке нужно хранить не её собственную стоимость, а стоимость САМОГО ДЕШЁВОГО маршрута до неё. Меньшее из двух чисел возвращает `min`.",
+      kk: "Тордың әр ұяшығында сол ұяшыққа кірудің құны жазылған. Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін тек оңға және төмен жүресің. Маршруттың құны — сол маршрут өтетін барлық ұяшық құнының қосындысы, бастапқы және соңғы ұяшық та қосылады. Ең арзан маршруттың құнын шығар.\n\nКіріс: бірінші жолда бос орынмен бөлінген n және m (1 ≤ n ≤ 10, 1 ≤ m ≤ 10), келесі n жолдың әрқайсысында бос орынмен бөлінген m бүтін сан — ұяшықтардың құны (0 ≤ құн ≤ 99). Шығыс: бір сан.\n\nАбайла: «әр қадамда арзанырақ көршіні таңда» деген ашкөз ереже мұнда жұмыс істемейді. Көрсетілген мысалда ол 8 береді, ал шын жауап 6. Себебін ойлан: ұяшықта оның өз құны емес, сол ұяшыққа дейінгі ЕҢ АРЗАН маршруттың құны сақталуы керек.\n\nЕкі санның кішісін `min(a, b)` қайтарады, ол `#include <algorithm>` арқылы келеді. Бір ережесі бар: `min`-нің екі аргументі де БІР ТҮРДЕ болуға тиіс. `min(0, x)` дегенде `x` `long long` болса, бағдарлама тіпті компиляцияланбайды — қате жол нөмірімен бірге көрінеді. Мұндағы барлық сан `int`, ең үлкен жауап 1881-ден аспайды, сондықтан бәрін `int` етіп ұстасаң жеткілікті.",
+      ru: "В каждой клетке сетки записана стоимость входа в эту клетку. Из левой верхней клетки в правую нижнюю ты идёшь только вправо и вниз. Стоимость маршрута — сумма стоимостей всех клеток, через которые он проходит, включая стартовую и конечную. Выведи стоимость самого дешёвого маршрута.\n\nВвод: в первой строке через пробел n и m (1 ≤ n ≤ 10, 1 ≤ m ≤ 10), в следующих n строках по m целых чисел через пробел — стоимости клеток (0 ≤ стоимость ≤ 99). Вывод: одно число.\n\nОсторожно: жадное правило «на каждом шаге выбирай соседа подешевле» здесь не работает. На показанном примере оно даёт 8, а верный ответ — 6. Подумай почему: в клетке нужно хранить не её собственную стоимость, а стоимость САМОГО ДЕШЁВОГО маршрута до неё.\n\nМеньшее из двух чисел возвращает `min(a, b)`, он приходит из `#include <algorithm>`. У него есть одно правило: оба аргумента `min` должны быть ОДНОГО типа. Если написать `min(0, x)`, где `x` типа `long long`, программа даже не скомпилируется — ошибка появится с номером строки. Здесь все числа `int`, а самый большой ответ не превышает 1881, так что достаточно держать всё в `int`.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "cost = []\n" +
-      "for i in range(n):\n" +
-      "    cost.append(list(map(int, input().split())))\n" +
-      "dp = []\n" +
-      "for r in range(n):\n" +
-      "    dp.append([0] * m)\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      "        if r == 0 and c == 0:\n" +
-      "            dp[r][c] = cost[r][c]\n" +
-      "        elif r == 0:\n" +
-      "            dp[r][c] = dp[r][c - 1] + cost[r][c]\n" +
-      "        elif c == 0:\n" +
-      "            dp[r][c] = dp[r - 1][c] + cost[r][c]\n" +
-      "        else:\n" +
-      "            dp[r][c] = min(dp[r - 1][c], dp[r][c - 1]) + cost[r][c]\n" +
-      "print(dp[n - 1][m - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<vector<int>> cost(n, vector<int>(m, 0));\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            cin >> cost[r][c];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    vector<vector<int>> dp(n, vector<int>(m, 0));\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (r == 0 && c == 0) {\n" +
+      "                dp[r][c] = cost[r][c];\n" +
+      "            } else if (r == 0) {\n" +
+      "                dp[r][c] = dp[r][c - 1] + cost[r][c];\n" +
+      "            } else if (c == 0) {\n" +
+      "                dp[r][c] = dp[r - 1][c] + cost[r][c];\n" +
+      "            } else {\n" +
+      "                dp[r][c] = min(dp[r - 1][c], dp[r][c - 1]) + cost[r][c];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[n - 1][m - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "2 3\n1 3 1\n1 5 1", expectedOutput: "6" },
       { input: "3 3\n1 2 5\n1 9 5\n8 9 5", expectedOutput: "18", hidden: true },
@@ -792,8 +1017,8 @@ export const M8_L4: LessonBlock[] = [
         ru: "На стену наступать нельзя, значит до неё не ведёт ни один маршрут — их число равно нулю. Ноль здесь означает не «неизвестно», а «таких маршрутов нет», поэтому его законно прибавлять у соседей: несуществующие маршруты не добавляют ничего.",
       },
       {
-        kk: "Кесте басында түгел нөлмен толтырылған, ал әлі есептелмеген ұяшық пен шын мәні 0 болатын ұяшық сырттай ажыратылмайды. Сондықтан ретті бұзғанда бағдарлама заңды сан оқиды, ешбір ереже бұзылмайды және Python қателік хабарламасын беруге негіз таппайды.",
-        ru: "Таблица изначально заполнена нулями, и ещё не посчитанная клетка внешне неотличима от клетки, чей настоящий ответ равен 0. Поэтому при нарушенном порядке программа читает законное число, ни одно правило языка не нарушается, и у Python нет повода сообщить об ошибке.",
+        kk: "Кесте құрылған сәтте түгел нөлмен толтырылған, ал әлі есептелмеген ұяшық пен шын мәні 0 болатын ұяшық сырттай ажыратылмайды. Сондықтан ретті бұзғанда бағдарлама заңды санды заңды жерден оқиды: `dp[r - 1][c]` кестенің ішінде тұр, тілдің бірде-бір ережесі бұзылмайды, демек компиляторда да, орындалу кезінде де хабарлама беруге негіз жоқ.",
+        ru: "В момент создания таблица заполнена нулями, и ещё не посчитанная клетка внешне неотличима от клетки, чей настоящий ответ равен 0. Поэтому при нарушенном порядке программа читает законное число из законного места: `dp[r - 1][c]` лежит внутри таблицы, ни одно правило языка не нарушено, а значит, ни у компилятора, ни у программы во время работы нет повода сообщить об ошибке.",
       },
       {
         kk: "Байқау жолы: кішкентай, қолмен санауға болатын торда тексеру. Мысалы, қабырғасыз 3×3 торда жауап 6 болуы керек; ретті бұзған бағдарлама 0 береді. Тағы бір белгі — соңғы жолдың немесе соңғы бағанның түгел нөл болып қалуы: бұл сол бөлік бәрінен бұрын, әлі ештеңе жазылмай тұрып есептелгенін көрсетеді.",

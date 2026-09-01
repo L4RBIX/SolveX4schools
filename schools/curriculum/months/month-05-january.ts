@@ -48,9 +48,10 @@ import { M5_ASSESSMENT } from "./m05/assessment";
  *
  * ## What this month may not import
  *
- * `bisect`. The programme never teaches it, and a binary-search month whose
- * tasks are solved by importing the answer teaches nothing. Reference solutions
- * write the loop.
+ * `<algorithm>`'s `lower_bound` and `upper_bound`. The programme never teaches
+ * them, and a binary-search month whose tasks are solved by calling the answer
+ * teaches nothing. `<algorithm>` appears exactly once, for December's `sort` in
+ * `m5.l5`; every search in the month is a loop the learner writes.
  */
 
 const P = 9; // PDF page for all of January

@@ -37,7 +37,7 @@ afterEach(async () => {
   fake = null;
 });
 
-const LANGS = [{ id: 71, name: "Python (3.8.1)" }, { id: 100, name: "Python (3.12.5)" }];
+const LANGS = [{ id: 54, name: "C++ (GCC 9.2.0)" }, { id: 105, name: "C++ (GCC 14.1.0)" }];
 
 function provider(baseUrl: string, over: Record<string, unknown> = {}) {
   return new Judge0RapidApiProvider({
@@ -53,9 +53,12 @@ function provider(baseUrl: string, over: Record<string, unknown> = {}) {
   });
 }
 
+/** One trivial C++ program, shared by the request fixture and the case runs. */
+const CANARY = '#include <iostream>\nint main() { std::cout << 1 << "\\n"; }\n';
+
 const REQ = {
-  language: "python3" as const,
-  sourceCode: "print(1)",
+  language: "cpp17" as const,
+  sourceCode: CANARY,
   stdin: "",
   timeLimitMs: 5_000,
   memoryLimitMb: 256,
@@ -141,7 +144,7 @@ describe("the concurrency gate actually bounds", () => {
     }));
     /* `runCases` drives it exactly as a real submission does, so this is the
        real path and not a hand-rolled fan-out. */
-    const { infrastructureFailed } = await runCases(p, "print(1)", cases);
+    const { infrastructureFailed } = await runCases(p, CANARY, cases);
 
     expect(infrastructureFailed).toBe(false);
     expect(posts(fake), "every case must actually have been submitted").toBe(8);
@@ -167,7 +170,7 @@ describe("a provider failure never reaches a learner as a wrong answer", () => {
 
       const { results, infrastructureFailed } = await runCases(
         provider(fake.url),
-        "print(1)",
+        CANARY,
         [
           { input: "1", expectedOutput: "1" },
           { input: "2", expectedOutput: "1" },

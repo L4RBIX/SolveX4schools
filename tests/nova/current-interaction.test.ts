@@ -14,7 +14,7 @@ import type { GrantDecision } from "@solvex/nova-core";
  *
  * ## The bug, exactly as it happened
  *
- * A learner reads `print("2 + 2")` on block `m1.l1.b2`, picks the option with
+ * A learner reads `cout << "2 + 2";` on block `m1.l1.b2`, picks the option with
  * the quote marks in it, is told it is wrong, opens Nova and types «Где
  * ошибка?».
  *
@@ -85,7 +85,7 @@ async function contextFor(
 /* THE regression                                                             */
 /* ========================================================================== */
 
-describe("the print(\"2 + 2\") screen, which Nova used to be blind to", () => {
+describe("the cout << \"2 + 2\" screen, which Nova used to be blind to", () => {
   it("carries the lesson, the question, the code, every option and the learner's pick", async () => {
     /* One wrong attempt on record, exactly as in the screenshot. */
     const episode = await playEpisode({ store, sql, subjectId }, PRINT_2_2, [
@@ -114,7 +114,7 @@ describe("the print(\"2 + 2\") screen, which Nova used to be blind to", () => {
        disappears, Nova is back to asking a fourteen-year-old to describe their
        own screen, and this test is the thing that says so. */
     expect(system, "the question").toContain("Что выведет эта программа?");
-    expect(system, "the code on screen").toContain('print("2 + 2")');
+    expect(system, "the code on screen").toContain('cout << "2 + 2"');
     expect(system, "option: the literal string").toContain("2 + 2");
     expect(system, "option: the wrong arithmetic reading").toContain("4");
     expect(system, "the block type").toContain("prediction");
@@ -239,7 +239,7 @@ describe("a learner debugging their own program", () => {
        4 of the ladder are "walk through THEIR case" and "give the fix", and
        both are unsatisfiable against code nobody has seen. */
     const target = findBlock(CODE_BLOCK)!;
-    const learnerCode = "a, b, c = input().split()\nprint(a + b + c)";
+    const learnerCode = "int a, b, c;\ncin >> a >> b >> c;\ncout << a + b + c;";
 
     const ctx = await buildNovaContext({
       store,
@@ -275,18 +275,23 @@ describe("a learner debugging their own program", () => {
     /* In the fenced half, never the system half. The learner wrote it, so it is
        the one part of the context that could carry an injection. */
     expect(fenced).toContain(learnerCode);
-    expect(system).not.toContain("input().split()");
+    expect(system).not.toContain("cin >> a >> b >> c");
   }, 60_000);
 
   it("carries stderr, so Nova never asks what error the platform already has", async () => {
-    /* The exact failure named in the brief: a learner sees `ZeroDivisionError`
-       and Nova asks "what error do you see?". The platform is holding the
-       string. */
+    /* The exact failure named in the brief, restated for C++: the learner is
+       looking at a compiler diagnostic in English and Nova asks "what error do
+       you see?". The platform is holding the string.
+
+       Division by zero is no longer the fixture it was — in C++ it is undefined
+       behaviour rather than a named exception, so there is nothing dependable
+       to test against. A program that does not compile is the honest September
+       equivalent, and it is far commoner. */
     const episodeId = randomUUID();
     await playEpisode({ store, sql, subjectId }, CODE_BLOCK, [
       {
         kind: "submit",
-        answer: { kind: "text", value: "print(1 / 0)" },
+        answer: { kind: "text", value: "cout << a / b" },
         judged: { passed: 0, total: 3 },
       },
     ], { episodeId });
@@ -306,11 +311,11 @@ describe("a learner debugging their own program", () => {
 describe("each block type's answer reaches the model", () => {
   const cases: { name: string; draft: Record<string, unknown>; expect: string }[] = [
     { name: "multiple choice / prediction", draft: { selectedOptionId: "4" }, expect: "4" },
-    { name: "fill blank", draft: { blanks: ["int", "input"] }, expect: "int" },
+    { name: "fill blank", draft: { blanks: ["int", "cin"] }, expect: "int" },
     { name: "reorder", draft: { order: ["p3", "p1", "p2"] }, expect: "p3 → p1 → p2" },
     { name: "find bug", draft: { line: 3 }, expect: "marked as the bug: 3" },
     { name: "trace", draft: { cells: { "0:n": "5" } }, expect: "0:n = 5" },
-    { name: "write code", draft: { code: "print(1)" }, expect: "print(1)" },
+    { name: "write code", draft: { code: "cout << 1;" }, expect: "cout << 1;" },
     { name: "explanation", draft: { text: "потому что скобки" }, expect: "потому что скобки" },
   ];
 
@@ -394,9 +399,11 @@ describe("a multiple_choice screen, where the options are labels rather than str
         "[object Object]",
       );
     }
-    // The distinction the whole block is about must actually be visible.
-    expect(options.map((o) => o.text).join(" | ")).toContain("and");
-    expect(options.map((o) => o.text).join(" | ")).toContain("or");
+    /* The distinction the whole block is about must actually be visible. In
+       C++17 that is `&&` against `||`, not `and` against `or` — the block was
+       re-authored with the month and the operators changed with it. */
+    expect(options.map((o) => o.text).join(" | ")).toContain("&&");
+    expect(options.map((o) => o.text).join(" | ")).toContain("||");
   });
 
   it("reaches the system prompt, so the model can name what the learner picked", async () => {
@@ -415,8 +422,8 @@ describe("a multiple_choice screen, where the options are labels rather than str
       "Почему ошибка?",
     );
     const system = messages[0].content;
-    expect(system, "the option the learner chose").toContain("x >= 10 or x <= 20");
-    expect(system, "and the one that is right").toContain("x >= 10 and x <= 20");
+    expect(system, "the option the learner chose").toContain("x >= 10 || x <= 20");
+    expect(system, "and the one that is right").toContain("x >= 10 && x <= 20");
   });
 
   it("answers in the learner's own language for a bilingual label", async () => {

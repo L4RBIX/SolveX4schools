@@ -431,18 +431,45 @@ describe("nothing under src/lib/pyodide can reach the server's half of the world
     };
     walk(dir);
     expect(files.length).toBeGreaterThan(4);
+    /* The exceptions are named, so a file cannot join them by being added — and
+       the count is asserted so that "everything is an exception" fails here
+       rather than passing quietly. */
+    let checked = 0;
     for (const file of files) {
       const rel = path.relative(ROOT, file);
-      /* `checker.ts` is the documented exception: pure string comparison with no
-         secret in it, imported by `schools/curriculum/types.ts`. It takes the
-         answer key as an ARGUMENT, which is why it is on the audit's
-         SERVER_ONLY list anyway — the guarantee for it is that nothing in the
-         browser calls it, asserted below. */
-      if (rel.endsWith("checker.ts")) continue;
+      /* Three documented exceptions, and each one has to earn it.
+
+         `checker.ts` — pure string comparison with no secret in it, imported by
+         `schools/curriculum/types.ts`. It takes the answer key as an ARGUMENT,
+         which is why it is on the audit's SERVER_ONLY list anyway; the
+         guarantee for it is that nothing in the browser calls it, asserted
+         below.
+
+         `execution-limits.ts` — five numbers and NO IMPORTS AT ALL. Nothing to
+         pull into a bundle and nothing to leak. It was split out because the
+         marker had a real cost: `scripts/check-blocks.ts` reads
+         `EXECUTION_LIMITS.maxStdinBytes` to refuse an oversized case at
+         authoring time, and it threw on startup instead, so that check had
+         silently stopped running.
+
+         `provider.ts` — the port DEFINITION: an interface, two unions, four
+         pure predicates and a re-export of the above. It imports nothing, reads
+         no configuration and holds no credential.
+
+         The rule these three do not weaken: every IMPLEMENTATION keeps the
+         marker. `index.ts` resolves the provider and can load a key-holding
+         module, `limits.ts` counts and refuses, and everything under
+         `providers/` speaks to a judge. Those are what a client component must
+         not be able to import, and those are what this loop still checks. */
+      const EXCEPTIONS = ["checker.ts", "execution-limits.ts", "provider.ts"];
+      if (EXCEPTIONS.some((name) => rel.endsWith(name))) continue;
+      checked += 1;
       expect(readFileSync(file, "utf8"), `${rel} lost its server-only marker`).toMatch(
         /^import "server-only";/m,
       );
     }
+    /* index.ts, limits.ts, and the three providers. */
+    expect(checked).toBeGreaterThanOrEqual(5);
   });
 
   it("never calls the checker, because the browser has nothing to check against", () => {

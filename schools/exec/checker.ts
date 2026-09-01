@@ -179,11 +179,11 @@ export function checkerProblem(checker: OutputChecker): string | null {
 /**
  * Trailing newlines, and ONLY trailing newlines.
  *
- * `print()` ends every Python program with one, and no author writes it into
- * the expected output, so removing it is not a judgement about the task — it is
- * the difference between the language and the answer. Trailing SPACES are left
- * alone: a program that prints `"5 "` printed a space, and under `exact` the
- * author has said they care.
+ * `cout << ... << endl` and `"\n"` end most programs with one, and no author
+ * writes it into the expected output, so removing it is not a judgement about
+ * the task — it is the difference between the language and the answer. Trailing
+ * SPACES are left alone: a program that prints `"5 "` printed a space, and under
+ * `exact` the author has said they care.
  */
 function stripTrailingNewlines(text: string): string {
   return text.replace(/[\r\n]+$/, "");
@@ -199,8 +199,9 @@ function tokenize(text: string): string[] {
  *
  * Deliberately narrower than `Number()`. `Number("0x1f")` is 31 and
  * `Number("Infinity")` is infinite, and a task whose expected output is the
- * literal text `inf` or `nan` — Python prints both — is asking about that TEXT,
- * so those compare as strings and stay comparable. A number so large it parses
+ * literal text `inf` or `nan` — which is what `cout` prints for a non-finite
+ * double — is asking about that TEXT, so those compare as strings and stay
+ * comparable. A number so large it parses
  * to Infinity is also refused: no tolerance is meaningful against it, and
  * `Infinity - Infinity` is `NaN`, which would fail every comparison including
  * against itself.

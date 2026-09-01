@@ -19,12 +19,15 @@ import type { Socket } from "node:net";
  *
  * It proves NOTHING about RapidAPI. **There is no key in this repository and
  * nothing in this test suite has ever contacted `judge0-ce.p.rapidapi.com`.**
- * This server does not run Python — every result below is a fixture written to
- * match what CPython actually prints — it has no sandbox, no cgroups and no
- * isolate, and it will cheerfully accept a `cpu_time_limit` a real plan
- * refuses. Which Python the plan exposes, where its ceilings sit, whether the
- * batch endpoints exist on it and where the rate limit falls are all UNKNOWN
- * until somebody holds a key.
+ * This server does not compile anything — every result below is a fixture
+ * written to match what GCC and the program actually produce — it has no
+ * sandbox, no cgroups and no isolate, and it will cheerfully accept a
+ * `cpu_time_limit` a real plan refuses. Where the plan's ceilings sit, whether
+ * the batch endpoints exist on it and where the rate limit falls are all
+ * UNKNOWN until somebody holds a key. The C++ catalogue and the standard
+ * `language_id 105` compiles with are the two things that HAVE been measured —
+ * see `docs/cpp17/CPP17_JUDGE_PARITY.md` — and the catalogue below is that
+ * measurement, verbatim.
  *
  * The split is the one `tests/exec/fake-piston.ts` already draws: adapter
  * correctness and service correctness are different claims, and a fake that
@@ -46,56 +49,90 @@ import type { Socket } from "node:net";
  */
 
 /* -------------------------------------------------------------------------- */
-/* The programs, and what CPython really prints                               */
+/* The programs, and what GCC really produces                                 */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Real Python, so the SAME suite can run against the real service.
+ * Real C++17, so the SAME suite can run against the real service.
  *
  * Nothing here is a fixture-only program: each one is written so that a live
- * Judge0 running CPython produces exactly the output the engine below fakes.
- * That is the property that makes `JUDGE0_LIVE_TEST=1` meaningful rather than
- * a second, differently-worded suite.
+ * Judge0 compiling with GCC 14 produces exactly the output the engine below
+ * fakes. That is the property that makes `JUDGE0_LIVE_TEST=1` meaningful rather
+ * than a second, differently-worded suite.
+ *
+ * Every one includes only `<iostream>` (plus `<cstdlib>` where it needs
+ * `exit`). `<bits/stdc++.h>` is deliberately absent: it is four seconds of
+ * compile time in the browser and it is not what September teaches.
  */
 export const PROGRAMS = {
-  hello: 'print("hello, world")',
+  hello: '#include <iostream>\nint main() { std::cout << "hello, world\\n"; }\n',
   /** Reads stdin. The fake COMPUTES its answer from what arrived — see `engine`. */
-  sumPair: "a, b = map(int, input().split())\nprint(a + b)",
-  square: "n = int(input())\nprint(n * n)",
-  syntax: "print(",
-  divZero: "print(1 / 0)",
-  spin: "while True:\n    pass",
+  sumPair:
+    "#include <iostream>\nint main() { long long a, b; std::cin >> a >> b; std::cout << a + b << \"\\n\"; }\n",
+  square: "#include <iostream>\nint main() { long long n; std::cin >> n; std::cout << n * n << \"\\n\"; }\n",
+  /** A missing `;`. Judge0 answers status 6 with the diagnostics in their own field. */
+  syntax: "#include <iostream>\nint main() { std::cout << 1 }\n",
+  divZero: "#include <iostream>\nint main() { int z = 0; std::cout << 1 / z << \"\\n\"; }\n",
+  /**
+   * An uncaught exception — the crash that DOES say something on stderr.
+   *
+   * It earns its place beside `divZero` rather than replacing it, because the
+   * two fail differently and a learner needs both told correctly. Integer
+   * division by zero is a SIGNAL: the process dies, prints nothing, and the
+   * only description lives in Judge0's own `message` field, which this product
+   * does not forward. `vector::at` throws, and the C++ runtime's default
+   * terminate handler writes a real sentence to stderr before aborting.
+   */
+  throwing:
+    "#include <iostream>\n#include <vector>\nint main() { std::vector<int> v; std::cout << v.at(3); }\n",
+  spin: "int main() { while (true) {} }\n",
   /** ~220 KB of stdout: comfortably past our 64 KiB ceiling, comfortably under
       a judge's own file-size limit, so it is an OUTPUT test and not a SIGXFSZ
       test on either side. */
-  bomb: 'for i in range(20000):\n    print("0123456789")',
-  exit7: 'import sys\nprint("partial")\nsys.exit(7)',
-  kazakh: 'print("Сәлем, әлем!")',
-  bigInt: "print(10**100)",
+  bomb:
+    "#include <iostream>\nint main() { for (int i = 0; i < 20000; i++) std::cout << \"0123456789\\n\"; }\n",
+  exit7:
+    "#include <iostream>\n#include <cstdlib>\nint main() { std::cout << \"partial\\n\"; std::exit(7); }\n",
+  kazakh: '#include <iostream>\nint main() { std::cout << "Сәлем, әлем!\\n"; }\n',
+  /** `long long`, where September's Python would have had arbitrary precision. */
+  bigInt:
+    "#include <iostream>\nint main() { long long n = 3000000000LL; std::cout << n * 2 << \"\\n\"; }\n",
 } as const;
 
-/** `print(10**100)` — 1 followed by a hundred zeros, exactly. */
-export const BIG_INT_TEXT = `1${"0".repeat(100)}`;
+/**
+ * `3000000000LL * 2`, which is the C++ replacement for `print(10**100)`.
+ *
+ * The old fixture existed because Python's integers are arbitrary-precision and
+ * a judge that truncated them would silently change a curriculum fact. C++ has
+ * no such thing, so the equivalent claim is the one that actually bites here:
+ * a value past 32 bits survives, because the program said `long long`. Measured
+ * identical on both engines — see `docs/cpp17/CPP17_JUDGE_PARITY.md`.
+ */
+export const BIG_INT_TEXT = "6000000000";
 
-const SYNTAX_STDERR =
-  '  File "/box/script.py", line 1\n' +
-  "    print(\n" +
-  "         ^\n" +
-  "SyntaxError: '(' was never closed\n";
+/**
+ * The compiler's own diagnostics, on the judge's own field.
+ *
+ * Note where this goes: `compile_output`, with `status_id: 6`. The Python-era
+ * fake put a `SyntaxError` on **stderr** with `status_id: 11`, because CPython
+ * has no compile stage and Judge0 could only see a non-zero exit — which is why
+ * the port used to carry a shared prose-matching predicate. A compiled language
+ * reports it structurally, and this fixture is what that looks like on the wire.
+ */
+const COMPILE_ERROR_OUTPUT =
+  "main.cpp: In function 'int main()':\n" +
+  "main.cpp:2:28: error: expected ';' before '}' token\n" +
+  "    2 | int main() { std::cout << 1 }\n" +
+  "      |                            ^\n" +
+  "      |                            ;\n";
 
-const ZERO_DIVISION_STDERR =
-  "Traceback (most recent call last):\n" +
-  '  File "/box/script.py", line 1, in <module>\n' +
-  "    print(1 / 0)\n" +
-  "          ~~^~~\n" +
-  "ZeroDivisionError: division by zero\n";
+/** Integer division by zero is undefined behaviour; on x86-64 it is SIGFPE. */
+const SIGFPE_MESSAGE = "Floating point exception (core dumped)";
 
-const EOF_STDERR =
-  "Traceback (most recent call last):\n" +
-  '  File "/box/script.py", line 1, in <module>\n' +
-  "    n = int(input())\n" +
-  "            ^^^^^^^\n" +
-  "EOFError: EOF when reading a line\n";
+/** What libstdc++'s default terminate handler prints before it aborts. */
+const UNCAUGHT_EXCEPTION_STDERR =
+  "terminate called after throwing an instance of 'std::out_of_range'\n" +
+  "  what():  vector::_M_range_check: __n (which is 3) >= this->size() (which is 0)\n";
 
 /* -------------------------------------------------------------------------- */
 /* Judge0's shapes                                                            */
@@ -148,23 +185,31 @@ const DESCRIPTIONS: Record<number, string> = {
 /**
  * The language catalogue.
  *
- * Shaped after Judge0 CE's real list and seeded with the two traps the
- * discovery rule exists to avoid: a Python 2, and a `Python for ML` whose
- * numpy-preloaded runtime would silently downgrade the "standard library only"
- * guarantee that `schools/execution/python-policy.ts` enforces BY ABSENCE.
+ * The C++ rows are `judge0-ce.p.rapidapi.com`'s real list, read from
+ * `GET /languages` on 2026-09-01 and copied here unchanged, because every one
+ * of them is a trap the discovery rule exists to avoid:
+ *
+ *   - three GCCs that default to `gnu++14` and cannot be told otherwise, since
+ *     `compiler_options` is 403 on this plan; and
+ *   - a Clang that defaults to `gnu++14` for the same reason.
+ *
+ * Taking any of them would compile the course's own syntax as C++14 and report
+ * the learner wrong for writing what they were taught. A fake seeded only with
+ * the right answer would prove nothing about that.
  */
 export const LANGUAGES: readonly { id: number; name: string }[] = [
   { id: 45, name: "Assembly (NASM 2.14.02)" },
   { id: 63, name: "JavaScript (Node.js 12.14.0)" },
-  { id: 70, name: "Python (2.7.17)" },
-  { id: 71, name: "Python (3.8.1)" },
-  { id: 92, name: "Python (3.11.2)" },
+  { id: 52, name: "C++ (GCC 7.4.0)" },
+  { id: 53, name: "C++ (GCC 8.3.0)" },
+  { id: 54, name: "C++ (GCC 9.2.0)" },
+  { id: 76, name: "C++ (Clang 7.0.1)" },
   { id: 100, name: "Python (3.12.5)" },
-  { id: 127, name: "Python for ML (3.11.2)" },
+  { id: 105, name: "C++ (GCC 14.1.0)" },
 ];
 
-/** The id the discovery rule must land on: the highest PLAIN Python 3. */
-export const EXPECTED_PYTHON_ID = 100;
+/** The id the discovery rule must land on: the only GCC that defaults to C++17. */
+export const EXPECTED_CPP_ID = 105;
 
 /**
  * Read a field the adapter may have base64-encoded.
@@ -175,8 +220,8 @@ export const EXPECTED_PYTHON_ID = 100;
  */
 export function decodeMaybeBase64(value: unknown): string {
   if (typeof value !== "string" || value === "") return "";
-  /* Base64 of ASCII Python is itself ASCII and round-trips; a plain program
-     containing `(`, `"` or a newline does not, so the shape is decidable. */
+  /* Base64 of an ASCII program is itself ASCII and round-trips; a plain program
+     containing `(`, `"`, `<` or a newline does not, so the shape is decidable. */
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value.replace(/\s/g, ""))) return value;
   try {
     const decoded = Buffer.from(value, "base64").toString("utf8");
@@ -206,7 +251,7 @@ export function terminal(over: Partial<Judge0Terminal> = {}): Judge0Terminal {
 }
 
 /**
- * The fake's CPython.
+ * The fake's compiler and runtime.
  *
  * The stdin-reading programs COMPUTE their answer from the `stdin` that
  * actually arrived rather than answering from a lookup table. That is the only
@@ -220,7 +265,7 @@ export function terminal(over: Partial<Judge0Terminal> = {}): Judge0Terminal {
 export function engine(body: Judge0SubmitBody): Judge0Terminal {
   /* The adapter sends base64 now, as the service demands. Decoded here so the
      fixture engine below can still match on the program text — a fake that
-     compared base64 blobs would be matching on our encoder, not on Python. */
+     compared base64 blobs would be matching on our encoder, not on a program. */
   const source = decodeMaybeBase64(body.source_code);
   /* Base64 like the source, and for the same reason — a learner's input can be
      Kazakh too. Missing this decode made the fixture engine see an empty stdin
@@ -231,25 +276,48 @@ export function engine(body: Judge0SubmitBody): Judge0Terminal {
 
   if (source === PROGRAMS.hello) return terminal({ stdout: "hello, world\n" });
 
+  /* ## The behavioural change the language brought, encoded here once
+     `input()` on an exhausted stdin raises `EOFError` and CPython exits 1.
+     `std::cin >> n` on an exhausted stdin sets `failbit` and, since C++11,
+     VALUE-INITIALISES the target — so the program carries on with zero, prints
+     an answer, and exits 0. A "running, wrong" program instead of a crash.
+     That is not a fixture convenience; it is what a real GCC does, and it is
+     why an empty input box now produces `0` rather than a runtime error. */
   if (source === PROGRAMS.sumPair) {
     const parts = firstLine.split(/\s+/).filter(Boolean);
-    if (parts.length < 2) return terminal({ status_id: 11, stderr: EOF_STDERR, exit_code: 1 });
-    return terminal({ stdout: `${Number(parts[0]) + Number(parts[1])}\n` });
+    const a = Number(parts[0] ?? 0);
+    const b = Number(parts[1] ?? 0);
+    return terminal({ stdout: `${a + b}\n` });
   }
 
   if (source === PROGRAMS.square) {
-    if (firstLine === "") return terminal({ status_id: 11, stderr: EOF_STDERR, exit_code: 1 });
-    return terminal({ stdout: `${Number(firstLine) * Number(firstLine)}\n` });
+    const n = firstLine === "" ? 0 : Number(firstLine);
+    return terminal({ stdout: `${n * n}\n` });
   }
 
-  /* CPython reports a SyntaxError BEFORE running a line, and Judge0 has no way
-     to know that: it sees a non-zero exit and reports NZEC. The whole reason
-     `looksLikeCompileError` is shared at the port. */
+  /* Status 6 with the diagnostics in `compile_output`. The program never ran,
+     and the judge SAYS so rather than leaving it to be inferred from the words
+     on stderr — which is the whole difference a compile stage makes. */
   if (source === PROGRAMS.syntax) {
-    return terminal({ status_id: 11, stderr: SYNTAX_STDERR, exit_code: 1 });
+    return terminal({
+      status_id: 6,
+      compile_output: COMPILE_ERROR_OUTPUT,
+      exit_code: null,
+    });
   }
+  /* It COMPILED, then died on SIGFPE. Status 9 in Judge0's numbering, and a
+     runtime error in ours — the learner's program, so it is evidence.
+     Note the EMPTY stdout and stderr. A signal kills the process without it
+     printing anything, and the only description of what happened is in Judge0's
+     `message`, which the provider does not forward. So a C++ learner who
+     divides by zero gets a correct verdict and no explanation — a real loss
+     against CPython's traceback, recorded here rather than hidden. */
   if (source === PROGRAMS.divZero) {
-    return terminal({ status_id: 11, stderr: ZERO_DIVISION_STDERR, exit_code: 1 });
+    return terminal({ status_id: 9, message: SIGFPE_MESSAGE, exit_code: null });
+  }
+  /* SIGABRT after the terminate handler ran, with its sentence on stderr. */
+  if (source === PROGRAMS.throwing) {
+    return terminal({ status_id: 10, stderr: UNCAUGHT_EXCEPTION_STDERR, exit_code: null });
   }
   /* THE LEARNER'S program, killed on ITS OWN cpu limit. Evidence. */
   if (source === PROGRAMS.spin) {
@@ -261,6 +329,12 @@ export function engine(body: Judge0SubmitBody): Judge0Terminal {
   if (source === PROGRAMS.exit7) {
     return terminal({ status_id: 11, stdout: "partial\n", exit_code: 7 });
   }
+  /* Note there is no EOF fixture any more. `std::cin >> n` on empty input does
+     not throw — it sets `failbit` and leaves `n` zero-initialised in C++11 and
+     later — so a program given no input PRINTS SOMETHING and exits 0. The old
+     Python fixture raised `EOFError` and exited 1. That is a real behavioural
+     difference between the two eras and it is handled by the stdin-reading
+     branches above returning a computed answer rather than an error. */
   if (source === PROGRAMS.kazakh) return terminal({ stdout: "Сәлем, әлем!\n" });
   if (source === PROGRAMS.bigInt) return terminal({ stdout: `${BIG_INT_TEXT}\n` });
 

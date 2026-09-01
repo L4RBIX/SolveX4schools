@@ -11,7 +11,7 @@ import type { LessonBlock } from "../../types";
  *
  * The month's mastery line is «тізімнің үздіксіз бөлігін екі шекараны жылжыта
  * отырып өңдеу», and the merge is the year's cleanest case of it: two indices
- * that only ever move forward, `len(a) + len(b)` steps between them, and no
+ * that only ever move forward, `n + m` steps between them, and no
  * inner loop anywhere. m5.l4 walks two pointers towards each other from the
  * ends of one list; here they walk forwards through two different lists, which
  * is a different move and is why the family gets its own lesson.
@@ -29,7 +29,8 @@ import type { LessonBlock } from "../../types";
  *    out. The lesson's own vocabulary for it is «қалған бөлік» / «остаток».
  *
  * 2. **What the checker cannot see, said out loud instead of pretended.**
- *    `a + b` followed by `.sort()` produces exactly the right answer, and no
+ *    concatenating the two vectors and calling `sort` produces exactly the
+ *    right answer, and no
  *    output comparison can tell it from a merge. Declaring "you may not sort"
  *    as a graded rule would be stating a requirement the product does not
  *    enforce — the defect the first adversarial review named. Of the contract's
@@ -48,16 +49,16 @@ import type { LessonBlock } from "../../types";
  *    unanswerable without the merge: the trace, the two fill_blanks, the
  *    find_bug and b8's repair.
  *
- * 3. **Input shape.** Two lines, each one line of space-separated integers read
- *    as `list(map(int, input().split()))`, each guaranteed non-empty and
+ * 3. **Input shape.** A first line carrying the two lengths `n` and `m`, then
+ *    one line of `n` integers and one of `m`, each guaranteed non-empty and
  *    already sorted — ascending everywhere except b8, where the direction is
- *    flipped on purpose and both of its prompts shout it. No leading counts:
- *    `len()` is October's, and the two lengths are exactly what the loop
- *    conditions need. Nothing here tests
- *    an empty line — an empty list is a fair merge input but it is a
- *    conversation about `input()` on a blank line, not about merging, and it
- *    would land in the middle of the one lesson where the tail must be the
- *    only surprise.
+ *    flipped on purpose and both of its prompts shout it. The leading counts are
+ *    not decoration in C++: `cin >>` reads values, not lines, so a list of
+ *    unknown length cannot be read at all without either a count or machinery
+ *    (`getline` plus a `stringstream`) this course does not teach. The two
+ *    counts are also exactly what the three loop conditions need. Nothing here
+ *    tests an empty list — a fair merge input, but it would land in the middle
+ *    of the one lesson where the tail must be the only surprise.
  *
  * 4. **No two programs in this lesson are the same program, and none of them is
  *    b7's answer.** The merge is a short program and a lesson about it could
@@ -91,20 +92,11 @@ export const M5_L7: LessonBlock[] = [
        option": everything else in the lesson, including why the tail can simply
        be copied, follows from it. */
     body: {
-      kk: "Екі тізім де өсу ретімен реттелген, ал біріктірілген нәтиже де реттелген болуы керек. Ол үшін тізімдерді жалғап, қайтадан реттеудің қажеті жоқ: реттелгендік — қолымызда бар дайын ақпарат, оны лақтырып тастамай пайдаланған дұрыс.\n\nӘр тізімге бір көрсеткіш қоямыз: `i` — бірінші тізімде, `j` — екіншісінде. Екеуі де өз тізіміндегі әлі алынбаған ең кіші санды көрсетіп тұрады. Демек келесі шығуға тиіс сан не `a[i]`, не `b[j]` — үшінші нұсқа жоқ. Кішісін аламыз да, дәл сол тізімнің көрсеткішін бір қадам жылжытамыз; екіншісі орнында қалады. Төмендегі код — осындай қадамның біреуі ғана.\n\nЕң маңыздысы — соңы. Бір көрсеткіш өз тізімінің ұзындығына жеткенде салыстыратын ештеңе қалмайды, ал екінші тізімде сандар әлі тұр. Ол қалған бөлік өз ішінде реттелген және оның әр саны шығып қойған сандардың бәрінен кіші емес, сондықтан оны сол қалпында, ретімен көшіріп жазу жеткілікті. Осы қалған бөлікті ұмыту — біріктірудегі ең жиі қате.",
-      ru: "Оба списка отсортированы по возрастанию, и результат слияния тоже должен быть отсортирован. Склеивать списки и сортировать заново для этого не нужно: упорядоченность — это готовая информация, которая у нас уже есть, и разумнее ею воспользоваться, чем выбросить.\n\nСтавим на каждый список свой указатель: `i` — на первый, `j` — на второй. Каждый показывает на наименьшее ещё не взятое число своего списка. Значит, следующим должно выйти либо `a[i]`, либо `b[j]` — третьего варианта нет. Берём меньшее и сдвигаем на один шаг только тот указатель, из чьего списка взяли; второй остаётся на месте. Код ниже — ровно один такой шаг.\n\nСамое важное — конец. Когда один указатель доходит до длины своего списка, сравнивать больше нечего, а во втором списке числа ещё остались. Этот остаток уже упорядочен внутри себя, и каждое его число не меньше всех уже выведенных, поэтому его достаточно переписать подряд, как есть. Забыть про остаток — самая частая ошибка при слиянии.",
+      kk: "Екі тізім де өсу ретімен реттелген, ал біріктірілген нәтиже де реттелген болуы керек. Ол үшін тізімдерді жалғап, қайтадан реттеудің қажеті жоқ: реттелгендік — қолымызда бар дайын ақпарат, оны лақтырып тастамай пайдаланған дұрыс.\n\nӘр тізімге бір көрсеткіш қоямыз: `i` — бірінші тізімде, `j` — екіншісінде. Екеуі де өз тізіміндегі әлі алынбаған ең кіші санды көрсетіп тұрады. Демек келесі шығуға тиіс сан не `a[i]`, не `b[j]` — үшінші нұсқа жоқ. Кішісін аламыз да, дәл сол тізімнің көрсеткішін бір қадам жылжытамыз; екіншісі орнында қалады. `i++` — `i = i + 1` дегеннің қысқа жазылуы, оны циклде көргенбіз. Төмендегі код — осындай қадамның біреуі ғана.\n\nЕң маңыздысы — соңы. Бір көрсеткіш өз тізімінің ұзындығына (`n` немесе `m`) жеткенде салыстыратын ештеңе қалмайды, ал екінші тізімде сандар әлі тұр. Ол қалған бөлік өз ішінде реттелген және оның әр саны шығып қойған сандардың бәрінен кіші емес, сондықтан оны сол қалпында, ретімен көшіріп жазу жеткілікті. Осы қалған бөлікті ұмыту — біріктірудегі ең жиі қате.",
+      ru: "Оба списка отсортированы по возрастанию, и результат слияния тоже должен быть отсортирован. Склеивать списки и сортировать заново для этого не нужно: упорядоченность — это готовая информация, которая у нас уже есть, и разумнее ею воспользоваться, чем выбросить.\n\nСтавим на каждый список свой указатель: `i` — на первый, `j` — на второй. Каждый показывает на наименьшее ещё не взятое число своего списка. Значит, следующим должно выйти либо `a[i]`, либо `b[j]` — третьего варианта нет. Берём меньшее и сдвигаем на один шаг только тот указатель, из чьего списка взяли; второй остаётся на месте. `i++` — это короткая запись для `i = i + 1`, мы уже видели её в цикле. Код ниже — ровно один такой шаг.\n\nСамое важное — конец. Когда один указатель доходит до длины своего списка, сравнивать больше нечего, а во втором списке числа ещё остались. Этот остаток уже упорядочен внутри себя, и каждое его число не меньше всех уже выведенных, поэтому его достаточно переписать подряд, как есть. Забыть про остаток — самая частая ошибка при слиянии.",
     },
     code:
-      "a = [1, 4, 7]\n" +
-      "b = [2, 3, 9]\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "if a[i] <= b[j]:\n" +
-      "    print(a[i])\n" +
-      "    i += 1\n" +
-      "else:\n" +
-      "    print(b[j])\n" +
-      "    j += 1",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {1, 4, 7};\n    vector<int> b = {2, 3, 9};\n    int i = 0;\n    int j = 0;\n    if (a[i] <= b[j]) {\n        cout << a[i];\n        i++;\n    } else {\n        cout << b[j];\n        j++;\n    }\n    return 0;\n}",
   },
   {
     id: "m5.l7.b2",
@@ -126,8 +118,8 @@ export const M5_L7: LessonBlock[] = [
        that the loop is over before it happens. */
     steps: [
       {
-        kk: "Нәтижені жинау үшін бос `res` тізімін ашамыз. `res.append(x)` — тізімнің соңына бір сан қосу деген сөз. Екі көрсеткіш те нөлден басталады: `i = 0`, `j = 0`.",
-        ru: "Для ответа заводим пустой список `res`. `res.append(x)` — это добавить одно число в конец списка. Оба указателя начинаются с нуля: `i = 0`, `j = 0`.",
+        kk: "Нәтижені жинау үшін бос `vector<int> res;` тізімін ашамыз. `res.push_back(x)` — тізімнің соңына бір сан қосу деген сөз. Тізімдердің ұзындықтарын `n` мен `m`-ге жазып аламыз. Екі көрсеткіш те нөлден басталады: `i = 0`, `j = 0`.",
+        ru: "Для ответа заводим пустой список `vector<int> res;`. `res.push_back(x)` — это добавить одно число в конец списка. Длины списков запоминаем в `n` и `m`. Оба указателя начинаются с нуля: `i = 0`, `j = 0`.",
       },
       {
         kk: "1-қадам: `a[0]` = 1, `b[0]` = 2. Кішісі — 1, сондықтан 1 нәтижеге кетеді және `i` = 1 болады. res = [1].",
@@ -146,34 +138,16 @@ export const M5_L7: LessonBlock[] = [
         ru: "Шаг 4: `a[1]` = 4, `b[2]` = 9. Меньше 4: res = [1, 2, 3, 4], `i` = 2.",
       },
       {
-        kk: "5-қадам: `a[2]` = 7, `b[2]` = 9. 7 кіші: res = [1, 2, 3, 4, 7], `i` = 3. Енді `i` = 3 = `len(a)`, яғни бірінші тізім түгел таусылды және басты цикл тоқтайды.",
-        ru: "Шаг 5: `a[2]` = 7, `b[2]` = 9. Меньше 7: res = [1, 2, 3, 4, 7], `i` = 3. Теперь `i` = 3 = `len(a)`, то есть первый список закончился и главный цикл останавливается.",
+        kk: "5-қадам: `a[2]` = 7, `b[2]` = 9. 7 кіші: res = [1, 2, 3, 4, 7], `i` = 3. Енді `i` = 3 = `n`, яғни бірінші тізім түгел таусылды және басты цикл тоқтайды.",
+        ru: "Шаг 5: `a[2]` = 7, `b[2]` = 9. Меньше 7: res = [1, 2, 3, 4, 7], `i` = 3. Теперь `i` = 3 = `n`, то есть первый список закончился и главный цикл останавливается.",
       },
       {
-        kk: "Қалған бөлік: `b`-да 9 әлі тұр. Оны салыстыратын ештеңе жоқ, бірақ ол — жауаптың бөлігі. Сондықтан басты циклден кейін қалған сандарды ретімен көшіріп жазатын екі қысқа цикл тұрады: біреуі `a`-да қалғандарын, екіншісі `b`-да қалғандарын көшіреді. Осы жолы жұмыс істейтіні — екіншісі. res = [1, 2, 3, 4, 7, 9]: барлығы алты сан, дәл `len(a) + len(b)`.",
-        ru: "Остаток: в `b` ещё лежит 9. Сравнивать её не с чем, но она — часть ответа. Поэтому после главного цикла стоят два коротких цикла, переписывающих остаток подряд: один переписывает остаток `a`, другой — остаток `b`. В этот раз сработает второй. res = [1, 2, 3, 4, 7, 9]: всего шесть чисел, ровно `len(a) + len(b)`.",
+        kk: "Қалған бөлік: `b`-да 9 әлі тұр. Оны салыстыратын ештеңе жоқ, бірақ ол — жауаптың бөлігі. Сондықтан басты циклден кейін қалған сандарды ретімен көшіріп жазатын екі қысқа цикл тұрады: біреуі `a`-да қалғандарын, екіншісі `b`-да қалғандарын көшіреді. Осы жолы жұмыс істейтіні — екіншісі. res = [1, 2, 3, 4, 7, 9]: барлығы алты сан, дәл `n + m`.",
+        ru: "Остаток: в `b` ещё лежит 9. Сравнивать её не с чем, но она — часть ответа. Поэтому после главного цикла стоят два коротких цикла, переписывающих остаток подряд: один переписывает остаток `a`, другой — остаток `b`. В этот раз сработает второй. res = [1, 2, 3, 4, 7, 9]: всего шесть чисел, ровно `n + m`.",
       },
     ],
     code:
-      "a = [1, 4, 7]\n" +
-      "b = [2, 3, 9]\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {1, 4, 7};\n    vector<int> b = {2, 3, 9};\n    int n = (int)a.size();\n    int m = (int)b.size();\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     result: { kk: "Экранға: 1 2 3 4 7 9", ru: "На экран: 1 2 3 4 7 9" },
   },
   {
@@ -192,25 +166,7 @@ export const M5_L7: LessonBlock[] = [
       ru: "Что выведет эта программа?",
     },
     code:
-      "a = [2, 5, 9]\n" +
-      "b = [1, 3, 4]\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {2, 5, 9};\n    vector<int> b = {1, 3, 4};\n    int n = (int)a.size();\n    int m = (int)b.size();\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     answer: "1 2 3 4 5 9",
     options: ["1 2 3 4 5 9", "1 2 3 4", "2 5 9 1 3 4", "2 1 5 3 9 4"],
     diagnosticMapping: {
@@ -251,38 +207,20 @@ export const M5_L7: LessonBlock[] = [
        in it will write something moving at line 13, where nothing moves — and
        the two rows at line 16 are where the copying actually happens. */
     prompt: {
-      kk: "Бағдарламаны қағазда қадамдап орында. Үш `while` жолының әрқайсысына басқару келген сайын — соның ішінде шарт жалған болып, цикл бітетін сәтте де — сол кездегі `i`, `j` және `res` мәндерін жаз. Соңғы жол — `print`. `res`-ті тізім түрінде жаз, мысалы `[1, 3]`.",
-      ru: "Выполни программу по шагам на бумаге. Каждый раз, когда управление приходит на одну из трёх строк `while` — в том числе в тот момент, когда условие ложно и цикл заканчивается, — записывай текущие значения `i`, `j` и `res`. Последняя строка — `print`. Список `res` записывай в виде списка, например `[1, 3]`.",
+      kk: "Бағдарламаны қағазда қадамдап орында. Үш `while` жолының әрқайсысына басқару келген сайын — соның ішінде шарт жалған болып, цикл бітетін сәтте де — сол кездегі `i`, `j` және `res` мәндерін жаз. Соңғы жол — нәтижені шығаратын `for`. `res`-ті тізім түрінде жаз, мысалы `[1, 3]`.",
+      ru: "Выполни программу по шагам на бумаге. Каждый раз, когда управление приходит на одну из трёх строк `while` — в том числе в тот момент, когда условие ложно и цикл заканчивается, — записывай текущие значения `i`, `j` и `res`. Последняя строка — `for`, который печатает результат. Список `res` записывай в виде списка, например `[1, 3]`.",
     },
     code:
-      "a = [3, 8]\n" +
-      "b = [1, 12]\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {3, 8};\n    vector<int> b = {1, 12};\n    int n = (int)a.size();\n    int m = (int)b.size();\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     steps: [
-      { line: 6, vars: { i: "0", j: "0", res: "[]" } },
-      { line: 6, vars: { i: "0", j: "1", res: "[1]" } },
-      { line: 6, vars: { i: "1", j: "1", res: "[1, 3]" } },
-      { line: 6, vars: { i: "2", j: "1", res: "[1, 3, 8]" } },
+      { line: 13, vars: { i: "0", j: "0", res: "[]" } },
+      { line: 13, vars: { i: "0", j: "1", res: "[1]" } },
+      { line: 13, vars: { i: "1", j: "1", res: "[1, 3]" } },
       { line: 13, vars: { i: "2", j: "1", res: "[1, 3, 8]" } },
-      { line: 16, vars: { i: "2", j: "1", res: "[1, 3, 8]" } },
-      { line: 16, vars: { i: "2", j: "2", res: "[1, 3, 8, 12]" } },
-      { line: 19, vars: { i: "2", j: "2", res: "[1, 3, 8, 12]" } },
+      { line: 22, vars: { i: "2", j: "1", res: "[1, 3, 8]" } },
+      { line: 26, vars: { i: "2", j: "1", res: "[1, 3, 8]" } },
+      { line: 26, vars: { i: "2", j: "2", res: "[1, 3, 8, 12]" } },
+      { line: 30, vars: { i: "2", j: "2", res: "[1, 3, 8, 12]" } },
     ],
   },
   {
@@ -300,41 +238,15 @@ export const M5_L7: LessonBlock[] = [
        being a byte-copy of b7's answer, which is the "find_bug that repairs the
        program the next write_code asks for" defect. */
     prompt: {
-      kk: "Бұл бағдарлама екі реттелген тізімді біріктіріп, әр санды бөлек жолға шығаруы керек. Бірінші жолға `1 4 7`, екінші жолға `2 3 9` бергенде ол 1, 2, 3, 4, 7 сандарын шығарады да, 9-ды мүлде шығармайды. Қай жол кінәлі — яғни бағдарламаны тым ерте тоқтататын жол қайсы және одан кейін не істелуі керек еді?",
-      ru: "Эта программа должна слить два отсортированных списка и вывести каждое число на отдельной строке. При вводе `1 4 7` в первой строке и `2 3 9` во второй она выводит 1, 2, 3, 4, 7 и не выводит 9 вообще. Какая строка виновата — то есть какая строка останавливает программу слишком рано и что должно происходить после неё?",
+      kk: "Бұл бағдарлама екі реттелген тізімді біріктіріп, әр санды бөлек жолға шығаруы керек. Кіріс: бірінші жолда екі тізімнің ұзындығы n мен m, екінші жолда n сан, үшінші жолда m сан. `3 3` / `1 4 7` / `2 3 9` бергенде ол 1, 2, 3, 4, 7 сандарын шығарады да, 9-ды мүлде шығармайды. Қай жол кінәлі — яғни бағдарламаны тым ерте тоқтататын жол қайсы және одан кейін не істелуі керек еді?",
+      ru: "Эта программа должна слить два отсортированных списка и вывести каждое число на отдельной строке. Ввод: в первой строке длины списков n и m, во второй — n чисел, в третьей — m чисел. При вводе `3 3` / `1 4 7` / `2 3 9` она выводит 1, 2, 3, 4, 7 и не выводит 9 вообще. Какая строка виновата — то есть какая строка останавливает программу слишком рано и что должно происходить после неё?",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        print(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        print(b[j])\n" +
-      "        j += 1",
-    buggyLine: 5,
-    symptomInput: "1 4 7\n2 3 9",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            cout << a[i] << endl;\n            i++;\n        } else {\n            cout << b[j] << endl;\n            j++;\n        }\n    }\n    return 0;\n}",
+    buggyLine: 18,
+    symptomInput: "3 3\n1 4 7\n2 3 9",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        print(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        print(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    print(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    print(b[j])\n" +
-      "    j += 1",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            cout << a[i] << endl;\n            i++;\n        } else {\n            cout << b[j] << endl;\n            j++;\n        }\n    }\n    while (i < n) {\n        cout << a[i] << endl;\n        i++;\n    }\n    while (j < m) {\n        cout << b[j] << endl;\n        j++;\n    }\n    return 0;\n}",
   },
   {
     id: "m5.l7.b6",
@@ -357,25 +269,7 @@ export const M5_L7: LessonBlock[] = [
       ru: "На этот раз оба списка отсортированы по УБЫВАНИЮ (от большего к меньшему), и результат тоже должен идти по убыванию. Заполни три пропуска: какой нужен знак сравнения и какой указатель сдвигается в каждой ветке. При верном ответе на экран выйдет `9 7 6 5 5 2 1`.",
     },
     template:
-      "a = [9, 6, 5, 2]\n" +
-      "b = [7, 5, 1]\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] ___ b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        ___ += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        ___ += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {9, 6, 5, 2};\n    vector<int> b = {7, 5, 1};\n    int n = (int)a.size();\n    int m = (int)b.size();\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] ___ b[j]) {\n            res.push_back(a[i]);\n            ___++;\n        } else {\n            res.push_back(b[j]);\n            ___++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     blanks: [
       { id: "f1", answer: ">=", alternatives: [">"] },
       { id: "f2", answer: "i" },
@@ -389,14 +283,14 @@ export const M5_L7: LessonBlock[] = [
 
        The two blanks are the two tail conditions, which is the only part of
        this program a support learner should be spending their thinking on, and
-       the second output line is not filler: `len(res)` is how they check their
+       the second output line is not filler: `res.size()` is how they check their
        own answer without a teacher. If the printed count is smaller than the
        two lengths added together, the tail was lost — the prompt says so, and
        that turns the lesson's one hard idea into something the learner can
        verify on their own screen. m2.l5.b6s uses the same device. */
     /*
      * The two tail conditions were the blanks, and the main loop's header —
-     * printed four lines above them — is `while i < len(a) and j < len(b):`.
+     * printed four lines above them — is `while (i < n && j < m)`.
      * Both answers were on screen, so a support learner copied them.
      * `payload-privacy` caught it: a blank answer is a secret and it appeared
      * verbatim in the template.
@@ -418,34 +312,15 @@ export const M5_L7: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Екі жол беріледі, әр жолда бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір сан), және әр жол өсу ретімен реттелген. Бағдарлама екі тізімді біріктіріп, бірінші жолға барлық сандарды бос орынмен бөліп, екінші жолға сол сандардың санын шығарады. Үш циклдің шартын толтыр. Біріншісі — басты цикл: ол ЕКІ тізімде де сан қалғанда ғана жүреді, сондықтан оның шарты екі бөліктен тұрады. Қалған екеуі — басты цикл біткен соң қалған бөлікті көшіретін циклдер, әрқайсысы бір тізімді ғана қарайды. Екінші жолдағы сан өзіңді тексереді: егер ол екі тізімнің ұзындықтарының қосындысынан кем болса, қалған бөлік жоғалып кеткен.",
-      ru: "Даны две строки, в каждой — целые числа через пробел (не меньше одного числа в строке), и каждая строка отсортирована по возрастанию. Программа сливает списки и выводит в первой строке все числа через пробел, а во второй — их количество. Заполни условия трёх циклов. Первый — главный: он работает, только пока числа остались в ОБОИХ списках, поэтому его условие состоит из двух частей. Остальные два переписывают остаток после главного цикла, и каждый смотрит только на один список. Число во второй строке проверяет тебя: если оно меньше суммы длин двух списков, значит остаток потерялся.",
+      kk: "Бірінші жолда екі тізімнің ұзындығы n мен m беріледі, екінші жолда n сан, үшінші жолда m сан (әр тізімде кемінде бір сан бар және әрқайсысы өсу ретімен реттелген). Бағдарлама екі тізімді біріктіріп, бірінші жолға барлық сандарды бос орынмен бөліп, екінші жолға сол сандардың санын шығарады. Үш циклдің шартын толтыр. Біріншісі — басты цикл: ол ЕКІ тізімде де сан қалғанда ғана жүреді, сондықтан оның шарты екі бөліктен тұрады. Қалған екеуі — басты цикл біткен соң қалған бөлікті көшіретін циклдер, әрқайсысы бір тізімді ғана қарайды. Екінші жолдағы сан өзіңді тексереді: егер ол екі тізімнің ұзындықтарының қосындысынан кем болса, қалған бөлік жоғалып кеткен.",
+      ru: "В первой строке даны длины списков n и m, во второй — n чисел, в третьей — m чисел (в каждом списке хотя бы одно число, и каждый отсортирован по возрастанию). Программа сливает списки и выводит в первой строке все числа через пробел, а во второй — их количество. Заполни условия трёх циклов. Первый — главный: он работает, только пока числа остались в ОБОИХ списках, поэтому его условие состоит из двух частей. Остальные два переписывают остаток после главного цикла, и каждый смотрит только на один список. Число во второй строке проверяет тебя: если оно меньше суммы длин двух списков, значит остаток потерялся.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while ___:\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while ___:\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while ___:\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))\n' +
-      "print(len(res))",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (___) {\n        if (a[i] <= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (___) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (___) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    cout << endl;\n    cout << (int)res.size();\n    return 0;\n}",
     blanks: [
-      { id: "f1", answer: "i < len(a) and j < len(b)", alternatives: ["j < len(b) and i < len(a)"] },
-      { id: "f2", answer: "i < len(a)", alternatives: ["len(a) > i"] },
-      { id: "f3", answer: "j < len(b)", alternatives: ["len(b) > j"] },
+      { id: "f1", answer: "i < n && j < m", alternatives: ["j < m && i < n"] },
+      { id: "f2", answer: "i < n", alternatives: ["n > i"] },
+      { id: "f3", answer: "j < m", alternatives: ["m > j"] },
     ],
   },
   {
@@ -459,34 +334,17 @@ export const M5_L7: LessonBlock[] = [
 
        The prompt states the single pass as the point of the exercise and says
        plainly that the automatic check cannot see it. That wording is chosen:
-       `sorted(a + b)` passes every case below and always will, so declaring "no
+       copying both vectors into one and calling `sort` passes every case below
+       and always will, so declaring "no
        sorting" as a graded rule would be a promise the product does not keep.
        What the cases DO see is everything else, and they see it hard — see the
        comment on each one. */
     prompt: {
-      kk: "Екі жол беріледі. Әр жолда бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір сан), және әр жол өсу ретімен реттелген. Осы екі тізімді бір реттелген тізімге біріктіріп, барлық сандарды бір жолға, бос орынмен бөліп шығар. Мысалы, `1 3 5` және `2 4 6` үшін жауап `1 2 3 4 5 6`.\n\nЖаттығудың мәні — бір өту: екі көрсеткішті алға жылжыта отырып, әр санды дәл бір рет қарау. Сондықтан екі тізімді қосып, `sorted()` немесе `.sort()` шақырма — жауап дұрыс шығар еді, бірақ тапсырманың өзі жоғалады. Автоматты тексеру тек шыққан сандарды салыстырады және бұл ережені көре алмайды, сондықтан оны сақтау — өз мойныңда.",
-      ru: "Даны две строки. В каждой строке — целые числа через пробел (не меньше одного числа в строке), и каждая строка уже отсортирована по возрастанию. Слей эти два списка в один отсортированный и выведи все числа в одну строку через пробел. Например, для `1 3 5` и `2 4 6` ответ `1 2 3 4 5 6`.\n\nСмысл упражнения — один проход: два указателя двигаются вперёд, и каждое число просматривается ровно один раз. Поэтому не склеивай списки и не вызывай `sorted()` или `.sort()` — ответ получился бы верным, а само упражнение исчезло бы. Автоматическая проверка сравнивает только выведенные числа и этого правила не видит, так что соблюсти его — твоя ответственность.",
+      kk: "Бірінші жолда екі тізімнің ұзындығы n мен m беріледі (әрқайсысы кемінде 1, ең көбі 100 000), екінші жолда өсу ретімен реттелген n бүтін сан, үшінші жолда өсу ретімен реттелген m бүтін сан. Осы екі тізімді бір реттелген тізімге біріктіріп, барлық сандарды бір жолға, бос орынмен бөліп шығар. Мысалы, `3 3` / `1 3 5` / `2 4 6` үшін жауап `1 2 3 4 5 6`.\n\nЖаттығудың мәні — бір өту: екі көрсеткішті алға жылжыта отырып, әр санды дәл бір рет қарау. Сондықтан екі тізімді біріктіріп жіберіп, `sort(res.begin(), res.end())` шақырма — жауап дұрыс шығар еді, бірақ тапсырманың өзі жоғалады. Автоматты тексеру тек шыққан сандарды салыстырады және бұл ережені көре алмайды, сондықтан оны сақтау — өз мойныңда.",
+      ru: "В первой строке даны длины списков n и m (каждая от 1 до 100 000), во второй — n целых чисел по возрастанию, в третьей — m целых чисел по возрастанию. Слей эти два списка в один отсортированный и выведи все числа в одну строку через пробел. Например, для `3 3` / `1 3 5` / `2 4 6` ответ `1 2 3 4 5 6`.\n\nСмысл упражнения — один проход: два указателя двигаются вперёд, и каждое число просматривается ровно один раз. Поэтому не склеивай списки и не вызывай `sort(res.begin(), res.end())` — ответ получился бы верным, а само упражнение исчезло бы. Автоматическая проверка сравнивает только выведенные числа и этого правила не видит, так что соблюсти его — твоя ответственность.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] <= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] <= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     /* The prompt names the layout — one line, single spaces — so the checker
        enforces the layout. `token` here would be a promise that only the values
        matter, which is not what the prompt says, and the two must agree.
@@ -510,24 +368,25 @@ export const M5_L7: LessonBlock[] = [
                                 solution which copies b's tail but not a's, and
                                 that asymmetry is exactly what a learner who
                                 writes one tail loop produces.
-       "5" / "5"              → one element each, equal. `a[1]` crashes here,
-                                and so does any loop that assumes two elements.
-       "-9 -4 0" / "-5 -2 3"  → negative numbers, which is where a solution that
-                                forgot `map(int, ...)` finally shows: as text,
-                                "-9" sorts after "-5".
+       "5" / "5"              → one element each, equal. `a[1]` is out of bounds
+                                here, and so is any loop that assumes two
+                                elements.
+       "-9 -4 0" / "-5 -2 3"  → negative numbers on both sides, so a comparison
+                                written the wrong way round cannot hide behind
+                                everything being positive.
        "1 1 1" / "1 1"        → everything equal, so every comparison takes the
                                 same branch and the count still has to be five.
        "2 2 4" / "1 2 5"      → duplicates on both sides, none of which may be
                                 dropped. */
     cases: [
-      { input: "1 3 5\n2 4 6", expectedOutput: "1 2 3 4 5 6" },
-      { input: "2 4\n1 3 5 7", expectedOutput: "1 2 3 4 5 7" },
-      { input: "1 2 3\n7 8 9 10", expectedOutput: "1 2 3 7 8 9 10", hidden: true },
-      { input: "7 8 9 10\n1 2 3", expectedOutput: "1 2 3 7 8 9 10", hidden: true },
-      { input: "5\n5", expectedOutput: "5 5", hidden: true },
-      { input: "-9 -4 0\n-5 -2 3", expectedOutput: "-9 -5 -4 -2 0 3", hidden: true },
-      { input: "1 1 1\n1 1", expectedOutput: "1 1 1 1 1", hidden: true },
-      { input: "2 2 4\n1 2 5", expectedOutput: "1 2 2 2 4 5", hidden: true },
+      { input: "3 3\n1 3 5\n2 4 6", expectedOutput: "1 2 3 4 5 6" },
+      { input: "2 4\n2 4\n1 3 5 7", expectedOutput: "1 2 3 4 5 7" },
+      { input: "3 4\n1 2 3\n7 8 9 10", expectedOutput: "1 2 3 7 8 9 10", hidden: true },
+      { input: "4 3\n7 8 9 10\n1 2 3", expectedOutput: "1 2 3 7 8 9 10", hidden: true },
+      { input: "1 1\n5\n5", expectedOutput: "5 5", hidden: true },
+      { input: "3 3\n-9 -4 0\n-5 -2 3", expectedOutput: "-9 -5 -4 -2 0 3", hidden: true },
+      { input: "3 2\n1 1 1\n1 1", expectedOutput: "1 1 1 1 1", hidden: true },
+      { input: "3 3\n2 2 4\n1 2 5", expectedOutput: "1 2 2 2 4 5", hidden: true },
     ],
   },
   {
@@ -569,54 +428,18 @@ export const M5_L7: LessonBlock[] = [
        element whether you count from the left or from the right, which is why
        the descending order costs the median nothing. */
     prompt: {
-      kk: "Төмендегі бағдарлама екі тізімді біріктіреді. Мұндағы екі кіріс жолы да КЕМУ ретімен реттелген (үлкеннен кішіге), сондықтан біріктірілген тізім де кему ретімен шығады. Оны өзгерт: бағдарлама енді бүкіл тізімді емес, тек сол тізімнің дәл ортасында тұрған санды — медиананы — шығарсын. Екі жолдағы сандардың жалпы саны әрқашан тақ, сондықтан орта әрқашан біреу, ал тізімнің ортасы қай шеттен санасаң да сол орында тұрады. Мысалы, `30 20 10` және `25 15` үшін біріккен тізім 30 25 20 15 10, ал жауап — 20. Біріктіру циклдерін бұзба: өзгеретіні тек соңғы жол.",
-      ru: "Программа ниже сливает два списка. На этот раз обе входные строки отсортированы по УБЫВАНИЮ (от большего к меньшему), поэтому и слитый список выходит по убыванию. Измени её: пусть она выводит не весь список, а только число, стоящее ровно в его середине, — медиану. Общее количество чисел в двух строках всегда нечётное, поэтому середина всегда одна, а середина списка стоит на одном и том же месте, с какого конца ни считай. Например, для `30 20 10` и `25 15` слитый список — 30 25 20 15 10, а ответ — 20. Не ломай циклы слияния: меняется только последняя строка.",
+      kk: "Төмендегі бағдарлама екі тізімді біріктіреді. Мұндағы екі кіріс жолы да КЕМУ ретімен реттелген (үлкеннен кішіге), сондықтан біріктірілген тізім де кему ретімен шығады. Оны өзгерт: бағдарлама енді бүкіл тізімді емес, тек сол тізімнің дәл ортасында тұрған санды — медиананы — шығарсын. Екі жолдағы сандардың жалпы саны әрқашан тақ, сондықтан орта әрқашан біреу, ал тізімнің ортасы қай шеттен санасаң да сол орында тұрады. Кіріс: бірінші жолда n мен m, екінші жолда n сан, үшінші жолда m сан. Мысалы, `3 2` / `30 20 10` / `25 15` үшін біріккен тізім 30 25 20 15 10, ал жауап — 20. Біріктіру циклдерін бұзба: өзгеретіні тек соңғы жол.",
+      ru: "Программа ниже сливает два списка. На этот раз обе входные строки отсортированы по УБЫВАНИЮ (от большего к меньшему), поэтому и слитый список выходит по убыванию. Измени её: пусть она выводит не весь список, а только число, стоящее ровно в его середине, — медиану. Общее количество чисел в двух строках всегда нечётное, поэтому середина всегда одна, а середина списка стоит на одном и том же месте, с какого конца ни считай. Ввод: в первой строке n и m, во второй — n чисел, в третьей — m чисел. Например, для `3 2` / `30 20 10` / `25 15` слитый список — 30 25 20 15 10, а ответ — 20. Не ломай циклы слияния: меняется только последняя строка.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] >= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] >= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    for (int k = 0; k < (int)res.size(); k++) {\n        if (k > 0) {\n            cout << \" \";\n        }\n        cout << res[k];\n    }\n    return 0;\n}",
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] >= b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        res.append(b[j])\n" +
-      "        j += 1\n" +
-      "while i < len(a):\n" +
-      "    res.append(a[i])\n" +
-      "    i += 1\n" +
-      "while j < len(b):\n" +
-      "    res.append(b[j])\n" +
-      "    j += 1\n" +
-      "print(res[len(res) // 2])",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] >= b[j]) {\n            res.push_back(a[i]);\n            i++;\n        } else {\n            res.push_back(b[j]);\n            j++;\n        }\n    }\n    while (i < n) {\n        res.push_back(a[i]);\n        i++;\n    }\n    while (j < m) {\n        res.push_back(b[j]);\n        j++;\n    }\n    cout << res[(int)res.size() / 2];\n    return 0;\n}",
     /* One number and no layout claimed, so the default comparison is the honest
        one. Every case was run against the wrong programs it is here to kill:
 
-       "30 20 10" / "25 15"       → `res[len(res) // 2 - 1]` answers 25, and
-                                    `res[len(a)]` answers 15;
+       "30 20 10" / "25 15"       → `res[(int)res.size() / 2 - 1]` answers 25,
+                                    and `res[n]` answers 15;
        "5" / "2 1"                → the median of the FIRST list only answers 5;
        "4 3 2 1" / "300 200 100"  → the tail dropped answers 200, because the
                                     main loop empties `b` after three numbers;
@@ -636,13 +459,13 @@ export const M5_L7: LessonBlock[] = [
        the direction of the comparison stops mattering, which is precisely why
        it is not the only case here. */
     cases: [
-      { input: "30 20 10\n25 15", expectedOutput: "20" },
-      { input: "5\n2 1", expectedOutput: "2" },
-      { input: "4 3 2 1\n300 200 100", expectedOutput: "4", hidden: true },
-      { input: "3 2 1\n7 6 5 4", expectedOutput: "4", hidden: true },
-      { input: "-1 -5\n0 -3 -9", expectedOutput: "-3", hidden: true },
-      { input: "4 4 4\n4 4", expectedOutput: "4", hidden: true },
-      { input: "4 3 2 1\n6", expectedOutput: "3", hidden: true },
+      { input: "3 2\n30 20 10\n25 15", expectedOutput: "20" },
+      { input: "1 2\n5\n2 1", expectedOutput: "2" },
+      { input: "4 3\n4 3 2 1\n300 200 100", expectedOutput: "4", hidden: true },
+      { input: "3 4\n3 2 1\n7 6 5 4", expectedOutput: "4", hidden: true },
+      { input: "2 3\n-1 -5\n0 -3 -9", expectedOutput: "-3", hidden: true },
+      { input: "3 2\n4 4 4\n4 4", expectedOutput: "4", hidden: true },
+      { input: "4 1\n4 3 2 1\n6", expectedOutput: "3", hidden: true },
     ],
   },
   {
@@ -668,16 +491,16 @@ export const M5_L7: LessonBlock[] = [
         ru: "Оба списка отсортированы, поэтому наименьшее ещё не взятое число каждого списка — это как раз то, на котором стоит его указатель. Значит, наименьшее из всех оставшихся — либо `a[i]`, либо `b[j]`: третьего варианта нет.",
       },
       {
-        kk: "Басты цикл бір көрсеткіш өз тізімінің ұзындығына жеткенде тоқтайды, яғни сол тізім түгел таусылғанда. Одан кейін екінші тізімнің қалған бөлігін ретімен көшіріп жазу керек.",
-        ru: "Главный цикл останавливается, когда один из указателей доходит до длины своего списка, то есть когда этот список полностью закончился. После этого нужно подряд переписать остаток второго списка.",
+        kk: "Басты цикл бір көрсеткіш өз тізімінің ұзындығына (`n` немесе `m`) жеткенде тоқтайды, яғни сол тізім түгел таусылғанда. Одан кейін екінші тізімнің қалған бөлігін ретімен көшіріп жазу керек.",
+        ru: "Главный цикл останавливается, когда один из указателей доходит до длины своего списка (`n` или `m`), то есть когда этот список полностью закончился. После этого нужно подряд переписать остаток второго списка.",
       },
       {
         kk: "Қалған бөлікті қайта реттеудің қажеті жоқ: ол өз ішінде реттелген және оның әр саны шығып қойған сандардың бәрінен кіші емес.",
         ru: "Остаток не нужно сортировать заново: внутри себя он уже упорядочен, и каждое его число не меньше всех уже выведенных.",
       },
       {
-        kk: "Бағдарлама тізімдердің реттелгенін пайдаланады — бұл бізге тегін келген дайын ақпарат. Әр сан дәл бір рет қаралады, барлығы `len(a) + len(b)` қадам; ал қосып, қайта реттеу сол реттелгендікті лақтырып тастап, жұмысты қайтадан бастау болар еді.",
-        ru: "Программа пользуется тем, что списки уже отсортированы, — это готовая информация, доставшаяся даром. Каждое число просматривается ровно один раз, всего `len(a) + len(b)` шагов; а склеить и отсортировать заново означало бы выбросить эту упорядоченность и начать работу с нуля.",
+        kk: "Бағдарлама тізімдердің реттелгенін пайдаланады — бұл бізге тегін келген дайын ақпарат. Әр сан дәл бір рет қаралады, барлығы `n + m` қадам; ал қосып, қайта реттеу сол реттелгендікті лақтырып тастап, жұмысты қайтадан бастау болар еді.",
+        ru: "Программа пользуется тем, что списки уже отсортированы, — это готовая информация, доставшаяся даром. Каждое число просматривается ровно один раз, всего `n + m` шагов; а склеить и отсортировать заново означало бы выбросить эту упорядоченность и начать работу с нуля.",
       },
     ],
   },

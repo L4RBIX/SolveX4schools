@@ -34,19 +34,23 @@ import type { LessonBlock } from "../../types";
  * carries a picture of the answer for one n.
  *
  * The trailing-space decision, made once and applied to every case in the file:
- * **no line ever ends in a space.** The table's separator sits BETWEEN numbers
- * (`" ".join`, not `str(x) + " "` per number), the right triangle contains no
- * spaces at all, and the pyramid's spaces are all leading. A learner who
- * appends a separator after every element gets a visible failure on the very
- * first sample rather than a hidden one.
+ * **no line ever ends in a space.** The table prints the separator BEFORE every
+ * number except the first — `if (j > 1) cout << " ";`, which is what `b10`
+ * exists to teach — the right triangle contains no spaces at all, and the
+ * pyramid's spaces are all leading. A learner who appends a separator after
+ * every element gets a visible failure on the very first sample rather than a
+ * hidden one.
  *
- * ## What is deliberately not here
+ * ## What the C++ form changed
  *
- * `"*" * i` would draw the triangle in one line, and `str` × `int` is September
- * Python, so it is legal. It is not taught here, and it is not needed: the
- * reference solutions build every line with an inner loop, because the inner
- * loop is the subject. A learner who discovers the multiplication trick on
- * their own still passes — the cases judge the output, not the route.
+ * Python's row was `" ".join(...)` over a list of `str(x)`, and `b10` used to
+ * introduce `str`, `.append` and `.join` because the table needed all three.
+ * C++ needs none of them: `cout` writes without a newline, so a row is printed
+ * a piece at a time and the only decision left is where the separator goes.
+ * `b10` now teaches that decision, which is smaller, earlier and the one the
+ * exact checker actually grades. The triangle still builds a `string` with
+ * `+=`, because there the accumulator reset inside the outer loop is the point,
+ * and `m2.l6.b1` has already shown a string being built one character at a time.
  */
 export const M2_L7: LessonBlock[] = [
   {
@@ -65,26 +69,34 @@ export const M2_L7: LessonBlock[] = [
        beginning every time" — so a learner can check it by counting the lines
        the sample prints instead of memorising a formula. */
     body: {
-      kk: "Циклдің денесіне тағы бір цикл жазуға болады. Сыртқы цикл бір ғана қадам жасағанда, ішкі цикл өзінің БАРЛЫҚ қадамын басынан аяғына дейін орындап шығады; сыртқы цикл келесі қадамға содан кейін ғана көшеді. Ең бастысы — сол келесі қадамда ішкі цикл қайтадан ең басынан жүреді: `j` тоқтаған жерінен емес, бастапқы мәнінен қайта санала бастайды. Сондықтан ішкі дене барлығы «сыртқы қадам саны × ішкі қадам саны» рет орындалады: төмендегі мысалда 2 × 3 = 6 рет.",
-      ru: "В тело цикла можно написать ещё один цикл. Пока внешний цикл делает всего один шаг, внутренний успевает пройти ВСЕ свои шаги от начала до конца; только после этого внешний переходит к следующему шагу. И самое главное — на этом следующем шаге внутренний цикл идёт заново с самого начала: `j` отсчитывается не с того места, где остановился, а снова с начального значения. Поэтому внутреннее тело выполняется всего «число шагов внешнего × число шагов внутреннего» раз: в примере ниже 2 × 3 = 6 раз.",
+      kk: "Циклдің денесіне тағы бір цикл жазуға болады. Сыртқы цикл бір ғана қадам жасағанда, ішкі цикл өзінің БАРЛЫҚ қадамын басынан аяғына дейін орындап шығады; сыртқы цикл келесі қадамға содан кейін ғана көшеді. Ең бастысы — сол келесі қадамда ішкі цикл қайтадан ең басынан жүреді: `int j = 1` деген жол ішкі цикл әр рет басталған сайын қайта орындалады, сондықтан `j` тоқтаған жерінен емес, бастапқы мәнінен қайта санала бастайды. Сондықтан ішкі дене барлығы «сыртқы қадам саны × ішкі қадам саны» рет орындалады: төмендегі мысалда 2 × 3 = 6 рет.\n\nЕкі санағыштың аты әртүрлі болуы міндетті. Екеуін де `i` деп атасаң, ішкі цикл сыртқысының санағышын жауып тастайды да, бағдарлама мүлде басқа нәрсе істейді.",
+      ru: "В тело цикла можно написать ещё один цикл. Пока внешний цикл делает всего один шаг, внутренний успевает пройти ВСЕ свои шаги от начала до конца; только после этого внешний переходит к следующему шагу. И самое главное — на этом следующем шаге внутренний цикл идёт заново с самого начала: строка `int j = 1` выполняется каждый раз, когда внутренний цикл запускается, поэтому `j` отсчитывается не с того места, где остановился, а снова с начального значения. Поэтому внутреннее тело выполняется всего «число шагов внешнего × число шагов внутреннего» раз: в примере ниже 2 × 3 = 6 раз.\n\nИмена у двух счётчиков обязаны быть разными. Если назвать оба `i`, внутренний цикл заслонит счётчик внешнего, и программа станет делать совсем не то.",
     },
     code:
-      "for i in range(1, 3):\n" +
-      "    for j in range(1, 4):\n" +
-      "        print(i, j)\n" +
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "# 1 1 | 1 2 | 1 3 | 2 1 | 2 2 | 2 3",
+      "int main() {\n" +
+      "    for (int i = 1; i < 3; i++) {\n" +
+      "        for (int j = 1; j < 4; j++) {\n" +
+      "            cout << i << \" \" << j << endl;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}\n" +
+      "\n" +
+      "// 1 1 | 1 2 | 1 3 | 2 1 | 2 2 | 2 3",
   },
   {
     /*
-     * `print("end")` sits inside the outer loop and outside the inner one — the
-     * only indentation level a nested loop adds that a learner has never had to
-     * read before. The options are the three programs a beginner actually
-     * believes they are looking at, and two of them have a single cause each.
+     * `cout << "end"` sits inside the outer braces and outside the inner ones —
+     * the only nesting level a learner has never had to read before. The options
+     * are the three programs a beginner actually believes they are looking at,
+     * and two of them have a single cause each.
      *
      * "1\n2\nend" is left unmapped on purpose: it comes from ignoring the outer
-     * loop entirely AND from believing `range(1, 3)` makes one pass, and those
-     * are different misunderstandings. The contract's rule is that an ambiguous
+     * loop entirely AND from believing `i < 3` makes one pass, and those are
+     * different misunderstandings. The contract's rule is that an ambiguous
      * answer gets no mapping, so the engine asks rather than tells.
      */
     id: "m2.l7.b2",
@@ -92,26 +104,34 @@ export const M2_L7: LessonBlock[] = [
     skillRefs: ["loops.nested", "loops.for", "loops.counter"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бағдарлама нені шығарады? `print(\"end\")` сыртқы циклдің ішінде, бірақ ішкі циклдің сыртында тұрғанына назар аудар. Әр шыққан мән жеке жолда.",
-      ru: "Что выведет программа? Обрати внимание: `print(\"end\")` стоит внутри внешнего цикла, но снаружи внутреннего. Каждое выведенное значение — на отдельной строке.",
+      kk: "Бағдарлама нені шығарады? `cout << \"end\"` жолы сыртқы циклдің фигуралы жақшасының ІШІНДЕ, ал ішкі циклдің жақшасынан ТЫС тұрғанына назар аудар. Әр шыққан мән жеке жолда.",
+      ru: "Что выведет программа? Обрати внимание: строка `cout << \"end\"` стоит ВНУТРИ фигурных скобок внешнего цикла и СНАРУЖИ скобок внутреннего. Каждое выведенное значение — на отдельной строке.",
     },
     code:
-      "for i in range(1, 3):\n" +
-      "    for j in range(1, 3):\n" +
-      "        print(j)\n" +
-      '    print("end")',
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    for (int i = 1; i < 3; i++) {\n" +
+      "        for (int j = 1; j < 3; j++) {\n" +
+      "            cout << j << endl;\n" +
+      "        }\n" +
+      "        cout << \"end\" << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     answer: "1\n2\nend\n1\n2\nend",
     options: ["1\n2\nend\n1\n2\nend", "1\n2\nend\n3\n4\nend", "1\n2\n1\n2\nend", "1\n2\nend"],
     diagnosticMapping: {
       "1\n2\nend\n3\n4\nend": {
         failureClass: "inner_counter_not_restarted",
         justification:
-          "3 пен 4 санының шығуының жалғыз жолы бар: `j` сыртқы циклдің екінші қадамында тоқтаған жерінен әрі қарай санайды деп ойлау. Шын мәнінде `for j in range(1, 3)` әр рет қайта басталады, сондықтан `j` тағы да 1-ден 2-ге дейін жүреді.",
+          "3 пен 4 санының шығуының жалғыз жолы бар: `j` сыртқы циклдің екінші қадамында тоқтаған жерінен әрі қарай санайды деп ойлау. Шын мәнінде `int j = 1` деген жол ішкі цикл басталған сайын қайта орындалады, сондықтан `j` тағы да 1-ден 2-ге дейін жүреді.",
       },
       "1\n2\n1\n2\nend": {
         failureClass: "loop_body_membership_misread",
         justification:
-          "`end` сөзінің бір-ақ рет шығуы — `print(\"end\")` жолын екі циклдің де сыртында тұр деп оқығанда ғана болады. Оның шегінісі сыртқы циклдің денесіне тиесілі екенін көрсетеді, сондықтан ол әр `i` үшін бір реттен, барлығы екі рет орындалады.",
+          "`end` сөзінің бір-ақ рет шығуы — `cout << \"end\"` жолын екі циклдің де сыртында тұр деп оқығанда ғана болады. Ол жол сыртқы циклдің жабылатын жақшасынан бұрын тұр, сондықтан әр `i` үшін бір реттен, барлығы екі рет орындалады.",
       },
     },
   },
@@ -121,10 +141,21 @@ export const M2_L7: LessonBlock[] = [
     skillRefs: ["loops.nested", "loops.counter"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Осы бағдарламада `print` барлығы неше рет орындалады?",
-      ru: "Сколько раз всего выполнится `print` в этой программе?",
+      kk: "Осы бағдарламада `cout` барлығы неше рет орындалады?",
+      ru: "Сколько раз всего выполнится `cout` в этой программе?",
     },
-    code: "for i in range(4):\n    for j in range(6):\n        print(i, j)",
+    code:
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    for (int i = 0; i < 4; i++) {\n" +
+      "        for (int j = 0; j < 6; j++) {\n" +
+      "            cout << i << \" \" << j << endl;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     options: [
       { id: "o1", label: { kk: "10 рет", ru: "10 раз" } },
       { id: "o2", label: { kk: "16 рет", ru: "16 раз" } },
@@ -145,7 +176,7 @@ export const M2_L7: LessonBlock[] = [
       o2: {
         failureClass: "inner_bound_taken_from_outer",
         justification:
-          "16 — бұл 4 × 4. Демек көбейту дұрыс табылған, бірақ ішкі циклдің шекарасы ретінде сыртқы циклдің саны алынған. Ішкі цикл `range(6)` бойынша жүреді, сондықтан жауап 4 × 6 болуы керек.",
+          "16 — бұл 4 × 4. Демек көбейту дұрыс табылған, бірақ ішкі циклдің шекарасы ретінде сыртқы циклдің саны алынған. Ішкі циклдің шарты `j < 6`, сондықтан жауап 4 × 6 болуы керек.",
       },
     },
   },
@@ -161,27 +192,35 @@ export const M2_L7: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Ішкі циклдің денесі әр рет орындалып болғаннан кейін `i`, `j` және `c` мәндерін жаз. `i` 1-ден 2-ге ауысқан сәтте `j`-мен не болатынына ерекше көңіл бөл. Кестенің ең соңғы қатары — циклдерден кейінгі `print`.",
-      ru: "После каждого прохода тела внутреннего цикла запиши значения `i`, `j` и `c`. Особенно внимательно посмотри, что происходит с `j` в тот момент, когда `i` меняется с 1 на 2. Последняя строка таблицы — это `print` уже после циклов.",
+      kk: "Ішкі циклдің денесі әр рет орындалып болғаннан кейін `i`, `j` және `c` мәндерін жаз. `i` 1-ден 2-ге ауысқан сәтте `j`-мен не болатынына ерекше көңіл бөл. Кестенің ең соңғы қатары — циклдерден кейінгі `cout`, ал онда `i` де, `j` де жоқ: екеуі де өз циклдерінің жақшасы жабылғанда жоғалды.",
+      ru: "После каждого прохода тела внутреннего цикла запиши значения `i`, `j` и `c`. Особенно внимательно посмотри, что происходит с `j` в тот момент, когда `i` меняется с 1 на 2. Последняя строка таблицы — это `cout` уже после циклов, и в ней нет ни `i`, ни `j`: обе переменные исчезли, когда закрылись скобки их циклов.",
     },
     code:
-      "c = 0\n" +
-      "for i in range(1, 3):\n" +
-      "    for j in range(1, 4):\n" +
-      "        c = c + 1\n" +
-      "print(c)",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 1; i < 3; i++) {\n" +
+      "        for (int j = 1; j < 4; j++) {\n" +
+      "            c = c + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     /* One row per pass of the inner body (6 of them, which is the answer to
-       b3 in miniature), plus the line after the loops. Rows for lines 2 and 3
-       would triple the table and bury the only thing worth seeing. */
+       b3 in miniature), plus the line after the loops. Rows for the two loop
+       headers would triple the table and bury the only thing worth seeing. */
     steps: [
-      { line: 1, vars: { c: "0" } },
-      { line: 4, vars: { i: "1", j: "1", c: "1" } },
-      { line: 4, vars: { i: "1", j: "2", c: "2" } },
-      { line: 4, vars: { i: "1", j: "3", c: "3" } },
-      { line: 4, vars: { i: "2", j: "1", c: "4" } },
-      { line: 4, vars: { i: "2", j: "2", c: "5" } },
-      { line: 4, vars: { i: "2", j: "3", c: "6" } },
-      { line: 5, vars: { i: "2", j: "3", c: "6" } },
+      { line: 5, vars: { c: "0" } },
+      { line: 8, vars: { i: "1", j: "1", c: "1" } },
+      { line: 8, vars: { i: "1", j: "2", c: "2" } },
+      { line: 8, vars: { i: "1", j: "3", c: "3" } },
+      { line: 8, vars: { i: "2", j: "1", c: "4" } },
+      { line: 8, vars: { i: "2", j: "2", c: "5" } },
+      { line: 8, vars: { i: "2", j: "3", c: "6" } },
+      { line: 11, vars: { c: "6" } },
     ],
   },
   {
@@ -211,8 +250,8 @@ export const M2_L7: LessonBlock[] = [
   },
   {
     /*
-     * The middle blank is the lesson, not the bounds: `line = ""` has to be
-     * INSIDE the outer loop and BEFORE the inner one, because each row is a
+     * The middle blank is the lesson, not the bounds: `string line = "";` has to
+     * be INSIDE the outer loop and BEFORE the inner one, because each row is a
      * fresh accumulator. Left outside, every row would carry the previous rows
      * with it — the October typical error «жинақтаушы айнымалыға қате бастапқы
      * мән беру» (p.7) in its nested form.
@@ -220,15 +259,6 @@ export const M2_L7: LessonBlock[] = [
      * The bounds here are independent of each other on purpose. The inner bound
      * that DEPENDS on the outer variable is the next step up and arrives at b8;
      * meeting both in one block would blur which of the two ideas failed.
-     *
-     * The Kazakh prompt asked «нешеу жол» and «нешеу жұлдызша». «Нешеу» is the
-     * substantive form — it stands where the noun would, «олар нешеу?», the way
-     * `m2.l2.b2` asks «10-нан үлкендері нешеу екенін шығар» with nothing after
-     * it. Put a noun behind it and the question stops parsing: the attributive
-     * form is «неше», as everywhere else in this course — «неше рет», «неше
-     * сан», «неше мән». The two blanks this sentence points at are counts OF
-     * something — lines and stars — so both are «неше», and the RU side already
-     * asked it that way («сколько строк», «сколько звёздочек»).
      */
     id: "m2.l7.b6",
     type: "fill_blank",
@@ -239,61 +269,81 @@ export const M2_L7: LessonBlock[] = [
       ru: "В одной строке через пробел даны n и m. Программа должна нарисовать прямоугольник из звёздочек: всего n строк, в каждой ровно m звёздочек. Заполни три места: сколько строк делает внешний цикл, с чего начинается каждая строка и сколько звёздочек добавляет внутренний цикл?",
     },
     template:
-      "n, m = map(int, input().split())\n" +
-      "for i in range(___):\n" +
-      "    line = ___\n" +
-      "    for j in range(___):\n" +
-      '        line = line + "*"\n' +
-      "    print(line)",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    for (int i = 0; i < ___; i++) {\n" +
+      "        string line = ___;\n" +
+      "        for (int j = 0; j < ___; j++) {\n" +
+      "            line = line + \"*\";\n" +
+      "        }\n" +
+      "        cout << line << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "n" },
-      { id: "f2", answer: '""', alternatives: ["''"] },
+      { id: "f2", answer: '""' },
       { id: "f3", answer: "m" },
     ],
   },
   {
     /*
-     * Three constructs, introduced because the next block needs them and
-     * nothing in the year had ever shown them.
+     * The card that makes `m2.l7.b7` writable, and the one place the language
+     * change simplified the lesson instead of complicating it.
      *
-     * `m2.l7.b7`'s reference solution was the FIRST appearance of `str()`,
-     * `.append()` and `.join()` anywhere in the programme — computed with
-     * `teachingOrder()` + `shownCode()`, which reports `str()` first shown two
-     * lessons LATER at `m2.l8.b2`, and `.append()` / `.join()` not until
-     * `m3.l8.b8` in November. So a learner reached a graded task needing three
-     * things they had never seen, and `check-blocks` waved it through because a
-     * construct BUDGET says what is allowed, not what has been taught.
+     * In Python this block introduced `str()`, `.append()` and `.join()`,
+     * because the table's row needed all three and none of them appeared
+     * anywhere earlier in the programme. C++ needs no conversion and no join:
+     * `cout` does not move to a new line by itself, so a row is simply printed
+     * in pieces. What remains is the one decision the `exact` checker grades —
+     * where the separator goes — and that is what this card teaches.
      *
-     * The budget was not wrong to allow them — they belong to October, and the
-     * table task genuinely needs them. What was missing is this card. It goes
-     * immediately before the task rather than at the top of the lesson, because
-     * the reason to want `.join()` is the trailing space, and the trailing space
-     * is not a problem until the output format says it is.
-     *
-     * The second `print` in the sample wraps the joined row in pipes so that the
-     * absence of a trailing space is something a learner can SEE — `|2 4 6|` and
-     * not `|2 4 6 |` — instead of something the paragraph asserts. Its comment
-     * used to end in Kazakh, «сонда артық бос орын жоқ», and `code` is a single
-     * string served to both routes: the Russian learner met an unreadable
-     * sentence on the one card that introduces three constructs at once, which
-     * is the same reason this course never prints a Kazakh or Russian word out
-     * of a program. The pipes carry the point without a language, and both
-     * bodies already make it in words, each in its own.
+     * The second half of the sample wraps the same row in pipes so that the
+     * absence of a trailing space is something a learner can SEE — `|2 4 6|`
+     * and not `|2 4 6 |` — instead of something the paragraph asserts. The
+     * pipes carry the point without a language, which matters because `code` is
+     * a single string served to both routes.
      */
     id: "m2.l7.b10",
     type: "concept",
     skillRefs: ["loops.nested", "strings.sequence"],
     sourceType: "product-authored",
     title: {
-      kk: "Жолды бөлшектеп жинау: str, append, join",
-      ru: "Собираем строку по частям: str, append, join",
+      kk: "Бір жолға бірнеше сан шығару",
+      ru: "Выводим несколько чисел в одну строку",
     },
     body: {
-      kk: "Санды мәтінге қосу үшін алдымен оны мәтінге айналдыру керек: `str(7)` «7» деген мәтін береді. Бұл қыркүйектегі `int()`-тің кері әрекеті.\n\nБір жолға бірнеше санды шығарғанда әрқайсысын бөлек `print` етсек, олар әр жолға түсіп кетеді. Сондықтан алдымен бос тізім жасап, `.append()` арқылы бөліктерді жинаймыз, содан кейін `\" \".join(...)` тізімнің бөліктерін араларына бір бос орын қойып біріктіреді.\n\nНеге жай ғана қосып жазбаймыз? `row = row + str(x) + \" \"` десек, жолдың СОҢЫНДА артық бос орын қалады. `join` бөлгішті тек араларына қояды, сондықтан соңында ештеңе қалмайды.",
-      ru: "Чтобы присоединить число к тексту, его сначала нужно превратить в текст: `str(7)` даёт текст «7». Это обратное действие к сентябрьскому `int()`.\n\nЕсли выводить несколько чисел в одну строку отдельными `print`, они попадут на разные строки. Поэтому сначала создаём пустой список, собираем в него части через `.append()`, а затем `\" \".join(...)` соединяет части списка, ставя между ними по одному пробелу.\n\nПочему не просто складывать? Если написать `row = row + str(x) + \" \"`, в КОНЦЕ строки останется лишний пробел. `join` ставит разделитель только между частями, поэтому в конце ничего не остаётся.",
+      kk: "`cout` жаңа жолға өзі көшпейді: бірінен соң бірін жазсаң, бәрі бір жолда тұрады. Жаңа жолға `endl` көшіреді. Сондықтан бір жолдағы кестенің қатарын бөлшектеп шығаруға болады — тізім жинаудың қажеті жоқ.\n\nБірақ бөлгішті қайда қою керек? Егер әр саннан КЕЙІН бос орын жазсаң (`cout << x << \" \";`), жолдың соңында артық бос орын қалады. Ал жауап дәл сол күйінде тексерілетін тапсырмада артық бос орын — қате жауап.\n\nСондықтан бөлгішті әр санның АЛДЫНА қоямыз, бірақ біріншісін аттап кетеміз: `if (j > 1) cout << \" \";`. Сонда бос орын тек сандардың арасында тұрады да, жолдың соңында ештеңе қалмайды. Төмендегі мысалдың екінші бөлігінде жол тік сызықтардың арасына алынған — соңында бос орын жоқ екенін көзбен көру үшін.",
+      ru: "`cout` сам не переходит на новую строку: если писать одно за другим, всё окажется в одной строке. На новую строку переводит `endl`. Поэтому строку таблицы можно выводить по частям — собирать список незачем.\n\nНо куда поставить разделитель? Если писать пробел ПОСЛЕ каждого числа (`cout << x << \" \";`), в конце строки останется лишний пробел. А в задаче, где ответ сверяется в точности, лишний пробел — это неверный ответ.\n\nПоэтому разделитель ставим ПЕРЕД каждым числом, пропуская первое: `if (j > 1) cout << \" \";`. Тогда пробелы стоят только между числами, а в конце строки не остаётся ничего. Во второй части примера ниже строка взята в вертикальные чёрточки — чтобы глазами увидеть, что пробела в конце нет.",
     },
     code:
-      'row = []\nrow.append(str(2))\nrow.append(str(4))\nrow.append(str(6))\nprint(" ".join(row))  # 2 4 6\nprint("|" + " ".join(row) + "|")  # |2 4 6|',
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    for (int j = 1; j <= 3; j++) {\n" +
+      "        if (j > 1) {\n" +
+      "            cout << \" \";\n" +
+      "        }\n" +
+      "        cout << j * 2;\n" +
+      "    }\n" +
+      "    cout << endl;          // 2 4 6\n" +
+      "\n" +
+      "    cout << \"|\";\n" +
+      "    for (int j = 1; j <= 3; j++) {\n" +
+      "        if (j > 1) {\n" +
+      "            cout << \" \";\n" +
+      "        }\n" +
+      "        cout << j * 2;\n" +
+      "    }\n" +
+      "    cout << \"|\" << endl;   // |2 4 6|\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m2.l7.b7",
@@ -324,25 +374,37 @@ export const M2_L7: LessonBlock[] = [
         "2 4 6\n" +
         "3 6 9",
     },
-    /* `row = []` inside the outer loop is the same reset as b6's `line = ""`,
-       and `" ".join` is what puts the separator BETWEEN the numbers instead of
-       after each of them — which is exactly how the trailing space this task
-       forbids gets in. */
+    /* `if (j > 1) cout << " ";` is b10's rule applied: the separator goes
+       BETWEEN the numbers instead of after each of them, which is exactly how
+       the trailing space this task forbids gets in. `cout << endl;` sits after
+       the inner loop and inside the outer one — the same placement decision
+       b6's `string line = "";` makes from the other side. */
     referenceSolution:
-      "n = int(input())\n" +
-      "for i in range(1, n + 1):\n" +
-      "    row = []\n" +
-      "    for j in range(1, n + 1):\n" +
-      "        row.append(str(i * j))\n" +
-      '    print(" ".join(row))',
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        for (int j = 1; j <= n; j++) {\n" +
+      "            if (j > 1) {\n" +
+      "                cout << \" \";\n" +
+      "            }\n" +
+      "            cout << i * j;\n" +
+      "        }\n" +
+      "        cout << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     /* n = 3 is the picture in the prompt, so the two commonest wrecks surface
-       where the learner can see them: `range(1, n)` on either loop drops the
-       third column or the third row, and a `row = []` hoisted above the outer
-       loop prints "1 2 3 2 4 6" on line two. n = 1 is the whole trailing-space
-       question in one byte — a solution that appends " " after every number
-       fails it and nothing else. n = 9 is the top of the stated bound and the
-       only case where a two-digit product meets a two-digit product, so an
-       author's assumption about column width would die here. */
+       where the learner can see them: `j < n` on either loop drops the third
+       column or the third row, and a `cout << endl;` hoisted outside the outer
+       loop runs the whole table onto one line. n = 1 is the whole
+       trailing-space question in one byte — a solution that prints " " after
+       every number fails it and nothing else. n = 9 is the top of the stated
+       bound and the only case where a two-digit product meets a two-digit
+       product, so an author's assumption about column width would die here. */
     cases: [
       { input: "3", expectedOutput: "1 2 3\n2 4 6\n3 6 9" },
       { input: "1", expectedOutput: "1" },
@@ -380,21 +442,22 @@ export const M2_L7: LessonBlock[] = [
      * of written from a blank editor. «дайын кодты құрастыру мен толықтыру
      * көбірек, нөлден жазу азырақ» (p.6).
      *
-     * Two decisions carry the whole task, and neither is given away by the
-     * indentation: whether `line = ""` comes before or after the inner `for`,
-     * and whether `print(line)` belongs to the outer loop or to the inner one.
-     * The dependent bound `range(i)` is handed over ready-made, because for
-     * this route it is the thing to be read rather than invented.
+     * Two decisions carry the whole task: whether `string line = "";` comes
+     * before or after the inner `for`, and whether `cout << line << endl;`
+     * belongs to the outer loop or after it. The dependent bound `j < i` is
+     * handed over ready-made, because for this route it is the thing to be read
+     * rather than invented.
      *
-     * The shape used to be called a «тік бұрышты үшбұрыш», in two words. Split
-     * like that it says "a triangle with an upright angle", which names no
-     * figure at all; the geometry term is the solid compound «тікбұрышты
-     * үшбұрыш», formed exactly like «теңбүйірлі» and like «тіктөртбұрыш» —
-     * which b6, earlier in this same lesson, already writes as one word. Not a
-     * typo a reader glides over: a learner who met the term in geometry does
-     * not recognise it in halves, and the RU side has been saying
-     * «прямоугольный треугольник» the whole time. Changed in b8 as well — one
-     * problem, one name, whichever route you are on.
+     * The frame and the reading arrive as one card. In Python the six cards
+     * could be ordered by counting leading spaces; C++ braces would give even
+     * more away, so what is left to order is only the decisions above — and the
+     * closing brace of the outer loop, which is where the `cout` has to fall on
+     * the right side of.
+     *
+     * The shape is a «тікбұрышты үшбұрыш» — one word, the way Kazakh geometry
+     * forms it and the way b6 already writes «тіктөртбұрыш». Split into two it
+     * names no figure at all, and the RU side has been saying «прямоугольный
+     * треугольник» the whole time.
      */
     id: "m2.l7.b8s",
     type: "reorder_code",
@@ -416,14 +479,31 @@ export const M2_L7: LessonBlock[] = [
         "***",
     },
     lines: [
-      { id: "t1", code: "n = int(input())" },
-      { id: "t2", code: "for i in range(1, n + 1):" },
-      { id: "t3", code: '    line = ""' },
-      { id: "t4", code: "    for j in range(i):" },
-      { id: "t5", code: '        line = line + "*"' },
-      { id: "t6", code: "    print(line)" },
+      {
+        id: "t1",
+        code:
+          "#include <iostream>\n" +
+          "#include <string>\n" +
+          "using namespace std;\n" +
+          "\n" +
+          "int main() {\n" +
+          "    int n;\n" +
+          "    cin >> n;",
+      },
+      { id: "t2", code: "    for (int i = 1; i <= n; i++) {" },
+      { id: "t3", code: '        string line = "";' },
+      {
+        id: "t4",
+        code:
+          "        for (int j = 0; j < i; j++) {\n" +
+          '            line = line + "*";\n' +
+          "        }",
+      },
+      { id: "t5", code: "        cout << line << endl;" },
+      { id: "t6", code: "    }" },
+      { id: "t7", code: "    return 0;\n}" },
     ],
-    correctOrder: ["t1", "t2", "t3", "t4", "t5", "t6"],
+    correctOrder: ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
   },
   {
     id: "m2.l7.b8",
@@ -456,18 +536,27 @@ export const M2_L7: LessonBlock[] = [
     /* The inner bound depends on the outer variable — the step up from b6, and
        the reason this problem is worth setting at all. */
     referenceSolution:
-      "n = int(input())\n" +
-      "for i in range(1, n + 1):\n" +
-      '    line = ""\n' +
-      "    for j in range(i):\n" +
-      '        line = line + "*"\n' +
-      "    print(line)",
-    /* n = 1 kills a fixed inner bound copied from n: `range(n)` inside would
-       coincidentally pass n = 1 but fail n = 3, and `range(i)` written as
-       `range(i + 1)` fails n = 1 immediately with "**". n = 2 is the smallest
-       case where two different row lengths exist at all, so a solution that
-       forgets to reset `line` first goes wrong there ("*", "***"). n = 20 is
-       the top of the stated bound. */
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      '        string line = "";\n' +
+      "        for (int j = 0; j < i; j++) {\n" +
+      '            line = line + "*";\n' +
+      "        }\n" +
+      "        cout << line << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    /* n = 1 kills a fixed inner bound copied from n: `j < n` inside would
+       coincidentally pass n = 1 but fail n = 3, and `j <= i` fails n = 1
+       immediately with "**". n = 2 is the smallest case where two different row
+       lengths exist at all, so a solution that forgets to reset `line` first
+       goes wrong there ("*", "***"). n = 20 is the top of the stated bound. */
     cases: [
       { input: "3", expectedOutput: "*\n**\n***" },
       { input: "1", expectedOutput: "*" },
@@ -534,19 +623,30 @@ export const M2_L7: LessonBlock[] = [
         "*******",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "for i in range(1, n + 1):\n" +
-      '    line = ""\n' +
-      "    for j in range(n - i):\n" +
-      '        line = line + " "\n' +
-      "    for j in range(2 * i - 1):\n" +
-      '        line = line + "*"\n' +
-      "    print(line)",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      '        string line = "";\n' +
+      "        for (int j = 0; j < n - i; j++) {\n" +
+      '            line = line + " ";\n' +
+      "        }\n" +
+      "        for (int j = 0; j < 2 * i - 1; j++) {\n" +
+      '            line = line + "*";\n' +
+      "        }\n" +
+      "        cout << line << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     /* n = 1 is one star and nothing else: it fails any solution that writes
        `2 * i` or `n - i + 1`. n = 2 is the smallest case with an actual
        indent, so a solution that indents by i instead of n − i inverts the
        triangle and dies there. n = 3 and n = 5 are odd, n = 4 even, which
-       catches a stray `// 2` in the space count. n = 20 is the stated bound. */
+       catches a stray `/ 2` in the space count. n = 20 is the stated bound. */
     cases: [
       { input: "4", expectedOutput: "   *\n  ***\n *****\n*******" },
       { input: "1", expectedOutput: "*" },

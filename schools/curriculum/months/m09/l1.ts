@@ -21,14 +21,30 @@ import type { LessonBlock } from "../../types";
  *   is the whole point of a contest month: a problem you cannot place in a month
  *   of the year is a problem this course did not prepare you for.
  *
+ * ## `#include <bits/stdc++.h>` is taught here, and this is the only month it may be
+ *
+ * September met the omnibus header once, as something a learner will SEE, and
+ * was told not to use it: measured, it costs ~4 s per browser Run against ~0.9 s
+ * for `<iostream>` alone, because it really does pull in 76 headers
+ * (`docs/cpp17/CPP17_JUDGE_PARITY.md`). A beginner pressing Run every thirty
+ * seconds should not pay four seconds for a header they do not use.
+ *
+ * A contest inverts that arithmetic and `b1` says so with both numbers on the
+ * page. Forty-five minutes hold perhaps a dozen Runs, so the header costs under
+ * a minute across the whole contest — and it removes the one failure that has no
+ * upside at all, which is losing four minutes to «қай кітапхананы қостым» while
+ * the clock runs. That is a time-split decision, which is this lesson, and it is
+ * why the trade-off is taught here rather than asserted somewhere as a style
+ * rule. From `b7` onward every program in May uses it.
+ *
  * ## Judgement has to be graded like an algorithm or it is just advice
  *
  * A lesson about "manage your time" collapses into slogans unless the rule is
- * as concrete as `range(a, b)`. So `b1` states the plan as five numbered steps
+ * as concrete as a loop bound. So `b1` states the plan as five numbered steps
  * with real minute figures, and `b2`–`b4` charge the learner against them: one
  * situation twenty minutes into a contest, one ranking decision at minute zero,
- * and one prediction where a stated pace is turned into an actual number by
- * actual Python. The prediction is a real program on purpose — the learner
+ * and one prediction where a stated pace is turned into an actual number by an
+ * actual compiler. The prediction is a real program on purpose — the learner
  * should watch a plan produce a count rather than be told one.
  *
  * ## The structural requirement, and which of the three options this lesson took
@@ -66,10 +82,14 @@ export const M9_L1: LessonBlock[] = [
     /* Steps 1 and 4 are the two the rest of the lesson charges against, so both
        carry a number a learner can look at a clock and check: five minutes of
        reading, ten minutes of no progress. «Жоспарлы бол» without a figure is
-       not a rule, it is a mood. */
+       not a rule, it is a mood.
+
+       Step 0 is the C++ addition and it is a time-split decision like the rest:
+       both compile figures are on the page so the learner can see WHY the answer
+       flips between a lesson and a contest. */
     body: {
-      kk: "Жаттығу жарысы 45 минутқа созылады, есеп саны — бес. Тәртібі мынандай.\n\n1-қадам. Алғашқы 5 минутта бес есептің де шартын оқып шық. Бірде-бір жол код жазба — тек оқы.\n\n2-қадам. Есептерді өзің үшін ретте: қайсысының шешімін дәл қазір сөзбен айта аласың, қайсысы жыл бойы шығарған есепке ұқсайды, қайсысында n тым үлкен.\n\n3-қадам. Ең сенімді есептен баста — сырттай ең қысқа көрінгеннен емес, шешу жолын нақты білетініңнен.\n\n4-қадам. Бір есеппен шамамен 10 минут отырсаң да алға жылжу болмаса, оны қалдырып, келесісіне көш. Жазғаның ешқайда жоғалмайды: уақыт қалса, қайта ораласың.\n\n5-қадам. Соңғы 5 минутта жаңа есеп ашпа. Дайын тұрған шешімдерді жіберіп үлгер.\n\nТолық шешілген екі есеп — жартылай жазылған төрт есептен артық. Турнир кестесінде тек аяқталған шешім ғана есептеледі.",
-      ru: "Тренировочное соревнование длится 45 минут, задач — пять. Порядок такой.\n\nШаг 1. Первые 5 минут прочитай условия всех пяти задач. Не пиши ни строчки кода — только читай.\n\nШаг 2. Расставь задачи для себя по порядку: какую ты уже сейчас можешь объяснить словами, какая похожа на решённое за год, у какой n слишком большое.\n\nШаг 3. Начинай с той, в которой уверен, — не с той, у которой условие короче, а с той, где ты знаешь путь к решению.\n\nШаг 4. Если сидишь над задачей около 10 минут и продвижения нет, оставь её и переходи к следующей. Написанное никуда не денется: вернёшься, если останется время.\n\nШаг 5. В последние 5 минут не открывай новую задачу. Успей отправить то, что уже готово.\n\nДве полностью решённые задачи лучше четырёх наполовину написанных. В таблице результатов считается только законченное решение.",
+      kk: "Жаттығу жарысы 45 минутқа созылады, есеп саны — бес. Тәртібі мынандай.\n\n0-қадам. Жарыс басталмай тұрып жақтауыңды дайында. Жыл бойы сен қажет кітапхананы қолмен қосып келдің: `#include <iostream>`, сосын `#include <vector>`, сосын `#include <algorithm>`. Жарыста бір жол жеткілікті:\n\n```\n#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n```\n\n`bits/stdc++.h` — стандартты кітапхананың бәрін бірден қосатын жол. Оның бағасы өлшенген: осы жолмен компиляция шамамен 4 секунд, ал жалғыз `#include <iostream>` болғанда шамамен 0,9 секунд алады. Қыркүйекте бұл жаман мәміле еді — сен «Іске қосу» түймесін жарты минут сайын басасың, ал 4 секунд күту бір сабақта бірнеше минутқа айналады. 45 минуттық жарыста сен түймені он шақты рет қана басасың, сондықтан бүкіл жарыс бойы бұл бір минуттан аз уақыт алады — ал есесіне «қай кітапхананы қосуым керек еді» деген сұраққа мүлде қайтып оралмайсың. Мамырдағы барлық шешім осы жақтаудан басталады.\n\n1-қадам. Алғашқы 5 минутта бес есептің де шартын оқып шық. Бірде-бір жол код жазба — тек оқы.\n\n2-қадам. Есептерді өзің үшін ретте: қайсысының шешімін дәл қазір сөзбен айта аласың, қайсысы жыл бойы шығарған есепке ұқсайды, қайсысында n тым үлкен.\n\n3-қадам. Ең сенімді есептен баста — сырттай ең қысқа көрінгеннен емес, шешу жолын нақты білетініңнен.\n\n4-қадам. Бір есеппен шамамен 10 минут отырсаң да алға жылжу болмаса, оны қалдырып, келесісіне көш. Жазғаның ешқайда жоғалмайды: уақыт қалса, қайта ораласың.\n\n5-қадам. Соңғы 5 минутта жаңа есеп ашпа. Дайын тұрған шешімдерді жіберіп үлгер.\n\nТолық шешілген екі есеп — жартылай жазылған төрт есептен артық. Турнир кестесінде тек аяқталған шешім ғана есептеледі.",
+      ru: "Тренировочное соревнование длится 45 минут, задач — пять. Порядок такой.\n\nШаг 0. Приготовь рамку до начала соревнования. Весь год ты подключал нужную библиотеку вручную: `#include <iostream>`, потом `#include <vector>`, потом `#include <algorithm>`. На соревновании достаточно одной строки:\n\n```\n#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n```\n\n`bits/stdc++.h` — это строка, которая подключает сразу всю стандартную библиотеку. Её цена измерена: с ней компиляция занимает около 4 секунд, а с одним только `#include <iostream>` — около 0,9 секунды. В сентябре это была плохая сделка: ты жмёшь «Запустить» раз в полминуты, и четыре секунды ожидания складываются за урок в несколько минут. На соревновании длиной 45 минут ты нажмёшь кнопку около десяти раз, так что за всё соревнование это меньше минуты — зато вопрос «какую библиотеку я забыл подключить» не возникнет ни разу. Все майские решения начинаются с этой рамки.\n\nШаг 1. Первые 5 минут прочитай условия всех пяти задач. Не пиши ни строчки кода — только читай.\n\nШаг 2. Расставь задачи для себя по порядку: какую ты уже сейчас можешь объяснить словами, какая похожа на решённое за год, у какой n слишком большое.\n\nШаг 3. Начинай с той, в которой уверен, — не с той, у которой условие короче, а с той, где ты знаешь путь к решению.\n\nШаг 4. Если сидишь над задачей около 10 минут и продвижения нет, оставь её и переходи к следующей. Написанное никуда не денется: вернёшься, если останется время.\n\nШаг 5. В последние 5 минут не открывай новую задачу. Успей отправить то, что уже готово.\n\nДве полностью решённые задачи лучше четырёх наполовину написанных. В таблице результатов считается только законченное решение.",
     },
   },
   {
@@ -78,8 +98,8 @@ export const M9_L1: LessonBlock[] = [
     skillRefs: ["contest.time_split"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Жарыс басталғанына 20 минут болды. B мен C есептерін жіберіп, «accepted» алдың. A есебімен 12 минуттан бері отырсың: коды жартылай жазылған, әлі жұмыс істемейді. D мен E есептерінің шартын әлі оқыған жоқсың. Қалғаны — 25 минут. Не істейсің?",
-      ru: "С начала соревнования прошло 20 минут. Задачи B и C отправлены и получили «accepted». Над задачей A ты сидишь уже 12 минут: код написан наполовину и пока не работает. Условия задач D и E ты ещё не читал. Осталось 25 минут. Что делаешь?",
+      kk: "Жарыс басталғанына 20 минут болды. B мен C есептерін жіберіп, «Дұрыс» алдың. A есебімен 12 минуттан бері отырсың: коды жартылай жазылған, әлі жұмыс істемейді. D мен E есептерінің шартын әлі оқыған жоқсың. Қалғаны — 25 минут. Не істейсің?",
+      ru: "С начала соревнования прошло 20 минут. Задачи B и C отправлены и получили «Верно». Над задачей A ты сидишь уже 12 минут: код написан наполовину и пока не работает. Условия задач D и E ты ещё не читал. Осталось 25 минут. Что делаешь?",
     },
     options: [
       {
@@ -193,9 +213,10 @@ export const M9_L1: LessonBlock[] = [
      * No diagnosticMapping. C is the trap the card is built around, and it has
      * two causes that cannot be told apart from the answer alone: reading
      * "shortest statement" as "easiest", and not knowing that a loop to
-     * 1 000 000 000 does not fit in the time limit — December's own topic. The
-     * second is a gap in knowledge, the first is a habit of judgement, and
-     * naming the wrong one to a learner is worse than asking.
+     * 1 000 000 000 does not fit in the time limit — December's own topic, and
+     * still true in C++ at roughly 10⁸ operations a second. The second is a gap
+     * in knowledge, the first is a habit of judgement, and naming the wrong one
+     * to a learner is worse than asking.
      */
   },
   {
@@ -207,8 +228,28 @@ export const M9_L1: LessonBlock[] = [
       kk: "Жоспарың осылай: 45 минуттың 5-і шарттарды оқуға кетеді, ал `plan` — бес есепті өзің таңдаған ретпен шығаруға қанша минут кетеді деген өз бағалауың. Бағдарлама тізімді реттеп аралайды: қалған уақытқа сыятын есепті шығарады, сыймайтынын аттап өтіп, келесісіне көшеді. Ол қандай сан шығарады?",
       ru: "Твой план такой: из 45 минут 5 уходит на чтение условий, а `plan` — это твоя собственная оценка, сколько минут займёт каждая из пяти задач в выбранном тобой порядке. Программа идёт по списку по порядку: задачу, которая укладывается в оставшееся время, решает, а ту, которая не укладывается, пропускает и переходит к следующей. Какое число она выведет?",
     },
+    /* Targeted includes rather than the omnibus header, deliberately: this is a
+       snippet a learner presses Run on, not a contest submission, and b1 has
+       just spent a paragraph on which of the two situations they are in. */
     code:
-      "left = 45\nleft = left - 5\nplan = [8, 12, 10, 20, 25]\ndone = 0\nfor t in plan:\n    if t <= left:\n        left = left - t\n        done = done + 1\nprint(done)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int left = 45;\n" +
+      "    left = left - 5;\n" +
+      "    vector<int> plan = {8, 12, 10, 20, 25};\n" +
+      "    int done = 0;\n" +
+      "    for (int t : plan) {\n" +
+      "        if (t <= left) {\n" +
+      "            left = left - t;\n" +
+      "            done = done + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << done;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "3",
     options: ["2", "3", "4", "5"],
     /*
@@ -224,7 +265,7 @@ export const M9_L1: LessonBlock[] = [
       "5": {
         failureClass: "condition_ignored",
         justification:
-          "5 деген жауап тек `if t <= left` шартын мүлде ескермегенде шығады: ол `plan` тізімінің ұзындығы. Цикл денесінде санағышты өсіретін жол шарттың ішінде тұр, сондықтан бесеуін де санау шартты оқымағанды білдіреді.",
+          "5 деген жауап тек `if (t <= left)` шартын мүлде ескермегенде шығады: ол `plan` векторының ұзындығы. Цикл денесінде санағышты өсіретін жол шарттың ішінде тұр, сондықтан бесеуін де санау шартты оқымағанды білдіреді.",
       },
     },
   },
@@ -271,24 +312,24 @@ export const M9_L1: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Жыл бойғы тақырыптарды есіңе түсір: циклдер, тізімдер, функциялар, реттеу, алдын ала есептеу, екіге бөліп іздеу, екі шекара әдісі, толық тексеру, рекурсия, тор мен толқын, ашкөз таңдау, кестемен шешу. Қай тәсілге бірінші қол созасың — қайсысы саған бірден түсінікті? Қайсысынан жалтарасың? Жарыста дәл сол тәсілді талап ететін есеп кездессе, не істейсің?",
-      ru: "Вспомни темы года: циклы, списки, функции, сортировка, предварительные вычисления, бинарный поиск, метод двух указателей, полный перебор, рекурсия, сетка и волна, жадный выбор, решение через таблицу. К какому приёму ты тянешься первым — какой понятен тебе сразу? Какого избегаешь? Что сделаешь, если на соревновании попадётся задача, требующая именно его?",
+      kk: "Жыл бойғы тақырыптарды есіңе түсір: циклдер, векторлар, функциялар, реттеу, алдын ала есептеу, екіге бөліп іздеу, екі шекара әдісі, толық тексеру, рекурсия, тор мен толқын, ашкөз таңдау, кестемен шешу. Қай тәсілге бірінші қол созасың — қайсысы саған бірден түсінікті? Қайсысынан жалтарасың? Жарыста дәл сол тәсілді талап ететін есеп кездессе, не істейсің?",
+      ru: "Вспомни темы года: циклы, векторы, функции, сортировка, предварительные вычисления, бинарный поиск, метод двух указателей, полный перебор, рекурсия, сетка и волна, жадный выбор, решение через таблицу. К какому приёму ты тянешься первым — какой понятен тебе сразу? Какого избегаешь? Что сделаешь, если на соревновании попадётся задача, требующая именно его?",
     },
   },
   {
     /*
      * The problem you open first, and the month it comes from: ОКТЯБРЬ — one
-     * traversal of a list with a counter (`loops.counter`, `lists.traverse`).
+     * traversal of a vector with a counter (`loops.counter`, `lists.traverse`).
      * No new technique, which is the rule for May.
      *
      * The degenerate programs, and the case that kills each:
      *   `>=` instead of `>`            → "4\n2 2 2 2" expects 0, it prints 3.
-     *   `range(1, n - 1)`, one short   → "3\n1 1 9" expects 1, it prints 0.
+     *   a loop stopping at n - 1       → "3\n1 1 9" expects 1, it prints 0.
      *   `a[i] > a[i - 1]`, comparing to
      *   the previous element instead of
      *   to the first                   → "6\n10 1 2 3 4 5" expects 0, it prints 4.
      *   counting the complement        → "5\n1 2 3 4 5" expects 4, it prints 0.
-     * `range(n)` instead of `range(1, n)` is NOT killed by any case and is not
+     * Starting the loop at 0 instead of 1 is NOT killed by any case and is not
      * meant to be: `a[0] > a[0]` is false, so it is the same program with one
      * wasted comparison, not a wrong one.
      */
@@ -297,11 +338,25 @@ export const M9_L1: LessonBlock[] = [
     skillRefs: ["contest.time_split", "lists.traverse", "loops.counter"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда n саны, екінші жолда n бүтін сан беріледі. Бірінші саннан қатаң үлкен сандардың санын шығар. Бірінші санның өзі саналмайды. Мысалы `3 1 4 1 5` үшін жауап 2 — бұл 4 пен 5.",
-      ru: "В первой строке дано число n, во второй — n целых чисел. Выведи, сколько из них строго больше первого числа. Само первое число не считается. Например, для `3 1 4 1 5` ответ 2 — это 4 и 5.",
+      kk: "Бірінші жолда n саны (1 ≤ n ≤ 100 000), екінші жолда n бүтін сан беріледі, әрқайсысының абсолют шамасы 1 000 000 000-нан аспайды. Бірінші саннан қатаң үлкен сандардың санын шығар. Бірінші санның өзі саналмайды. Мысалы `3 1 4 1 5` үшін жауап 2 — бұл 4 пен 5.",
+      ru: "В первой строке дано число n (1 ≤ n ≤ 100 000), во второй — n целых чисел, каждое по модулю не больше 1 000 000 000. Выведи, сколько из них строго больше первого числа. Само первое число не считается. Например, для `3 1 4 1 5` ответ 2 — это 4 и 5.",
     },
     referenceSolution:
-      "n = int(input())\na = list(map(int, input().split()))\nc = 0\nfor i in range(1, n):\n    if a[i] > a[0]:\n        c = c + 1\nprint(c)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] > a[0]) c = c + 1;\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n3 1 4 1 5", expectedOutput: "2" },
       { input: "1\n7", expectedOutput: "0" },
@@ -309,6 +364,9 @@ export const M9_L1: LessonBlock[] = [
       { input: "3\n1 1 9", expectedOutput: "1", hidden: true },
       { input: "6\n10 1 2 3 4 5", expectedOutput: "0", hidden: true },
       { input: "5\n1 2 3 4 5", expectedOutput: "4", hidden: true },
+      /* Negative values, and the two ends of the stated range. */
+      { input: "4\n-5 -6 -4 -5", expectedOutput: "1", hidden: true },
+      { input: "3\n-1000000000 0 1000000000", expectedOutput: "2", hidden: true },
     ],
   },
   {
@@ -317,6 +375,14 @@ export const M9_L1: LessonBlock[] = [
      * есептеу» (`precompute.prefix`): the total is computed once and then a
      * single left-to-right accumulator (October's `loops.accumulator`) answers
      * the question. Still no new technique.
+     *
+     * The bounds are stated and they are stated for a C++ reason: 100 000 days
+     * of at most 1000 points is a total of 10⁸ and a doubled running sum of
+     * 2 · 10⁸, both comfortably inside `int`. The reference uses `long long`
+     * anyway — it costs nothing and it is the habit April spends a month on —
+     * but a learner who writes `int` here is not punished by a bound they were
+     * never shown. The month's overflow lesson is m9.l2.b1, and the contests are
+     * where it is charged for.
      *
      * The single-pass shape is stated as ADVICE in the prompt and the block is
      * graded on output — option 2 of the authoring contract, argued in the file
@@ -340,11 +406,32 @@ export const M9_L1: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бірінші жолда n күн саны, екінші жолда сол n күнде жиналған ұпай беріледі (әр ұпай 0-ден кем емес). Алғашқы k күннің қосындысы бүкіл n күннің қосындысының кемінде жартысына жететін ең кіші k санын шығар. Мысалы `1 2 3 4 5` үшін жалпы қосынды 15: алғашқы 3 күнде небәрі 6 жиналады, ал алғашқы 4 күнде 10 — бұл жартысынан көп, сондықтан жауап 4. Кеңес: жалпы қосындыны алдымен бір рет есептеп ал, содан кейін тізімді басынан бір-ақ рет жүріп өт. Бұл — кеңес, талап емес: тапсырма шыққан жауап бойынша тексеріледі.",
-      ru: "В первой строке дано число дней n, во второй — очки за эти n дней (каждое не меньше 0). Выведи наименьшее k, при котором сумма первых k дней составляет не меньше половины суммы всех n дней. Например, для `1 2 3 4 5` общая сумма равна 15: за первые 3 дня набирается всего 6, а за первые 4 дня — 10, это больше половины, поэтому ответ 4. Совет: сначала посчитай общую сумму один раз, а потом пройди список слева направо ровно один раз. Это совет, а не требование: задание проверяется по выведенному ответу.",
+      kk: "Бірінші жолда n күн саны (1 ≤ n ≤ 100 000), екінші жолда сол n күнде жиналған ұпай беріледі (әр ұпай 0-ден 1000-ға дейін). Алғашқы k күннің қосындысы бүкіл n күннің қосындысының кемінде жартысына жететін ең кіші k санын шығар. Мысалы `1 2 3 4 5` үшін жалпы қосынды 15: алғашқы 3 күнде небәрі 6 жиналады, ал алғашқы 4 күнде 10 — бұл жартысынан көп, сондықтан жауап 4. Кеңес: жалпы қосындыны алдымен бір рет есептеп ал, содан кейін тізімді басынан бір-ақ рет жүріп өт. Бұл — кеңес, талап емес: тапсырма шыққан жауап бойынша тексеріледі.",
+      ru: "В первой строке дано число дней n (1 ≤ n ≤ 100 000), во второй — очки за эти n дней (каждое от 0 до 1000). Выведи наименьшее k, при котором сумма первых k дней составляет не меньше половины суммы всех n дней. Например, для `1 2 3 4 5` общая сумма равна 15: за первые 3 дня набирается всего 6, а за первые 4 дня — 10, это больше половины, поэтому ответ 4. Совет: сначала посчитай общую сумму один раз, а потом пройди список слева направо ровно один раз. Это совет, а не требование: задание проверяется по выведенному ответу.",
     },
     referenceSolution:
-      "n = int(input())\na = list(map(int, input().split()))\ntotal = 0\nfor i in range(n):\n    total = total + a[i]\nrun = 0\nk = 0\nfor i in range(n):\n    run = run + a[i]\n    if 2 * run >= total:\n        k = i + 1\n        break\nprint(k)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    long long total = 0;\n" +
+      "    for (int i = 0; i < n; i++) total = total + a[i];\n" +
+      "    long long run = 0;\n" +
+      "    int k = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        run = run + a[i];\n" +
+      "        if (2 * run >= total) {\n" +
+      "            k = i + 1;\n" +
+      "            break;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << k;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n1 2 3 4 5", expectedOutput: "4" },
       { input: "1\n5", expectedOutput: "1" },
@@ -353,6 +440,9 @@ export const M9_L1: LessonBlock[] = [
       { input: "5\n1 1 1 1 10", expectedOutput: "5", hidden: true },
       { input: "6\n2 2 2 2 2 2", expectedOutput: "3", hidden: true },
       { input: "3\n0 0 7", expectedOutput: "3", hidden: true },
+      /* Every day worth nothing: the total is 0 and the first day already
+         reaches half of it, so the answer is 1 rather than n. */
+      { input: "4\n0 0 0 0", expectedOutput: "1", hidden: true },
     ],
   },
   {
@@ -378,11 +468,32 @@ export const M9_L1: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бірінші жолда n күн саны, екінші жолда сол күндердегі ұпай беріледі. Бағдарлама алғашқы k күннің қосындысы бүкіл қосындының кемінде жартысына жететін ең кіші k-ны шығаруы керек: `1 2 3 4 5` үшін жауап 4. Екі орын бос. Біріншісіне салыстыру белгісі керек — «кемінде жартысы» дегенге дәл жартысы да кіретінін ұмытпа. Екіншісінде `i` — тізімдегі орын, ол 0-ден басталады, ал жауап күн саны болуы тиіс.",
-      ru: "В первой строке дано число дней n, во второй — очки за эти дни. Программа должна вывести наименьшее k, при котором сумма первых k дней составляет не меньше половины всей суммы: для `1 2 3 4 5` ответ 4. Пропущены два места. В первом нужен знак сравнения — не забудь, что «не меньше половины» включает и ровно половину. Во втором `i` — это позиция в списке, она начинается с 0, а ответом должно быть количество дней.",
+      kk: "Бірінші жолда n күн саны, екінші жолда сол күндердегі ұпай беріледі. Бағдарлама алғашқы k күннің қосындысы бүкіл қосындының кемінде жартысына жететін ең кіші k-ны шығаруы керек: `1 2 3 4 5` үшін жауап 4. Екі орын бос. Біріншісіне салыстыру белгісі керек — «кемінде жартысы» дегенге дәл жартысы да кіретінін ұмытпа. Екіншісінде `i` — вектордағы орын, ол 0-ден басталады, ал жауап күн саны болуы тиіс.",
+      ru: "В первой строке дано число дней n, во второй — очки за эти дни. Программа должна вывести наименьшее k, при котором сумма первых k дней составляет не меньше половины всей суммы: для `1 2 3 4 5` ответ 4. Пропущено два места. В первом нужен знак сравнения — не забудь, что «не меньше половины» включает и ровно половину. Во втором `i` — это позиция в векторе, она начинается с 0, а ответом должно быть количество дней.",
     },
     template:
-      "n = int(input())\na = list(map(int, input().split()))\ntotal = 0\nfor i in range(n):\n    total = total + a[i]\nrun = 0\nk = 0\nfor i in range(n):\n    run = run + a[i]\n    if 2 * run ___ total:\n        k = i ___ 1\n        break\nprint(k)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    long long total = 0;\n" +
+      "    for (int i = 0; i < n; i++) total = total + a[i];\n" +
+      "    long long run = 0;\n" +
+      "    int k = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        run = run + a[i];\n" +
+      "        if (2 * run ___ total) {\n" +
+      "            k = i ___ 1;\n" +
+      "            break;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << k;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: ">=" },
       { id: "f2", answer: "+" },

@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { CPP_STANDARD_FLAG, CPP_STANDARD_MACRO } from "@schools/execution/cpp-runtime";
+import { cppCompiler } from "../support/cpp-run";
 import { EXECUTION_LIMITS } from "@schools/exec";
 import type { ExecutionRequest, ExecutionResult } from "@schools/exec/provider";
 import { Judge0RapidApiProvider, resetJudge0GateForTests } from "@schools/exec/providers/judge0";
@@ -11,7 +16,7 @@ import { startFakeJudge0, type FakeJudge0 } from "./judge0-fake";
  * `judge0-conformance.test.ts` proves the adapter speaks Judge0's protocol and
  * that a learner's program comes back correctly normalised. It says nothing
  * about the box that program runs in. This file asks the box itself, from the
- * inside, using the only instrument we have: a Python program submitted through
+ * inside, using the only instrument we have: a C++ program submitted through
  * the ordinary path, whose stdout IS the answer.
  *
  * ## Why this is a real question and not paranoia
@@ -22,10 +27,10 @@ import { startFakeJudge0, type FakeJudge0 } from "./judge0-fake";
  * and a deployment that ignores the field answers 200 and runs the program with
  * egress wide open. Two consequences, one of them quiet:
  *
- * - `schools/execution/python-policy.ts` enforces "standard library only" BY
- *   ABSENCE. The judge has no network, so there is nothing to pip from. If the
- *   judge does have a network, that guarantee silently becomes a preference and
- *   SUBMIT stops matching the Pyodide Run a learner saw.
+ * - `schools/execution/cpp-runtime.ts` enforces "standard library only" BY
+ *   ABSENCE. The judge has no network, so there is nothing to fetch a library
+ *   from. If the judge does have a network, that guarantee silently becomes a
+ *   preference and SUBMIT stops matching the Run a learner saw.
  * - A field we set and the service ignores is not a field. If `enable_network`
  *   is discarded, nothing here can claim `cpu_time_limit` or `memory_limit`
  *   were honoured either, and every ceiling in `EXECUTION_LIMITS` is a wish.
@@ -45,7 +50,7 @@ import { startFakeJudge0, type FakeJudge0 } from "./judge0-fake";
  * answer would be a security failure rather than a surprise:
  *
  * 1. `network.socket` — raw TCP egress must be refused.
- * 2. `network.urllib` — the full DNS-plus-HTTP path must be refused.
+ * 2. `network.http` — the full DNS-plus-HTTP path must be refused.
  * 3. `env.credential_like` — the sandbox must not hand a fourteen-year-old's
  *    program a credential belonging to the judge's own infrastructure.
  *
@@ -66,7 +71,7 @@ import { startFakeJudge0, type FakeJudge0 } from "./judge0-fake";
  *
  * `env | grep -i rapidapi` is empty and **nothing in this file has ever
  * contacted `judge0-ce.p.rapidapi.com`**. The offline half below runs against
- * the protocol-faithful fake, and the fake does not run Python: its answers are
+ * the protocol-faithful fake, and the fake compiles nothing: its answers are
  * strings written by hand in this file describing what a sealed box and a
  * wide-open box WOULD print. They are fiction. They prove that the reader, the
  * shape rules and the three hard assertions work — including that the hard ones
@@ -112,17 +117,23 @@ const LIVE_TIMEOUT_MS = 60_000;
 const OFFLINE_TIMEOUT_MS = 30_000;
 
 /**
- * Is there a python3 here to check the probe programs parse?
+ * Is there a compiler here to check the probe programs BUILD?
  *
- * Nothing in this suite RUNS Python locally — the probes are for the rented
- * sandbox, and running the network one on a developer's machine would be a
- * test that opens sockets. This only asks whether an interpreter exists, so the
- * syntax guard below can either run or say plainly that it did not.
+ * Nothing in this suite RUNS a probe locally — they are for the rented sandbox,
+ * and running the network one on a developer's machine would be a test that
+ * opens sockets. This only asks whether a compiler exists, so the guard below
+ * can either run or say plainly that it did not.
+ *
+ * The guard got stronger with the language. `ast.parse` could only prove the
+ * Python probes were syntactically well-formed; a compiler proves they LINK,
+ * which catches a missing header, a misspelled symbol and a wrong argument type
+ * — three ways a probe could previously have reached the judge, failed, and
+ * reported nothing about the sandbox at the cost of real requests.
  */
-const LOCAL_PYTHON = spawnSync("python3", ["-c", "pass"]).status === 0;
+const LOCAL_COMPILER = cppCompiler();
 
 const REQUEST: Omit<ExecutionRequest, "sourceCode" | "stdin"> = {
-  language: "python3",
+  language: "cpp17",
   timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
   memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,
 };
@@ -134,40 +145,81 @@ const REQUEST: Omit<ExecutionRequest, "sourceCode" | "stdin"> = {
 /**
  * The line format. One finding per line, flushed as it is produced.
  *
- * Flushed, because Python block-buffers stdout to a pipe and a program killed
- * on its wall limit loses whatever is still in the buffer. A probe that hangs
- * must still deliver the findings it had already made — the missing ones then
- * arrive as UNKNOWN and fail the hard assertions loudly, which is the correct
- * outcome, instead of vanishing into an empty stdout.
+ * Flushed, because C++ block-buffers stdout to a pipe and a program killed on
+ * its wall limit loses whatever is still in the buffer. A probe that hangs must
+ * still deliver the findings it had already made — the missing ones then arrive
+ * as UNKNOWN and fail the hard assertions loudly, which is the correct outcome,
+ * instead of vanishing into an empty stdout.
  *
- * The prefix exists so that anything else the interpreter prints — a
- * DeprecationWarning, a resource warning — cannot be parsed as a finding.
+ * The prefix exists so that anything else reaching stdout — a compiler warning
+ * the judge merged in, a library's own chatter — cannot be parsed as a finding.
  */
 const PROBE_PREFIX = "SOLVEX_PROBE ";
 
 /**
- * The `say` helper, shared by both programs, written for the Python we might
- * NOT get.
+ * The `say` helper and the vocabulary for a failure, shared by both programs.
  *
- * No f-strings and no walrus, so both programs PARSE under a Python 2 as well
- * as a Python 3. `language()` picks the highest plain Python 3 the judge
- * advertises, and the whole reason that rule exists is that Judge0's ids move
- * between deployments — so landing on a 2.7 is not hypothetical. A probe
- * written in 3.6+ syntax would die at parse time and report nothing at all,
- * which is the one failure mode where we learn less than we would from a
- * program that merely errors.
+ * ## Why an errno NAME and not `strerror`
  *
- * Parsing is all that is claimed. Individual probes below DO use Python 3 APIs
- * (`subprocess.DEVNULL`, a `timeout=` on `check_output`); under a 2.7 those
- * raise and are recorded as `error:<Class>`, and every finding that does not
- * depend on them still arrives. Conformance case 10 is what catches the wrong
- * interpreter; this file's job is to keep talking while it happens.
+ * Python reported a failure as an exception CLASS — one token, machine
+ * readable, and carrying no path, uid or hostname. C++ has no equivalent, and
+ * `strerror(errno)` is free prose with spaces in it that no shape rule can
+ * read and that varies between libc builds. So `errname` maps the codes that
+ * actually distinguish "the sandbox refused this" from "the probe is broken",
+ * and anything else becomes `Errno<N>` — still one token, still tells a reader
+ * which code to look up, and still carries nothing about the host.
+ *
+ * That distinction is the same one the Python probes drew between `blocked:`
+ * and `error:`, and it is load-bearing for the hard assertions below: only an
+ * OS-level refusal is evidence of containment, and a broken probe must never be
+ * able to masquerade as a sealed sandbox.
+ *
+ * ## Written against the OLDEST C++ the judge could hand us
+ *
+ * Nothing here is newer than C++11 — no structured bindings, no `std::string_view`,
+ * no `if` initialisers. Discovery refuses a GCC below 11 precisely so this
+ * cannot happen, but a probe is the wrong place to depend on that: if discovery
+ * is ever wrong, or an operator pinned `JUDGE0_LANGUAGE_ID` to a GCC 7, a probe
+ * written in C++17 syntax would fail to COMPILE and report nothing whatsoever
+ * about the sandbox. That is the one failure mode where we learn less than we
+ * would from a program that merely errors.
  */
-const SAY = `import sys
+const SAY = `#include <cstdio>
+#include <cstring>
+#include <cerrno>
+#include <string>
 
-def say(key, value):
-    sys.stdout.write("${PROBE_PREFIX}" + key + "=" + str(value) + "\\n")
-    sys.stdout.flush()
+static void say(const char* key, const std::string& value) {
+    std::fputs("${PROBE_PREFIX}", stdout);
+    std::fputs(key, stdout);
+    std::fputc('=', stdout);
+    std::fputs(value.c_str(), stdout);
+    std::fputc('\\n', stdout);
+    /* Flushed per line: C++ block-buffers stdout to a pipe, and a program
+       killed on its wall limit loses whatever is still in the buffer. A probe
+       that hangs must still deliver the findings it had already made. */
+    std::fflush(stdout);
+}
+
+static std::string errname(int e) {
+    switch (e) {
+        case EACCES: return "EACCES";
+        case EPERM: return "EPERM";
+        case ECONNREFUSED: return "ECONNREFUSED";
+        case ENETUNREACH: return "ENETUNREACH";
+        case EHOSTUNREACH: return "EHOSTUNREACH";
+        case ETIMEDOUT: return "ETIMEDOUT";
+        case ECONNRESET: return "ECONNRESET";
+        case EAFNOSUPPORT: return "EAFNOSUPPORT";
+        case EPROTONOSUPPORT: return "EPROTONOSUPPORT";
+        case ENOENT: return "ENOENT";
+        case EAGAIN: return "EAGAIN";
+        case EPIPE: return "EPIPE";
+        case EMFILE: return "EMFILE";
+        case ENOSYS: return "ENOSYS";
+        default: return "Errno" + std::to_string(e);
+    }
+}
 `;
 
 /**
@@ -199,44 +251,152 @@ def say(key, value):
  * broken probe, and recording that as `blocked` would let a typo in this file
  * masquerade as a sealed sandbox and pass the hard assertion below.
  */
-const NETWORK_PROBE = `${SAY}import socket
+const NETWORK_PROBE = `${SAY}#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <unistd.h>
+#include <fcntl.h>
 
-socket.setdefaulttimeout(1.0)
+static std::string gaiName(int code) {
+    switch (code) {
+        case EAI_NONAME: return "EAI_NONAME";
+        case EAI_AGAIN: return "EAI_AGAIN";
+        case EAI_FAIL: return "EAI_FAIL";
+        case EAI_SYSTEM: return "EAI_SYSTEM";
+        case EAI_MEMORY: return "EAI_MEMORY";
+        case EAI_FAMILY: return "EAI_FAMILY";
+        case EAI_SERVICE: return "EAI_SERVICE";
+        default: return "EAI" + std::to_string(-code);
+    }
+}
 
-try:
-    s = socket.create_connection(("1.1.1.1", 53), 1.0)
-    s.close()
-    say("network.socket", "open")
-except OSError as e:
-    say("network.socket", "blocked:" + type(e).__name__)
-except Exception as e:
-    say("network.socket", "error:" + type(e).__name__)
+/* One second, enforced by the probe rather than by the resolver.
+   The known hazard is a blackholed address: a blocking connect can sit for the
+   whole wall budget and cost every later finding. Non-blocking plus select
+   bounds it. Returns 0 on success, or the errno that refused. */
+static int connectWithin(int fd, const struct sockaddr* addr, socklen_t len, int seconds) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (connect(fd, addr, len) == 0) { fcntl(fd, F_SETFL, flags); return 0; }
+    if (errno != EINPROGRESS) return errno;
 
-try:
-    socket.gethostbyname("example.com")
-    say("network.dns", "resolved")
-except OSError as e:
-    say("network.dns", "blocked:" + type(e).__name__)
-except Exception as e:
-    say("network.dns", "error:" + type(e).__name__)
+    fd_set writable;
+    FD_ZERO(&writable);
+    FD_SET(fd, &writable);
+    struct timeval tv;
+    tv.tv_sec = seconds;
+    tv.tv_usec = 0;
+    int ready = select(fd + 1, 0, &writable, 0, &tv);
+    if (ready == 0) return ETIMEDOUT;
+    if (ready < 0) return errno;
 
-try:
-    import urllib.request
-    import urllib.error
-except Exception as e:
-    say("network.urllib", "unavailable:" + type(e).__name__)
-else:
-    try:
-        r = urllib.request.urlopen("http://example.com/", timeout=1.0)
-        code = r.getcode()
-        r.close()
-        say("network.urllib", "open:" + (str(code) if code is not None else "unknown"))
-    except urllib.error.HTTPError as e:
-        say("network.urllib", "open:" + str(e.code))
-    except OSError as e:
-        say("network.urllib", "blocked:" + type(e).__name__)
-    except Exception as e:
-        say("network.urllib", "error:" + type(e).__name__)
+    int err = 0;
+    socklen_t elen = sizeof(err);
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &elen) != 0) return errno;
+    if (err != 0) return err;
+    fcntl(fd, F_SETFL, flags);
+    return 0;
+}
+
+int main() {
+    /* Raw TCP to a public resolver's port 53, closed without writing a byte.
+       No payload and no name resolution, which is the point: it separates "can
+       packets leave" from "does DNS work", so a blocked answer downstream can
+       be read correctly. This goes FIRST because it is the one finding that
+       cannot be lost to a resolver that never answers. */
+    {
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) {
+            say("network.socket", "error:" + errname(errno));
+        } else {
+            struct sockaddr_in a;
+            std::memset(&a, 0, sizeof(a));
+            a.sin_family = AF_INET;
+            a.sin_port = htons(53);
+            a.sin_addr.s_addr = htonl(0x01010101u);
+            int e = connectWithin(fd, (const struct sockaddr*)&a, sizeof(a), 1);
+            close(fd);
+            if (e == 0) say("network.socket", "open");
+            else say("network.socket", "blocked:" + errname(e));
+        }
+    }
+
+    /* Deliberately NOT a hard assertion: a sandbox with a local caching
+       resolver answers without any egress at all, so resolved is ambiguous
+       where the other two are not. */
+    {
+        struct addrinfo hints;
+        std::memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        struct addrinfo* res = 0;
+        int rc = getaddrinfo("example.com", "80", &hints, &res);
+        if (rc == 0) say("network.dns", "resolved");
+        else say("network.dns", "blocked:" + gaiName(rc));
+        if (res) freeaddrinfo(res);
+    }
+
+    /* The full path a learner would accidentally take: resolve a name, open
+       HTTP, read a status. example.com is IANA's reserved documentation domain
+       — it exists to be used in examples, and it is the one host nobody is
+       bothered by our reaching. The body is never read; only the status code is
+       recorded. */
+    {
+        struct addrinfo hints;
+        std::memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        struct addrinfo* res = 0;
+        int rc = getaddrinfo("example.com", "80", &hints, &res);
+        if (rc != 0) {
+            say("network.http", "blocked:" + gaiName(rc));
+        } else {
+            int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+            if (fd < 0) {
+                say("network.http", "error:" + errname(errno));
+            } else {
+                int e = connectWithin(fd, res->ai_addr, res->ai_addrlen, 1);
+                if (e != 0) {
+                    say("network.http", "blocked:" + errname(e));
+                } else {
+                    struct timeval tv;
+                    tv.tv_sec = 1;
+                    tv.tv_usec = 0;
+                    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+                    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+                    const char* req = "GET / HTTP/1.0\\r\\nHost: example.com\\r\\nConnection: close\\r\\n\\r\\n";
+                    if (send(fd, req, std::strlen(req), 0) < 0) {
+                        say("network.http", "blocked:" + errname(errno));
+                    } else {
+                        char buf[64];
+                        long n = (long)recv(fd, buf, sizeof(buf) - 1, 0);
+                        if (n <= 0) {
+                            say("network.http", "blocked:" + errname(n < 0 ? errno : ECONNRESET));
+                        } else {
+                            buf[n] = 0;
+                            std::string head(buf);
+                            std::string code = "unknown";
+                            std::string::size_type sp = head.find(' ');
+                            if (sp != std::string::npos && head.size() >= sp + 4) {
+                                std::string maybe = head.substr(sp + 1, 3);
+                                bool digits = true;
+                                for (std::string::size_type i = 0; i < maybe.size(); i++) {
+                                    if (maybe[i] < '0' || maybe[i] > '9') digits = false;
+                                }
+                                if (digits) code = maybe;
+                            }
+                            say("network.http", "open:" + code);
+                        }
+                    }
+                }
+                close(fd);
+            }
+            freeaddrinfo(res);
+        }
+    }
+    return 0;
+}
 `;
 
 /**
@@ -256,84 +416,211 @@ else:
  * if the sandbox really is leaking the judge's own configuration, is the exact
  * secret we are trying to prove is not there.
  *
- * `attempt` records the exception CLASS and nothing else. An exception message
- * can carry a path, a uid, or a hostname; the class name carries the answer.
+ * Every failure records an errno NAME and nothing else. A `strerror` message
+ * can carry a path, a uid, or a hostname; the name carries the answer.
+ *
+ * ## The two findings the language added
+ *
+ * `runtime.cxx` reports `__cplusplus` from INSIDE the sandbox, and
+ * `runtime.compiler` reports which toolchain produced the binary. The Python
+ * probe reported `sys.version` for the same reason — know what actually ran —
+ * and here it does double duty: it is a second, independent check that the
+ * judge compiled as C++17, taken on the box rather than from the catalogue
+ * name. `judge-probe.ts`'s canary asks the same question on the cheap path;
+ * this one answers it in the same breath as the containment questions.
  */
-const SANDBOX_PROBE = `${SAY}import os
+const SANDBOX_PROBE = `${SAY}#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <algorithm>
+#include <vector>
 
-def attempt(key, fn):
-    try:
-        say(key, fn())
-    except Exception as e:
-        say(key, "error:" + type(e).__name__)
+extern char** environ;
 
-def tmp_write():
-    import tempfile
-    fd, path = tempfile.mkstemp(prefix="solvex_probe_")
-    try:
-        os.write(fd, b"probe")
-    finally:
-        os.close(fd)
-    size = os.path.getsize(path)
-    os.unlink(path)
-    return "ok:" + str(size) + "b"
+/* A last line of defence, not the mechanism. Every helper below reports its own
+   failure as an errno name; this only stops an unexpected throw from taking the
+   remaining findings with it, which would turn one broken probe into a report
+   full of UNKNOWNs. */
+static void attempt(const char* key, std::string (*fn)()) {
+    try {
+        say(key, fn());
+    } catch (const std::exception&) {
+        say(key, "error:StdException");
+    } catch (...) {
+        say(key, "error:Unknown");
+    }
+}
 
-def cwd_write():
-    path = os.path.join(os.getcwd(), "solvex_probe_scratch.txt")
-    f = open(path, "w")
-    try:
-        f.write("probe")
-    finally:
-        f.close()
-    size = os.path.getsize(path)
-    os.unlink(path)
-    return "ok:" + str(size) + "b"
+static std::string writeProbe(const std::string& path) {
+    FILE* f = std::fopen(path.c_str(), "wb");
+    if (!f) return "error:" + errname(errno);
+    std::fwrite("probe", 1, 5, f);
+    std::fclose(f);
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) { std::remove(path.c_str()); return "error:" + errname(errno); }
+    std::remove(path.c_str());
+    return "ok:" + std::to_string((long)st.st_size) + "b";
+}
 
-def size_of(path):
-    def go():
-        f = open(path, "rb")
-        try:
-            data = f.read()
-        finally:
-            f.close()
-        return "readable:" + str(len(data)) + "b"
-    return go
+/* Measured, never read out. This stdout lands in a CI log, and a log is the one
+   store with no retention function and no erasure path. The SIZE answers "how
+   much of a host is in here" without putting a line of anybody's account
+   database on a screen. */
+static std::string sizeOf(const char* path) {
+    FILE* f = std::fopen(path, "rb");
+    if (!f) return "error:" + errname(errno);
+    long total = 0;
+    char buf[4096];
+    std::size_t n;
+    while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) total += (long)n;
+    std::fclose(f);
+    return "readable:" + std::to_string(total) + "b";
+}
 
-def spawn():
-    import subprocess
-    out = subprocess.check_output(
-        [sys.executable, "-c", "print(42)"],
-        stderr=subprocess.DEVNULL,
-        timeout=5,
-    )
-    return "ok:" + out.decode("utf-8", "replace").strip()
+static std::string listing(const char* path, std::size_t limit) {
+    DIR* d = opendir(path);
+    if (!d) return "error:" + errname(errno);
+    std::vector<std::string> names;
+    struct dirent* e;
+    while ((e = readdir(d)) != 0) {
+        std::string name(e->d_name);
+        if (name == "." || name == "..") continue;
+        names.push_back(name);
+    }
+    closedir(d);
+    std::sort(names.begin(), names.end());
+    if (names.empty()) return "empty";
+    std::string out;
+    for (std::size_t i = 0; i < names.size() && i < limit; i++) {
+        if (i) out += ",";
+        out += names[i];
+    }
+    return out;
+}
 
-def listing(path, limit):
-    def go():
-        names = sorted(os.listdir(path))
-        return ",".join(names[:limit]) or "empty"
-    return go
+static std::string countEntries(const char* path) {
+    DIR* d = opendir(path);
+    if (!d) return "error:" + errname(errno);
+    long n = 0;
+    struct dirent* e;
+    while ((e = readdir(d)) != 0) {
+        std::string name(e->d_name);
+        if (name == "." || name == "..") continue;
+        n++;
+    }
+    closedir(d);
+    return std::to_string(n);
+}
 
-say("runtime.python", sys.version.split()[0])
-say("runtime.platform", sys.platform)
-attempt("proc.uid", lambda: os.getuid())
-attempt("proc.pid", lambda: os.getpid())
-attempt("proc.spawn", spawn)
-attempt("proc.visible_pids", lambda: len([n for n in os.listdir("/proc") if n.isdigit()]))
-attempt("fs.cwd", lambda: os.getcwd())
-attempt("fs.cwd_entries", lambda: len(os.listdir(".")))
-attempt("fs.cwd_names", listing(".", 20))
-attempt("fs.root_names", listing("/", 40))
-attempt("fs.tmp_write", tmp_write)
-attempt("fs.cwd_write", cwd_write)
-attempt("fs.etc_passwd", size_of("/etc/passwd"))
-attempt("fs.etc_shadow", size_of("/etc/shadow"))
+static std::string countPids() {
+    DIR* d = opendir("/proc");
+    if (!d) return "error:" + errname(errno);
+    long n = 0;
+    struct dirent* e;
+    while ((e = readdir(d)) != 0) {
+        const char* p = e->d_name;
+        bool digits = *p != 0;
+        for (; *p; p++) if (*p < '0' || *p > '9') digits = false;
+        if (digits) n++;
+    }
+    closedir(d);
+    return std::to_string(n);
+}
 
-_keys = sorted(os.environ.keys())
-_joined = ",".join(_keys) or "empty"
-say("env.count", len(_keys))
-say("env.truncated", "yes" if len(_joined) > 4000 else "no")
-say("env.keys", _joined[:4000])
+static std::string cwdOf() {
+    char buf[4096];
+    if (!getcwd(buf, sizeof(buf))) return "error:" + errname(errno);
+    return std::string(buf);
+}
+
+/* ok:42 and nothing else. The child had to actually evaluate and print, or the
+   spawn proved nothing. */
+static std::string spawnChild() {
+    FILE* p = popen("echo 42", "r");
+    if (!p) return "error:" + errname(errno);
+    char buf[64];
+    std::string out;
+    while (std::fgets(buf, sizeof(buf), p)) out += buf;
+    int rc = pclose(p);
+    if (rc != 0) return "error:ExitStatus";
+    while (!out.empty() && (out[out.size() - 1] == '\\n' || out[out.size() - 1] == '\\r')) {
+        out.erase(out.size() - 1);
+    }
+    return "ok:" + out;
+}
+
+static std::string compilerName() {
+#if defined(__clang__)
+    return "clang-" + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__);
+#elif defined(__GNUC__)
+    return "gcc-" + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__);
+#else
+    return "unknown";
+#endif
+}
+
+static std::string platformName() {
+#if defined(__linux__)
+    return "linux";
+#elif defined(__APPLE__)
+    return "darwin";
+#else
+    return "unknown";
+#endif
+}
+
+static std::string tmpWrite() { return writeProbe("/tmp/solvex_probe_scratch"); }
+static std::string cwdWrite() { return writeProbe("./solvex_probe_scratch.txt"); }
+static std::string uidOf() { return std::to_string((long)getuid()); }
+static std::string pidOf() { return std::to_string((long)getpid()); }
+static std::string visiblePids() { return countPids(); }
+static std::string cwdEntries() { return countEntries("."); }
+static std::string cwdNames() { return listing(".", 20); }
+static std::string rootNames() { return listing("/", 40); }
+static std::string etcPasswd() { return sizeOf("/etc/passwd"); }
+static std::string etcShadow() { return sizeOf("/etc/shadow"); }
+
+int main() {
+    say("runtime.cxx", std::to_string((long)__cplusplus));
+    say("runtime.compiler", compilerName());
+    say("runtime.platform", platformName());
+    attempt("proc.uid", uidOf);
+    attempt("proc.pid", pidOf);
+    attempt("proc.spawn", spawnChild);
+    attempt("proc.visible_pids", visiblePids);
+    attempt("fs.cwd", cwdOf);
+    attempt("fs.cwd_entries", cwdEntries);
+    attempt("fs.cwd_names", cwdNames);
+    attempt("fs.root_names", rootNames);
+    attempt("fs.tmp_write", tmpWrite);
+    attempt("fs.cwd_write", cwdWrite);
+    attempt("fs.etc_passwd", etcPasswd);
+    attempt("fs.etc_shadow", etcShadow);
+
+    /* KEY NAMES ONLY, sorted. A value printed here would be published to
+       whoever can read the run — which, if the sandbox really is leaking the
+       judge's own configuration, is the exact secret we are trying to prove is
+       not there. */
+    std::vector<std::string> keys;
+    for (char** e = environ; e && *e; e++) {
+        std::string entry(*e);
+        std::string::size_type eq = entry.find('=');
+        keys.push_back(eq == std::string::npos ? entry : entry.substr(0, eq));
+    }
+    std::sort(keys.begin(), keys.end());
+    std::string joined;
+    for (std::size_t i = 0; i < keys.size(); i++) {
+        if (i) joined += ",";
+        joined += keys[i];
+    }
+    if (joined.empty()) joined = "empty";
+    say("env.count", std::to_string((long)keys.size()));
+    say("env.truncated", joined.size() > 4000 ? "yes" : "no");
+    say("env.keys", joined.substr(0, 4000));
+    return 0;
+}
 `;
 
 /* -------------------------------------------------------------------------- */
@@ -341,7 +628,7 @@ say("env.keys", _joined[:4000])
 /* -------------------------------------------------------------------------- */
 
 /** Every question the network probe is written to answer. */
-const NETWORK_KEYS = ["network.socket", "network.dns", "network.urllib"] as const;
+const NETWORK_KEYS = ["network.socket", "network.dns", "network.http"] as const;
 
 /**
  * Every question the sandbox probe answers, plus one derived here.
@@ -351,7 +638,8 @@ const NETWORK_KEYS = ["network.socket", "network.dns", "network.urllib"] as cons
  * failure sits in the file a reviewer is reading and can be argued with.
  */
 const SANDBOX_KEYS = [
-  "runtime.python",
+  "runtime.cxx",
+  "runtime.compiler",
   "runtime.platform",
   "proc.uid",
   "proc.pid",
@@ -477,13 +765,17 @@ function alt(...forms: string[]): RegExp {
 const SHAPES: Readonly<Record<string, RegExp>> = {
   "network.socket": alt("open", `blocked:${CLASS}`, `error:${CLASS}`),
   "network.dns": alt("resolved", `blocked:${CLASS}`, `error:${CLASS}`),
-  "network.urllib": alt(
+  "network.http": alt(
     "open:([0-9]{3}|unknown)",
     `blocked:${CLASS}`,
     `error:${CLASS}`,
     `unavailable:${CLASS}`,
   ),
-  "runtime.python": alt("[0-9]+\\.[0-9]+[^\\s]*"),
+  /* `__cplusplus`, read from inside the box. Only the SHAPE is asserted here,
+     like every other finding — whether it is 201703 is asserted separately, in
+     the test below, because that one IS ours to have an opinion about. */
+  "runtime.cxx": alt("[0-9]+"),
+  "runtime.compiler": alt("[a-z]+-[0-9]+\\.[0-9]+", "unknown"),
   "runtime.platform": alt("[a-z0-9]+"),
   "proc.uid": alt("[0-9]+", `error:${CLASS}`),
   "proc.pid": alt("[0-9]+", `error:${CLASS}`),
@@ -545,7 +837,7 @@ function assertNetworkContained(found: ProbeRecord): void {
       "did not honour it. UNKNOWN fails here too — unverified is not contained",
   ).toMatch(/^blocked:/);
   expect(
-    found["network.urllib"],
+    found["network.http"],
     "the sandbox reached a web server: `enable_network: false` was ignored, so " +
       "'standard library only' is no longer enforced by absence",
   ).toMatch(/^blocked:/);
@@ -591,40 +883,41 @@ function render(title: string, found: ProbeRecord): string {
 /**
  * FICTION. Every string below is hand-written here.
  *
- * The fake does not run Python, so these are what a sealed box and a leaking
- * box WOULD print if one were asked. They exercise the reader, the shape rules
+ * The fake compiles nothing, so these are what a sealed box and a leaking box
+ * WOULD print if one were asked. They exercise the reader, the shape rules
  * and the hard assertions in both directions. Nobody may cite a line of this as
  * an observation about RapidAPI's sandbox, because none of it is one.
  */
 const SEALED_NETWORK = [
-  `${PROBE_PREFIX}network.socket=blocked:OSError`,
-  `${PROBE_PREFIX}network.dns=blocked:gaierror`,
-  `${PROBE_PREFIX}network.urllib=blocked:URLError`,
+  `${PROBE_PREFIX}network.socket=blocked:ENETUNREACH`,
+  `${PROBE_PREFIX}network.dns=blocked:EAI_AGAIN`,
+  `${PROBE_PREFIX}network.http=blocked:EAI_AGAIN`,
   "",
 ].join("\n");
 
 const OPEN_NETWORK = [
   `${PROBE_PREFIX}network.socket=open`,
   `${PROBE_PREFIX}network.dns=resolved`,
-  `${PROBE_PREFIX}network.urllib=open:200`,
+  `${PROBE_PREFIX}network.http=open:200`,
   "",
 ].join("\n");
 
 const SEALED_SANDBOX = [
-  `${PROBE_PREFIX}runtime.python=3.11.2`,
+  `${PROBE_PREFIX}runtime.cxx=201703`,
+  `${PROBE_PREFIX}runtime.compiler=gcc-14.1`,
   `${PROBE_PREFIX}runtime.platform=linux`,
   `${PROBE_PREFIX}proc.uid=1000`,
   `${PROBE_PREFIX}proc.pid=1`,
-  `${PROBE_PREFIX}proc.spawn=error:BlockingIOError`,
+  `${PROBE_PREFIX}proc.spawn=error:ENOSYS`,
   `${PROBE_PREFIX}proc.visible_pids=1`,
   `${PROBE_PREFIX}fs.cwd=/box`,
   `${PROBE_PREFIX}fs.cwd_entries=1`,
-  `${PROBE_PREFIX}fs.cwd_names=script.py`,
+  `${PROBE_PREFIX}fs.cwd_names=main.cpp`,
   `${PROBE_PREFIX}fs.root_names=bin,box,etc,lib,proc,tmp,usr`,
   `${PROBE_PREFIX}fs.tmp_write=ok:5b`,
   `${PROBE_PREFIX}fs.cwd_write=ok:5b`,
   `${PROBE_PREFIX}fs.etc_passwd=readable:1265b`,
-  `${PROBE_PREFIX}fs.etc_shadow=error:PermissionError`,
+  `${PROBE_PREFIX}fs.etc_shadow=error:EACCES`,
   `${PROBE_PREFIX}env.count=4`,
   `${PROBE_PREFIX}env.truncated=no`,
   `${PROBE_PREFIX}env.keys=HOME,LANG,PATH,PWD`,
@@ -688,50 +981,78 @@ describe("judge0 sandbox probes — the READER, against the FAKE (no key, no net
   it("submits programs the judge will accept", () => {
     /* A probe that trips `maxSourceBytes` would be refused before it ran, and a
        probe carrying an unclosed dollar-brace would be a TypeScript template
-       hole rather than Python — a submission that dies on a SyntaxError and
-       reports nothing about the sandbox. Both are cheap to check here and
-       expensive to discover on a live run that costs requests. */
+       hole rather than C++ — a submission that dies at compile time and reports
+       nothing about the sandbox. Both are cheap to check here and expensive to
+       discover on a live run that costs requests. */
     for (const program of [NETWORK_PROBE, SANDBOX_PROBE]) {
       expect(Buffer.byteLength(program, "utf8")).toBeLessThan(EXECUTION_LIMITS.maxSourceBytes);
       expect(program).not.toContain("${");
     }
   });
 
-  it.skipIf(!LOCAL_PYTHON)("writes Python that a Python will actually parse", () => {
-    /* The one thing the fake cannot check: it does not run Python, so a stray
-       character in either program above would sail through every test in this
-       file and then be discovered by a live submission — which costs requests,
-       reports a SyntaxError, and answers nothing about the sandbox.
-       `ast.parse` compiles and does NOT execute: no socket is opened, no file
-       is written, nothing is spawned. It is a parser, pointed at a string.
-       Skipped, loudly, where no python3 exists — this is a guard on the probe
-       programs, not a claim about the judge, and a machine without an
-       interpreter simply cannot offer it. */
-    for (const [name, program] of [
-      ["NETWORK_PROBE", NETWORK_PROBE],
-      ["SANDBOX_PROBE", SANDBOX_PROBE],
-    ] as const) {
-      const parsed = spawnSync("python3", ["-c", "import ast,sys; ast.parse(sys.stdin.read())"], {
-        input: program,
-        encoding: "utf8",
-      });
-      if (parsed.error !== undefined || parsed.status === null) {
-        /* The interpreter never answered — `spawnSync` failed outright, or the
-           process was killed by a signal. On a machine running several agents
-           at once that happens, and it is NOT evidence about the program: a
-           SyntaxError exits 1 with a message, so a null status can only mean we
-           failed to ask. The same distinction the probes themselves draw
-           between `blocked` and `error`, applied to our own tooling. Said out
-           loud rather than swallowed, because a guard that quietly does nothing
-           is worse than no guard. */
-        console.log(
-          `probe syntax guard did NOT run for ${name}: ` +
-            `${parsed.error?.message ?? "python3 was killed before it answered"}`,
+  it.skipIf(LOCAL_COMPILER === null)("writes C++ that a compiler will actually build", () => {
+    /* The one thing the fake cannot check: it compiles nothing, so a missing
+       header or a misspelled symbol in either program above would sail through
+       every test in this file and then be discovered by a live submission —
+       which costs requests, reports a compile error, and answers nothing about
+       the sandbox.
+
+       This is strictly stronger than the `ast.parse` guard it replaces. That
+       one proved the Python was well-formed; a compile-and-LINK proves every
+       symbol resolves, which is the failure a probe is most likely to have.
+
+       Nothing is EXECUTED. The binary is built and deleted; no socket is
+       opened, no file is written outside a temp directory, nothing is spawned.
+
+       Skipped, loudly, where no compiler exists — this is a guard on the probe
+       programs, not a claim about the judge, and a machine without a toolchain
+       simply cannot offer it. */
+    const dir = mkdtempSync(path.join(tmpdir(), "solvex-probe-build-"));
+    try {
+      for (const [name, program] of [
+        ["NETWORK_PROBE", NETWORK_PROBE],
+        ["SANDBOX_PROBE", SANDBOX_PROBE],
+      ] as const) {
+        const source = path.join(dir, `${name.toLowerCase()}.cpp`);
+        writeFileSync(source, program, "utf8");
+        const built = spawnSync(
+          LOCAL_COMPILER!,
+          [CPP_STANDARD_FLAG, "-o", path.join(dir, name.toLowerCase()), source],
+          { encoding: "utf8", timeout: 60_000 },
         );
-        continue;
+        if (built.error !== undefined || built.status === null) {
+          /* The compiler never answered — `spawnSync` failed outright, or the
+             process was killed by a signal. On a machine running several agents
+             at once that happens, and it is NOT evidence about the program: a
+             genuine compile error exits non-zero with diagnostics, so a null
+             status can only mean we failed to ask. The same distinction the
+             probes themselves draw between `blocked` and `error`, applied to
+             our own tooling. Said out loud rather than swallowed, because a
+             guard that quietly does nothing is worse than no guard. */
+          console.log(
+            `probe build guard did NOT run for ${name}: ` +
+              `${built.error?.message ?? "the compiler was killed before it answered"}`,
+          );
+          continue;
+        }
+        expect(built.status, `${name} does not compile:\n${built.stderr}`).toBe(0);
       }
-      expect(parsed.status, `${name} is not valid Python: ${parsed.stderr}`).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
+  }, 120_000);
+
+  it("asks the sandbox which standard it compiled with", () => {
+    /* The probe carries the same question `judge-probe.ts`'s canary asks, and
+       asks it from INSIDE the box rather than from the catalogue name. A
+       catalogue can be renamed and an operator can pin `JUDGE0_LANGUAGE_ID` to
+       anything; `__cplusplus` is the compiler's own answer about the file it
+       just built.
+       Asserted here on the fixture, and read on a live run: a sandbox reporting
+       201402 is a judge that cannot run this course, however green everything
+       else looks. */
+    const sealed = sandboxRecord(SEALED_SANDBOX);
+    expect(Number(sealed["runtime.cxx"])).toBe(CPP_STANDARD_MACRO);
   });
 
   it("records a sealed sandbox as sealed, and every answer in its own vocabulary", async () => {

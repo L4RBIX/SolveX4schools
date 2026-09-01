@@ -34,9 +34,10 @@ import type { LessonBlock } from "../../types";
  *
  * ## Why the re-scan is honest here and not a pretence
  *
- * `set()` and `dict()` are forbidden all year, so the window's validity check
- * has to walk the window: `a[right] in a[left:right]` is a linear scan of the
- * piece, written in the two constructs October already taught. That makes `b6`
+ * `set` and `map` are forbidden all year, so the window's validity check has to
+ * walk the window: `inWindow(a, left, right, x)` is a helper the lesson writes
+ * out in full — a `for` over `a[left] … a[right - 1]` returning `bool`, which is
+ * November's free function over October's loop. That makes `b6`
  * roughly n · (window length) work, so its prompt caps the input at 1000
  * numbers and says out loud WHY the cap is there. Pretending the check is free,
  * or stating n ≤ 200 000 over a solution that cannot survive it, would teach a
@@ -81,8 +82,9 @@ import type { LessonBlock } from "../../types";
  *
  * No window whose validity check needs a running aggregate (a sum, a maximum
  * over the window) — the running sum belongs beside April's prefix work, and
- * the sliding maximum needs a structure this year never teaches. No `import`,
- * and in particular no `bisect`: this is the month that would be deleted by it.
+ * the sliding maximum needs a structure this year never teaches. `<algorithm>`
+ * enters for `sort` and for nothing else; in particular no `lower_bound`, which
+ * is the call that would delete this month.
  */
 
 const P = 9; // PDF page for all of January
@@ -94,9 +96,11 @@ export const M5_L5: LessonBlock[] = [
      * reasoning IS the content here, and a concept block would state the rule
      * («left тек алға жылжиды») without the eight windows that make it
      * believable. Steps 1 and 2 carry what a concept block would have said,
-     * including the one construct rule this lesson has to honour — `a[l:r]` and
-     * `x in ...` are October's, but no prose in the year has named the two of
-     * them together, and the whole method rests on that one expression.
+     * including the one thing C++ makes the lesson pay for: Python asked
+     * `a[right] in a[left:right]` in six characters, and C++ has no such
+     * expression at this point in the year. So the scan is a named helper,
+     * `inWindow`, written out above `main` — a `for` over the window returning
+     * `bool`, and the whole method rests on that one call.
      *
      * The program prints the window itself and never computes a maximum, so
      * `b6` is not sitting on this card. The list is `3 1 4 1 5 9 2 5` and it is
@@ -123,8 +127,8 @@ export const M5_L5: LessonBlock[] = [
         ru: "Окном будем называть непрерывный участок списка. Его держат два числа: `left` — левый край участка, `right` — правый. На этот раз указатели не идут навстречу друг другу, оба движутся только вправо: `right` на каждом шаге сдвигается на одну позицию и втягивает в окно новое число, а `left` подтягивается вперёд только тогда, когда окно перестаёт быть пригодным.",
       },
       {
-        kk: "Терезенің жарамдылығы қалай тексеріледі? `a[left:right]` — бұл жаңа санды қоспағандағы терезенің іші (тізімнің бөлігін осылай кесіп алу қазаннан таныс). Ал `x in ...` — сол бөліктің ішінде x кездесе ме деген сұрақ. Егер `a[right]` терезеде бұрыннан бар болса, терезеде екі бірдей сан пайда болды деген сөз. Бұл тексеру терезені түгел қарап шығады, яғни тегін емес — сондықтан бұл сабақтағы бірінші есепте сандардың саны мыңнан аспайды.",
-        ru: "Как проверяется пригодность окна? `a[left:right]` — это внутренность окна без нового числа (брать кусок списка срезом мы умеем с октября). А `x in ...` — это вопрос, встречается ли x внутри этого куска. Если `a[right]` в окне уже есть, значит в окне появились два одинаковых числа. Такая проверка просматривает всё окно целиком, то есть она не бесплатна, — поэтому в первой задаче этого урока чисел не больше тысячи.",
+        kk: "Терезенің жарамдылығы қалай тексеріледі? `main`-нен жоғарыда `inWindow(a, left, right, x)` функциясы тұр: ол `a[left]`-тен `a[right - 1]`-ге дейінгі сандарды бір-бірлеп қарап шығып, x солардың арасында бар болса `true`, болмаса `false` қайтарады — яғни жаңа санды қоспағандағы терезенің ішін тексереді. Егер `a[right]` терезеде бұрыннан бар болса, терезеде екі бірдей сан пайда болды деген сөз. Бұл тексеру терезені түгел қарап шығады, яғни тегін емес — сондықтан бұл сабақтағы бірінші есепте сандардың саны мыңнан аспайды.",
+        ru: "Как проверяется пригодность окна? Над `main` стоит функция `inWindow(a, left, right, x)`: она по одному просматривает числа от `a[left]` до `a[right - 1]` и возвращает `true`, если x среди них есть, и `false`, если нет, — то есть проверяет внутренность окна без нового числа. Если `a[right]` в окне уже есть, значит в окне появились два одинаковых числа. Такая проверка просматривает всё окно целиком, то есть она не бесплатна, — поэтому в первой задаче этого урока чисел не больше тысячи.",
       },
       {
         kk: "0, 1, 2-қадамдар: терезеге 3, содан кейін 1, содан кейін 4 кіреді, қайталау жоқ. Терезе өсіп, [3, 1, 4] болады.",
@@ -152,12 +156,7 @@ export const M5_L5: LessonBlock[] = [
       },
     ],
     code:
-      "a = [3, 1, 4, 1, 5, 9, 2, 5]\n" +
-      "left = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = left + 1\n" +
-      "    print(a[left:right + 1])",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    vector<int> a = {3, 1, 4, 1, 5, 9, 2, 5};\n    int n = (int)a.size();\n    int left = 0;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = left + 1;\n        }\n        cout << \"[\";\n        for (int k = left; k <= right; k++) {\n            if (k > left) {\n                cout << \", \";\n            }\n            cout << a[k];\n        }\n        cout << \"]\" << endl;\n    }\n    return 0;\n}",
     result: {
       kk: "Экранға сегіз жол шығады: [3], [3, 1], [3, 1, 4], [4, 1], [4, 1, 5], [4, 1, 5, 9], [4, 1, 5, 9, 2], [9, 2, 5]. Ең ұзыны — жетінші жолдағы [4, 1, 5, 9, 2], онда бес сан бар.",
       ru: "На экран выходит восемь строк: [3], [3, 1], [3, 1, 4], [4, 1], [4, 1, 5], [4, 1, 5, 9], [4, 1, 5, 9, 2], [9, 2, 5]. Самое длинное — седьмая строка, [4, 1, 5, 9, 2], в ней пять чисел.",
@@ -186,15 +185,7 @@ export const M5_L5: LessonBlock[] = [
       ru: "Окно проходит по списку слева направо. Программа выводит через пробел два числа: значение `right` в тот момент, когда окну ПЕРВЫЙ раз пришлось сжаться, и значение `left` после завершения цикла. Определи оба числа сам, до запуска программы.",
     },
     code:
-      "a = [4, 7, 9, 2, 9, 6]\n" +
-      "left = 0\n" +
-      "first = -1\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = left + 1\n" +
-      "        if first == -1:\n" +
-      "            first = right\n" +
-      "print(first, left)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    vector<int> a = {4, 7, 9, 2, 9, 6};\n    int n = (int)a.size();\n    int left = 0;\n    int first = -1;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = left + 1;\n            if (first == -1) {\n                first = right;\n            }\n        }\n    }\n    cout << first << \" \" << left;\n    return 0;\n}",
     answer: "4 3",
     options: ["4 3", "4 1", "4 2", "2 3"],
     diagnosticMapping: {
@@ -232,27 +223,20 @@ export const M5_L5: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Қағазға үш баған сыз: `left`, `right`, `length`. Циклдің әр айналымында 7-жол орындалып болғандағы мәндерді жаз — барлығы жеті жол болады. Соңғы жолда (8-жол) цикл біткендегі `left` пен `length` қалады. Бағдарлама ішінде ештеңе шығармайды, сондықтан әр санды өзің есептеуің керек.",
-      ru: "Начерти на бумаге три столбца: `left`, `right`, `length`. Для каждого оборота цикла записывай значения сразу после выполнения строки 7 — всего получится семь строк. В последней строке (строка 8) останутся `left` и `length` на момент выхода из цикла. Внутри цикла программа ничего не печатает, поэтому каждое число придётся посчитать самому.",
+      kk: "Қағазға үш баған сыз: `left`, `right`, `length`. Циклдің әр айналымында 23-жол орындалып болғандағы мәндерді жаз — барлығы жеті жол болады. Соңғы жолда (25-жол) цикл біткендегі `left` пен `length` қалады. Бағдарлама ішінде ештеңе шығармайды, сондықтан әр санды өзің есептеуің керек.",
+      ru: "Начерти на бумаге три столбца: `left`, `right`, `length`. Для каждого оборота цикла записывай значения сразу после выполнения строки 23 — всего получится семь строк. В последней строке (строка 25) останутся `left` и `length` на момент выхода из цикла. Внутри цикла программа ничего не печатает, поэтому каждое число придётся посчитать самому.",
     },
     code:
-      "a = [4, 4, 5, 6, 4, 7, 5]\n" +
-      "left = 0\n" +
-      "length = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = left + 1\n" +
-      "    length = right - left + 1\n" +
-      "print(left, length)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    vector<int> a = {4, 4, 5, 6, 4, 7, 5};\n    int n = (int)a.size();\n    int left = 0;\n    int length = 0;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = left + 1;\n        }\n        length = right - left + 1;\n    }\n    cout << left << \" \" << length;\n    return 0;\n}",
     steps: [
-      { line: 7, vars: { left: "0", right: "0", length: "1" } },
-      { line: 7, vars: { left: "1", right: "1", length: "1" } },
-      { line: 7, vars: { left: "1", right: "2", length: "2" } },
-      { line: 7, vars: { left: "1", right: "3", length: "3" } },
-      { line: 7, vars: { left: "2", right: "4", length: "3" } },
-      { line: 7, vars: { left: "2", right: "5", length: "4" } },
-      { line: 7, vars: { left: "3", right: "6", length: "4" } },
-      { line: 8, vars: { left: "3", length: "4" } },
+      { line: 23, vars: { left: "0", right: "0", length: "1" } },
+      { line: 23, vars: { left: "1", right: "1", length: "1" } },
+      { line: 23, vars: { left: "1", right: "2", length: "2" } },
+      { line: 23, vars: { left: "1", right: "3", length: "3" } },
+      { line: 23, vars: { left: "2", right: "4", length: "3" } },
+      { line: 23, vars: { left: "2", right: "5", length: "4" } },
+      { line: 23, vars: { left: "3", right: "6", length: "4" } },
+      { line: 25, vars: { left: "3", length: "4" } },
     ],
   },
   {
@@ -331,38 +315,29 @@ export const M5_L5: LessonBlock[] = [
      * defect class the first adversarial review found most often. What it shares
      * with `b6` is the two-line move that `b1` already prints in full.
      *
-     * symptomInput is required: the fallback probe feeds single numbers, and on
-     * a single number the `while` never runs at all, so both programs print `0`
-     * and the bug reads as absent. On `5 8 3 4 5 9` the broken one collapses a
-     * four-number window to one.
+     * symptomInput is required: the fallback probe feeds single numbers, and a
+     * bare number is not even a well-formed input here, so both programs print
+     * nothing and the bug reads as absent. On `6 / 5 8 3 4 5 9` the broken one
+     * collapses a four-number window to one.
      *
-     * No diagnosticMapping. Blaming line 4 could mean «шартты `if` деп оқыдым»
-     * or «терезенің ішін дұрыс кесіп алмаған» — two causes, so the engine asks.
+     * No diagnosticMapping. Blaming the `while` line could mean «шартты `if` деп
+     * оқыдым» or «терезенің ішін дұрыс тексермеген» — two causes, so the engine
+     * asks.
      */
     id: "m5.l5.b5",
     type: "find_bug",
     skillRefs: ["twopointers.core", "debug.boundary", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бұл бағдарлама тізімді солдан оңға қарап шығып, әр қадамда қайталанбайтын терезенің сол шекарасы қай орында тұрғанын жеке жолға жазып отыруы керек. `5 8 3 4 5 9` бергенде ол 0, 0, 0, 0, 1, 1 сандарын шығаруы тиіс еді: бесінші қадамда терезеде екі 5 пайда болғанда сол шекара 0-ден 1-ге ғана жылжиды, ал терезеде [8, 3, 4, 5] қалады. Оның орнына бағдарлама 0, 0, 0, 0, 4, 4 шығарады — терезеде төрт санның орнына біреу ғана қалған. Қай жол кінәлі және неге?",
-      ru: "Эта программа должна проходить по списку слева направо и на каждом шаге выводить отдельной строкой, на какой позиции стоит левая граница окна без повторов. При вводе `5 8 3 4 5 9` она должна была вывести 0, 0, 0, 0, 1, 1: на пятом шаге, когда в окне появились две пятёрки, левая граница сдвигается всего с 0 на 1, и в окне остаётся [8, 3, 4, 5]. Вместо этого программа выводит 0, 0, 0, 0, 4, 4 — в окне вместо четырёх чисел осталось одно. Какая строка виновата и почему?",
+      kk: "Бұл бағдарлама тізімді солдан оңға қарап шығып, әр қадамда қайталанбайтын терезенің сол шекарасы қай орында тұрғанын жеке жолға жазып отыруы керек. Кіріс: бірінші жолда n, екінші жолда n сан. `6` / `5 8 3 4 5 9` бергенде ол 0, 0, 0, 0, 1, 1 сандарын шығаруы тиіс еді: бесінші қадамда терезеде екі 5 пайда болғанда сол шекара 0-ден 1-ге ғана жылжиды, ал терезеде [8, 3, 4, 5] қалады. Оның орнына бағдарлама 0, 0, 0, 0, 4, 4 шығарады — терезеде төрт санның орнына біреу ғана қалған. Қай жол кінәлі және неге?",
+      ru: "Эта программа должна проходить по списку слева направо и на каждом шаге выводить отдельной строкой, на какой позиции стоит левая граница окна без повторов. Ввод: в первой строке n, во второй — n чисел. При вводе `6` / `5 8 3 4 5 9` она должна была вывести 0, 0, 0, 0, 1, 1: на пятом шаге, когда в окне появились две пятёрки, левая граница сдвигается всего с 0 на 1, и в окне остаётся [8, 3, 4, 5]. Вместо этого программа выводит 0, 0, 0, 0, 4, 4 — в окне вместо четырёх чисел осталось одно. Какая строка виновата и почему?",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = right\n" +
-      "    print(left)",
-    buggyLine: 5,
-    symptomInput: "5 8 3 4 5 9",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int left = 0;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = right;\n        }\n        cout << left << endl;\n    }\n    return 0;\n}",
+    buggyLine: 24,
+    symptomInput: "6\n5 8 3 4 5 9",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = left + 1\n" +
-      "    print(left)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int left = 0;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = left + 1;\n        }\n        cout << left << endl;\n    }\n    return 0;\n}",
   },
   {
     /*
@@ -378,7 +353,7 @@ export const M5_L5: LessonBlock[] = [
      *
      * The wrong programs this case set is built against, each one run against
      * the whole set before the set was frozen:
-     *   prints `len(a)`        → «1 2 3 2 4» (visible), where the answer is 3;
+     *   prints n               → «1 2 3 2 4» (visible), where the answer is 3;
      *   prints 1 always        → «1 2 3 2 4» again;
      *   `if` instead of `while`, so the window shrinks once and stays broken
      *                         → «1 2 3 2 4» (answers 4) and «5 6 6 7» (answers 3);
@@ -386,7 +361,8 @@ export const M5_L5: LessonBlock[] = [
      *                         → «1 2 1 3 4 5 6» (answers 5) and «-1 -2 -1 -3» (2);
      *   compares only NEIGHBOURS, `a[right] == a[right - 1]`
      *                         → «1 2 1» (answers 3) and «9 8 9 8 9» (answers 5);
-     *   `range(len(a) - 1)`, the missed last element the programme names by hand
+     *   `right < n - 1` in the loop header, the missed last element the
+     *                         programme names by hand
      *                         → «4» (answers 0), «1 2 3 4 5» (4) and «1 1 2 3 4» (3).
      * The two cases the contract asks for by name are both here: the answer
      * being the WHOLE list («1 2 3 4 5») and a single element («4», «7 7 7»),
@@ -399,39 +375,31 @@ export const M5_L5: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бір жолда бос орынмен бөлінген бүтін сандар беріледі (кемінде біреу, ең көбі 1000). Ішінде бірдей сан екі рет кездеспейтін, қатар тұрған сандардың ең ұзын тізбегінің ұзындығын шығар. Мысалы, `1 2 3 2 4` үшін жауап 3: `1 2 3` де, `3 2 4` те үш саннан тұрады, ал төрт саннан тұратын жарамды бөлік жоқ.\n\nКеңес: терезені пайдалан — `right` бір қадам оңға жылжиды, ал терезеде қайталау пайда болса, `left` терезе қайта жарамды болғанша алға тартылады. Терезенің ішін қарап шығу тегін тексеру емес, сондықтан мұнда сандар саны мыңнан аспайды. Автоматты тексеру тек шыққан санды салыстырады, әдісті көрмейді — бірақ есеп дәл осы әдіс үшін жазылған.",
-      ru: "В одной строке даны целые числа через пробел (хотя бы одно, не больше 1000). Выведи длину самой длинной цепочки идущих подряд чисел, в которой ни одно число не встречается дважды. Например, для `1 2 3 2 4` ответ 3: и `1 2 3`, и `3 2 4` состоят из трёх чисел, а подходящего участка из четырёх чисел нет.\n\nСовет: пользуйся окном — `right` сдвигается на шаг вправо, а если в окне появился повтор, `left` подтягивается вперёд, пока окно снова не станет пригодным. Просмотр внутренности окна — не бесплатная проверка, поэтому чисел здесь не больше тысячи. Автоматическая проверка сравнивает только выведенное число и метода не видит — но задача написана именно под этот метод.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 1000), екінші жолда бос орынмен бөлінген n бүтін сан. Ішінде бірдей сан екі рет кездеспейтін, қатар тұрған сандардың ең ұзын тізбегінің ұзындығын шығар. Мысалы, n = 5 және `1 2 3 2 4` үшін жауап 3: `1 2 3` де, `3 2 4` те үш саннан тұрады, ал төрт саннан тұратын жарамды бөлік жоқ.\n\nКеңес: терезені пайдалан — `right` бір қадам оңға жылжиды, ал терезеде қайталау пайда болса, `left` терезе қайта жарамды болғанша алға тартылады. Терезенің ішін қарап шығу тегін тексеру емес, сондықтан мұнда сандар саны мыңнан аспайды. Автоматты тексеру тек шыққан санды салыстырады, әдісті көрмейді — бірақ есеп дәл осы әдіс үшін жазылған.",
+      ru: "В первой строке дано n (1 ≤ n ≤ 1000), во второй — n целых чисел через пробел. Выведи длину самой длинной цепочки идущих подряд чисел, в которой ни одно число не встречается дважды. Например, для n = 5 и `1 2 3 2 4` ответ 3: и `1 2 3`, и `3 2 4` состоят из трёх чисел, а подходящего участка из четырёх чисел нет.\n\nСовет: пользуйся окном — `right` сдвигается на шаг вправо, а если в окне появился повтор, `left` подтягивается вперёд, пока окно снова не станет пригодным. Просмотр внутренности окна — не бесплатная проверка, поэтому чисел здесь не больше тысячи. Автоматическая проверка сравнивает только выведенное число и метода не видит — но задача написана именно под этот метод.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "best = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] in a[left:right]:\n" +
-      "        left = left + 1\n" +
-      "    if right - left + 1 > best:\n" +
-      "        best = right - left + 1\n" +
-      "print(best)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool inWindow(vector<int>& a, int left, int right, int x) {\n    for (int k = left; k < right; k++) {\n        if (a[k] == x) {\n            return true;\n        }\n    }\n    return false;\n}\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int left = 0;\n    int best = 0;\n    for (int right = 0; right < n; right++) {\n        while (inWindow(a, left, right, a[right])) {\n            left = left + 1;\n        }\n        if (right - left + 1 > best) {\n            best = right - left + 1;\n        }\n    }\n    cout << best;\n    return 0;\n}",
     cases: [
-      { input: "1 2 3 2 4", expectedOutput: "3" },
-      { input: "7 7 7", expectedOutput: "1" },
+      { input: "5\n1 2 3 2 4", expectedOutput: "3" },
+      { input: "3\n7 7 7", expectedOutput: "1" },
       /* Two equal numbers side by side: the window must shrink TWICE, so `if`
          instead of `while` answers 3 here. */
-      { input: "5 6 6 7", expectedOutput: "2", hidden: true },
+      { input: "4\n5 6 6 7", expectedOutput: "2", hidden: true },
       /* The repeat is not adjacent: a neighbour-only check answers 3. */
-      { input: "1 2 1", expectedOutput: "2", hidden: true },
+      { input: "3\n1 2 1", expectedOutput: "2", hidden: true },
       /* The longest piece begins AFTER the only shrink: `left = right` answers 5. */
-      { input: "1 2 1 3 4 5 6", expectedOutput: "6", hidden: true },
+      { input: "7\n1 2 1 3 4 5 6", expectedOutput: "6", hidden: true },
       /* One element, and the whole list — the two shapes the contract names. */
-      { input: "4", expectedOutput: "1", hidden: true },
-      { input: "1 2 3 4 5", expectedOutput: "5", hidden: true },
+      { input: "1\n4", expectedOutput: "1", hidden: true },
+      { input: "5\n1 2 3 4 5", expectedOutput: "5", hidden: true },
       /* The answer sits at the very end, then at the very start. */
-      { input: "1 1 2 3 4", expectedOutput: "4", hidden: true },
-      { input: "1 2 3 4 1 1 1", expectedOutput: "4", hidden: true },
+      { input: "5\n1 1 2 3 4", expectedOutput: "4", hidden: true },
+      { input: "7\n1 2 3 4 1 1 1", expectedOutput: "4", hidden: true },
       /* Every window is exactly two long, and no two neighbours are equal. */
-      { input: "9 8 9 8 9", expectedOutput: "2", hidden: true },
+      { input: "5\n9 8 9 8 9", expectedOutput: "2", hidden: true },
       /* Negative numbers, so a solution that never called int() shows itself. */
-      { input: "-1 -2 -1 -3", expectedOutput: "3", hidden: true },
+      { input: "4\n-1 -2 -1 -3", expectedOutput: "3", hidden: true },
     ],
   },
   {
@@ -454,7 +422,7 @@ export const M5_L5: LessonBlock[] = [
      *                          is the only case that separates it, and it is the
      *                          whole reason that case exists;
      *   `right - left` without the +1 → every case;
-     *   prints len(a)        → «10 20 30» / 5;  prints 1 → the visible case.
+     *   prints n             → «10 20 30» / 5;  prints 1 → the visible case.
      * The answer is the whole list («10 1 7 3» / 100), a single element («7» /
      * 0, «1 2 3» / 0), at the end («1 2 100 101 102») and at the start
      * («1 2 3 100 200»).
@@ -465,41 +433,30 @@ export const M5_L5: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бірінші жолда бос орынмен бөлінген бүтін сандар (кемінде біреу, ең көбі 200 000), екінші жолда теріс емес бүтін сан d беріледі. Сандардың ең үлкен тобын жинау керек: топтағы ең үлкен сан мен ең кіші санның айырмасы d-дан аспауы тиіс. Ондай топта ең көбі неше сан бола алатынын шығар. Айырма дәл d-ға тең болса, топ жарамды деп саналады. Мысалы, `160 172 158 161 175 159` және d = 3 үшін жауап 4: 158, 159, 160, 161 сандары бір топқа сыяды, өйткені 161 − 158 = 3.\n\nКеңес: алдымен сандарды ретте, содан кейін реттелген тізім бойынша бір терезе жүргіз. Реттелген тізімде терезенің ең кішісі — `a[left]`, ең үлкені — `a[right]`, сондықтан жарамдылық бір ғана азайтумен тексеріледі және терезенің ішін қарап шығудың қажеті жоқ. Баға тек шыққан сан бойынша қойылады: тексеру әдісті көрмейді.",
-      ru: "В первой строке даны целые числа через пробел (хотя бы одно, не больше 200 000), во второй — неотрицательное целое число d. Нужно собрать самую большую группу чисел так, чтобы разность между наибольшим и наименьшим числом группы не превышала d. Выведи, сколько чисел может оказаться в такой группе. Если разность ровно равна d, группа считается подходящей. Например, для `160 172 158 161 175 159` и d = 3 ответ 4: числа 158, 159, 160, 161 помещаются в одну группу, потому что 161 − 158 = 3.\n\nСовет: сначала отсортируй числа, а затем проведи по отсортированному списку одно окно. В отсортированном списке наименьшее число окна — это `a[left]`, наибольшее — `a[right]`, поэтому пригодность проверяется одним вычитанием и просматривать внутренность окна не нужно. Оценка ставится только по выведенному числу: проверка метода не видит.",
+      kk: "Бірінші жолда n саны (1 ≤ n ≤ 200 000), екінші жолда бос орынмен бөлінген n бүтін сан (әрқайсысы модулі бойынша 10⁸-ден аспайды), үшінші жолда теріс емес бүтін сан d беріледі (d ≤ 2·10⁸). Сандардың ең үлкен тобын жинау керек: топтағы ең үлкен сан мен ең кіші санның айырмасы d-дан аспауы тиіс. Ондай топта ең көбі неше сан бола алатынын шығар. Айырма дәл d-ға тең болса, топ жарамды деп саналады. Мысалы, n = 6, `160 172 158 161 175 159` және d = 3 үшін жауап 4: 158, 159, 160, 161 сандары бір топқа сыяды, өйткені 161 − 158 = 3.\n\nКеңес: алдымен сандарды ретте, содан кейін реттелген тізім бойынша бір терезе жүргіз. Реттелген тізімде терезенің ең кішісі — `a[left]`, ең үлкені — `a[right]`, сондықтан жарамдылық бір ғана азайтумен тексеріледі және терезенің ішін қарап шығудың қажеті жоқ. Баға тек шыққан сан бойынша қойылады: тексеру әдісті көрмейді.",
+      ru: "В первой строке дано n (1 ≤ n ≤ 200 000), во второй — n целых чисел через пробел (каждое по модулю не больше 10⁸), в третьей — неотрицательное целое число d (d ≤ 2·10⁸). Нужно собрать самую большую группу чисел так, чтобы разность между наибольшим и наименьшим числом группы не превышала d. Выведи, сколько чисел может оказаться в такой группе. Если разность ровно равна d, группа считается подходящей. Например, для n = 6, `160 172 158 161 175 159` и d = 3 ответ 4: числа 158, 159, 160, 161 помещаются в одну группу, потому что 161 − 158 = 3.\n\nСовет: сначала отсортируй числа, а затем проведи по отсортированному списку одно окно. В отсортированном списке наименьшее число окна — это `a[left]`, наибольшее — `a[right]`, поэтому пригодность проверяется одним вычитанием и просматривать внутренность окна не нужно. Оценка ставится только по выведенному числу: проверка метода не видит.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "d = int(input())\n" +
-      "a.sort()\n" +
-      "n = len(a)\n" +
-      "left = 0\n" +
-      "best = 0\n" +
-      "for right in range(n):\n" +
-      "    while a[right] - a[left] > d:\n" +
-      "        left = left + 1\n" +
-      "    if right - left + 1 > best:\n" +
-      "        best = right - left + 1\n" +
-      "print(best)",
+"#include <algorithm>\n#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int d;\n    cin >> d;\n    sort(a.begin(), a.end());\n    int left = 0;\n    int best = 0;\n    for (int right = 0; right < n; right++) {\n        while (a[right] - a[left] > d) {\n            left = left + 1;\n        }\n        int len = right - left + 1;\n        if (len > best) {\n            best = len;\n        }\n    }\n    cout << best;\n    return 0;\n}",
     cases: [
-      { input: "160 172 158 161 175 159\n3", expectedOutput: "4" },
-      { input: "10 20 30\n5", expectedOutput: "1" },
+      { input: "6\n160 172 158 161 175 159\n3", expectedOutput: "4" },
+      { input: "3\n10 20 30\n5", expectedOutput: "1" },
       /* Neighbour gaps all fit but the group does not: answers 4 instead of 3. */
-      { input: "1 2 3 4\n2", expectedOutput: "3", hidden: true },
+      { input: "4\n1 2 3 4\n2", expectedOutput: "3", hidden: true },
       /* d = 0: every equal number still counts, and every distinct one does not. */
-      { input: "5 5 5\n0", expectedOutput: "3", hidden: true },
-      { input: "1 2 3\n0", expectedOutput: "1", hidden: true },
+      { input: "3\n5 5 5\n0", expectedOutput: "3", hidden: true },
+      { input: "3\n1 2 3\n0", expectedOutput: "1", hidden: true },
       /* Unsorted input where skipping the sort answers 4. */
-      { input: "9 1 2 3\n2", expectedOutput: "3", hidden: true },
+      { input: "4\n9 1 2 3\n2", expectedOutput: "3", hidden: true },
       /* The difference is exactly d: `>=` answers 1 here. */
-      { input: "4 8\n4", expectedOutput: "2", hidden: true },
-      { input: "7\n0", expectedOutput: "1", hidden: true },
+      { input: "2\n4 8\n4", expectedOutput: "2", hidden: true },
+      { input: "1\n7\n0", expectedOutput: "1", hidden: true },
       /* The group is at the very end of the sorted list, then at the very start. */
-      { input: "1 2 100 101 102\n2", expectedOutput: "3", hidden: true },
-      { input: "1 2 3 100 200\n2", expectedOutput: "3", hidden: true },
-      { input: "-5 -4 0 7\n1", expectedOutput: "2", hidden: true },
+      { input: "5\n1 2 100 101 102\n2", expectedOutput: "3", hidden: true },
+      { input: "5\n1 2 3 100 200\n2", expectedOutput: "3", hidden: true },
+      { input: "4\n-5 -4 0 7\n1", expectedOutput: "2", hidden: true },
       /* d is large enough that the answer is the whole list. */
-      { input: "10 1 7 3\n100", expectedOutput: "4", hidden: true },
+      { input: "4\n10 1 7 3\n100", expectedOutput: "4", hidden: true },
     ],
   },
   {
@@ -526,9 +483,8 @@ export const M5_L5: LessonBlock[] = [
      * So that line is handed over whole — it is the part b1 and b3 already
      * worked through — and the remaining hole grew to swallow the entire
      * `while` condition. That one is copyable from nowhere: every other window
-     * in the lesson tests `a[right] in a[left:right]`, the unsorted check, and
-     * this is the only card where sorting has collapsed that scan into a
-     * subtraction. It still carries the boundary the old operator hole carried,
+     * in the lesson calls `inWindow(...)`, the unsorted check, and this is the
+     * only card where sorting has collapsed that scan into a subtraction. It still carries the boundary the old operator hole carried,
      * because a difference of exactly d is a valid group and so the comparison
      * is `>` and not `>=`; on top of that the learner now has to say WHICH two
      * numbers are being subtracted, which is the whole of what the sort bought.
@@ -538,7 +494,8 @@ export const M5_L5: LessonBlock[] = [
      *
      * Two holes rather than three is the trade m5.l4.b9s made for the same
      * reason. The filled template is still not b7's reference solution — that
-     * one keeps the list length in `n` — and no learner meets both.
+     * one names the current width `len` before comparing it — and no learner
+     * meets both.
      */
     id: "m5.l5.b7s",
     type: "fill_blank",
@@ -546,23 +503,13 @@ export const M5_L5: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бірінші жолда бос орынмен бөлінген бүтін сандар, екінші жолда теріс емес бүтін сан d беріледі. Сандардың ең үлкен тобын жинау керек: топтағы ең үлкен сан мен ең кіші санның айырмасы d-дан аспауы тиіс, ал айырма дәл d-ға тең болса, топ жарамды. Бағдарлама сол топтағы сандардың санын шығарады. Терезенің қаңқасы жазылып қойылған, екі орын бос.\n\nБіріншісі — бүкіл әдіс сүйенетін жол: тізім реттелмей тұрып, терезенің шеттеріндегі сандар оның ішіндегі ең кіші және ең үлкен сан болатынына ешқандай кепілдік жоқ. Екіншісі — `while` циклінің шарты, яғни терезені қашан қысқарту керектігі. Реттелгеннен кейін терезедегі ең кіші сан `left` орнында, ең үлкені `right` орнында тұрады, сондықтан шарт сол екі санның айырмасы туралы болады. Айырма дәл d-ға тең болғанда терезе әлі жарамды екенін ұмытпа — салыстыру белгісі осыған байланысты.",
-      ru: "В первой строке даны целые числа через пробел, во второй — неотрицательное целое число d. Нужно собрать самую большую группу чисел так, чтобы разность между наибольшим и наименьшим числом группы не превышала d; если разность ровно равна d, группа подходит. Программа выводит количество чисел в такой группе. Каркас окна уже написан, пустых мест два.\n\nПервое — строка, на которой держится весь метод: пока список не упорядочен, ничто не обещает, что числа на краях окна — это наименьшее и наибольшее числа внутри него. Второе — условие цикла `while`, то есть момент, когда окно пора сжимать. После сортировки наименьшее число окна стоит на позиции `left`, а наибольшее — на позиции `right`, поэтому условие говорит о разности этих двух чисел. Не забудь: при разности ровно d окно ещё пригодно — от этого зависит знак сравнения.",
+      kk: "Бірінші жолда n саны, екінші жолда n бүтін сан, үшінші жолда теріс емес бүтін сан d беріледі. Сандардың ең үлкен тобын жинау керек: топтағы ең үлкен сан мен ең кіші санның айырмасы d-дан аспауы тиіс, ал айырма дәл d-ға тең болса, топ жарамды. Бағдарлама сол топтағы сандардың санын шығарады. Терезенің қаңқасы жазылып қойылған, екі орын бос.\n\nБіріншісі — бүкіл әдіс сүйенетін жол: тізім реттелмей тұрып, терезенің шеттеріндегі сандар оның ішіндегі ең кіші және ең үлкен сан болатынына ешқандай кепілдік жоқ. Екіншісі — `while` циклінің шарты, яғни терезені қашан қысқарту керектігі. Реттелгеннен кейін терезедегі ең кіші сан `left` орнында, ең үлкені `right` орнында тұрады, сондықтан шарт сол екі санның айырмасы туралы болады. Айырма дәл d-ға тең болғанда терезе әлі жарамды екенін ұмытпа — салыстыру белгісі осыған байланысты.",
+      ru: "В первой строке дано n, во второй — n целых чисел, в третьей — неотрицательное целое число d. Нужно собрать самую большую группу чисел так, чтобы разность между наибольшим и наименьшим числом группы не превышала d; если разность ровно равна d, группа подходит. Программа выводит количество чисел в такой группе. Каркас окна уже написан, пустых мест два.\n\nПервое — строка, на которой держится весь метод: пока список не упорядочен, ничто не обещает, что числа на краях окна — это наименьшее и наибольшее числа внутри него. Второе — условие цикла `while`, то есть момент, когда окно пора сжимать. После сортировки наименьшее число окна стоит на позиции `left`, а наибольшее — на позиции `right`, поэтому условие говорит о разности этих двух чисел. Не забудь: при разности ровно d окно ещё пригодно — от этого зависит знак сравнения.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "d = int(input())\n" +
-      "___\n" +
-      "left = 0\n" +
-      "best = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while ___:\n" +
-      "        left = left + 1\n" +
-      "    if right - left + 1 > best:\n" +
-      "        best = right - left + 1\n" +
-      "print(best)",
+"#include <algorithm>\n#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int d;\n    cin >> d;\n    ___\n    int left = 0;\n    int best = 0;\n    for (int right = 0; right < n; right++) {\n        while (___) {\n            left = left + 1;\n        }\n        if (right - left + 1 > best) {\n            best = right - left + 1;\n        }\n    }\n    cout << best;\n    return 0;\n}",
     blanks: [
-      { id: "f1", answer: "a.sort()", alternatives: ["a = sorted(a)"] },
+      { id: "f1", answer: "sort(a.begin(), a.end());" },
       {
         id: "f2",
         answer: "a[right] - a[left] > d",
@@ -600,39 +547,30 @@ export const M5_L5: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бірінші жолда бос орынмен бөлінген бүтін сандар (кемінде біреу, ең көбі 200 000), екінші жолда теріс емес бүтін сан k беріледі. Айырмасы k-дан аспайтын жұптардың санын шығар. Жұп деп әр түрлі екі орында тұрған екі санды айтамыз, ал (i, j) мен (j, i) бір ғана жұп болып саналады. Айырма дәл k-ға тең болса, жұп есептеледі. Мысалы, `1 3 4 9` және k = 2 үшін жауап 2 — бұл (1, 3) және (3, 4) жұптары.\n\nКеңес: алдымен ретте, содан кейін бір терезе жүргіз. Реттелген тізімде `right` орнындағы санға жарамды серіктердің бәрі терезенің ішінде қатар тұрады, ал терезенің сол шекарасы ешқашан артқа қайтпайды. Шекараны дұрыс таңдау мұнда шешуші: терезедегі жаңа жұптарды мұқият сана, сан өз-өзімен жұп құрмайды. Тексеру тек шыққан санды салыстырады.",
-      ru: "В первой строке даны целые числа через пробел (хотя бы одно, не больше 200 000), во второй — неотрицательное целое число k. Выведи, сколько существует пар чисел, разность которых не превышает k. Парой считаются числа на двух разных позициях, причём (i, j) и (j, i) — это одна и та же пара. Если разность ровно равна k, пара засчитывается. Например, для `1 3 4 9` и k = 2 ответ 2 — это пары (1, 3) и (3, 4).\n\nСовет: сначала отсортируй, затем проведи одно окно. В отсортированном списке все подходящие партнёры для числа на позиции `right` лежат в окне подряд, а левая граница окна никогда не возвращается назад. Правильный выбор границы здесь решает всё: аккуратно посчитай новые пары в окне — число не образует пару само с собой. Проверка сравнивает только выведенное число.",
+      kk: "Бірінші жолда n саны (1 ≤ n ≤ 200 000), екінші жолда бос орынмен бөлінген n бүтін сан (әрқайсысы модулі бойынша 10⁸-ден аспайды), үшінші жолда теріс емес бүтін сан k беріледі (k ≤ 2·10⁸). Айырмасы k-дан аспайтын жұптардың санын шығар. Жауап екі миллиардтан асуы мүмкін, сондықтан санауышты `long long` етіп ал — `int` жетпейді. Жұп деп әр түрлі екі орында тұрған екі санды айтамыз, ал (i, j) мен (j, i) бір ғана жұп болып саналады. Айырма дәл k-ға тең болса, жұп есептеледі. Мысалы, n = 4, `1 3 4 9` және k = 2 үшін жауап 2 — бұл (1, 3) және (3, 4) жұптары.\n\nКеңес: алдымен ретте, содан кейін бір терезе жүргіз. Реттелген тізімде `right` орнындағы санға жарамды серіктердің бәрі терезенің ішінде қатар тұрады, ал терезенің сол шекарасы ешқашан артқа қайтпайды. Шекараны дұрыс таңдау мұнда шешуші: терезедегі жаңа жұптарды мұқият сана, сан өз-өзімен жұп құрмайды. Тексеру тек шыққан санды салыстырады.",
+      ru: "В первой строке дано n (1 ≤ n ≤ 200 000), во второй — n целых чисел через пробел (каждое по модулю не больше 10⁸), в третьей — неотрицательное целое число k (k ≤ 2·10⁸). Выведи, сколько существует пар чисел, разность которых не превышает k. Ответ может превысить два миллиарда, поэтому счётчик бери типа `long long` — `int` не хватит. Парой считаются числа на двух разных позициях, причём (i, j) и (j, i) — это одна и та же пара. Если разность ровно равна k, пара засчитывается. Например, для n = 4, `1 3 4 9` и k = 2 ответ 2 — это пары (1, 3) и (3, 4).\n\nСовет: сначала отсортируй, затем проведи одно окно. В отсортированном списке все подходящие партнёры для числа на позиции `right` лежат в окне подряд, а левая граница окна никогда не возвращается назад. Правильный выбор границы здесь решает всё: аккуратно посчитай новые пары в окне — число не образует пару само с собой. Проверка сравнивает только выведенное число.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "k = int(input())\n" +
-      "a.sort()\n" +
-      "left = 0\n" +
-      "total = 0\n" +
-      "for right in range(len(a)):\n" +
-      "    while a[right] - a[left] > k:\n" +
-      "        left = left + 1\n" +
-      "    total = total + (right - left)\n" +
-      "print(total)",
+"#include <algorithm>\n#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int k;\n    cin >> k;\n    sort(a.begin(), a.end());\n    int left = 0;\n    long long total = 0;\n    for (int right = 0; right < n; right++) {\n        while (a[right] - a[left] > k) {\n            left = left + 1;\n        }\n        total = total + (right - left);\n    }\n    cout << total;\n    return 0;\n}",
     cases: [
-      { input: "1 3 4 9\n2", expectedOutput: "2" },
-      { input: "1 2 3 4 5 6\n2", expectedOutput: "9" },
+      { input: "4\n1 3 4 9\n2", expectedOutput: "2" },
+      { input: "6\n1 2 3 4 5 6\n2", expectedOutput: "9" },
       /* One element: `right - left + 1` answers 1 where the truth is 0. */
-      { input: "7\n5", expectedOutput: "0", hidden: true },
+      { input: "1\n7\n5", expectedOutput: "0", hidden: true },
       /* k = 0 both ways: everything equal, then everything distinct. */
-      { input: "5 5 5\n0", expectedOutput: "3", hidden: true },
-      { input: "1 2 3\n0", expectedOutput: "0", hidden: true },
-      { input: "1 1 2 2\n0", expectedOutput: "2", hidden: true },
+      { input: "3\n5 5 5\n0", expectedOutput: "3", hidden: true },
+      { input: "3\n1 2 3\n0", expectedOutput: "0", hidden: true },
+      { input: "4\n1 1 2 2\n0", expectedOutput: "2", hidden: true },
       /* Unsorted input: skipping the sort answers 3, then 6. */
-      { input: "9 1 2\n1", expectedOutput: "1", hidden: true },
-      { input: "5 1 9 3\n4", expectedOutput: "4", hidden: true },
+      { input: "3\n9 1 2\n1", expectedOutput: "1", hidden: true },
+      { input: "4\n5 1 9 3\n4", expectedOutput: "4", hidden: true },
       /* Every gap is exactly k: `>=` answers 0 here. */
-      { input: "10 20 30 40\n10", expectedOutput: "3", hidden: true },
+      { input: "4\n10 20 30 40\n10", expectedOutput: "3", hidden: true },
       /* k large enough that every pair counts, and negatives. */
-      { input: "1 2 3 4\n10", expectedOutput: "6", hidden: true },
-      { input: "-3 -1 0 5\n2", expectedOutput: "2", hidden: true },
+      { input: "4\n1 2 3 4\n10", expectedOutput: "6", hidden: true },
+      { input: "4\n-3 -1 0 5\n2", expectedOutput: "2", hidden: true },
       /* Five equal numbers: the count grows faster than the list does. */
-      { input: "1 1 1 1 1\n0", expectedOutput: "10", hidden: true },
+      { input: "5\n1 1 1 1 1\n0", expectedOutput: "10", hidden: true },
     ],
   },
   {

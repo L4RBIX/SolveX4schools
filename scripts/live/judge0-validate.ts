@@ -542,7 +542,7 @@ async function execute(ctx: RunContext): Promise<ValidatorOutcome> {
      `number`: `EXECUTION_LIMITS` is `as const`, and inferring the literal 5000
      would make the parameter unusable by the runaway-loop fixture. */
   const request: MakeRequest = (sourceCode, stdin, timeLimitMs = limits.timeLimitMs) => ({
-    language: "python3",
+    language: "cpp17",
     sourceCode,
     stdin,
     timeLimitMs,

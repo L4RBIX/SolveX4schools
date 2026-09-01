@@ -65,6 +65,13 @@ function HeroClip({ clip }: { clip: HeroClipSource }) {
     void node.play().catch(() => {});
   };
 
+  /* Mount only, and the empty array is the point rather than an omission.
+     `PublicLanding` builds `clip` as an object literal, so it is a new object
+     on every render; a dependency array that tracked it would re-seek the
+     playhead on every unrelated re-render of the landing page. The lint rule
+     cannot see that, and `start` is called again from `canplay` below for the
+     case it is actually worried about. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(start, []);
 
   return (

@@ -21,9 +21,9 @@ import { isInfrastructure, isLearnerEvidence } from "@schools/exec/provider";
  *
  * That any of it works against RapidAPI. **There is no key in this repository
  * and nothing in this suite has ever contacted `judge0-ce.p.rapidapi.com`.**
- * The fake below is an HTTP server returning fixtures; it does not run Python,
+ * The fake below is an HTTP server returning fixtures; it compiles nothing,
  * it has no sandbox, and it will happily accept a `cpu_time_limit` that a real
- * plan refuses. Which Python the plan exposes, what its real ceilings are,
+ * plan refuses. What its real ceilings are,
  * whether `POST /submissions/batch` exists on it, and where the rate limit
  * actually falls are all UNKNOWN until someone holds a key.
  *
@@ -67,7 +67,13 @@ function start(handler: (req: { method: string; url: string; body: unknown }, re
 }
 
 const TOKEN = "11111111-2222-4333-8444-555555555555";
-const REQ = { language: "python3" as const, sourceCode: 'print("hi")', stdin: "1\n", timeLimitMs: 5_000, memoryLimitMb: 256 };
+const REQ = {
+  language: "cpp17" as const,
+  sourceCode: '#include <iostream>\nint main() { std::cout << "hi\\n"; }\n',
+  stdin: "1\n",
+  timeLimitMs: 5_000,
+  memoryLimitMb: 256,
+};
 
 let close: (() => Promise<void>) | null = null;
 afterEach(async () => { await close?.(); close = null; });
@@ -99,16 +105,26 @@ function provider(baseUrl: string, over: Partial<ConstructorParameters<typeof Ju
  */
 const b64 = (value: string): string => Buffer.from(value, "utf8").toString("base64");
 
+/**
+ * A catalogue shaped like the real one, with the traps kept in.
+ *
+ * Every GCC below 11 and every Clang defaults to `gnu++14`, and this plan
+ * answers HTTP 403 to `compiler_options` — so landing on one of them compiles
+ * the course's own syntax as C++14 and marks a learner wrong for what they were
+ * taught. The ids are the real service's; `54` really is GCC 9 and `105` really
+ * is GCC 14.1.
+ */
 const LANGS = [
-  { id: 71, name: "Python (3.8.1)" },
-  { id: 92, name: "Python (3.11.2)" },
-  { id: 109, name: "Python (3.13.2)" },
-  { id: 99, name: "Python for ML (3.11.2)" },
+  { id: 52, name: "C++ (GCC 7.4.0)" },
+  { id: 54, name: "C++ (GCC 9.2.0)" },
+  { id: 76, name: "C++ (Clang 7.0.1)" },
+  { id: 105, name: "C++ (GCC 14.1.0)" },
+  { id: 100, name: "Python (3.12.5)" },
   { id: 63, name: "JavaScript (Node.js 22)" },
 ];
 
 describe("judge0 adapter", () => {
-  it("discovers python 3, sends judge0 units, polls past in-queue, and returns ok", async () => {
+  it("discovers a C++17 GCC, sends judge0 units, polls past in-queue, and returns ok", async () => {
     let polls = 0;
     const s = await start((req, respond) => {
       if (req.url.startsWith("/languages")) return respond(200, LANGS);
@@ -134,7 +150,9 @@ describe("judge0 adapter", () => {
     expect(post.headers["x-rapidapi-key"]).toBe("SECRET-KEY-DO-NOT-LEAK");
     expect(post.headers["x-rapidapi-host"]).toBe("judge0-ce.p.rapidapi.com");
     const body = post.body as Record<string, unknown>;
-    expect(body.language_id).toBe(109);          // highest plain Python 3, not "for ML"
+    /* The only GCC in the catalogue that defaults to gnu++17 — not the newest
+       C++ on offer by id, and not the Clang. */
+    expect(body.language_id).toBe(105);
     expect(body.cpu_time_limit).toBe(5);          // ms -> SECONDS
     expect(body.wall_time_limit).toBe(7);
     expect(body.memory_limit).toBe(262144);       // MB -> KILOBYTES
@@ -147,15 +165,48 @@ describe("judge0 adapter", () => {
     expect(s.recorded.filter((x) => x.url.startsWith("/languages"))).toHaveLength(1);
   });
 
-  it("reads a python SyntaxError arriving as a runtime failure as compile_error", async () => {
+  it("reads status 6 as compile_error and carries the diagnostics through", async () => {
     const s = await start((req, respond) => {
       if (req.url.startsWith("/languages")) return respond(200, LANGS);
       if (req.method === "POST") return respond(201, { token: TOKEN });
-      return respond(200, { status_id: 11, stdout: null, stderr: b64("  File \"main.py\", line 1\nSyntaxError: '(' was never closed\n"), exit_code: 1 });
+      return respond(200, {
+        status_id: 6,
+        stdout: null,
+        stderr: null,
+        /* Its OWN field. That is the whole difference from the Python era,
+           where a missing bracket arrived as a non-zero exit with prose on
+           stderr and the port had to guess from the words. */
+        compile_output: b64("main.cpp:2:28: error: expected ';' before '}' token\n"),
+        exit_code: null,
+      });
     });
     close = s.close;
     const r = await provider(s.url).run(REQ);
     expect(r.status).toBe("compile_error");
+    expect(r.stderr).toContain("error:");
+    expect(r.infrastructureError).toBe(false);
+  });
+
+  it("does NOT read a crash as a compile error, however its stderr reads", async () => {
+    /* The regression this replaces the old heuristic with. A program that
+       compiled and then printed the word `error:` before dying must be a
+       runtime error: it RAN. Under the Python-era predicate any stderr matching
+       the pattern was read as "never started", and the equivalent C++ heuristic
+       would have made every program that prints a diagnostic-looking line into
+       a compile error. */
+    const s = await start((req, respond) => {
+      if (req.url.startsWith("/languages")) return respond(200, LANGS);
+      if (req.method === "POST") return respond(201, { token: TOKEN });
+      return respond(200, {
+        status_id: 11,
+        stdout: b64("checking...\n"),
+        stderr: b64("main.cpp: error: something the learner printed themselves\n"),
+        exit_code: 1,
+      });
+    });
+    close = s.close;
+    const r = await provider(s.url).run(REQ);
+    expect(r.status).toBe("runtime_error");
     expect(r.infrastructureError).toBe(false);
   });
 
@@ -216,9 +267,35 @@ describe("judge0 adapter", () => {
       return respond(200, { status_id: 3, stdout: b64("hi\n") });
     });
     close = s.close;
-    const r = await provider(s.url, { languageId: 92 }).run(REQ);
+    const r = await provider(s.url, { languageId: 105 }).run(REQ);
     expect(r.status).toBe("ok");
-    expect((s.recorded.find((x) => x.method === "POST")!.body as Record<string, unknown>).language_id).toBe(92);
+    expect((s.recorded.find((x) => x.method === "POST")!.body as Record<string, unknown>).language_id).toBe(105);
+  });
+
+  it("refuses a catalogue whose only C++ is too old to default to C++17", async () => {
+    /* The failure that must NOT be a fallback. Three GCCs are on offer and all
+       of them compile as C++14; `compiler_options` is 403 here, so there is no
+       flag to fix it with. Taking the newest of a bad set would grade a class
+       under a compiler that rejects the syntax they were taught, and the
+       symptom would be every October lesson marked wrong at once. */
+    const s = await start((req, respond) => {
+      if (req.url.startsWith("/languages")) {
+        return respond(200, [
+          { id: 52, name: "C++ (GCC 7.4.0)" },
+          { id: 53, name: "C++ (GCC 8.3.0)" },
+          { id: 54, name: "C++ (GCC 9.2.0)" },
+          { id: 76, name: "C++ (Clang 7.0.1)" },
+        ]);
+      }
+      respond(201, { token: TOKEN });
+    });
+    close = s.close;
+    const r = await provider(s.url).run(REQ);
+    expect(r.status).toBe("provider_error");
+    expect(r.infrastructureError).toBe(true);
+    /* Nothing was submitted: we refuse before spending a request, and nothing
+       whatsoever is recorded about the learner. */
+    expect(s.recorded.some((x) => x.method === "POST")).toBe(false);
   });
 
   it("runs a submission's cases through runBatch and stops at the first outage", async () => {
@@ -236,7 +313,7 @@ describe("judge0 adapter", () => {
     close = s.close;
     const p = provider(s.url);
     expect(typeof p.runBatch).toBe("function");
-    const out = await runCases(p, "print(7)", [
+    const out = await runCases(p, '#include <iostream>\nint main() { std::cout << 7 << "\\n"; }\n', [
       { input: "1", expectedOutput: "7" },
       { input: "2", expectedOutput: "7" },
       { input: "3", expectedOutput: "7" },

@@ -38,54 +38,59 @@ import {
  */
 
 /* ---------------------------------------------------------------------------
- * Python fixtures.
+ * C++ fixtures.
  *
- * These are what CPython 3.12 actually prints, transcribed. They are fixtures,
- * not interpretation: real-interpreter evidence for the same programs lives in
- * `tests/exec/execution.test.ts`, which runs them through a real `python3`.
+ * These are what a real GCC toolchain actually produces, transcribed. They are
+ * fixtures, not interpretation: real-compiler evidence for the same programs
+ * lives in `tests/exec/execution.test.ts`, which runs them through an actual
+ * `g++`.
  * ------------------------------------------------------------------------- */
 
 const P = {
-  hello: 'print("hello")',
-  square: "n = int(input())\nprint(n * n)",
-  sumPair: "a, b = map(int, input().split())\nprint(a + b)",
-  syntax: "print(",
-  divZero: "print(1 / 0)",
-  spin: "while True:\n    pass",
-  chatty: "for i in range(300000):\n    print(i)",
-  exit3: 'import sys\nprint("partial")\nsys.exit(3)',
+  hello: '#include <iostream>\nint main() { std::cout << "hello\\n"; }\n',
+  square: "#include <iostream>\nint main() { long long n; std::cin >> n; std::cout << n * n << \"\\n\"; }\n",
+  sumPair:
+    "#include <iostream>\nint main() { long long a, b; std::cin >> a >> b; std::cout << a + b << \"\\n\"; }\n",
+  /** A missing `;`. The COMPILE stage fails; nothing runs. */
+  syntax: "#include <iostream>\nint main() { std::cout << 1 }\n",
+  /** Compiles, then dies with the terminate handler's own sentence on stderr. */
+  throwing:
+    "#include <iostream>\n#include <vector>\nint main() { std::vector<int> v; std::cout << v.at(3); }\n",
+  spin: "int main() { while (true) {} }\n",
+  chatty:
+    "#include <iostream>\nint main() { for (int i = 0; i < 300000; i++) std::cout << i << \"\\n\"; }\n",
+  exit3:
+    "#include <iostream>\n#include <cstdlib>\nint main() { std::cout << \"partial\\n\"; std::exit(3); }\n",
 } as const;
 
-const SYNTAX_STDERR =
-  '  File "/piston/jobs/9f2c1a/main.py", line 1\n' +
-  "    print(\n" +
-  "         ^\n" +
-  "SyntaxError: '(' was never closed\n";
+const COMPILE_STDERR =
+  "/piston/jobs/9f2c1a/main.cpp: In function 'int main()':\n" +
+  "/piston/jobs/9f2c1a/main.cpp:2:28: error: expected ';' before '}' token\n" +
+  "    2 | int main() { std::cout << 1 }\n" +
+  "      |                            ^\n";
 
-const ZERO_DIVISION_STDERR =
-  "Traceback (most recent call last):\n" +
-  '  File "/piston/jobs/9f2c1a/main.py", line 1, in <module>\n' +
-  "    print(1 / 0)\n" +
-  "          ~~^~~\n" +
-  "ZeroDivisionError: division by zero\n";
-
-const EOF_STDERR =
-  "Traceback (most recent call last):\n" +
-  '  File "/piston/jobs/9f2c1a/main.py", line 1, in <module>\n' +
-  "    n = int(input())\n" +
-  "            ^^^^^^^\n" +
-  "EOFError: EOF when reading a line\n";
+const UNCAUGHT_STDERR =
+  "terminate called after throwing an instance of 'std::out_of_range'\n" +
+  "  what():  vector::_M_range_check: __n (which is 3) >= this->size() (which is 0)\n";
 
 /**
- * The fake's python3 runtime.
+ * The fake's gcc runtime.
  *
  * The two input-reading programs are COMPUTED from the `stdin` that actually
  * arrived rather than answered from a lookup table. That is the only way a
  * test can tell "we sent stdin correctly" from "we sent nothing and the
  * fixture happened to be right" — and dropping stdin is the single most likely
  * way to grade an entire class wrong while every test still passes.
+ *
+ * ## What an exhausted stdin does now, and why there is no EOF fixture
+ *
+ * `input()` raised `EOFError` and CPython exited 1. `std::cin >> n` sets
+ * `failbit` and, since C++11, VALUE-INITIALISES the target — so the program
+ * carries on with zero, prints an answer and exits 0. A missing stdin is a
+ * running, WRONG program rather than a crash. That is a real change in what a
+ * learner sees and it is modelled here rather than papered over.
  */
-function cpython(req: PistonExecuteRequest): FakeReply {
+function gccJudge(req: PistonExecuteRequest): FakeReply {
   const source = req.files[0]?.content ?? "";
   const stdin = req.stdin ?? "";
 
@@ -93,24 +98,24 @@ function cpython(req: PistonExecuteRequest): FakeReply {
 
   if (source === P.square) {
     const raw = stdin.split("\n")[0]?.trim() ?? "";
-    if (raw === "") return { kind: "piston", body: pistonRun({ stderr: EOF_STDERR, code: 1 }) };
-    return { kind: "piston", body: pistonRun({ stdout: `${Number(raw) * Number(raw)}\n` }) };
+    const n = raw === "" ? 0 : Number(raw);
+    return { kind: "piston", body: pistonRun({ stdout: `${n * n}\n` }) };
   }
 
   if (source === P.sumPair) {
     const parts = (stdin.split("\n")[0] ?? "").trim().split(/\s+/).filter(Boolean);
-    if (parts.length < 2) return { kind: "piston", body: pistonRun({ stderr: EOF_STDERR, code: 1 }) };
-    return {
-      kind: "piston",
-      body: pistonRun({ stdout: `${Number(parts[0]) + Number(parts[1])}\n` }),
-    };
+    const a = Number(parts[0] ?? 0);
+    const b = Number(parts[1] ?? 0);
+    return { kind: "piston", body: pistonRun({ stdout: `${a + b}\n` }) };
   }
 
+  /* The COMPILE stage fails and the run stage is empty. Structural, and the
+     reason the port no longer carries a prose-matching predicate. */
   if (source === P.syntax) {
-    return { kind: "piston", body: pistonRun({ stderr: SYNTAX_STDERR, code: 1 }) };
+    return { kind: "piston", body: pistonCompileFailure(COMPILE_STDERR) };
   }
-  if (source === P.divZero) {
-    return { kind: "piston", body: pistonRun({ stderr: ZERO_DIVISION_STDERR, code: 1 }) };
+  if (source === P.throwing) {
+    return { kind: "piston", body: pistonRun({ stderr: UNCAUGHT_STDERR, code: 134 }) };
   }
   if (source === P.spin) {
     // Piston enforced ITS OWN `run_timeout` and killed the learner's program.
@@ -168,19 +173,19 @@ function record(scenario: string, r: { status: ExecutionStatus; infrastructureEr
 }
 
 const REQ = {
-  language: "python3" as const,
+  language: "cpp17" as const,
   stdin: "",
   timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
   memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,
 };
 
 beforeAll(async () => {
-  fake = await startFakePiston(cpython);
+  fake = await startFakePiston(gccJudge);
   piston = new PistonExecutionProvider(fake.baseUrl);
 });
 
 beforeEach(() => {
-  fake.setHandler(cpython);
+  fake.setHandler(gccJudge);
   fake.reset();
 });
 
@@ -202,12 +207,14 @@ describe("the request Piston actually receives", () => {
     expect(sent.method).toBe("POST");
     expect(sent.path).toBe("/api/v2/execute");
     expect(sent.body).toEqual({
-      language: "python",
-      // A semver RANGE, resolved by Piston against whatever python3 the host
+      language: "c++",
+      // A semver RANGE, resolved by Piston against whatever gcc the host
       // installed. Pinning an exact version here makes a routine judge upgrade
       // an outage.
-      version: "3.*",
-      files: [{ name: "main.py", content: P.hello }],
+      version: "10.*",
+      /* The NAME is load-bearing on this judge: the `.cpp` extension is what
+         makes the gcc package build C++ rather than C. */
+      files: [{ name: "main.cpp", content: P.hello }],
       stdin: "",
       /* Milliseconds. Piston's `run_timeout` is in ms and this is the learner's
          whole budget: send 5 instead of 5000 and Piston kills every program
@@ -244,7 +251,7 @@ describe("the request Piston actually receives", () => {
  * ====================================================================== */
 
 describe("ten scenarios, end to end against the wire protocol", () => {
-  it("1. print(\"hello\") is ok", async () => {
+  it("1. a hello-world program is ok", async () => {
     const r = await piston.run({ ...REQ, sourceCode: P.hello });
     expect(record("1 hello world", r).status).toBe("ok");
     expect(r.stdout).toBe("hello\n");
@@ -263,10 +270,20 @@ describe("ten scenarios, end to end against the wire protocol", () => {
 
   it("2b. NEGATIVE CONTROL: dropping stdin does not silently pass", async () => {
     /* Without this, test 2 would keep passing if the adapter stopped sending
-       stdin altogether and the fake fell back to a canned "49". */
+       stdin altogether and the fake fell back to a canned "49".
+
+       ## The failure got QUIETER with the language, which is why it is asserted
+       Under CPython a missing stdin raised `EOFError` and the program exited 1
+       — a loud `runtime_error` nobody could miss. `std::cin >> n` on empty
+       input sets `failbit` and leaves `n` zero-initialised, so the program runs
+       to completion, prints `0`, and exits 0. A dropped stdin is now a
+       PLAUSIBLE WRONG ANSWER rather than a crash: `ok` with the wrong number,
+       which is exactly the shape of a learner's own mistake and would be
+       recorded as one. So the assertion moved from the status to the OUTPUT. */
     const r = await piston.run({ ...REQ, sourceCode: P.square, stdin: "" });
-    expect(record("2b stdin missing", r).status).toBe("runtime_error");
-    expect(r.stderr).toContain("EOFError");
+    expect(record("2b stdin missing", r).status).toBe("ok");
+    expect(r.stdout.trim()).toBe("0");
+    expect(r.stdout.trim()).not.toBe("49");
   });
 
   it("3. reads several whitespace-separated values", async () => {
@@ -276,33 +293,43 @@ describe("ten scenarios, end to end against the wire protocol", () => {
     expect(fake.stats.requests[0].body.stdin).toBe("3   4\n");
   });
 
-  it("4. a syntax error is compile_error, not a crash", async () => {
-    /* Piston's python3 runtime has NO compile stage, so a syntax error arrives
-       on the RUN stage as exit 1 with SyntaxError on stderr — there is no
-       `compile` key to key off. This mapping used to be `runtime_error`, which
-       told a learner with a missing bracket that their program crashed while
+  it("4. a program that never compiled is compile_error, not a crash", async () => {
+    /* The gcc runtime HAS a compile stage, so a missing semicolon arrives with
+       `compile.code` non-zero and an empty run stage. Structural: the adapter
+       reads a field rather than matching prose.
+       The python3 runtime had no compile stage at all, which is why this
+       mapping was once a heuristic over stderr — and why it was once wrong,
+       telling a learner with a missing bracket that their program crashed while
        running. It never ran. */
     const r = await piston.run({ ...REQ, sourceCode: P.syntax });
-    expect(record("4 syntax error", r).status).toBe("compile_error");
+    expect(record("4 compile error", r).status).toBe("compile_error");
+    expect(r.stderr).toContain("error:");
     expect(r.infrastructureError).toBe(false);
     expect(fake.stats.requests[0].body.files[0].content).toBe(P.syntax);
   });
 
-  it("4b. and a real compile stage failure is read the same way", async () => {
-    // For any future runtime that HAS a compile step, Piston populates
-    // `compile`. Both routes to the same learner-facing fact.
-    fake.setHandler(() => ({ kind: "piston", body: pistonCompileFailure("expected ';'") }));
-    const r = await piston.run({ ...REQ, sourceCode: "int main(){}" });
-    expect(record("4b compile stage failure", r).status).toBe("compile_error");
-    expect(r.stderr).toContain("expected ';'");
-    expect(r.exitCode).toBe(1);
+  it("4b. NEGATIVE CONTROL: a crash whose stderr LOOKS like a diagnostic is not one", async () => {
+    /* The regression the structural read replaces the old heuristic with. This
+       program compiled — `compile.code` is 0 — and then printed something that
+       matches every pattern a prose-matching predicate would have looked for.
+       It RAN, so it is a runtime error, and the learner must be told to look at
+       their logic rather than their punctuation. */
+    fake.setHandler(() => ({
+      kind: "piston",
+      body: pistonRun({ stdout: "checking\n", stderr: "main.cpp: error: printed by the program\n", code: 1 }),
+    }));
+    const r = await piston.run({ ...REQ, sourceCode: P.hello });
+    expect(record("4b crash that prints error:", r).status).toBe("runtime_error");
+    expect(r.infrastructureError).toBe(false);
   });
 
   it("5. a runtime error is runtime_error", async () => {
-    const r = await piston.run({ ...REQ, sourceCode: P.divZero });
-    expect(record("5 ZeroDivisionError", r).status).toBe("runtime_error");
-    expect(r.stderr).toContain("ZeroDivisionError");
-    expect(r.exitCode).toBe(1);
+    const r = await piston.run({ ...REQ, sourceCode: P.throwing });
+    expect(record("5 uncaught exception", r).status).toBe("runtime_error");
+    /* The terminate handler's own sentence. It is the only thing the learner
+       has to work from, so it has to survive the adapter. */
+    expect(r.stderr).toContain("std::out_of_range");
+    expect(r.exitCode).toBe(134);
     expect(r.infrastructureError).toBe(false);
   });
 
@@ -349,7 +376,7 @@ describe("ten scenarios, end to end against the wire protocol", () => {
     const r = await piston.run({ ...REQ, sourceCode: P.exit3 });
     expect(record("9 exit code 3 with output", r).status).toBe("runtime_error");
     expect(r.exitCode).toBe(3);
-    // Thrown away, a learner debugging `sys.exit` loses the only clue they had.
+    // Thrown away, a learner debugging an early `exit` loses their only clue.
     expect(r.stdout).toBe("partial\n");
     expect(r.infrastructureError).toBe(false);
   });
@@ -359,10 +386,10 @@ describe("ten scenarios, end to end against the wire protocol", () => {
       { name: "connection refused", url: "http://127.0.0.1:1" },
       { name: "500 from the judge", reply: { kind: "http", status: 500, body: { message: "boom" } } },
       {
-        // The likeliest real misconfiguration: the host has no python3 runtime
+        // The likeliest real misconfiguration: the host has no gcc package
         // installed, so every request 400s. Not the learner's problem.
         name: "400 unknown runtime",
-        reply: { kind: "http", status: 400, body: { message: "python-3.* runtime is unknown" } },
+        reply: { kind: "http", status: 400, body: { message: "c++-10.* runtime is unknown" } },
       },
       {
         name: "a proxy error page instead of JSON",
@@ -373,7 +400,7 @@ describe("ten scenarios, end to end against the wire protocol", () => {
            empty run — status `ok`, stdout "" — which marked every one of a
            learner's test cases wrong because the JUDGE was broken. */
         name: "200 with no run stage",
-        reply: { kind: "http", status: 200, body: { language: "python", version: "3.12.0" } },
+        reply: { kind: "http", status: 200, body: { language: "c++", version: "10.2.0" } },
       },
     ];
 
@@ -459,7 +486,7 @@ const FOUR_CASES = [
 describe("runCases: infrastructure stops the run, the learner's failures do not", () => {
   it("stops on the first infrastructure failure and reports nothing about the rest", async () => {
     fake.setHandler((req, ctx) =>
-      ctx.index === 0 ? cpython(req) : { kind: "http", status: 503, body: { message: "down" } },
+      ctx.index === 0 ? gccJudge(req) : { kind: "http", status: 503, body: { message: "down" } },
     );
 
     const { results, infrastructureFailed } = await runCases(piston, P.square, FOUR_CASES);
@@ -474,7 +501,7 @@ describe("runCases: infrastructure stops the run, the learner's failures do not"
 
   it("does NOT stop when the learner's own program is too slow", async () => {
     fake.setHandler((req, ctx) =>
-      ctx.index === 1 ? { kind: "piston", body: pistonKilled() } : cpython(req),
+      ctx.index === 1 ? { kind: "piston", body: pistonKilled() } : gccJudge(req),
     );
 
     const { results, infrastructureFailed } = await runCases(piston, P.square, FOUR_CASES);
@@ -497,16 +524,19 @@ describe("runCases: infrastructure stops the run, the learner's failures do not"
   });
 
   it("marks a wrong-but-running program wrong, which is what evidence looks like", async () => {
-    const { results, infrastructureFailed } = await runCases(piston, "print(25)", FOUR_CASES);
+    const constant = '#include <iostream>\nint main() { std::cout << 25 << "\\n"; }\n';
+    const { results, infrastructureFailed } = await runCases(piston, constant, FOUR_CASES);
     expect(infrastructureFailed).toBe(false);
-    // `print(25)` is not a fixture, so the fake's python3 prints nothing at all.
+    /* Not a fixture the fake knows, so its gcc prints nothing at all — a
+       running program with no output, which fails every case including the one
+       whose expected answer is 25. */
     expect(results.every((r) => !r.passed)).toBe(true);
   });
 
   const MATRIX: { name: string; reply: FakeReply; expected: ExecutionStatus; infra: boolean }[] = [
     { name: "ok", reply: { kind: "piston", body: pistonRun({ stdout: "25\n" }) }, expected: "ok", infra: false },
-    { name: "compile_error", reply: { kind: "piston", body: pistonRun({ stderr: SYNTAX_STDERR, code: 1 }) }, expected: "compile_error", infra: false },
-    { name: "runtime_error", reply: { kind: "piston", body: pistonRun({ stderr: ZERO_DIVISION_STDERR, code: 1 }) }, expected: "runtime_error", infra: false },
+    { name: "compile_error", reply: { kind: "piston", body: pistonCompileFailure(COMPILE_STDERR) }, expected: "compile_error", infra: false },
+    { name: "runtime_error", reply: { kind: "piston", body: pistonRun({ stderr: UNCAUGHT_STDERR, code: 134 }) }, expected: "runtime_error", infra: false },
     { name: "time_limit_exceeded", reply: { kind: "piston", body: pistonKilled() }, expected: "time_limit_exceeded", infra: false },
     { name: "provider_error", reply: { kind: "http", status: 500, body: { message: "x" } }, expected: "provider_error", infra: true },
   ];
@@ -527,7 +557,49 @@ describe("runCases: infrastructure stops the run, the learner's failures do not"
  * ====================================================================== */
 
 describe("submit: a learner is never recorded as wrong because the judge failed", () => {
-  const BLOCK_ID = "m1.l1.b5";
+  /**
+   * A real, executable September block, and NOT the month's first one.
+   *
+   * It used to be `m1.l1.b5`, which under Python was "square the number you
+   * read" and had four cases. In C++ that task cannot be the first lesson's:
+   * reading input needs a DECLARED TYPE, so `cin` arrives at l3 and l1 can only
+   * ask for a fixed expression. `m1.l1.b5` is now `cout << 7 * 8;` with one
+   * case and no input — useless for this suite, which needs a program whose
+   * answer varies with stdin so that "the judge measured something" is
+   * distinguishable from "the judge echoed a constant".
+   *
+   * `m1.l3.b4` is the first block that has both: four cases, two of them
+   * hidden, and a reference solution that reads. Naming it here rather than
+   * searching for "any block with four cases" keeps the failure legible — if
+   * the curriculum moves it, this suite says which block it lost.
+   */
+  const BLOCK_ID = "m1.l3.b4";
+
+  /** The block's own reference solution — never a program written here. */
+  function solutionOf(block: GradeTarget["block"]): string {
+    const source = (block as { referenceSolution?: unknown }).referenceSolution;
+    if (typeof source !== "string") {
+      throw new Error(`${BLOCK_ID} has no referenceSolution to submit`);
+    }
+    return source;
+  }
+
+  /**
+   * A judge that answers the block's own cases, keyed BY THE STDIN IT RECEIVED.
+   *
+   * Not a lookup by call order and not a constant: if the adapter stopped
+   * sending stdin, or sent it for the wrong case, nothing here would match and
+   * every case would fail. That keeps the transport assertion alive through a
+   * handler that does not have to model a compiler.
+   */
+  function answersFor(cases: readonly { input: string; expectedOutput: string }[]) {
+    return (req: PistonExecuteRequest): FakeReply => {
+      const stdin = (req.stdin ?? "").trim();
+      const match = cases.find((c) => c.input.trim() === stdin);
+      if (!match) return { kind: "piston", body: pistonRun({ stdout: "" }) };
+      return { kind: "piston", body: pistonRun({ stdout: `${match.expectedOutput}\n` }) };
+    };
+  }
 
   /**
    * The route's own narrowing, reproduced rather than cast.
@@ -554,12 +626,17 @@ describe("submit: a learner is never recorded as wrong because the judge failed"
     expect(target).not.toBeNull();
     expect(target!.block.type).toBe("write_code");
     expect(executableCases(target!.block)).toHaveLength(4);
+    /* And it READS, which is what makes the rest of this describe mean
+       anything: a task with a fixed answer cannot tell a judge that measured
+       the learner from one that echoed a constant. */
+    expect(solutionOf(target!.block)).toContain("cin");
+    expect(executableCases(target!.block).some((c) => c.hidden)).toBe(true);
   });
 
   it("an unmeasured code block settles `unknown`, which produces NO verdict event", () => {
     const target = findBlock(BLOCK_ID)!;
     // Exactly what the route does before it consults the judge.
-    const outcome = gradeBlock(target, { kind: "text", value: "n = int(input())\nprint(n * n)" });
+    const outcome = gradeBlock(target, { kind: "text", value: solutionOf(target.block) });
 
     expect(outcome.result.verdict).toBe("unknown");
     /* `null` means the route writes no `verdict_received` and no
@@ -572,11 +649,11 @@ describe("submit: a learner is never recorded as wrong because the judge failed"
   it("infrastructure failure leaves that `unknown` standing", async () => {
     fake.setHandler(() => ({ kind: "http", status: 502, body: { message: "gateway" } }));
     const target = findBlock(BLOCK_ID)!;
-    const outcome = gradeBlock(target, { kind: "text", value: "n = int(input())\nprint(n * n)" });
+    const outcome = gradeBlock(target, { kind: "text", value: solutionOf(target.block) });
 
     const { results, infrastructureFailed } = await runCases(
       piston,
-      "n = int(input())\nprint(n * n)",
+      solutionOf(target.block),
       executableCases(target.block),
     );
 
@@ -591,14 +668,15 @@ describe("submit: a learner is never recorded as wrong because the judge failed"
   });
 
   it("a learner timeout DOES become a verdict — it is evidence", async () => {
-    fake.setHandler((req, ctx) =>
-      ctx.index === 1 ? { kind: "piston", body: pistonKilled() } : cpython(req),
-    );
     const target = findBlock(BLOCK_ID)!;
+    const answer = answersFor(executableCases(target.block));
+    fake.setHandler((req, ctx) =>
+      ctx.index === 1 ? { kind: "piston", body: pistonKilled() } : answer(req),
+    );
 
     const { results, infrastructureFailed } = await runCases(
       piston,
-      P.square,
+      solutionOf(target.block),
       executableCases(target.block),
     );
     expect(infrastructureFailed).toBe(false);
@@ -613,7 +691,8 @@ describe("submit: a learner is never recorded as wrong because the judge failed"
 
   it("a clean pass becomes `accepted`", async () => {
     const target = findBlock(BLOCK_ID)!;
-    const { results } = await runCases(piston, P.square, executableCases(target.block));
+    fake.setHandler(answersFor(executableCases(target.block)));
+    const { results } = await runCases(piston, solutionOf(target.block), executableCases(target.block));
     const graded = checkCodeResult(results.filter((r) => r.passed).length, results.length);
     expect(graded.verdict).toBe("correct");
     expect(toLearningVerdictName(graded.verdict)).toBe("accepted");

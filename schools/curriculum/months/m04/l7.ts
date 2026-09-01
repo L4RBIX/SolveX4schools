@@ -21,10 +21,11 @@ import type { LessonBlock } from "../../types";
  *
  * ## Why this is a sorting lesson and not a one-liner
  *
- * Both families are a single line with `set()` or a `dict`, and that is exactly
+ * Both families are a single line with a `set` or a `map`, and that is exactly
  * why the programme files them under sorting. Neither is available in this
- * course — `scripts/check-blocks.ts` refuses them — and the reason is not
- * squeamishness about builtins: after `a.sort()` equal values are ADJACENT, so
+ * course — Year 1 is procedural and `docs/cpp17/CPP17_PEDAGOGY.md` keeps the
+ * container surface to `vector` — and the reason is not squeamishness about the
+ * library: after `sort` equal values are ADJACENT, so
  *
  *   · «неше түрлі мән бар» becomes «неше жерде a[i] өзінің a[i - 1] көршісінен
  *     өзгеше», and
@@ -32,7 +33,7 @@ import type { LessonBlock } from "../../types";
  *
  * That equivalence is the idea of the lesson. A learner who reaches for a set
  * has skipped it; a learner who sorts first has understood why December moved
- * `sorted()`/`.sort()` here in the first place.
+ * `sort` here in the first place.
  *
  * ## The decision every block obeys
  *
@@ -43,17 +44,36 @@ import type { LessonBlock } from "../../types";
  * state the rule with a worked example of a tie, `b8`'s hidden cases fail the
  * `>=` mutant, and `b8s` is built out of exactly that character.
  *
- * ## Input shape, unchanged from October
+ * ## What the C++ migration changed
  *
- * One line of space-separated integers, `a = list(map(int, input().split()))`,
- * with the count taken from `len(a)`. Every prompt guarantees at least one
- * number — `a[0]` on an empty list is a crash, not a lesson — and nothing here
- * tests the empty line.
+ * Two things, and neither is syntax.
  *
- * Python used: September's, October's and November's, plus this month's
- * `.sort()`. No `set`, no `dict`, no `enumerate`, no comprehension, no import.
- * Every program prints numbers only, so no learner is matching glyphs of a
- * language they do not read.
+ * **`b5` no longer crashes.** The Python version read `a[i + 1]` off the end of
+ * the list and the symptom was an `IndexError`; the learner was told "it stops
+ * with an error, find the line". C++ has no such promise — reading one past the
+ * end of a `vector` with `[]` is undefined behaviour, so the honest version of
+ * that block cannot be built on a crash. The bug is now the off-by-one in the
+ * other direction: the loop stops one pair EARLY and silently undercounts. The
+ * rule being taught is unchanged and is arguably clearer for it — the loop's
+ * range is decided by which neighbour you read, and getting it wrong buys you a
+ * wrong answer rather than a message.
+ *
+ * **`b2`'s step 1 was re-calibrated.** It priced the naive "look back through
+ * the whole list" scan at ten thousand elements, where CPython needs seconds
+ * and C++ needs half of one. The size is now 200 000, where the same scan is
+ * about twenty billion comparisons — hundreds of seconds at the hundred million
+ * steps a second `m4.l1.b1` establishes.
+ *
+ * ## Input shape
+ *
+ * One line of space-separated integers, read with the `while (cin >> x)` recipe
+ * `m4.l3.b1` introduced, with the count taken from `a.size()`. Every prompt
+ * guarantees at least one number — `a[0]` on an empty vector is undefined
+ * behaviour, not a lesson — and nothing here tests the empty line.
+ *
+ * C++ used: September's, October's and November's, plus this month's `sort`.
+ * No `set`, no `map`, no lambda, no `bits/stdc++.h`. Every program prints
+ * numbers only, so no learner is matching glyphs of a language they do not read.
  */
 export const M4_L7: LessonBlock[] = [
   {
@@ -72,10 +92,26 @@ export const M4_L7: LessonBlock[] = [
        here — with the even-count caveat spelled out — because the lesson's
        second objective is to state it, not to code it. */
     body: {
-      kk: "Қазанда сен тізімнің ең үлкенін циклмен өзің іздедің. Желтоқсанда `.sort()` пайда болды: ол тізімді орнында өсу ретімен қайта тізеді. Реттеудің ең пайдалы салдары — бірдей мәндер енді бір-бірінің қасында, тұтас топ болып тұрады. Осындай топты серия деп атаймыз. Сондықтан «мұндай сан бұрын кездесті ме?» деген сұраққа жауап беру үшін бүкіл тізімді қайта қарап шығудың қажеті жоқ: жалғыз сол жақ көршісін, яғни `a[i - 1]`-ді тексерсең жеткілікті. Реттелген тізімде орынның өзі де мағынаға ие болады: `a[0]` — ең кішісі, `a[len(a) - 1]` — ең үлкені, ал дәл ортасында тұрғаны — `a[len(a) // 2]`. Элемент саны тақ болса, ортаңғы элемент біреу және оның индексі дәл осы. Жұп болса, орта екі элементтің арасына түседі, сондықтан қайсысын алу керегін есеп шартының өзі айтуға тиіс — бағдарлама оны өз бетінше шеше алмайды.",
-      ru: "В октябре ты искал максимум списка циклом вручную. В декабре появился `.sort()`: он переставляет список по возрастанию прямо на месте. Самое полезное следствие сортировки — одинаковые значения теперь стоят вплотную друг к другу, одной сплошной группой. Такую группу будем называть серией. Поэтому на вопрос «встречалось ли уже такое число?» больше не нужно заново просматривать весь список: достаточно проверить единственного левого соседа — `a[i - 1]`. В отсортированном списке и сама позиция начинает что-то значить: `a[0]` — наименьший элемент, `a[len(a) - 1]` — наибольший, а ровно посередине стоит `a[len(a) // 2]`. Если количество элементов нечётное, средний элемент один и его индекс именно такой. Если чётное, середина попадает между двумя элементами, и тогда условие задачи обязано само сказать, какой из них брать, — программа не решит это за тебя.",
+      kk: "Қазанда сен тізімнің ең үлкенін циклмен өзің іздедің. Желтоқсанда `sort(a.begin(), a.end())` пайда болды: ол тізімді орнында өсу ретімен қайта тізеді. Реттеудің ең пайдалы салдары — бірдей мәндер енді бір-бірінің қасында, тұтас топ болып тұрады. Осындай топты серия деп атаймыз. Сондықтан «мұндай сан бұрын кездесті ме?» деген сұраққа жауап беру үшін бүкіл тізімді қайта қарап шығудың қажеті жоқ: жалғыз сол жақ көршісін, яғни `a[i - 1]`-ді тексерсең жеткілікті. Реттелген тізімде орынның өзі де мағынаға ие болады: `a[0]` — ең кішісі, `a[n - 1]` — ең үлкені, ал дәл ортасында тұрғаны — `a[n / 2]`, мұндағы `n` — `a.size()`. Элемент саны тақ болса, ортаңғы элемент біреу және оның индексі дәл осы. Жұп болса, орта екі элементтің арасына түседі, сондықтан қайсысын алу керегін есеп шартының өзі айтуға тиіс — бағдарлама оны өз бетінше шеше алмайды. Сандарды оқығанда `while (cin >> x) { a.push_back(x); }` рецептін қолдан: жолда неше сан бар екенін алдын ала білудің қажеті жоқ.",
+      ru: "В октябре ты искал максимум списка циклом вручную. В декабре появился `sort(a.begin(), a.end())`: он переставляет список по возрастанию прямо на месте. Самое полезное следствие сортировки — одинаковые значения теперь стоят вплотную друг к другу, одной сплошной группой. Такую группу будем называть серией. Поэтому на вопрос «встречалось ли уже такое число?» больше не нужно заново просматривать весь список: достаточно проверить единственного левого соседа — `a[i - 1]`. В отсортированном списке и сама позиция начинает что-то значить: `a[0]` — наименьший элемент, `a[n - 1]` — наибольший, а ровно посередине стоит `a[n / 2]`, где `n` — это `a.size()`. Если количество элементов нечётное, средний элемент один и его индекс именно такой. Если чётное, середина попадает между двумя элементами, и тогда условие задачи обязано само сказать, какой из них брать, — программа не решит это за тебя. Числа читай рецептом `while (cin >> x) { a.push_back(x); }`: знать заранее, сколько их в строке, не требуется.",
     },
-    code: "a = [7, 3, 7, 1, 3, 7, 5]\na.sort()\nprint(a)\nprint(a[0], a[len(a) // 2], a[len(a) - 1])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {7, 3, 7, 1, 3, 7, 5};\n" +
+      "    int n = a.size();\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    cout << a[0] << \" \" << a[n / 2] << \" \" << a[n - 1] << endl;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m4.l7.b2",
@@ -96,8 +132,8 @@ export const M4_L7: LessonBlock[] = [
        the find_bug and the fill_blank both come back to. */
     steps: [
       {
-        kk: "Реттелмеген тізімде бірдей бағалар шашырап жатыр. «Мұндай баға бұрын болды ма?» деп сұрау үшін әр элемент бойынша артқа қарай бүкіл тізімді қарап шығуға тура келеді. Алты элемент үшін бұл он бес шақты салыстыру, ал он мың элемент үшін елу миллионға жуық. Желтоқсанның басты ойы дәл осы жерде көрінеді: жауап дұрыс, бірақ кеш.",
-        ru: "В неотсортированном списке одинаковые оценки разбросаны. Чтобы спросить «была ли уже такая оценка?», для каждого элемента приходится просматривать назад весь список. Для шести элементов это около пятнадцати сравнений, а для десяти тысяч — уже около пятидесяти миллионов. Здесь и видна главная мысль декабря: ответ верный, но поздний.",
+        kk: "Реттелмеген тізімде бірдей бағалар шашырап жатыр. «Мұндай баға бұрын болды ма?» деп сұрау үшін әр элемент бойынша артқа қарай бүкіл тізімді қарап шығуға тура келеді. Алты элемент үшін бұл он бес шақты салыстыру, ал екі жүз мың элемент үшін жиырма миллиардқа жуық. Секундына жүз миллион қадам жасайтын компьютер үшін бұл жүздеген секунд. Желтоқсанның басты ойы дәл осы жерде көрінеді: жауап дұрыс, бірақ кеш.",
+        ru: "В неотсортированном списке одинаковые оценки разбросаны. Чтобы спросить «была ли уже такая оценка?», для каждого элемента приходится просматривать назад весь список. Для шести элементов это около пятнадцати сравнений, а для двухсот тысяч — уже около двадцати миллиардов. Для компьютера, делающего сто миллионов шагов в секунду, это сотни секунд. Здесь и видна главная мысль декабря: ответ верный, но поздний.",
       },
       {
         kk: "Сондықтан алдымен реттейміз: 3, 4, 4, 4, 5, 5. Енді бірдей бағалардың бәрі қатар тұр, ал тізім бір рет қана қаралады.",
@@ -108,8 +144,8 @@ export const M4_L7: LessonBlock[] = [
         ru: "Новое значение начинается ровно там, где `a[i]` отличается от своего левого соседа `a[i - 1]`. Значит, количество различных значений — это количество таких мест.",
       },
       {
-        kk: "Бірінші элементтің сол жақ көршісі жоқ, бірақ ол бірінші топты сөзсіз ашады. Сондықтан есептегіш нөлден емес, бірден басталады, ал цикл `i = 0` емес, `i = 1`-ден жүреді. `count = 0` деп бастасаң, бір ғана элементтен тұратын тізім үшін нөл шығады — ал бос емес тізімде нөл түрлі мән болуы мүмкін емес.",
-        ru: "У первого элемента левого соседа нет, но первую группу он открывает в любом случае. Поэтому счётчик начинается не с нуля, а с единицы, а цикл идёт не с `i = 0`, а с `i = 1`. Если начать с `count = 0`, то для списка из одного элемента получится ноль — а в непустом списке нуля различных значений быть не может.",
+        kk: "Бірінші элементтің сол жақ көршісі жоқ, бірақ ол бірінші топты сөзсіз ашады. Сондықтан есептегіш нөлден емес, бірден басталады, ал цикл `i = 0` емес, `i = 1`-ден жүреді. `count = 0` деп бастасаң, бір ғана элементтен тұратын тізім үшін нөл шығады — ал бос емес тізімде нөл түрлі мән болуы мүмкін емес. Ал `i = 0`-ден бастасаң, бағдарлама `a[-1]` дегенді оқуға тырысады, ал C++-та тізімнен тыс индекс — қате хабарлама емес, анықталмаған мінез: бағдарлама кез келген нәрсе істей алады.",
+        ru: "У первого элемента левого соседа нет, но первую группу он открывает в любом случае. Поэтому счётчик начинается не с нуля, а с единицы, а цикл идёт не с `i = 0`, а с `i = 1`. Если начать с `count = 0`, то для списка из одного элемента получится ноль — а в непустом списке нуля различных значений быть не может. А если начать с `i = 0`, программа полезет читать `a[-1]`, и в C++ выход за границы списка — это не сообщение об ошибке, а неопределённое поведение: программа может сделать что угодно.",
       },
       {
         kk: "Қадамдар: i = 1 → 4 ≠ 3, count = 2; i = 2 → 4 = 4, өзгермейді; i = 3 → 4 = 4, өзгермейді; i = 4 → 5 ≠ 4, count = 3; i = 5 → 5 = 5, өзгермейді.",
@@ -117,13 +153,24 @@ export const M4_L7: LessonBlock[] = [
       },
     ],
     code:
-      "a = [4, 5, 4, 3, 5, 4]\n" +
-      "a.sort()\n" +
-      "count = 1\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] != a[i - 1]:\n" +
-      "        count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {4, 5, 4, 3, 5, 4};\n" +
+      "    int n = a.size();\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int count = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] != a[i - 1]) {\n" +
+      "            count = count + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     result: { kk: "Экранға: 3", ru: "На экран: 3" },
   },
   {
@@ -146,19 +193,29 @@ export const M4_L7: LessonBlock[] = [
       ru: "Эту программу написали, чтобы найти количество различных значений. Различных чисел в списке действительно всего два. Что программа выведет на экран?",
     },
     code:
-      "a = [5, 2, 5, 2]\n" +
-      "count = 1\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] != a[i - 1]:\n" +
-      "        count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {5, 2, 5, 2};\n" +
+      "    int n = a.size();\n" +
+      "    int count = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] != a[i - 1]) {\n" +
+      "            count = count + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "4",
     options: ["1", "2", "3", "4"],
     diagnosticMapping: {
       "2": {
         failureClass: "unsorted_neighbour_scan",
         justification:
-          "2 — сұрақтың шын жауабы, бірақ экрандағы код оны шығармайды: мұнда `a.sort()` жоқ. Бұл жауапты таңдау кодты емес, ниетті оқығанды білдіреді — реттелмеген тізімде бірдей мәндер көрші болып тұрмайды, сондықтан көршімен салыстыру ештеңе дәлелдемейді.",
+          "2 — сұрақтың шын жауабы, бірақ экрандағы код оны шығармайды: мұнда `sort` шақырылмаған. Бұл жауапты таңдау кодты емес, ниетті оқығанды білдіреді — реттелмеген тізімде бірдей мәндер көрші болып тұрмайды, сондықтан көршімен салыстыру ештеңе дәлелдемейді.",
       },
       "3": {
         failureClass: "first_group_not_counted",
@@ -176,33 +233,44 @@ export const M4_L7: LessonBlock[] = [
     /* The list is written already sorted, on purpose: this block is about the
        run counter, and re-litigating the sort here would put two ideas on one
        card. Values are recorded at the loop header — the values CARRIED INTO
-       the iteration — the convention m2.l5.b4 established. Naming lines 6 or 8
-       instead would say out loud how many times the run was reset, which is
-       the entire question. */
+       the iteration — the convention m2.l5.b4 established. Naming the assignment
+       lines instead would say out loud how many times the run was reset, which
+       is the entire question. */
     prompt: {
-      kk: "Тізім әдейі реттеліп жазылған. Бағдарламаны қағазда қадамдап орында: цикл тақырыбына оралған сайын сол сәттегі `i`, `run` және `best` мәндерін жаз. `run` — қазіргі серияның ұзындығы, `best` — осы уақытқа дейін кездескен ең ұзын серия.",
-      ru: "Список записан уже отсортированным. Выполни программу по шагам на бумаге: каждый раз при возврате к заголовку цикла записывай текущие значения `i`, `run` и `best`. `run` — длина текущей серии, `best` — самая длинная серия из встреченных до сих пор.",
+      kk: "Тізім әдейі реттеліп жазылған. Бағдарламаны қағазда қадамдап орында: цикл тақырыбына (10-жол) оралған сайын сол сәттегі `i`, `run` және `best` мәндерін жаз. `run` — қазіргі серияның ұзындығы, `best` — осы уақытқа дейін кездескен ең ұзын серия. Соңғы жол — 20-жолдағы шығару сәті.",
+      ru: "Список записан уже отсортированным. Выполни программу по шагам на бумаге: каждый раз при возврате к заголовку цикла (строка 10) записывай текущие значения `i`, `run` и `best`. `run` — длина текущей серии, `best` — самая длинная серия из встреченных до сих пор. Последняя строка — момент вывода в строке 20.",
     },
     code:
-      "a = [2, 2, 5, 5, 5, 9]\n" +
-      "run = 1\n" +
-      "best = 1\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = 1\n" +
-      "    if run > best:\n" +
-      "        best = run\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a = {2, 2, 5, 5, 5, 9};\n" +
+      "    int n = a.size();\n" +
+      "    int run = 1;\n" +
+      "    int best = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "        if (run > best) {\n" +
+      "            best = run;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 3, vars: { run: "1", best: "1" } },
-      { line: 4, vars: { i: "1", run: "1", best: "1" } },
-      { line: 4, vars: { i: "2", run: "2", best: "2" } },
-      { line: 4, vars: { i: "3", run: "1", best: "2" } },
-      { line: 4, vars: { i: "4", run: "2", best: "2" } },
-      { line: 4, vars: { i: "5", run: "3", best: "3" } },
-      { line: 11, vars: { run: "1", best: "3" } },
+      { line: 9, vars: { run: "1", best: "1" } },
+      { line: 10, vars: { i: "1", run: "1", best: "1" } },
+      { line: 10, vars: { i: "2", run: "2", best: "2" } },
+      { line: 10, vars: { i: "3", run: "1", best: "2" } },
+      { line: 10, vars: { i: "4", run: "2", best: "2" } },
+      { line: 10, vars: { i: "5", run: "3", best: "3" } },
+      { line: 20, vars: { run: "1", best: "3" } },
     ],
   },
   {
@@ -211,45 +279,80 @@ export const M4_L7: LessonBlock[] = [
     skillRefs: ["debug.boundary", "lists.traverse", "sort.basic"],
     sourceType: "product-authored",
     /*
-     * The forward-looking twin of the same boundary. b2 and b3 look BACK at
-     * a[i - 1] and must therefore start at i = 1; this one looks FORWARD at
-     * a[i + 1] and must therefore stop one early. Both spellings are correct
-     * Python and both appear in this lesson deliberately — the rule the learner
-     * needs is "the loop's range is decided by which neighbour you read", not
-     * "always write minus one".
+     * RE-AUTHORED, not translated. See the head comment: the Python original's
+     * symptom was an IndexError from reading `a[i + 1]` off the end, and C++
+     * makes no such promise — that read is undefined behaviour, so a block
+     * built on it would be teaching a crash the language does not guarantee.
      *
-     * The prompt vouches for line 5 explicitly. Without that, a learner could
-     * defensibly blame the comparison instead, and a find_bug with two
-     * defensible answers grades understanding as error. Vouching for it costs
-     * nothing: the fix is still a range the learner has to get right, and the
-     * off-by-one is still theirs to find.
+     * The boundary being taught is unchanged and is still the forward-looking
+     * twin of b2 and b3: those look BACK at a[i - 1] and must start at i = 1;
+     * this one looks FORWARD at a[i + 1] and must therefore stop at n - 1. The
+     * program on screen stops at n - 2, one pair short, and quietly reports one
+     * distinct value too few. The rule the learner needs is "the loop's range
+     * is decided by which neighbour you read", not "always write minus one".
      *
-     * No diagnosticMapping. Blaming line 5 anyway, or line 2, has more than one
-     * possible cause each — misreading the prompt, or believing the neighbour
-     * index is what must change — so the engine should ask rather than tell.
+     * The prompt vouches for the comparison line explicitly. Without that, a
+     * learner could defensibly blame the comparison instead, and a find_bug
+     * with two defensible answers grades understanding as error. Vouching for
+     * it costs nothing: the fix is still a range the learner has to get right.
+     *
+     * No diagnosticMapping. Blaming line 16 anyway, or line 12, has more than
+     * one possible cause each — misreading the prompt, or believing the
+     * neighbour index is what must change — so the engine should ask rather
+     * than tell.
      */
     prompt: {
-      kk: "Бұл бағдарлама тізімдегі әртүрлі мәндер санын шығаруы керек. `1 4 4 9` енгізгенде ол ешнәрсе шығармай, IndexError қатесімен тоқтап қалады. Салыстыру жолы дұрыс жазылған: әр элемент өзінен КЕЙІНГІ көршісімен салыстырылады, солай қалуы керек. Ендеше қай жол кінәлі?",
-      ru: "Эта программа должна выводить количество различных значений в списке. При вводе `1 4 4 9` она ничего не выводит и падает с ошибкой IndexError. Строка сравнения написана правильно: каждый элемент сравнивается со СЛЕДУЮЩИМ соседом, и так и должно остаться. Тогда какая строка виновата?",
+      kk: "Бұл бағдарлама тізімдегі әртүрлі мәндер санын шығаруы керек. `1 4 4 9` енгізгенде дұрыс жауап 3 болуға тиіс, ал ол 2 шығарады. Салыстыру жолы (16-жол) дұрыс жазылған: әр элемент өзінен КЕЙІНГІ көршісімен салыстырылады, солай қалуы керек. Ендеше қай жол кінәлі?",
+      ru: "Эта программа должна выводить количество различных значений в списке. При вводе `1 4 4 9` правильный ответ 3, а она выводит 2. Строка сравнения (строка 16) написана правильно: каждый элемент сравнивается со СЛЕДУЮЩИМ соседом, и так и должно остаться. Тогда какая строка виновата?",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "count = 1\n" +
-      "for i in range(len(a)):\n" +
-      "    if a[i] != a[i + 1]:\n" +
-      "        count = count + 1\n" +
-      "print(count)",
-    buggyLine: 4,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int count = 1;\n" +
+      "    for (int i = 0; i < n - 2; i++) {\n" +
+      "        if (a[i] != a[i + 1]) {\n" +
+      "            count = count + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 15,
     symptomInput: "1 4 4 9",
     fixedCode:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "count = 1\n" +
-      "for i in range(len(a) - 1):\n" +
-      "    if a[i] != a[i + 1]:\n" +
-      "        count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int count = 1;\n" +
+      "    for (int i = 0; i < n - 1; i++) {\n" +
+      "        if (a[i] != a[i + 1]) {\n" +
+      "            count = count + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m4.l7.b6",
@@ -262,11 +365,11 @@ export const M4_L7: LessonBlock[] = [
      * `sort` — b4's traced program had its list written already sorted, so
      *   nothing on the previous cards tells the learner that this machine needs
      *   ordering. b3 is what tells them, and this is where they act on it.
-     * `1` in range — the same boundary as b2 step 4, and the quiet one:
-     *   `range(0, len(a))` does not crash, because Python reads `a[-1]` as the
-     *   LAST element, so the first comparison silently runs against the largest
-     *   value instead of against nothing. On an all-equal list that phantom
-     *   match opens the run at 2 and the printed answer comes out one too big.
+     * `1` in the loop start — the same boundary as b2 step 4. In Python the
+     *   wrong answer was quietly wrong (`a[-1]` is the LAST element there); in
+     *   C++ it is undefined behaviour, so the program may print anything at all
+     *   or nothing. Neither is a lesson the learner can debug, which is why the
+     *   boundary is stated in b1, b2 and here.
      * `1` in the reset — not 0. The element that broke the run is already the
      *   first member of the new one.
      *
@@ -279,18 +382,34 @@ export const M4_L7: LessonBlock[] = [
       ru: "Программа должна вывести, СКОЛЬКО РАЗ встречается самое частое число, — не само число, а только количество повторов. Например, для `2 5 2 5 5` ответ 3. Заполни три пропуска.",
     },
     template:
-      "a = list(map(int, input().split()))\n" +
-      "a.___()\n" +
-      "run = 1\n" +
-      "best = 1\n" +
-      "for i in range(___, len(a)):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = ___\n" +
-      "    if run > best:\n" +
-      "        best = run\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    ___(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int run = 1;\n" +
+      "    int best = 1;\n" +
+      "    for (int i = ___; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = ___;\n" +
+      "        }\n" +
+      "        if (run > best) {\n" +
+      "            best = run;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "sort" },
       { id: "f2", answer: "1" },
@@ -311,18 +430,33 @@ export const M4_L7: LessonBlock[] = [
       ru: "В одной строке через пробел даны целые числа, хотя бы одно. Выведи, сколько в списке различных значений. Например, для `5 2 5 2` ответ 2: чисел четыре, но различных всего два.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "count = 1\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] != a[i - 1]:\n" +
-      "        count = count + 1\n" +
-      "print(count)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int count = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] != a[i - 1]) {\n" +
+      "            count = count + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << count;\n" +
+      "    return 0;\n" +
+      "}",
     /* The cases are chosen against the four solutions that almost work:
        no sort (case 1 and the last), `count = 0` (the all-equal case and the
-       single element), `range(0, len(a))` reading a[-1] (the reversed case,
-       where a[0] and a[-1] differ), and counting elements instead of groups
-       (any case with a repeat). */
+       single element), a loop that starts at i = 0 and reads a[-1] (the
+       reversed case, where the value it lands on differs from a[0]), and
+       counting elements instead of groups (any case with a repeat). */
     cases: [
       { input: "5 2 5 2", expectedOutput: "2" },
       { input: "4 5 4 3 5 4", expectedOutput: "3" },
@@ -348,20 +482,36 @@ export const M4_L7: LessonBlock[] = [
       ru: "В одной строке через пробел даны целые числа, хотя бы одно. Выведи число, которое встречается чаще всех. Если таких чисел несколько, выведи НАИМЕНЬШЕЕ из них. Например, в списке `8 8 2 2 5` и 8, и 2 встречаются по два раза, поэтому ответ 2. Вывести нужно одно число — само значение, а не количество его повторов.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "run = 1\n" +
-      "best = 1\n" +
-      "ans = a[0]\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = 1\n" +
-      "    if run > best:\n" +
-      "        best = run\n" +
-      "        ans = a[i]\n" +
-      "print(ans)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int run = 1;\n" +
+      "    int best = 1;\n" +
+      "    int ans = a[0];\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "        if (run > best) {\n" +
+      "            best = run;\n" +
+      "            ans = a[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << ans;\n" +
+      "    return 0;\n" +
+      "}",
     /* Every case kills something specific:
        `8 8 2 2 5` and `5 2 5 2 9` — the `>=` tie, which answers 8 and 5.
        `3 1 1 3 3`  — no sort at all, which answers 1.
@@ -409,35 +559,67 @@ export const M4_L7: LessonBlock[] = [
       ru: "Программа ниже выводит два числа: самое частое значение и то, сколько раз оно встретилось. Вдобавок при равенстве она выбирает неправильно — берёт НАИБОЛЬШЕЕ из значений с одинаковым числом повторов. Измени программу так, чтобы на экран выходило одно число — само самое частое значение, — а при равенстве выводилось НАИМЕНЬШЕЕ из них. Например, для `8 8 2 2 5` ответ 2, потому что и 8, и 2 встречаются по два раза. На входе — целые числа в одной строке, хотя бы одно.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "run = 1\n" +
-      "best = 1\n" +
-      "ans = a[0]\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = 1\n" +
-      "    if run >= best:\n" +
-      "        best = run\n" +
-      "        ans = a[i]\n" +
-      "print(ans, best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int run = 1;\n" +
+      "    int best = 1;\n" +
+      "    int ans = a[0];\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "        if (run >= best) {\n" +
+      "            best = run;\n" +
+      "            ans = a[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << ans << \" \" << best;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "run = 1\n" +
-      "best = 1\n" +
-      "ans = a[0]\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = 1\n" +
-      "    if run > best:\n" +
-      "        best = run\n" +
-      "        ans = a[i]\n" +
-      "print(ans)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) {\n" +
+      "        a.push_back(x);\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int n = a.size();\n" +
+      "    int run = 1;\n" +
+      "    int best = 1;\n" +
+      "    int ans = a[0];\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "        if (run > best) {\n" +
+      "            best = run;\n" +
+      "            ans = a[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << ans;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "7 7 7", expectedOutput: "7" },
       { input: "9 9 3 3 3 1 1", expectedOutput: "3" },

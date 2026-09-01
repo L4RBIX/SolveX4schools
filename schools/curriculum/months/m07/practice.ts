@@ -53,17 +53,16 @@ import type { LessonBlock } from "../../types";
  *    final line — which is the convention `m7.l2.b9` and `m7.l3.b8` already
  *    set, so a learner meets one input shape all month. Rows and columns are
  *    numbered from 0 and every prompt says so. `1 ≤ n ≤ 20` and `1 ≤ m ≤ 20`
- *    everywhere, so a learner who reaches for recursion instead of the queue
- *    is safe from Python's limit — at most 400 cells deep.
+ *    everywhere, so the largest map is 400 cells — well inside the 16 KiB the
+ *    judge accepts on stdin, and shallow enough that a learner who reaches for
+ *    recursion instead of the queue does not overflow the stack either.
  *
- * 2. **The queue is a list with a moving head index.** `collections.deque` is
- *    never taught by this programme and importing it would put an unexplained
- *    object at the centre of the month, so every reference solution here reads
- *    `qr = [sr]`, `qc = [sc]`, `head = 0`, `while head < len(qr):` — one index
- *    walking forward through a list that keeps growing behind it, which is
- *    January's two-pointer idea on a new problem. Two parallel lists rather
- *    than one list of pairs, so nothing here needs a tuple either. Nothing in
- *    this file uses a construct later than December.
+ * 2. **The map is a `vector<string>` and the queue is `std::queue`.** The map
+ *    is read with `cin >> g[i]`, one row per line, which is `m7.l1`'s idiom;
+ *    the queue is `queue<pair<int, int>>` with `q.push({r, c})` and the
+ *    two-line take-out `auto [r, c] = q.front(); q.pop();` — `m7.l5`'s, and it
+ *    is two lines because `pop()` returns nothing. Nothing in this file uses a
+ *    construct the month has not already taught.
  *
  * 3. **`m7.p8` is not the brief's "how many cells are reachable from the
  *    start".** On a grid the cells reachable from a free cell ARE its region,
@@ -84,10 +83,11 @@ import type { LessonBlock } from "../../types";
  *
  * 5. **No `diagnosticMapping` anywhere in this file.** A mapping may only be
  *    declared when one wrong answer has exactly one cause. On a grid task a
- *    wrong count is reachable from a missing bounds check, a mark set on exit,
- *    diagonal neighbours, or a mis-read of the input format — four different
- *    misunderstandings landing on one number. The pipeline emitting
- *    `unattributed_failure` and asking the learner is the correct outcome.
+ *    wrong count is reachable from a mark set on exit, from diagonal
+ *    neighbours, from a bounds test that is one too strict, or from a mis-read
+ *    of the input format — four different misunderstandings landing on one
+ *    number. The pipeline emitting `unattributed_failure` and asking the
+ *    learner is the correct outcome.
  *
  * 6. **`m7.p4` is the only `exact` checker.** Its prompt states a layout — n
  *    lines of m characters — so `token`, which would accept the whole map on
@@ -98,23 +98,26 @@ import type { LessonBlock } from "../../types";
  * ## The wrong programs these cases are built to fail
  *
  * Every block carries at least one hidden case chosen against a named
- * degenerate solution, and all forty-one of them were executed against these
- * case sets before this file was written; every one fails at least one case.
- * Across the ten: the missing bounds check — which in Python does not crash on
- * `r - 1` but **wraps to the far edge**, so `m7.p3` carries a map whose top and
- * bottom rows fuse into one island under it; the visited mark set on exit
- * instead of on entry, which counts a cell twice and dies on any two-by-two
- * open block; the start cell being a wall; an unreachable target; a 1×1 map; a
- * map that is entirely walls; a map that is entirely free; diagonal neighbours
- * treated as neighbours; straight-line distance substituted for a real
- * shortest path; and depth-first exploration returning the first route found
- * rather than the shortest.
+ * degenerate solution, and all of them were executed against these case sets;
+ * every one fails at least one case. Across the ten: the visited mark set on
+ * exit instead of on entry, which counts a cell twice and dies on any
+ * two-by-two open block; a traversal that omits one of the four directions;
+ * the start cell being a wall; an unreachable target; a 1×1 map; a map that is
+ * entirely walls; a map that is entirely free; diagonal neighbours treated as
+ * neighbours; straight-line distance substituted for a real shortest path; and
+ * depth-first exploration returning the first route found rather than the
+ * shortest.
  *
- * One honest gap, recorded rather than papered over: on `m7.p7` the missing
- * lower-bound check alone cannot be caught, because every cell the wrap
- * reaches is itself an edge cell and the answer was already fixed when the
- * wave got there. The wrap is caught at `m7.p3`, and the missing upper-bound
- * check crashes at `m7.p7` like everywhere else.
+ * One class of wrong program is deliberately NOT in that list, and its absence
+ * is a fact about C++ rather than a gap in the cases. In Python a missing
+ * `r > 0` test does not crash: `g[r - 1]` with `r = 0` is the LAST row, so the
+ * map wraps into a ring and prints a specific wrong number, which a case could
+ * pin. In C++ reading out of range is **undefined behaviour** — it may print
+ * rubbish, may crash, and may appear to work — so there is no expected output
+ * to write down and no case that can honestly claim to catch it. The month
+ * catches it where it is still a decision on the screen instead: `m7.l1.b5`,
+ * `m7.l1.b6` and `m7.l1.b7` are all about that one test, and `m7.l1.b11` asks
+ * the learner to say out loud what C++ does when it is missing.
  *
  * ## Tracks
  *
@@ -156,7 +159,26 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Например, для карты 3×4 из строк `..#.`, `.##.`, `....` ответ 9.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\nfree = 0\nfor i in range(n):\n    row = input()\n    for j in range(m):\n        if row[j] == \".\":\n            free += 1\nprint(free)",
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    int total = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        string row;\n" +
+      "        cin >> row;\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (row[j] == '.') {\n" +
+      "                total = total + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << total;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 4\n..#.\n.##.\n....", expectedOutput: "9" },
       /* 1×1 free, then 1×1 wall. The smallest map the format allows, and the
@@ -168,8 +190,8 @@ export const M7_PRACTICE: LessonBlock[] = [
          second kills any program that mistakes `#` for the thing to count. */
       { input: "2 3\n###\n###", expectedOutput: "0", hidden: true },
       { input: "2 3\n...\n...", expectedOutput: "6", hidden: true },
-      /* Every free cell is in the LAST row: `range(n - 1)` prints 1, and a
-         program that reads the map but only counts row 0 prints 0. */
+      /* Every free cell is in the LAST row: a loop written `i < n - 1` prints
+         1, and a program that reads the map but only counts row 0 prints 0. */
       { input: "3 3\n###\n#.#\n...", expectedOutput: "4", hidden: true },
       /* Every free cell is in the LAST column, for the same reason on j. */
       { input: "3 4\n###.\n###.\n###.", expectedOutput: "3", hidden: true },
@@ -202,7 +224,31 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Если клетка выходит сразу на два края (например, угловая), она всё равно считается один раз.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nedge = 0\nfor i in range(n):\n    for j in range(m):\n        if g[i][j] == \".\":\n            if i == 0 or i == n - 1 or j == 0 or j == m - 1:\n                edge += 1\nprint(edge)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int edge = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (g[i][j] == '.') {\n" +
+      "                if (i == 0 || i == n - 1 || j == 0 || j == m - 1) {\n" +
+      "                    edge = edge + 1;\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << edge;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 4\n.#..\n#..#\n....", expectedOutput: "7" },
       /* The whole map is one cell, so it is simultaneously top row, bottom
@@ -234,7 +280,10 @@ export const M7_PRACTICE: LessonBlock[] = [
        raised by any cell of the island, not by the cell it started from. That
        is the smallest possible version of "the wave computes a property of the
        whole region", and it is why the answer cannot be assembled cell by cell
-       the way m7.p2's could. */
+       the way m7.p2's could.
+       The reference marks a cell by writing `#` into the map itself, which a
+       `vector<string>` allows and which saves a second table; the mark still
+       goes on at the push, which is m7.l5's rule. */
     id: "m7.p3",
     type: "write_code",
     skillRefs: ["graph.regions", "graph.bfs", "grid.cells", "debug.boundary"],
@@ -257,7 +306,56 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Если таких островов нет, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\ncoastal = 0\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            touches = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                if r == 0 or r == n - 1 or c == 0 or c == m - 1:\n                    touches = 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            if touches == 1:\n                coastal += 1\nprint(coastal)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    int coastal = 0;\n" +
+      "    for (int sr = 0; sr < n; sr++) {\n" +
+      "        for (int sc = 0; sc < m; sc++) {\n" +
+      "            if (g[sr][sc] == '.') {\n" +
+      "                g[sr][sc] = '#';\n" +
+      "                queue<pair<int, int>> q;\n" +
+      "                q.push({sr, sc});\n" +
+      "                int touches = 0;\n" +
+      "                while (!q.empty()) {\n" +
+      "                    auto [r, c] = q.front();\n" +
+      "                    q.pop();\n" +
+      "                    if (r == 0 || r == n - 1 || c == 0 || c == m - 1) {\n" +
+      "                        touches = 1;\n" +
+      "                    }\n" +
+      "                    for (int k = 0; k < 4; k++) {\n" +
+      "                        int nr = r + dr[k];\n" +
+      "                        int nc = c + dc[k];\n" +
+      "                        if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                            if (g[nr][nc] == '.') {\n" +
+      "                                g[nr][nc] = '#';\n" +
+      "                                q.push({nr, nc});\n" +
+      "                            }\n" +
+      "                        }\n" +
+      "                    }\n" +
+      "                }\n" +
+      "                if (touches == 1) {\n" +
+      "                    coastal = coastal + 1;\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << coastal;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The hook grid. Reaching the top-right cell needs an upward move, so this kills any
          traversal missing the up direction — which every earlier case in this block accepted. */
@@ -268,11 +366,9 @@ export const M7_PRACTICE: LessonBlock[] = [
       /* One island, entirely inland. The answer is 0 while the map is far from
          empty — the case for a program that assumes every island reaches out. */
       { input: "4 4\n####\n#..#\n#..#\n####", expectedOutput: "0", hidden: true },
-      /* Four corner cells. Also the missing-bounds-check case, and in Python
-         the missing check does not crash: `g[r - 1]` with r = 0 is `g[-1]`,
-         the LAST row, and `g[r][c - 1]` with c = 0 is the last column. Without
-         `r > 0` and `c > 0` the map wraps into a ring and all four corners
-         fuse into one island, so the program prints 1. */
+      /* Four corner cells, each its own island, each on the edge. Also the
+         case for a program that treats two cells meeting at a corner as one
+         island: that reading fuses all four and prints 1. */
       { input: "3 3\n.#.\n###\n.#.", expectedOutput: "4", hidden: true },
       { input: "1 1\n.", expectedOutput: "1", hidden: true },
       { input: "1 1\n#", expectedOutput: "0", hidden: true },
@@ -296,8 +392,8 @@ export const M7_PRACTICE: LessonBlock[] = [
        output itself — the same line of code doing both jobs at once, which is
        the clearest way to see what a visited mark actually is.
        The prompt states a layout, so the checker is `exact`; see decision 6.
-       Rebuilding a row is `line = line + g[i][j]`, plain string addition from
-       September, so nothing here needs `.join()`. */
+       Printing a row is `cout << g[i]`, because a row of the map already IS a
+       string — nothing has to be reassembled. */
     id: "m7.p4",
     type: "write_code",
     skillRefs: ["graph.regions", "graph.bfs", "grid.cells"],
@@ -321,7 +417,48 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Если на месте указанной клетки стоит стена, выведи карту без изменений.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc = map(int, input().split())\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"o\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"o\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"o\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"o\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"o\"\n            qr.append(r)\n            qc.append(c + 1)\nfor i in range(n):\n    line = \"\"\n    for j in range(m):\n        line = line + g[i][j]\n    print(line)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    if (g[sr][sc] == '.') {\n" +
+      "        g[sr][sc] = 'o';\n" +
+      "        queue<pair<int, int>> q;\n" +
+      "        q.push({sr, sc});\n" +
+      "        while (!q.empty()) {\n" +
+      "            auto [r, c] = q.front();\n" +
+      "            q.pop();\n" +
+      "            for (int k = 0; k < 4; k++) {\n" +
+      "                int nr = r + dr[k];\n" +
+      "                int nc = c + dc[k];\n" +
+      "                if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                    if (g[nr][nc] == '.') {\n" +
+      "                        g[nr][nc] = 'o';\n" +
+      "                        q.push({nr, nc});\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << g[i] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Two regions on the map and only the top-left one is painted, so
          painting every free cell is a visible failure. Printing the rows in
@@ -384,7 +521,64 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Например, если размеры островов 4, 5 и 5, ответ 2. Если свободных клеток на карте нет совсем, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsizes = []\nfor sr in range(n):\n    for sc in range(m):\n        if g[sr][sc] == \".\":\n            g[sr][sc] = \"#\"\n            qr = [sr]\n            qc = [sc]\n            head = 0\n            size = 0\n            while head < len(qr):\n                r = qr[head]\n                c = qc[head]\n                head += 1\n                size += 1\n                if r > 0 and g[r - 1][c] == \".\":\n                    g[r - 1][c] = \"#\"\n                    qr.append(r - 1)\n                    qc.append(c)\n                if r < n - 1 and g[r + 1][c] == \".\":\n                    g[r + 1][c] = \"#\"\n                    qr.append(r + 1)\n                    qc.append(c)\n                if c > 0 and g[r][c - 1] == \".\":\n                    g[r][c - 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c - 1)\n                if c < m - 1 and g[r][c + 1] == \".\":\n                    g[r][c + 1] = \"#\"\n                    qr.append(r)\n                    qc.append(c + 1)\n            sizes.append(size)\nbest = 0\nfor i in range(len(sizes)):\n    if sizes[i] > best:\n        best = sizes[i]\nsame = 0\nfor i in range(len(sizes)):\n    if sizes[i] == best:\n        same += 1\nprint(same)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    vector<int> sizes;\n" +
+      "    for (int sr = 0; sr < n; sr++) {\n" +
+      "        for (int sc = 0; sc < m; sc++) {\n" +
+      "            if (g[sr][sc] == '.') {\n" +
+      "                g[sr][sc] = '#';\n" +
+      "                queue<pair<int, int>> q;\n" +
+      "                q.push({sr, sc});\n" +
+      "                int size = 0;\n" +
+      "                while (!q.empty()) {\n" +
+      "                    auto [r, c] = q.front();\n" +
+      "                    q.pop();\n" +
+      "                    size = size + 1;\n" +
+      "                    for (int k = 0; k < 4; k++) {\n" +
+      "                        int nr = r + dr[k];\n" +
+      "                        int nc = c + dc[k];\n" +
+      "                        if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                            if (g[nr][nc] == '.') {\n" +
+      "                                g[nr][nc] = '#';\n" +
+      "                                q.push({nr, nc});\n" +
+      "                            }\n" +
+      "                        }\n" +
+      "                    }\n" +
+      "                }\n" +
+      "                sizes.push_back(size);\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int best = 0;\n" +
+      "    for (int i = 0; i < (int)sizes.size(); i++) {\n" +
+      "        if (sizes[i] > best) {\n" +
+      "            best = sizes[i];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int same = 0;\n" +
+      "    for (int i = 0; i < (int)sizes.size(); i++) {\n" +
+      "        if (sizes[i] == best) {\n" +
+      "            same = same + 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << same;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Kills a traversal that never moves up: without it the region splits and the answer
          becomes 2. */
@@ -445,7 +639,62 @@ export const M7_PRACTICE: LessonBlock[] = [
         "На месте стартовой клетки, как и на месте проверяемых, может стоять стена; до стены добраться нельзя. Если проверяемая клетка — это сам старт, считается, что до неё добрались; две проверяемые клетки тоже могут совпадать.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(list(input()))\nsr, sc, ar, ac, br, bc = map(int, input().split())\nif g[sr][sc] == \".\":\n    g[sr][sc] = \"o\"\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\":\n            g[r - 1][c] = \"o\"\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\":\n            g[r + 1][c] = \"o\"\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\":\n            g[r][c - 1] = \"o\"\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\":\n            g[r][c + 1] = \"o\"\n            qr.append(r)\n            qc.append(c + 1)\none = 0\ntwo = 0\nif g[ar][ac] == \"o\":\n    one = 1\nif g[br][bc] == \"o\":\n    two = 1\nif one == 1 and two == 1:\n    print(\"both\")\nelif one == 1:\n    print(\"first\")\nelif two == 1:\n    print(\"second\")\nelse:\n    print(\"none\")",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, ar, ac, br, bc;\n" +
+      "    cin >> sr >> sc >> ar >> ac >> br >> bc;\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    if (g[sr][sc] == '.') {\n" +
+      "        g[sr][sc] = 'o';\n" +
+      "        queue<pair<int, int>> q;\n" +
+      "        q.push({sr, sc});\n" +
+      "        while (!q.empty()) {\n" +
+      "            auto [r, c] = q.front();\n" +
+      "            q.pop();\n" +
+      "            for (int k = 0; k < 4; k++) {\n" +
+      "                int nr = r + dr[k];\n" +
+      "                int nc = c + dc[k];\n" +
+      "                if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                    if (g[nr][nc] == '.') {\n" +
+      "                        g[nr][nc] = 'o';\n" +
+      "                        q.push({nr, nc});\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int one = 0;\n" +
+      "    int two = 0;\n" +
+      "    if (g[ar][ac] == 'o') {\n" +
+      "        one = 1;\n" +
+      "    }\n" +
+      "    if (g[br][bc] == 'o') {\n" +
+      "        two = 1;\n" +
+      "    }\n" +
+      "    if (one == 1 && two == 1) {\n" +
+      "        cout << \"both\";\n" +
+      "    } else if (one == 1) {\n" +
+      "        cout << \"first\";\n" +
+      "    } else if (two == 1) {\n" +
+      "        cout << \"second\";\n" +
+      "    } else {\n" +
+      "        cout << \"none\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The hook grid: (0,2) is reachable only by moving up, so a three-direction wave answers
          `second`. */
@@ -480,7 +729,7 @@ export const M7_PRACTICE: LessonBlock[] = [
        has many finishes at once: get OUT of the map. Every cell on the frame
        is a target, and the answer is the nearest of them, which is what a wave
        is for and what a straight-line guess cannot do — the sample is a room
-       whose only door is on the far side, one step from the top edge and six
+       whose only door is on the far side, one step from the top edge and five
        steps from the way out.
        `dist` starting at -1 does two jobs: it is the visited test and it is
        the "never reached" answer. */
@@ -506,7 +755,59 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Если старт сам стоит на краю, ответ 0. Если ни до одной свободной краевой клетки не добраться или на месте стартовой клетки стоит стена, выведи -1.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nout = -1\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0:\n            if i == 0 or i == n - 1 or j == 0 or j == m - 1:\n                if out == -1 or dist[i][j] < out:\n                    out = dist[i][j]\nprint(out)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    if (g[sr][sc] == '.') {\n" +
+      "        dist[sr][sc] = 0;\n" +
+      "        queue<pair<int, int>> q;\n" +
+      "        q.push({sr, sc});\n" +
+      "        while (!q.empty()) {\n" +
+      "            auto [r, c] = q.front();\n" +
+      "            q.pop();\n" +
+      "            for (int k = 0; k < 4; k++) {\n" +
+      "                int nr = r + dr[k];\n" +
+      "                int nc = c + dc[k];\n" +
+      "                if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                    if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                        dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                        q.push({nr, nc});\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int out = -1;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (dist[i][j] >= 0) {\n" +
+      "                if (i == 0 || i == n - 1 || j == 0 || j == m - 1) {\n" +
+      "                    if (out == -1 || dist[i][j] < out) {\n" +
+      "                        out = dist[i][j];\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << out;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The exit above the start is reachable only upward; a three-direction wave answers -1. */
       { input: "4 3\n...\n#.#\n###\n###\n1 1", expectedOutput: "1", hidden: true },
@@ -563,7 +864,55 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Если на месте стартовой клетки стоит стена, выведи 0.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc, k = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\nif g[sr][sc] == \".\":\n    dist[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n            dist[r - 1][c] = dist[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n            dist[r + 1][c] = dist[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n            dist[r][c - 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n            dist[r][c + 1] = dist[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\nnear = 0\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] >= 0 and dist[i][j] <= k:\n            near += 1\nprint(near)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, k;\n" +
+      "    cin >> sr >> sc >> k;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    if (g[sr][sc] == '.') {\n" +
+      "        dist[sr][sc] = 0;\n" +
+      "        queue<pair<int, int>> q;\n" +
+      "        q.push({sr, sc});\n" +
+      "        while (!q.empty()) {\n" +
+      "            auto [r, c] = q.front();\n" +
+      "            q.pop();\n" +
+      "            for (int t = 0; t < 4; t++) {\n" +
+      "                int nr = r + dr[t];\n" +
+      "                int nc = c + dc[t];\n" +
+      "                if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                    if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                        dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                        q.push({nr, nc});\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int near = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (dist[i][j] >= 0 && dist[i][j] <= k) {\n" +
+      "                near = near + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << near;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Counts all five free cells only if the wave can move up; three directions reach four. */
       { input: "2 3\n.#.\n...\n0 0 100", expectedOutput: "5", hidden: true },
@@ -629,7 +978,57 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Например, для карты из одной строки `.....` и старта `0 0` ответ `0 4`.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\nsr, sc = map(int, input().split())\ndist = []\nfor i in range(n):\n    line = []\n    for j in range(m):\n        line.append(-1)\n    dist.append(line)\ndist[sr][sc] = 0\nqr = [sr]\nqc = [sc]\nhead = 0\nwhile head < len(qr):\n    r = qr[head]\n    c = qc[head]\n    head += 1\n    if r > 0 and g[r - 1][c] == \".\" and dist[r - 1][c] == -1:\n        dist[r - 1][c] = dist[r][c] + 1\n        qr.append(r - 1)\n        qc.append(c)\n    if r < n - 1 and g[r + 1][c] == \".\" and dist[r + 1][c] == -1:\n        dist[r + 1][c] = dist[r][c] + 1\n        qr.append(r + 1)\n        qc.append(c)\n    if c > 0 and g[r][c - 1] == \".\" and dist[r][c - 1] == -1:\n        dist[r][c - 1] = dist[r][c] + 1\n        qr.append(r)\n        qc.append(c - 1)\n    if c < m - 1 and g[r][c + 1] == \".\" and dist[r][c + 1] == -1:\n        dist[r][c + 1] = dist[r][c] + 1\n        qr.append(r)\n        qc.append(c + 1)\nfar = 0\nbr = sr\nbc = sc\nfor i in range(n):\n    for j in range(m):\n        if dist[i][j] > far:\n            far = dist[i][j]\n            br = i\n            bc = j\nprint(br, bc)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int far = 0;\n" +
+      "    int br = sr;\n" +
+      "    int bc = sc;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            if (dist[i][j] > far) {\n" +
+      "                far = dist[i][j];\n" +
+      "                br = i;\n" +
+      "                bc = j;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << br << \" \" << bc;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "1 5\n.....\n0 0", expectedOutput: "0 4" },
       /* Four cells tie at distance 2 and the tie-break picks the first of
@@ -666,8 +1065,10 @@ export const M7_PRACTICE: LessonBlock[] = [
        no path at all.
        Written with a helper it is a short program; written without one it is
        the same twenty lines twice, which is the argument the prompt makes as
-       ADVICE — a checker cannot see a `def`, so the prompt says outright that
-       the number is what gets graded. See decision 4 in the file comment. */
+       ADVICE — a checker cannot see a function, so the prompt says outright
+       that the number is what gets graded. See decision 4 in the file comment.
+       The helper needs the map, so `g`, `n` and `m` are declared before `main`,
+       which is m7.l2's rule rather than a new one. */
     id: "m7.p10",
     bank: {
       role: "extra_practice",
@@ -686,7 +1087,7 @@ export const M7_PRACTICE: LessonBlock[] = [
         "Бір қадамда тек көрші бос ұяшыққа жүруге болады: жоғары, төмен, сол, оң. " +
         "Бастаудан шығып, міндетті түрде аялдамаға соғып, содан кейін финишке жететін ең қысқа жолда неше қадам бар екенін шығар. Жол бір ұяшықтан бірнеше рет өтуі мүмкін. " +
         "Бастаудан аялдамаға немесе аялдамадан финишке жету мүмкін болмаса, -1 шығар; осы үш ұяшықтың біреуінің орнында қабырға тұрса, жауап та -1. " +
-        "Кеңес: бір ұяшықтан барлық ұяшыққа дейінгі қашықтықты есептейтін функция жазып, оны екі рет шақырған ыңғайлы. Бұл — талап емес, кеңес: жауап шыққан сан бойынша тексеріледі.",
+        "Кеңес: бір ұяшықтан барлық ұяшыққа дейінгі қашықтықты есептейтін функция жазып, оны екі рет шақырған ыңғайлы. Функцияға карта керек болғандықтан `g`, `n` және `m` айнымалылары `main`-нен бұрын тұрады. Бұл — талап емес, кеңес: жауап шыққан сан бойынша тексеріледі.",
       ru:
         "В первой строке даны числа n и m (1 ≤ n ≤ 20, 1 ≤ m ≤ 20) — количество строк и количество столбцов карты. " +
         "В каждой из следующих n строк ровно m символов: `.` — свободная клетка, `#` — стена. " +
@@ -694,10 +1095,65 @@ export const M7_PRACTICE: LessonBlock[] = [
         "За один шаг можно перейти только в соседнюю свободную клетку: вверх, вниз, влево, вправо. " +
         "Выведи, сколько шагов в кратчайшем пути, который идёт из старта, обязательно заходит в клетку-остановку и только потом приходит на финиш. Путь может проходить через одну и ту же клетку несколько раз. " +
         "Если из старта не добраться до остановки или от остановки до финиша, выведи -1; если на месте одной из этих трёх клеток стоит стена, ответ тоже -1. " +
-        "Совет: удобно написать функцию, которая считает расстояния от одной клетки до всех остальных, и вызвать её дважды. Это совет, а не требование: ответ проверяется по выведенному числу.",
+        "Совет: удобно написать функцию, которая считает расстояния от одной клетки до всех остальных, и вызвать её дважды. Функции нужна карта, поэтому `g`, `n` и `m` объявляются до `main`. Это совет, а не требование: ответ проверяется по выведенному числу.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\ng = []\nfor i in range(n):\n    g.append(input())\n\n\ndef spread(sr, sc):\n    d = []\n    for i in range(n):\n        line = []\n        for j in range(m):\n            line.append(-1)\n        d.append(line)\n    if g[sr][sc] == \"#\":\n        return d\n    d[sr][sc] = 0\n    qr = [sr]\n    qc = [sc]\n    head = 0\n    while head < len(qr):\n        r = qr[head]\n        c = qc[head]\n        head += 1\n        if r > 0 and g[r - 1][c] == \".\" and d[r - 1][c] == -1:\n            d[r - 1][c] = d[r][c] + 1\n            qr.append(r - 1)\n            qc.append(c)\n        if r < n - 1 and g[r + 1][c] == \".\" and d[r + 1][c] == -1:\n            d[r + 1][c] = d[r][c] + 1\n            qr.append(r + 1)\n            qc.append(c)\n        if c > 0 and g[r][c - 1] == \".\" and d[r][c - 1] == -1:\n            d[r][c - 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c - 1)\n        if c < m - 1 and g[r][c + 1] == \".\" and d[r][c + 1] == -1:\n            d[r][c + 1] = d[r][c] + 1\n            qr.append(r)\n            qc.append(c + 1)\n    return d\n\n\nsr, sc, wr, wc, fr, fc = map(int, input().split())\nfirst = spread(sr, sc)\nsecond = spread(wr, wc)\na = first[wr][wc]\nb = second[fr][fc]\nif a == -1 or b == -1:\n    print(-1)\nelse:\n    print(a + b)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int n, m;\n" +
+      "vector<string> g;\n" +
+      "int dr[4] = {-1, 1, 0, 0};\n" +
+      "int dc[4] = {0, 0, -1, 1};\n" +
+      "\n" +
+      "vector<vector<int>> spread(int sr, int sc) {\n" +
+      "    vector<vector<int>> d(n, vector<int>(m, -1));\n" +
+      "    if (g[sr][sc] == '#') {\n" +
+      "        return d;\n" +
+      "    }\n" +
+      "    d[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && d[nr][nc] == -1) {\n" +
+      "                    d[nr][nc] = d[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return d;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    cin >> n >> m;\n" +
+      "    g = vector<string>(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, wr, wc, fr, fc;\n" +
+      "    cin >> sr >> sc >> wr >> wc >> fr >> fc;\n" +
+      "    vector<vector<int>> first = spread(sr, sc);\n" +
+      "    vector<vector<int>> second = spread(wr, wc);\n" +
+      "    int a = first[wr][wc];\n" +
+      "    int b = second[fr][fc];\n" +
+      "    if (a == -1 || b == -1) {\n" +
+      "        cout << -1;\n" +
+      "    } else {\n" +
+      "        cout << a + b;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The route through (0,2) requires an upward step; without it there is no route and the
          answer becomes -1. */

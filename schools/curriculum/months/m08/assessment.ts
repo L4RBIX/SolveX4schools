@@ -73,6 +73,45 @@ import type { LessonBlock } from "../../types";
  * way to know that is to read it off the sentence `b1` asks for. That is why
  * `b1` asks for `dp[0]` by name.
  *
+ * ## The C++17 migration: what it changed here
+ *
+ * **`b3` reads a count.** Its program took «a line of numbers» whose length was
+ * implied by the line break, which C++ gives a beginner no way to read. The
+ * cell count now comes first, and every `breakingInputs` witness carries it.
+ * `b2` already read `n` on its own line and needed nothing.
+ *
+ * **`b2` has no `abs`.** Python's `abs()` became a three-line free function
+ * `effort(a, b)` above `main` — November's own shape, a declared return type
+ * and two `int` parameters — because both prompts already define the effort of
+ * a step in words (the larger height minus the smaller), so an `if`/`else` is a
+ * complete answer and nobody is asked for a library call the year has not
+ * discussed. `min` is used on the two `long long` options, which is the one
+ * rule `min` has: both arguments must be the SAME type.
+ *
+ * **`b2`'s table is `long long` and its `effort` returns `long long`.** The
+ * ceiling is not reached — at n = 100 000 and heights ≤ 10 000 the largest sum
+ * of differences along any single route is 999 990 000, which does fit in `int`
+ * — but it sits within a factor of two of 2 147 483 647, and this is the month
+ * whose whole subject is accumulating answers. A learner who writes `int` here
+ * also passes, correctly: every case answer is small. The reference does not
+ * model the tightest legal choice, it models the safe one.
+ *
+ * **One case changed its job rather than its data.** The 1200-post case was
+ * sized against Python's default recursion depth of 1000, so that a memoised
+ * recursion — correct in complexity, and the natural shape after February —
+ * would die of `RecursionError` on real input. C++ has no such limit at that
+ * depth, so the case no longer refuses anything a smaller one would not; it is
+ * kept because the prompt promises n in the thousands and a check that never
+ * runs at the promised scale is a check with a hole in it. The recomputing
+ * solution is still refused, by case 10 (61 posts), which is exponential
+ * rather than deep.
+ *
+ * **Nothing else moved.** Every expected output in this file is unchanged, and
+ * each was re-derived from the C++ program rather than carried over: the
+ * arithmetic is sums and differences of small non-negative integers, with no
+ * division and no negative operand anywhere, so none of the traps that change
+ * an answer applies.
+ *
  * ## The degenerate programs, and the case that kills each
  *
  * Every one of these was written out and executed against the full case set
@@ -86,18 +125,21 @@ import type { LessonBlock } from "../../types";
  *   · the greedy rule «step to whichever of the two nearer posts differs least
  *     in height» — dies on case 5 with either tie-break (says 50, the answer is
  *     30). This is April's own half of the month showing up inside the DP task.
- *   · `dp[i] = min(dp[i - 1], dp[i - 2]) + abs(h[i] - h[i - 1])`, the cost taken
- *     from the wrong end — dies on the visible case, on 5, 6, 7 and 9.
- *   · subtracting without the modulus — dies on case 7 (says -99).
+ *   · `dp[i] = min(dp[i - 1], dp[i - 2]) + effort(h[i], h[i - 1])`, the cost
+ *     taken from the wrong end — dies on the visible case, on 5, 6, 7 and 9.
+ *   · subtracting without taking the larger from the smaller — dies on case 7
+ *     (says -99).
  *   · never filling `dp[1]`, so the first step is free — dies on case 3.
- *   · a loop from i = 1 that reads `dp[i - 2]` as `dp[-1]`, which in Python is
- *     the LAST cell and is silently 0 — dies on cases 3 and 5. This one is
- *     worth the case on its own: it does not crash, and it is right often.
+ *   · a loop from i = 1 that reads `dp[i - 2]` as `dp[-1]` — in C++ that is a
+ *     read from outside the vector, which is undefined behaviour rather than
+ *     Python's silent last cell. It is still refused, by cases 3 and 5, and it
+ *     is worse than it was: it may print anything at all, including the right
+ *     answer, on any given run.
  *   · printing `dp[n - 2]` — dies on the visible case, on 5, 6, 7 and 9.
  *   · maximum instead of minimum — dies on the visible case.
  *   · recomputing each post's answer from scratch instead of storing it — case
  *     10 has 61 posts, so a program shaped like February's recursion makes on
- *     the order of a million million calls and never finishes.
+ *     the order of 5·10^12 calls and never finishes.
  *
  * ## The requirement a checker cannot see, and which of the three options
  *
@@ -108,7 +150,7 @@ import type { LessonBlock } from "../../types";
  * without it**: case 10 is 61 posts, which no program that recomputes an
  * already-computed answer can finish, so «әр жауапты бір рет есептеп сақтау» is
  * enforced by the clock rather than by a promise. A memoised recursion holds
- * the same answers in the same list and passes, correctly: it is the table.
+ * the same answers in the same vector and passes, correctly: it is the table.
  *
  * What option 1 cannot reach is the wording — whether the learner can SAY what
  * their cells hold — and that is `b1`, which a teacher reads. The programme
@@ -136,9 +178,9 @@ import type { LessonBlock } from "../../types";
  * Two programs appear here — `b2`'s reference solution and `b3`'s proposed
  * rule — and they were compared, byte for byte and by script, against each
  * other and against every program in `m08/l1`–`l5` and `m08/practice`. No
- * duplicate, and no near-duplicate either: nothing in April uses `abs`, and
- * nothing in April has a `while` loop that walks a position forward by a value
- * read out of the list.
+ * duplicate, and no near-duplicate either: nothing else in April declares a
+ * free function of its own, and nothing else has a `while` loop that walks a
+ * position forward by a value read out of a vector.
  *
  * ## Provenance
  *
@@ -146,9 +188,9 @@ import type { LessonBlock } from "../../types";
  * `b4` implement two of the programme's five general verification methods
  * (p.6: «Бейтаныс есептер · Ауызша түсіндіру») and cite that page. No
  * `diagnosticMapping` anywhere: a wrong number on this task is reachable from
- * the missing modulus, the cost taken from the wrong end, an unfilled `dp[1]`
- * or a negative index that reads the last cell, and four causes behind one
- * answer is precisely when the mapping must be left out.
+ * a subtraction taken the wrong way round, the cost taken from the wrong end,
+ * an unfilled `dp[1]` or a read from outside the table, and four causes behind
+ * one answer is precisely when the mapping must be left out.
  *
  * ## Deliberately left out
  *
@@ -194,14 +236,14 @@ export const M8_ASSESSMENT: LessonBlock[] = [
         "Есеп мынау. Мектеп ауласында биіктіктері әртүрлі n бетон бағана бір қатарға тізілген; олар солдан оңға қарай 0-ден n − 1-ге дейін нөмірленген, ал i нөмірлі бағананың биіктігі — h[i]. " +
         "Оқушы 0 нөмірлі бағанада тұр және соңғы бағанаға жетуі керек. Бір аттауда ол не келесі бағанаға, не біреуін аттап өтіп одан кейінгі бағанаға ғана көше алады. " +
         "Бір аттауға жұмсалатын күш — сол екі бағана биіктігінің айырмасы, яғни үлкенінен кішісін алғандағы сан. Соңғы бағанаға жетуге кететін күштің ең аз қосындысын табу керек. " +
-        "Шешімді `dp = [0] * n` кестесінен бастау ұсынылды. Осы кестенің `dp[i]` ұяшығында қандай сан тұрады? " +
+        "Шешімді `vector<long long> dp(n, 0);` кестесінен бастау ұсынылды. Осы кестенің `dp[i]` ұяшығында қандай сан тұрады? " +
         "Оны бір сөйлеммен нақты тұжырымда, содан кейін дәл сол сөйлемнен `dp[0]`-дің мәні қалай шығатынын көрсет.",
       ru:
         "Ответь письменно, до того как сядешь за код: писать программу в этом задании не нужно. " +
         "Задача такая. В школьном дворе в один ряд стоят n бетонных столбов разной высоты; они пронумерованы слева направо от 0 до n − 1, а высота столба с номером i равна h[i]. " +
         "Ученик стоит на столбе с номером 0 и должен добраться до последнего. За один шаг он может перейти либо на следующий столб, либо, перешагнув через один, на столб за ним. " +
         "Усилие на один шаг равно разности высот этих двух столбов, то есть из большей высоты вычитаем меньшую. Нужно найти наименьшую сумму усилий, с которой можно добраться до последнего столба. " +
-        "Решение предложено начать с таблицы `dp = [0] * n`. Какое число стоит в ячейке `dp[i]` этой таблицы? " +
+        "Решение предложено начать с таблицы `vector<long long> dp(n, 0);`. Какое число стоит в ячейке `dp[i]` этой таблицы? " +
         "Сформулируй это одним точным предложением, а затем покажи, как из этого же предложения следует значение `dp[0]`.",
     },
     expectedPoints: [
@@ -218,8 +260,8 @@ export const M8_ASSESSMENT: LessonBlock[] = [
         ru: "Из того же предложения следует, на что опирается ячейка. ПОСЛЕДНИЙ шаг, которым попадают на столб i, сделан либо со столба i − 1, либо со столба i − 2, третьего варианта нет. Значит, `dp[i]` собирается из этих двух ячеек, и прибавляемое усилие у них разное: разность берётся с высотой того столба, с которого шагнули. Номера обеих ячеек меньше i, поэтому при заполнении таблицы слева направо обе уже готовы.",
       },
       {
-        kk: "Есептің жауабы — `dp[n − 1]`: бұл дәл сол сөйлем, тек i-нің орнында n − 1 тұр. Шекараны да атап өту керек: i = 1 болғанда екі нұсқаның біреуі ғана бар, өйткені −1 нөмірлі бағана жоқ. Ал жарамсыз тұжырымдардың мысалы: «dp[i] — i-ші аттауға жұмсалған күш» немесе «dp[i] — i-бағананың биіктігі». Мұндай кестеден жауап оқылмайды және ұяшықты алдыңғылары арқылы толтыруға болмайды.",
-        ru: "Ответ задачи — `dp[n − 1]`: это то же самое предложение, только вместо i стоит n − 1. Стоит назвать и границу: при i = 1 из двух вариантов есть только один, потому что столба с номером −1 не существует. А вот примеры негодных формулировок: «dp[i] — усилие, потраченное на i-й шаг» или «dp[i] — высота столба i». Из такой таблицы ответ не читается, и ячейку нельзя заполнить через предыдущие.",
+        kk: "Есептің жауабы — `dp[n − 1]`: бұл дәл сол сөйлем, тек i-нің орнында n − 1 тұр. Шекараны да атап өту керек: i = 1 болғанда екі нұсқаның біреуі ғана бар, өйткені −1 нөмірлі бағана жоқ — ал C++-та `dp[-1]` деп оқу кестенің сыртына шығу, яғни бағдарлама не істейтіні белгісіз болып қалады. Ал жарамсыз тұжырымдардың мысалы: «dp[i] — i-ші аттауға жұмсалған күш» немесе «dp[i] — i-бағананың биіктігі». Мұндай кестеден жауап оқылмайды және ұяшықты алдыңғылары арқылы толтыруға болмайды.",
+        ru: "Ответ задачи — `dp[n − 1]`: это то же самое предложение, только вместо i стоит n − 1. Стоит назвать и границу: при i = 1 из двух вариантов есть только один, потому что столба с номером −1 не существует, — а обращение `dp[-1]` в C++ означает выход за пределы таблицы, после которого поведение программы вообще не определено. А вот примеры негодных формулировок: «dp[i] — усилие, потраченное на i-й шаг» или «dp[i] — высота столба i». Из такой таблицы ответ не читается, и ячейку нельзя заполнить через предыдущие.",
       },
     ],
   },
@@ -234,17 +276,17 @@ export const M8_ASSESSMENT: LessonBlock[] = [
      * cashed in. Nothing about the rule is given away — `b1` asks what a cell
      * HOLDS, `b2` asks for the program that fills it.
      *
-     * Eleven cases, one visible. The visible one kills the program that walks
+     * Twelve cases, one visible. The visible one kills the program that walks
      * post by post and never steps over one: it answers 92 where the answer is
      * 2, on screen, before any hidden case is reached. Case 5 kills the greedy
-     * rule with either tie-break and also the negative-index loop; case 6 kills
-     * stepping over a post whenever possible; case 7 kills the missing modulus;
-     * case 3 kills the unfilled `dp[1]`; case 10 kills recomputation.
+     * rule with either tie-break; case 6 kills stepping over a post whenever
+     * possible; case 7 kills a subtraction taken the wrong way round; case 3
+     * kills the unfilled `dp[1]`; case 10 kills recomputation.
      *
-     * The reference uses `abs()`, which September's own solutions use. No
-     * learner needs it here: both prompts define the effort of a step in words
-     * — the larger height minus the smaller — so an `if`/`else` is a complete
-     * answer, and nobody is asked for a builtin the year has not talked about.
+     * The reference declares its own free function `effort(a, b)` rather than
+     * calling `abs`, which is November's shape and is what both prompts already
+     * describe in words — the larger height minus the smaller. No learner needs
+     * either: an `if`/`else` inside the loop is a complete answer.
      *
      * The bound n ≤ 100000 is the problem's, and the last sentence of the
      * prompt says plainly why it matters. It is advice about the shape of a
@@ -263,7 +305,7 @@ export const M8_ASSESSMENT: LessonBlock[] = [
         "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100000) — қатардағы бағаналардың саны. " +
         "Екінші жолда бос орынмен бөлініп n бүтін сан беріледі — бағаналардың биіктіктері, әрқайсысы 0-ден 10000-ға дейін. Бағаналар солдан оңға қарай 0-ден n − 1-ге дейін нөмірленген. " +
         "Оқушы 0 нөмірлі бағанада тұр және соңғы бағанаға жетуі керек. Бір аттауда i нөмірлі бағанадан тек i + 1 немесе i + 2 нөмірлі бағанаға көшуге болады; артқа қайтуға болмайды. " +
-        "i-ден j-ге аттағанда жұмсалатын күш — h[i] мен h[j] айырмасының модулі, яғни үлкен биіктіктен кішісін алғандағы сан. " +
+        "i-ден j-ге аттағанда жұмсалатын күш — h[i] мен h[j] айырмасы, яғни үлкен биіктіктен кішісін алғандағы сан. " +
         "Соңғы бағанаға жетуге қажет күштің ең аз қосындысын шығар — жауап бір бүтін сан. " +
         "n = 1 болса, оқушы қазірдің өзінде соңғы бағанада тұр, сондықтан жауап 0. Мысалы, `5` және `1 20 2 30 3` үшін жауап 2. " +
         "Есіңде болсын: n мыңдаған болуы мүмкін, сондықтан бір бағанаға жетудің ең аз күшін қайта-қайта есептейтін шешім уақытқа сыймайды.",
@@ -272,40 +314,63 @@ export const M8_ASSESSMENT: LessonBlock[] = [
         "В первой строке дано число n (1 ≤ n ≤ 100000) — количество столбов в ряду. " +
         "Во второй строке через пробел даны n целых чисел — высоты столбов, каждая от 0 до 10000. Столбы пронумерованы слева направо от 0 до n − 1. " +
         "Ученик стоит на столбе с номером 0 и должен добраться до последнего. За один шаг со столба с номером i можно перейти только на столб i + 1 или i + 2; назад ходить нельзя. " +
-        "Усилие на шаг с i на j равно модулю разности h[i] и h[j], то есть из большей высоты вычитается меньшая. " +
+        "Усилие на шаг с i на j равно разности высот h[i] и h[j], то есть из большей высоты вычитается меньшая. " +
         "Выведи наименьшую сумму усилий, с которой можно добраться до последнего столба, — ответ одно целое число. " +
         "Если n = 1, ученик уже стоит на последнем столбе, поэтому ответ 0. Например, при `5` и `1 20 2 30 3` ответ 2. " +
         "Имей в виду: n может быть в тысячах, поэтому решение, которое снова и снова пересчитывает наименьшее усилие до одного и того же столба, по времени не пройдёт.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "h = list(map(int, input().split()))\n" +
-      "dp = [0] * n\n" +
-      "if n > 1:\n" +
-      "    dp[1] = abs(h[1] - h[0])\n" +
-      "for i in range(2, n):\n" +
-      "    dp[i] = min(dp[i - 1] + abs(h[i] - h[i - 1]), dp[i - 2] + abs(h[i] - h[i - 2]))\n" +
-      "print(dp[n - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "long long effort(int a, int b) {\n" +
+      "    if (a > b) {\n" +
+      "        return a - b;\n" +
+      "    }\n" +
+      "    return b - a;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> h(n, 0);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> h[i];\n" +
+      "    }\n" +
+      "    vector<long long> dp(n, 0);\n" +
+      "    if (n > 1) {\n" +
+      "        dp[1] = effort(h[1], h[0]);\n" +
+      "    }\n" +
+      "    for (int i = 2; i < n; i++) {\n" +
+      "        dp[i] = min(dp[i - 1] + effort(h[i], h[i - 1]), dp[i - 2] + effort(h[i], h[i - 2]));\n" +
+      "    }\n" +
+      "    cout << dp[n - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
-      /* The stated limit is n ≤ 100000 and the largest case here was 61, so a
-         RECURSION — memoised, correct in complexity, the natural shape after
-         February — passed the check and then died of RecursionError on real
-         input. Python's default depth is 1000; this is 1200, which is the
-         cheapest size that reaches the constraint the prompt states. The task
-         is unchanged: the reference answers 2877 here as it always did. */
-      { input: "1200\n0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3 0 7 4 1 8 5 2 9 6 3", expectedOutput: "2877", hidden: true },
+      /* Twelve hundred posts. In Python this case existed to refuse a memoised
+         recursion, which died of RecursionError past a depth of 1000; C++ has
+         no such limit at this depth, so the case now simply exercises the scale
+         the prompt promises. The answer is unchanged at 2877. */
+      {
+        input: "1200\n" + "0 7 4 1 8 5 2 9 6 3 ".repeat(119) + "0 7 4 1 8 5 2 9 6 3",
+        expectedOutput: "2877",
+        hidden: true,
+      },
 
       /* Visible, and chosen to fail the first thing a learner writes: walking
          post by post costs 92 here, while stepping over each tall post costs 2.
-         Also kills `min(dp[i-1], dp[i-2]) + abs(h[i] - h[i-1])`, which says 45,
-         and printing `dp[n - 2]`, which says 29. */
+         Also kills `min(dp[i-1], dp[i-2]) + effort(h[i], h[i-1])`, which says
+         45, and printing `dp[n - 2]`, which says 29. */
       { input: "5\n1 20 2 30 3", expectedOutput: "2" },
       /* One post. The loop never runs and the answer is the initial value —
          which is 0 here and 1 in every counting table April has built. */
       { input: "1\n7", expectedOutput: "0", hidden: true },
       /* Two posts: the only cell filled outside the loop. A program that never
-         assigns `dp[1]` prints 0, and one whose loop starts at i = 1 reads
-         `dp[-1]` — the LAST cell, silently 0 — and also prints 0. */
+         assigns `dp[1]` prints 0, and one whose loop starts at i = 1 reaches
+         `dp[-1]`, outside the table. */
       { input: "2\n4 9", expectedOutput: "5", hidden: true },
       /* Two posts of equal height. A step is made and nothing is spent, so
          this separates a table that sums differences from one that counts
@@ -313,13 +378,14 @@ export const M8_ASSESSMENT: LessonBlock[] = [
       { input: "2\n5 5", expectedOutput: "0", hidden: true },
       /* The greedy trap. Stepping to whichever neighbour differs least in
          height goes 10 → 0 for 10 and is then stuck with 40, total 50; the
-         answer is 30. Both tie-breaks lose. The negative-index loop says 20. */
+         answer is 30. Both tie-breaks lose. */
       { input: "4\n10 30 0 40", expectedOutput: "30", hidden: true },
       /* The mirror image: stepping over a post whenever that is possible goes
          0 → 50 → 2 for 98, while the answer is 2. */
       { input: "4\n0 1 50 2", expectedOutput: "2", hidden: true },
-      /* Heights that only fall. Without the modulus the sums go negative and
-         the program prints -99 instead of 99. */
+      /* Heights that only fall. A subtraction that always takes the later
+         height from the earlier one goes negative and prints -99 instead
+         of 99. */
       { input: "3\n100 10 1", expectedOutput: "99", hidden: true },
       /* Every post the same height: nothing is ever spent, whichever route is
          taken. The all-equal boundary, and the cheapest case for a learner to
@@ -333,8 +399,8 @@ export const M8_ASSESSMENT: LessonBlock[] = [
       { input: "6\n1 2 3 4 5 6", expectedOutput: "5", hidden: true },
       /* Sixty-one posts. Nothing here is a special shape — the point is the
          size: a solution that recomputes a post's answer instead of storing it
-         is February's recursion and makes on the order of a million million
-         calls. Written out and run: it does not finish. */
+         is February's recursion and makes on the order of 5·10^12 calls.
+         Written out and run: it does not finish. */
       {
         input:
           "61\n0 30 7 25 9 2 8 7 34 14 8 9 2 3 8 14 34 28 33 26 13 37 5 7 1 25 21 12 13 21 " +
@@ -368,6 +434,10 @@ export const M8_ASSESSMENT: LessonBlock[] = [
      * a learner tries first and then loses. The shortest counterexample is five
      * numbers.
      *
+     * The input carries the cell count on its own line, because `cin >>` cannot
+     * find the end of a line. That is the only thing the C++ migration changed
+     * here; the rule, the program and every witness are the same.
+     *
      * The sample shown is `2 2 1 1 2`, where the rule is right and the answer
      * is 3 — a working sample with a non-trivial number, so nothing about the
      * shape of a breaking input is given away by it.
@@ -383,35 +453,53 @@ export const M8_ASSESSMENT: LessonBlock[] = [
     pdfPage: 10,
     prompt: {
       kk:
-        "Бұл бағдарлама бір жолдан бос орынмен бөлінген сандарды оқиды. `a[i]` — i нөмірлі ұяшықтан алға қарай ең көп дегенде неше ұяшық секіруге болатынын көрсетеді, әр сан кемінде 1. " +
+        "Бұл бағдарлама бірінші жолдан n санын — ұяшықтар санын, екінші жолдан сол n санды оқиды. `a[i]` — i нөмірлі ұяшықтан алға қарай ең көп дегенде неше ұяшық секіруге болатынын көрсетеді, әр сан кемінде 1. " +
         "Секіру тек алға жасалады және 1-ден `a[i]`-ге дейінгі кез келген қашықтыққа секіруге болады. Мақсат — 0 нөмірлі ұяшықтан соңғы ұяшыққа жету, ал есепте ең аз секіру саны сұралады. " +
         "Бағдарлама ұсынылған ережені орындайды: тұрған ұяшығыңнан мүмкіндігінше алысқа секір. " +
-        "`2 2 1 1 2` ендірмесінде ол 3 шығарады — бұл дұрыс жауап. " +
+        "`5` және `2 2 1 1 2` ендірмесінде ол 3 шығарады — бұл дұрыс жауап. " +
         "Сен ережені бұзатын ендірме тап: бағдарлама шын қажеттіден КӨП секіру шығаратын сандар қатарын жаз. " +
         "Шарттар: сандардың саны алтаудан аспасын, әрқайсысы 1-ден 5-ке дейін болсын. Ендірменің қасына азырақ секірумен жететін жолды да көрсет.",
       ru:
-        "Эта программа читает из одной строки числа, разделённые пробелами. `a[i]` — на сколько клеток вперёд можно прыгнуть из клетки с номером i, каждое число не меньше 1. " +
+        "Эта программа читает из первой строки число n — количество клеток, из второй — сами n чисел. `a[i]` — на сколько клеток вперёд можно прыгнуть из клетки с номером i, каждое число не меньше 1. " +
         "Прыгать можно только вперёд и на любое расстояние от 1 до `a[i]`. Цель — попасть из клетки 0 в последнюю клетку, а в задаче спрашивается наименьшее число прыжков. " +
         "Программа выполняет предложенное правило: из той клетки, где стоишь, прыгай как можно дальше. " +
-        "На вводе `2 2 1 1 2` она выводит 3 — это верный ответ. " +
+        "На вводе `5` и `2 2 1 1 2` она выводит 3 — это верный ответ. " +
         "Найди ввод, который ломает правило: напиши такой набор чисел, на котором программа выводит БОЛЬШЕ прыжков, чем нужно на самом деле. " +
         "Условия: чисел не больше шести, каждое от 1 до 5. Рядом с вводом укажи и сам путь, которым можно добраться за меньшее число прыжков.",
     },
     code:
-      "a = list(map(int, input().split()))\n" +
-      "n = len(a)\n" +
-      "pos = 0\n" +
-      "jumps = 0\n" +
-      "while pos < n - 1:\n" +
-      "    pos = pos + a[pos]\n" +
-      "    jumps = jumps + 1\n" +
-      "print(jumps)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n, 0);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    int pos = 0;\n" +
+      "    int jumps = 0;\n" +
+      "    while (pos < n - 1) {\n" +
+      "        pos = pos + a[pos];\n" +
+      "        jumps = jumps + 1;\n" +
+      "    }\n" +
+      "    cout << jumps;\n" +
+      "    return 0;\n" +
+      "}",
     /* Verified against an exhaustive minimum-jumps search: on each of these the
        rule prints one more jump than the true minimum. The first is the
        shortest counterexample there is — no input of three or four cells
        breaks the rule at all — and the last two are six cells, so a learner
        who searched at the top of the allowed size finds one there too. */
-    breakingInputs: ["2 3 1 1 1", "2 4 1 1 1", "2 3 1 1 4", "3 4 1 1 1 1", "2 3 1 1 1 1"],
+    breakingInputs: [
+      "5\n2 3 1 1 1",
+      "5\n2 4 1 1 1",
+      "5\n2 3 1 1 4",
+      "6\n3 4 1 1 1 1",
+      "6\n2 3 1 1 1 1",
+    ],
   },
   {
     /*
@@ -445,8 +533,8 @@ export const M8_ASSESSMENT: LessonBlock[] = [
     },
     expectedPoints: [
       {
-        kk: "Қарсы мысал толық аталады: нақты ендірме, ереже беретін секіріс саны, шын ең аз секіріс саны және сол ең аз жауапқа апаратын жол — қай ұяшықтан қай ұяшыққа. Осы төртеудің біреуі айтылмаса, бұл әлі қарсы мысал емес, жай ғана ендірме. Мысалы, `2 3 1 1 1` ендірмесінде ереже 3 секіріс жасайды (0 → 2 → 3 → 4), ал 2 секірумен жетуге болады: 0 → 1 → 4.",
-        ru: "Контрпример назван целиком: конкретный ввод, число прыжков по правилу, настоящее наименьшее число прыжков и путь, которым оно достигается, — из какой клетки в какую. Если не сказано что-то одно из этих четырёх, это ещё не контрпример, а просто ввод. Например, на вводе `2 3 1 1 1` правило делает 3 прыжка (0 → 2 → 3 → 4), а добраться можно за 2: 0 → 1 → 4.",
+        kk: "Қарсы мысал толық аталады: нақты ендірме, ереже беретін секіріс саны, шын ең аз секіріс саны және сол ең аз жауапқа апаратын жол — қай ұяшықтан қай ұяшыққа. Осы төртеудің біреуі айтылмаса, бұл әлі қарсы мысал емес, жай ғана ендірме. Мысалы, `5` және `2 3 1 1 1` ендірмесінде ереже 3 секіріс жасайды (0 → 2 → 3 → 4), ал 2 секірумен жетуге болады: 0 → 1 → 4.",
+        ru: "Контрпример назван целиком: конкретный ввод, число прыжков по правилу, настоящее наименьшее число прыжков и путь, которым оно достигается, — из какой клетки в какую. Если не сказано что-то одно из этих четырёх, это ещё не контрпример, а просто ввод. Например, на вводе `5` и `2 3 1 1 1` правило делает 3 прыжка (0 → 2 → 3 → 4), а добраться можно за 2: 0 → 1 → 4.",
       },
       {
         kk: "Ереже дәл қай жерде жаңылысатыны айтылады: ең алысқа секіру сол қадамда ең тиімді болып көрінеді, бірақ ол сені `a` мәні кіші ұяшыққа апарып тастауы мүмкін. Қысқарақ секіру `a` мәні үлкен ұяшыққа түсіріп, келесі секірудің өрісін кеңейтеді. Яғни «дәл қазір ең алыс» пен «екі секірістен кейін ең алыс» — екі бөлек нәрсе, ал ереже біріншісін ғана қарайды.",

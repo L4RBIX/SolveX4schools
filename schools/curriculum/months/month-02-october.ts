@@ -88,7 +88,12 @@ export const MONTH_02_OCTOBER: Month = {
           minutes: 8,
           objectives: [
             ["Берілген рет санына қайталауды жазу", "Записывать повторение заданное число раз"],
-            ["range шекараларын дұрыс таңдау", "Правильно выбирать границы range"],
+            /* Was «range шекараларын» / «границы range». `range` is a Python
+               function and October is C++ now: the boundary decision the
+               objective names lives in the loop header's own comparison —
+               `i < n` or `i <= n` — which is what m2.l1.b5 and m2.l1.b7 teach.
+               The objective is unchanged; only the construct it named is. */
+            ["Цикл шекараларын дұрыс таңдау", "Правильно выбирать границы цикла"],
           ],
           skills: ["loops.for", "loops.counter"],
           blocks: M2_L1,

@@ -23,22 +23,24 @@ import type { LessonBlock } from "../../types";
  * next. That question is answerable today, on paper, and it is the PDF's own
  * sentence.
  *
- * ## The queue is a list and a head index, and that is January
+ * ## The queue arrived one lesson ago, and this lesson only recaps it
  *
- * `collections.deque` is never taught by this programme and importing it would
- * put an unexplained object at the centre of the month. The queue here is two
- * parallel lists — `qr` and `qc`, the same parallel-list convention `m7.l1`
- * used for `dr`/`dc` — plus one index that only ever moves forward. `b1` says
- * so in both languages and names `m5.l4`, «Екі шекара әдісі», where an index
- * that only advances was the whole lesson. That is what makes the queue taught
- * rather than smuggled.
+ * March is taught l1 → l2 → l5 → l3 → l4, so `std::queue` and the two-line
+ * `auto [r, c] = q.front(); q.pop();` recipe were introduced in `m7.l5`,
+ * together with the reason they are two lines: **`pop()` returns nothing.**
+ * `b1` restates that in one paragraph rather than teaching it again, and every
+ * program below uses the same shape. Nothing here uses a construct the learner
+ * has not already met.
  *
  * ## `dist` and the double duty of −1
  *
- * `dist` is a grid of −1 the same shape as the map, and −1 means two things at
- * once: «мұнда әлі болғаным жоқ» while the wave is running, and «жету мүмкін
+ * `dist` is `vector<vector<int>>(n, vector<int>(m, -1))` — the same table shape
+ * `m7.l2` built out of zeroes, filled with −1 instead — and −1 means two things
+ * at once: «мұнда әлі болғаным жоқ» while the wave is running, and «жету мүмкін
  * емес» when it stops. That is why `b8` can answer a yes/no question with the
- * same array that `b9` uses to answer a number, and `b1` states it.
+ * same array that `b9` uses to answer a number, and `b1` states it. It also
+ * means the wave needs no second `vis` table, which is worth saying out loud
+ * one lesson after `vis` was the whole subject.
  *
  * ## Input format
  *
@@ -58,7 +60,8 @@ import type { LessonBlock } from "../../types";
  * but no task's answer is a program the same learner has already been shown:
  *
  *   · `b3` and `b5` embed their maps in the code and print things no task asks
- *     for (the whole distance grid; the number of cells the wave reached);
+ *     for (the whole distance grid; how many cells the wave took out of the
+ *     queue);
  *   · `b4` is one round of the wave over a half-filled `dist`, not the wave;
  *   · `b7` completes a wave that answers a third question — how far the
  *     farthest reachable cell is;
@@ -92,7 +95,7 @@ import type { LessonBlock } from "../../types";
  *
  * Restoring the route itself — remembering where each cell was reached from —
  * is `m7.l4` and gets nothing here beyond one sentence in `b10`'s marking
- * points. The cost of processing a cell twice is `m7.l5`; this lesson states
+ * points. The cost of processing a cell twice was `m7.l5`; this lesson states
  * the guard and moves on.
  */
 
@@ -101,16 +104,16 @@ const P = 9; // PDF page for all of March
 export const M7_L3: LessonBlock[] = [
   {
     /*
-     * The one idea of the lesson, and three things named out loud because a
-     * later reader will check: the queue as a list plus a forward-only index
-     * (with January named), `dist` as a list of lists of numbers, and −1 doing
-     * double duty.
+     * The one idea of the lesson. The queue is a recap — it was introduced in
+     * `m7.l5`, one lesson earlier — so the card spends its space on the thing
+     * that is new: a table of distances, started at −1, in which the same −1
+     * does two jobs.
      *
-     * The code is NOT the wave. It is the queue mechanism on its own, with the
-     * two neighbours of the start added by hand, so that the mechanism can be
-     * read without the map, the walls and the bounds check all arriving at
-     * once. The wave itself is assembled two cards later, where the reasoning
-     * that builds it is on screen next to it.
+     * The code is NOT the wave. It is the `dist` table on its own, with two
+     * cells written by hand, so the two jobs of −1 and the `+ 1` rule can be
+     * read without the map, the walls, the queue and the bounds check all
+     * arriving at once. The wave itself is assembled two cards later, where the
+     * reasoning that builds it is on screen next to it.
      */
     id: "m7.l3.b1",
     type: "concept",
@@ -122,25 +125,23 @@ export const M7_L3: LessonBlock[] = [
       ru: "Волна: очередь и сетка расстояний",
     },
     body: {
-      kk: "Стартқа су тамызсақ, ол алдымен көрші ұяшықтарға, содан кейін солардың көршілеріне жайылады. Дәл осылай жұмыс істейтін әдісті толқын әдісі дейді. Толқынға екі нәрсе керек.\n\nБіріншісі — кезек: өңдеуді күтіп тұрған ұяшықтар тізбегі. Кезекті `qr` және `qc` деген екі қатарлас тізіммен сақтаймыз — біреуінде жол нөмірі, екіншісінде баған нөмірі тұрады, дәл `dr` мен `dc` сияқты. Жаңа ұяшық тізімнің соңына `.append` арқылы қосылады, ал қайсысын өңдейтінімізді `head` айнымалысы көрсетеді. `head` тек алға жылжиды, ешқашан артқа қайтпайды — бұл қаңтардағы «Екі шекара әдісі» сабағының дәл сол идеясы, тек енді ол тізім бойымен жалғыз жүреді. Кезек `head` тізім соңына жеткенде бітеді, ал тізім сол уақытта әлі өсіп жатуы мүмкін.\n\nЕкіншісі — `dist` торы: картамен дәл бірдей өлшемдегі сандар торы, яғни ішінде тізімдер жататын тізім, сондықтан `dist[r][c]` деп жазылады. Басында бәрі −1. Стартқа 0 қоямыз, ал жаңа ұяшыққа `dist[nr][nc] = dist[r][c] + 1` деп қоямыз: бір қадам алыс. Осындағы −1 екі жұмысты бірден атқарады: толқын жүріп жатқанда ол «мұнда әлі болған жоқпын» дегенді білдіреді, ал толқын тоқтағанда сол ұяшыққа «жету мүмкін емес» дегенді білдіреді. Сондықтан бөлек белгі торы керек емес.",
-      ru: "Если капнуть воду на старт, она растечётся сначала по соседним клеткам, потом по соседям этих соседей. Приём, который работает точно так же, называют методом волны. Волне нужны две вещи.\n\nПервая — очередь: цепочка клеток, ожидающих обработки. Очередь мы храним в двух параллельных списках `qr` и `qc` — в одном номер строки, в другом номер столбца, ровно как `dr` и `dc`. Новая клетка добавляется в конец списка через `.append`, а какую клетку обрабатываем сейчас, показывает переменная `head`. Она движется только вперёд и никогда не возвращается назад — это та же самая идея, что и в январском уроке «Метод двух указателей», только теперь указатель идёт по списку один. Очередь заканчивается, когда `head` доходит до конца списка, а список в это время может ещё расти.\n\nВторая — сетка `dist`: сетка чисел точно такого же размера, как карта, то есть список, внутри которого лежат списки, поэтому и пишется `dist[r][c]`. Вначале везде −1. Старту ставим 0, а новой клетке ставим `dist[nr][nc] = dist[r][c] + 1`: на один шаг дальше. И это −1 делает сразу две работы: пока волна идёт, оно означает «здесь я ещё не был», а когда волна остановилась — «сюда добраться нельзя». Поэтому отдельная сетка отметок не нужна.",
+      kk: "Стартқа су тамызсақ, ол алдымен көрші ұяшықтарға, содан кейін солардың көршілеріне жайылады. Дәл осылай жұмыс істейтін әдісті толқын әдісі дейді. Толқынға екі нәрсе керек.\n\nБіріншісі — кезек, ол өткен сабақтан таныс. `#include <queue>`, `queue<pair<int, int>> q;`, ұяшықты салу `q.push({r, c});`, ал алу екі жол: `auto [r, c] = q.front();` содан кейін `q.pop();`. Реті сол күйінде қалады, себебі `q.pop()` ештеңе қайтармайды — алдымен оқы, содан кейін өшір. Цикл `while (!q.empty())` деп жазылады: кезекте ұяшық болғанша жүреміз, ал кезек сол уақытта әлі толығып жатуы мүмкін.\n\nЕкіншісі — `dist` торы: картамен дәл бірдей өлшемдегі сандар торы. Оны өткен сабақтағы `vis` сияқты жасаймыз, тек нөлдің орнына −1 қоямыз:\n\n`vector<vector<int>> dist(n, vector<int>(m, -1));`\n\nСтартқа 0 қоямыз, ал жаңа ұяшыққа `dist[nr][nc] = dist[r][c] + 1;` деп қоямыз: бір қадам алыс. Осындағы −1 екі жұмысты бірден атқарады: толқын жүріп жатқанда ол «мұнда әлі болған жоқпын» дегенді білдіреді, ал толқын тоқтағанда сол ұяшыққа «жету мүмкін емес» дегенді білдіреді. Сондықтан бұл жолы бөлек `vis` торы керек емес — бір тор екі сұраққа жауап береді.",
+      ru: "Если капнуть воду на старт, она растечётся сначала по соседним клеткам, потом по соседям этих соседей. Приём, который работает точно так же, называют методом волны. Волне нужны две вещи.\n\nПервая — очередь, и она знакома с прошлого урока. `#include <queue>`, `queue<pair<int, int>> q;`, положить клетку — `q.push({r, c});`, а взять — две строки: `auto [r, c] = q.front();` и затем `q.pop();`. Порядок остаётся прежним, потому что `q.pop()` ничего не возвращает: сначала читай, потом удаляй. Цикл пишется как `while (!q.empty())`: идём, пока в очереди есть клетки, а очередь в это время может ещё пополняться.\n\nВторая — сетка `dist`: сетка чисел точно такого же размера, как карта. Делаем её так же, как `vis` на прошлом уроке, только вместо нуля кладём −1:\n\n`vector<vector<int>> dist(n, vector<int>(m, -1));`\n\nСтарту ставим 0, а новой клетке ставим `dist[nr][nc] = dist[r][c] + 1;`: на один шаг дальше. И это −1 делает сразу две работы: пока волна идёт, оно означает «здесь я ещё не был», а когда волна остановилась — «сюда добраться нельзя». Поэтому отдельная сетка `vis` в этот раз не нужна — одна сетка отвечает на оба вопроса.",
     },
     code:
-      "qr = [0]\n" +
-      "qc = [0]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    if r == 0 and c == 0:\n" +
-      "        qr.append(1)\n" +
-      "        qc.append(0)\n" +
-      "        qr.append(0)\n" +
-      "        qc.append(1)\n" +
-      "print(qr)\n" +
-      "print(qc)\n" +
-      "print(head)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 3;\n" +
+      "    int m = 4;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    dist[0][0] = 0;\n" +
+      "    dist[0][1] = dist[0][0] + 1;\n" +
+      "    cout << dist[0][1] << \" \" << dist[2][3];\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -181,10 +182,10 @@ export const M7_L3: LessonBlock[] = [
      * ask the learner to defend: the wave finishes layer k before it starts
      * layer k+1.
      *
-     * The program embeds its map and prints the WHOLE distance grid — four
-     * lists of five numbers. No task in this lesson asks for that output, so
-     * the card shows the method without handing over an answer, and the −1s
-     * left behind in the wall positions are visible rather than described.
+     * The program embeds its map and prints the WHOLE distance grid — four rows
+     * of five numbers. No task in this lesson asks for that output, so the card
+     * shows the method without handing over an answer, and the −1s left behind
+     * in the wall positions are visible rather than described.
      */
     id: "m7.l3.b3",
     type: "worked_example",
@@ -205,8 +206,8 @@ export const M7_L3: LessonBlock[] = [
         ru: "Вначале все числа в сетке `dist` равны −1: мы ещё никуда не ходили. Самому старту ставим 0, потому что от старта до старта не нужно ни одного шага. В очередь кладём эту же единственную клетку.",
       },
       {
-        kk: "0-қабаттан 1-қабатқа. (0, 0) ұяшығының төрт көршісін қараймыз: жоғары және солға шығуға болмайды, ал төмендегі (1, 0) мен оң жақтағы (0, 1) — бос ұяшық және оларда әлі −1 тұр. Екеуіне де 1 қойып, кезектің соңына қосамыз. Кезекте енді үш ұяшық бар, ал `head` бірінші ұяшықтан өтіп кетті.",
-        ru: "От слоя 0 к слою 1. Смотрим четырёх соседей клетки (0, 0): вверх и влево выйти нельзя, а нижняя (1, 0) и правая (0, 1) свободны, и в них ещё стоит −1. Ставим обеим 1 и добавляем их в конец очереди. Теперь в очереди три клетки, а `head` уже прошёл первую.",
+        kk: "0-қабаттан 1-қабатқа. (0, 0) ұяшығының төрт көршісін қараймыз: жоғары және солға шығуға болмайды, ал төмендегі (1, 0) мен оң жақтағы (0, 1) — бос ұяшық және оларда әлі −1 тұр. Екеуіне де 1 қойып, кезектің соңына қосамыз. Кезекте енді екі ұяшық қалды, ал старт кезектен шығып кетті.",
+        ru: "От слоя 0 к слою 1. Смотрим четырёх соседей клетки (0, 0): вверх и влево выйти нельзя, а нижняя (1, 0) и правая (0, 1) свободны, и в них ещё стоит −1. Ставим обеим 1 и добавляем их в конец очереди. Теперь в очереди две клетки, а старт из неё уже вышел.",
       },
       {
         kk: "1-қабаттан 2-қабатқа. Кезектен (1, 0) шығады: оның астындағы (2, 0) бос, оған 2 қойылады, ал оң жағындағы (1, 1) — қабырға, сондықтан ол мәңгі −1 күйінде қалады. Содан кейін (0, 1) шығады: оның оң жағындағы (0, 2) бос, оған да 2 қойылады. Екі жаңа ұяшық та бір қабаттан — бұл кездейсоқтық емес.",
@@ -217,43 +218,56 @@ export const M7_L3: LessonBlock[] = [
         ru: "Дальше правило то же: если клетка в очереди держит число `k`, её новым соседям ставится `k + 1`. Так как клетки лежат в очереди в порядке добавления, все двойки проставляются раньше всех троек, а все тройки — раньше четвёрок. Стена `###` посередине останавливает волну, поэтому в правый столбец она попадает не по верхней строке, а в обход по нижним.",
       },
       {
-        kk: "Толқын қабат-қабатпен осылай жүреді: 0-қабатта бір ұяшық, 1-қабатта екі ұяшық, 2-қабатта екі ұяшық, 3-қабатта үш ұяшық, 4-, 5- және 6-қабаттардың әрқайсысында тағы екі ұяшық, ал 7-қабатта жалғыз (3, 4) ұяшығы қалады. `head` тізімнің соңына жеткенде толқын тоқтайды: қосылатын жаңа ұяшық қалмады.",
-        ru: "Волна идёт слой за слоем: в слое 0 одна клетка, в слое 1 две, в слое 2 две, в слое 3 три, дальше снова по две, а в слое 7 остаётся единственная клетка (3, 4). Когда `head` доходит до конца списка, волна останавливается: новых клеток добавлять больше некуда.",
+        kk: "Толқын қабат-қабатпен осылай жүреді: 0-қабатта бір ұяшық, 1-қабатта екі ұяшық, 2-қабатта екі ұяшық, 3-қабатта үш ұяшық, 4-, 5- және 6-қабаттардың әрқайсысында тағы екі ұяшық, ал 7-қабатта жалғыз (3, 4) ұяшығы қалады. Кезек босағанда толқын тоқтайды: қосылатын жаңа ұяшық қалмады.",
+        ru: "Волна идёт слой за слоем: в слое 0 одна клетка, в слое 1 две, в слое 2 две, в слое 3 три, дальше снова по две, а в слое 7 остаётся единственная клетка (3, 4). Когда очередь пустеет, волна останавливается: новых клеток добавлять больше некуда.",
       },
     ],
     code:
-      'g = [".....", ".###.", "...#.", ".#..."]\n' +
-      "n = 4\n" +
-      "m = 5\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[0][0] = 0\n" +
-      "qr = [0]\n" +
-      "qc = [0]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "for r in range(n):\n" +
-      "    print(dist[r])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<string> g = {\".....\", \".###.\", \"...#.\", \".#...\"};\n" +
+      "    int n = 4;\n" +
+      "    int m = 5;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[0][0] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({0, 0});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            cout << dist[r][c];\n" +
+      "            if (c < m - 1) {\n" +
+      "                cout << \" \";\n" +
+      "            }\n" +
+      "        }\n" +
+      "        cout << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     result: {
-      kk: "Бағдарлама төрт жол шығарады — `dist` торының әр жолы:\n\n```\n[0, 1, 2, 3, 4]\n[1, -1, -1, -1, 5]\n[2, 3, 4, -1, 6]\n[3, -1, 5, 6, 7]\n```\n\nҚабырғалардың орнында −1 қалды, ал оң жақ төменгі бұрышқа (3, 4) дейін 7 қадам керек.",
-      ru: "Программа выводит четыре строки — по строке сетки `dist`:\n\n```\n[0, 1, 2, 3, 4]\n[1, -1, -1, -1, 5]\n[2, 3, 4, -1, 6]\n[3, -1, 5, 6, 7]\n```\n\nНа местах стен осталось −1, а до правого нижнего угла (3, 4) нужно 7 шагов.",
+      kk: "Бағдарлама төрт жол шығарады — `dist` торының әр жолы:\n\n```\n0 1 2 3 4\n1 -1 -1 -1 5\n2 3 4 -1 6\n3 -1 5 6 7\n```\n\nҚабырғалардың орнында −1 қалды, ал оң жақ төменгі бұрышқа дейін жеті қадам керек.",
+      ru: "Программа выводит четыре строки — по строке сетки `dist`:\n\n```\n0 1 2 3 4\n1 -1 -1 -1 5\n2 3 4 -1 6\n3 -1 5 6 7\n```\n\nНа местах стен осталось −1, а до правого нижнего угла нужно семь шагов.",
     },
   },
   {
@@ -288,27 +302,41 @@ export const M7_L3: LessonBlock[] = [
       ru: "Карта состоит из 3 строк и 4 столбцов, посередине две стены. Волна пошла из клетки (0, 0) и успела закрасить всё до слоя 2: в сетке `dist` стоят один 0, две 1 и две 2, в остальных клетках пока −1. Программа ниже находит клетки, которые войдут в следующий слой, и выводит строку и столбец каждой из них на отдельной строке. Что она выведет?",
     },
     code:
-      'g = ["....", ".##.", "...."]\n' +
-      "dist = [[0, 1, 2, -1], [1, -1, -1, -1], [2, -1, -1, -1]]\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "for r in range(3):\n" +
-      "    for c in range(4):\n" +
-      "        if dist[r][c] == 2:\n" +
-      "            for k in range(4):\n" +
-      "                nr = r + dr[k]\n" +
-      "                nc = c + dc[k]\n" +
-      "                if nr >= 0 and nr < 3 and nc >= 0 and nc < 4:\n" +
-      '                    if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                        dist[nr][nc] = 3\n" +
-      "                        print(nr, nc)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<string> g = {\"....\", \".##.\", \"....\"};\n" +
+      "    vector<vector<int>> dist = {{0, 1, 2, -1}, {1, -1, -1, -1}, {2, -1, -1, -1}};\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    for (int r = 0; r < 3; r++) {\n" +
+      "        for (int c = 0; c < 4; c++) {\n" +
+      "            if (dist[r][c] == 2) {\n" +
+      "                for (int k = 0; k < 4; k++) {\n" +
+      "                    int nr = r + dr[k];\n" +
+      "                    int nc = c + dc[k];\n" +
+      "                    if (nr >= 0 && nr < 3 && nc >= 0 && nc < 4) {\n" +
+      "                        if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                            dist[nr][nc] = 3;\n" +
+      "                            cout << nr << \" \" << nc << endl;\n" +
+      "                        }\n" +
+      "                    }\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     answer: "0 3\n2 1",
     options: ["0 3\n2 1", "0 3\n1 2\n2 1", "0 3\n2 1\n1 3", "0 1\n1 0"],
     diagnosticMapping: {
       "0 3\n1 2\n2 1": {
         failureClass: "wall_not_checked_in_neighbour_test",
         justification:
-          "(1, 2) ұяшығы — қабырға, картада ол `#` таңбасымен тұр. Оны жауапқа қосудың жалғыз жолы — көршіні тексергенде `g[nr][nc] == \".\"` шартын мүлде қарамау. Басқа қате бұл ұяшықты тізімге кіргізе алмайды.",
+          "(1, 2) ұяшығы — қабырға, картада ол `#` таңбасымен тұр. Оны жауапқа қосудың жалғыз жолы — көршіні тексергенде `g[nr][nc] == '.'` шартын мүлде қарамау. Басқа қате бұл ұяшықты тізімге кіргізе алмайды.",
       },
       "0 3\n2 1\n1 3": {
         failureClass: "wave_chained_within_one_layer",
@@ -319,67 +347,77 @@ export const M7_L3: LessonBlock[] = [
   },
   {
     /*
-     * The queue and the head index, by hand. The map is a 3×3 with one wall in
-     * the middle — small enough that eight rounds fit on paper, big enough that
-     * the queue outgrows the head twice before it is caught.
+     * The queue itself, by hand. The map is a 3×3 with one wall in the middle —
+     * small enough that eight rounds fit on paper, big enough that the queue
+     * holds two cells for most of the run.
      *
-     * The columns are chosen so the growth is the visible thing: qr and qc are
-     * recorded at the moment head has just advanced, BEFORE this round's
-     * appends, so a learner reading two consecutive rows sees precisely which
-     * cells the previous round added. Rounds 7 and 8 add nothing, and that is
-     * the point at which head finally catches len(qr) — the stopping condition
-     * stated in b1.
+     * `waiting` is `(int)q.size()` taken right after the cell was removed, so
+     * a learner reading two consecutive rows sees how many cells the previous
+     * round left behind and how many the current one is about to add. `taken`
+     * counts the cells that came OUT. Rounds 7 and 8 add nothing, and that is
+     * where `waiting` falls to zero and the loop stops — the condition `b1`
+     * spends a sentence on.
      *
-     * The program prints the number of cells the wave reached (8 of the 9, one
-     * being the wall), which is a question no task in this lesson asks.
+     * The program prints how many cells the wave took out of the queue (8 of
+     * the 9, one being the wall), which is a question no task in this lesson
+     * asks.
      */
     id: "m7.l3.b5",
     type: "trace_code",
     skillRefs: ["graph.bfs", "twopointers.core", "loops.while", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Қағазға бес баған сыз: `head`, `r`, `c`, `qr`, `qc`. Циклдің әр айналымында 19-жол орындалғаннан кейінгі мәндерді жаз — яғни `head` бір артқаннан кейін, бірақ бұл айналымда жаңа ұяшықтар қосылғанға дейін. Сонда әр жолдағы `qr` пен `qc` алдыңғы айналымда кезекке не қосылғанын көрсетеді. Соңғы жолға 28-жол орындалғандағы мәндерді жаз. Карта 3×3, ортасында бір қабырға бар.",
-      ru: "Начерти на бумаге пять столбцов: `head`, `r`, `c`, `qr`, `qc`. На каждом обороте цикла записывай значения после выполнения строки 19 — то есть после того, как `head` увеличился, но до того, как на этом обороте добавились новые клетки. Тогда `qr` и `qc` в каждой строке показывают, что положил в очередь предыдущий оборот. В последнюю строку запиши значения на строке 28. Карта 3×3, посередине одна стена.",
+      kk: "Қағазға төрт баған сыз: `r`, `c`, `taken`, `waiting`. Циклдің әр айналымында 23-жол орындалғаннан кейінгі мәндерді жаз — яғни ұяшық кезектен алынып болғанда, бірақ бұл айналымда жаңа ұяшықтар қосылғанға дейін. Сонда `waiting` алдыңғы айналымдардан кезекте не қалғанын көрсетеді. Соңғы жолға 35-жол орындалғандағы `taken` мәнін жаз. Карта 3×3, ортасында бір қабырға бар.",
+      ru: "Начерти на бумаге четыре столбца: `r`, `c`, `taken`, `waiting`. На каждом обороте цикла записывай значения после выполнения строки 23 — то есть когда клетка уже вынута из очереди, но новые клетки на этом обороте ещё не добавлены. Тогда `waiting` показывает, что осталось в очереди от предыдущих оборотов. В последнюю строку запиши значение `taken` на строке 35. Карта 3×3, посередине одна стена.",
     },
     code:
-      'g = ["...", ".#.", "..."]\n' +
-      "n = 3\n" +
-      "m = 3\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[0][0] = 0\n" +
-      "qr = [0]\n" +
-      "qc = [0]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "print(len(qr))",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<string> g = {\"...\", \".#.\", \"...\"};\n" +
+      "    int n = 3;\n" +
+      "    int m = 3;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[0][0] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({0, 0});\n" +
+      "    int taken = 0;\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        taken = taken + 1;\n" +
+      "        int waiting = (int)q.size();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << taken;\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 19, vars: { head: "1", r: "0", c: "0", qr: "[0]", qc: "[0]" } },
-      { line: 19, vars: { head: "2", r: "1", c: "0", qr: "[0, 1, 0]", qc: "[0, 0, 1]" } },
-      { line: 19, vars: { head: "3", r: "0", c: "1", qr: "[0, 1, 0, 2]", qc: "[0, 0, 1, 0]" } },
-      { line: 19, vars: { head: "4", r: "2", c: "0", qr: "[0, 1, 0, 2, 0]", qc: "[0, 0, 1, 0, 2]" } },
-      { line: 19, vars: { head: "5", r: "0", c: "2", qr: "[0, 1, 0, 2, 0, 2]", qc: "[0, 0, 1, 0, 2, 1]" } },
-      { line: 19, vars: { head: "6", r: "2", c: "1", qr: "[0, 1, 0, 2, 0, 2, 1]", qc: "[0, 0, 1, 0, 2, 1, 2]" } },
-      { line: 19, vars: { head: "7", r: "1", c: "2", qr: "[0, 1, 0, 2, 0, 2, 1, 2]", qc: "[0, 0, 1, 0, 2, 1, 2, 2]" } },
-      { line: 19, vars: { head: "8", r: "2", c: "2", qr: "[0, 1, 0, 2, 0, 2, 1, 2]", qc: "[0, 0, 1, 0, 2, 1, 2, 2]" } },
-      { line: 28, vars: { head: "8", "len(qr)": "8" } },
+      { line: 23, vars: { r: "0", c: "0", taken: "1", waiting: "0" } },
+      { line: 23, vars: { r: "1", c: "0", taken: "2", waiting: "1" } },
+      { line: 23, vars: { r: "0", c: "1", taken: "3", waiting: "1" } },
+      { line: 23, vars: { r: "2", c: "0", taken: "4", waiting: "1" } },
+      { line: 23, vars: { r: "0", c: "2", taken: "5", waiting: "1" } },
+      { line: 23, vars: { r: "2", c: "1", taken: "6", waiting: "1" } },
+      { line: 23, vars: { r: "1", c: "2", taken: "7", waiting: "1" } },
+      { line: 23, vars: { r: "2", c: "2", taken: "8", waiting: "0" } },
+      { line: 35, vars: { taken: "8" } },
     ],
   },
   {
@@ -411,8 +449,8 @@ export const M7_L3: LessonBlock[] = [
       {
         id: "o1",
         label: {
-          kk: "Кезектегі ұяшықтар қосылу ретімен жататындықтан, k саны бар барлық ұяшық k + 1 саны барлардың бәрінен бұрын өңделеді. Демек ұяшық бірінші рет боялғанда, оны бояған көрші — оған жетуге болатын ең кіші саны бар көрші.",
-          ru: "Клетки лежат в очереди в порядке добавления, поэтому все клетки с числом k обрабатываются раньше всех клеток с числом k + 1. Значит, когда клетка закрашивается впервые, её закрашивает сосед с наименьшим числом из возможных.",
+          kk: "Кезектегі ұяшықтар қосылу ретімен жататындықтан, k саны бар барлық ұяшық k + 1 саны барлардың бәрінен бұрын кезектен шығады. Демек ұяшық бірінші рет боялғанда, оны бояған көрші — оған жетуге болатын ең кіші саны бар көрші.",
+          ru: "Клетки лежат в очереди в порядке добавления, поэтому все клетки с числом k выходят из очереди раньше всех клеток с числом k + 1. Значит, когда клетка закрашивается впервые, её закрашивает сосед с наименьшим числом из возможных.",
         },
       },
       {
@@ -455,13 +493,13 @@ export const M7_L3: LessonBlock[] = [
     /*
      * The reconstruction card. Four blanks, and each one is a decision the
      * lesson exists to teach rather than a word to copy:
-     *   f1 — the loop ends when head catches the END of a list that is still
-     *        growing, which is the sentence b1 spends a paragraph on;
+     *   f1 — the loop runs while the queue still holds something, which is the
+     *        sentence b1 spends a clause on;
      *   f2 — one step further than the cell we came from, which is the whole
      *        content of `graph.shortest_path`;
-     *   f3, f4 — the new cell goes to the BACK of the queue, in both parallel
-     *        lists, and getting nr/nc the wrong way round here is the mistake
-     *        that turns the map on its side.
+     *   f3, f4 — the new cell goes into the queue as a pair, and getting nr/nc
+     *        the wrong way round here is the mistake that turns the map on its
+     *        side.
      *
      * The question is deliberately neither of the two the write_code tasks ask:
      * how far away the farthest reachable cell is. So the completed program is
@@ -480,43 +518,55 @@ export const M7_L3: LessonBlock[] = [
       ru: "В первой строке даны числа n и m (количество строк и столбцов карты, 1 ≤ n, m ≤ 20). В следующих n строках — карта: по m символов в строке, `.` — свободная клетка, `#` — стена. В последней строке два числа: строка и столбец стартовой клетки (строки и столбцы нумеруются с нуля). Программа должна вывести, сколько шагов нужно до самой дальней из клеток, до которых от старта вообще можно добраться. Например, на карте 3×4\n\n```\n....\n.##.\n....\n```\n\nсо стартом (0, 0) ответ равен 5. Дополни четыре пропуска в волне.",
     },
     template:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "while head < ___:\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = ___\n" +
-      "                qr.append(___)\n" +
-      "                qc.append(___)\n" +
-      "best = 0\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      "        if dist[r][c] > best:\n" +
-      "            best = dist[r][c]\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (___) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = ___;\n" +
+      "                    q.push({___, ___});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int best = 0;\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (dist[r][c] > best) {\n" +
+      "                best = dist[r][c];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: "len(qr)", alternatives: ["len(qc)"] },
+      { id: "f1", answer: "!q.empty()" },
       { id: "f2", answer: "dist[r][c] + 1", alternatives: ["dist[r][c]+1", "1 + dist[r][c]"] },
       { id: "f3", answer: "nr" },
       { id: "f4", answer: "nc" },
@@ -527,10 +577,10 @@ export const M7_L3: LessonBlock[] = [
      * PDF p.9: «бір ұяшықтан екіншісіне жетуге бола ма».
      *
      * The starter carries the input reading, the −1 grid and the neighbour
-     * lists — all of it m7.l1's content, none of it this lesson's. What the
-     * learner writes is the wave and the decision, and the decision is where
-     * the double duty of −1 earns its keep: no separate flag, no second array,
-     * just "did the finish ever get a number".
+     * arrays — all of it m7.l1's and m7.l2's content, none of it this lesson's.
+     * What the learner writes is the wave and the decision, and the decision is
+     * where the double duty of −1 earns its keep: no separate flag, no second
+     * array, just "did the finish ever get a number".
      *
      * "Use the wave" is stated as the method being practised and NOT as a rule
      * (contract §4, option 2): a depth-first walk answers yes/no correctly and
@@ -544,10 +594,8 @@ export const M7_L3: LessonBlock[] = [
      *   · "always no" → every yes case;
      *   · a walk that only ever moves right and down → the snake map, whose
      *     only route goes up three times;
-     *   · a wave that forgets to mark the start → the 1×1 map, where the answer
-     *     is yes with zero steps taken;
-     *   · a bounds test written `nc <= m` → any map whose wave touches the last
-     *     column, e.g. the first case, which crashes instead of printing.
+     *   · a wave that forgets to write 0 into the start → the 1×1 map, where
+     *     the answer is yes with zero steps taken.
      */
     id: "m7.l3.b8",
     type: "write_code",
@@ -559,53 +607,71 @@ export const M7_L3: LessonBlock[] = [
       ru: "В первой строке даны числа n и m: количество строк и столбцов карты (1 ≤ n, m ≤ 20). В следующих n строках — карта: по m символов в строке, `.` — свободная клетка, `#` — стена. В последней строке четыре числа: строка и столбец стартовой клетки, затем строка и столбец финишной. Строки и столбцы нумеруются с нуля; старт и финиш всегда свободны и могут оказаться одной и той же клеткой. Ходить можно только в соседнюю клетку — вверх, вниз, влево или вправо, — и наступать на стену нельзя. Можно ли добраться из старта в финиш? Выведи `yes`, если можно, и `no`, если нельзя, — именно эти два английских слова. Решай приёмом сегодняшнего урока, волной: пусти волну из старта и посмотри, получила финишная клетка число или нет. Проверяющая программа сравнивает только выведенное слово, так что это не обязательное правило — но на проверке в конце месяца спросят именно этот приём.",
     },
     starter:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc, fr, fc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, fr, fc;\n" +
+      "    cin >> sr >> sc >> fr >> fc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc, fr, fc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "if dist[fr][fc] == -1:\n" +
-      '    print("no")\n' +
-      "else:\n" +
-      '    print("yes")',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, fr, fc;\n" +
+      "    cin >> sr >> sc >> fr >> fc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (dist[fr][fc] == -1) {\n" +
+      "        cout << \"no\";\n" +
+      "    } else {\n" +
+      "        cout << \"yes\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4 5\n.....\n.###.\n...#.\n.#...\n0 0 3 4", expectedOutput: "yes" },
       { input: "5 5\n.....\n.###.\n.#.#.\n.###.\n.....\n0 0 2 2", expectedOutput: "no" },
@@ -657,36 +723,45 @@ export const M7_L3: LessonBlock[] = [
       ru: "Формат ввода такой же, как в предыдущей задаче. В первой строке n и m (1 ≤ n, m ≤ 20), в следующих n строках карта (`.` — свободная клетка, `#` — стена), в последней строке четыре числа: строка и столбец старта, затем строка и столбец финиша; нумерация с нуля. Ходить можно только в соседнюю клетку: вверх, вниз, влево, вправо. Выведи длину кратчайшего пути от старта до финиша — количество шагов. Если до финиша добраться нельзя, выведи -1. Если старт и финиш — одна и та же клетка, ответ 0. Решай методом волны: не забывай, что −1 в сетке `dist` отвечает сразу на два вопроса. Проверяющая программа сравнивает только выведенное число.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc, fr, fc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "print(dist[fr][fc])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, fr, fc;\n" +
+      "    cin >> sr >> sc >> fr >> fc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dist[fr][fc];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4 5\n.....\n.###.\n...#.\n.#...\n0 0 3 4", expectedOutput: "7" },
       { input: "3 3\n...\n###\n...\n0 0 2 2", expectedOutput: "-1" },
@@ -737,73 +812,94 @@ export const M7_L3: LessonBlock[] = [
       ru: "Ниже — программа из задания с пропусками: она читает карту, пускает волну и выводит, за сколько шагов доходят до самой дальней клетки от старта. Теперь измени её так, чтобы она отвечала на другой вопрос. Ввод немного меняется: в последней строке теперь четыре числа — строка и столбец старта, затем строка и столбец финиша (всё нумеруется с нуля). Пусть программа выведет длину кратчайшего пути от старта до финиша, то есть количество шагов. Если до финиша добраться нельзя, пусть выведет -1; если старт и финиш — одна и та же клетка, пусть выведет 0. Часть, которая ищет наибольшее число, больше не нужна: ответ уже лежит в сетке `dist` в финишной клетке.",
     },
     code:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "best = 0\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      "        if dist[r][c] > best:\n" +
-      "            best = dist[r][c]\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int best = 0;\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (dist[r][c] > best) {\n" +
+      "                best = dist[r][c];\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc, fr, fc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head = head + 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "ans = dist[fr][fc]\n" +
-      "print(ans)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc, fr, fc;\n" +
+      "    cin >> sr >> sc >> fr >> fc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int ans = dist[fr][fc];\n" +
+      "    cout << ans;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4 5\n.....\n.###.\n...#.\n.#...\n0 0 3 4", expectedOutput: "7" },
       { input: "3 3\n...\n###\n...\n0 0 2 2", expectedOutput: "-1" },

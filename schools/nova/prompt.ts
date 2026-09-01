@@ -4,6 +4,7 @@ import type { NovaDirective } from "@solvex/learning-intelligence-core";
 import type { GrantDecision } from "@solvex/nova-core";
 import type { Locale } from "@schools/curriculum/types";
 import {
+  CONSTRUCTS,
   capabilityPromptLines,
   type CapabilityContext,
 } from "@schools/curriculum/capability";
@@ -229,6 +230,57 @@ function fence(nonce: string, kind: string, content: string): string {
 }
 
 /**
+ * Is the curriculum's construct extractor still speaking Python?
+ *
+ * ## Why this gate exists, and what it is protecting against
+ *
+ * `@schools/curriculum/capability` computes what the course has shown a learner
+ * by walking the code the curriculum puts on screen, and renders it into this
+ * prompt as a closed TAUGHT list. That is the right idea and it was correct for
+ * a Python course. Its alphabet — `builtin.print`, `stmt.elif`,
+ * `expr.comprehension` — is Python's, and the curriculum is now C++17.
+ *
+ * A Python token matcher pointed at C++ does not fail quietly. It produces
+ * confident, specific, WRONG statements, and it produces them in the
+ * over-permitting direction. Measured against the migrated September, on
+ * `m1.l1.b1` — the very first thing a learner ever sees, `cout << "Сәлем!";` —
+ * it reported as already TAUGHT:
+ *
+ *   - `<` and `chained comparison (a < x < b)`, read out of the `<<` in `cout <<`.
+ *     September teaches comparison at lesson 8. This tells Nova it may use it at
+ *     lesson 1.
+ *   - `a dict or set ({...})`, read out of the braces of `int main() { }`.
+ *   - `return`, read out of `return 0;` in the frame the learner is GIVEN and is
+ *     not required to write until lesson 7.
+ *
+ * Handing a learner a construct the course has not taught is the single most
+ * damaging thing this tutor can do, and this was a paragraph of the system
+ * prompt asserting permission to do it, in the section whose whole purpose is
+ * to withhold it. Silence is strictly better than that, and `./cpp17` — which
+ * declares the September sequence from the binding pedagogy document — covers
+ * the same ground without guessing.
+ *
+ * ## Why it is detected rather than configured
+ *
+ * A boolean flag here would have to be turned off by hand on the day the
+ * extractor is migrated, by someone who remembers this file exists. So the
+ * question is asked of the module itself: an alphabet containing `print()` and
+ * `elif` is Python's alphabet, whatever the curriculum around it now contains.
+ * When the vocabulary becomes C++, these ids stop existing, this constant
+ * becomes false on its own, and the capability block comes back with no edit
+ * here at all.
+ *
+ * `capability` is deliberately still ACCEPTED and still plumbed through by the
+ * route. The day it is worth rendering, nothing but this predicate changes.
+ *
+ * @see tests/nova/construct-context.test.ts — the test that fails if this gate
+ *      is ever wrong in either direction.
+ */
+export const CAPABILITY_VOCABULARY_IS_PYTHON = CONSTRUCTS.some(
+  (c) => c.id === "builtin.print" || c.id === "stmt.elif",
+);
+
+/**
  * The system half of the prompt.
  *
  * `nonce` is optional and defaults to a fresh one, which keeps the function
@@ -330,7 +382,7 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
    * course is in. */
   lines.push(...cpp17PromptLines(cpp17PositionOf(ctx.blockId), locale));
 
-  if (ctx.capability) {
+  if (ctx.capability && !CAPABILITY_VOCABULARY_IS_PYTHON) {
     /* The task-specific exception is withheld below level 3.
      *
      * `taskGap` names what this task's own solution needs beyond the taught

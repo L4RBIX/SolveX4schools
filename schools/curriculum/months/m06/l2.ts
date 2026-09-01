@@ -305,14 +305,14 @@ export const M6_L2: LessonBlock[] = [
       "    return 0;\n" +
       "}",
     steps: [
-      { line: 11, vars: { steps: "0", found: "-1", i: "0" } },
-      { line: 13, vars: { steps: "1", found: "-1", i: "0" } },
-      { line: 18, vars: { steps: "1", found: "-1", i: "1" } },
-      { line: 13, vars: { steps: "2", found: "-1", i: "1" } },
-      { line: 18, vars: { steps: "2", found: "-1", i: "2" } },
-      { line: 13, vars: { steps: "3", found: "-1", i: "2" } },
-      { line: 15, vars: { steps: "3", found: "2", i: "2" } },
-      { line: 20, vars: { steps: "3", found: "2", i: "2" } },
+      { line: 10, vars: { steps: "0", found: "-1", i: "0" } },
+      { line: 12, vars: { steps: "1", found: "-1", i: "0" } },
+      { line: 17, vars: { steps: "1", found: "-1", i: "1" } },
+      { line: 12, vars: { steps: "2", found: "-1", i: "1" } },
+      { line: 17, vars: { steps: "2", found: "-1", i: "2" } },
+      { line: 12, vars: { steps: "3", found: "-1", i: "2" } },
+      { line: 14, vars: { steps: "3", found: "2", i: "2" } },
+      { line: 19, vars: { steps: "3", found: "2", i: "2" } },
     ],
   },
   {

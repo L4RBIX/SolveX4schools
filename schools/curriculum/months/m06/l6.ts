@@ -33,25 +33,43 @@ import type { LessonBlock } from "../../types";
  * months apart — that connection is the year's, not this lesson's, and it is
  * the reason `m6.l6.b8` must not be quietly rewritten as a loop.
  *
- * ## The undo line, and why it is written with a slice
+ * ## The undo line in C++, and why it is still a slice
  *
- * The month has no new Python: recursion is `def` + `return`. In particular
- * `.pop()` has never been taught, so the classic `path.pop()` undo is not
- * available and must not be smuggled in. The generator here keeps `path` as a
- * LOCAL string and undoes a choice with the slice October already taught:
+ * The month introduces no new construct here. `path` is a `string` PARAMETER
+ * taken by value, so each call owns its own copy — the same behaviour Python's
+ * strings had, and the reason the caller's `path` is never disturbed. The
+ * choose / descend / undo triple is written with the two string operations
+ * `m6.l4` already taught:
  *
- *     path = path + "0"                 # таңдау
- *     build(path, n)                    # тереңдеу
- *     path = path[0:len(path) - 1]      # кері қайту
- *     path = path + "1"                 # басқа таңдау
+ *     path = path + "0";                             // таңдау
+ *     build(path, n);                                // тереңдеу
+ *     path = path.substr(0, path.size() - 1);        // кері қайту
+ *     path = path + "1";                             // басқа таңдау
  *
- * That is a real undo, not a decoration: delete the third line and `path` keeps
- * growing past `n`, the base case never fires, and the program dies with
- * RecursionError. `m6.l6.b9` asks the learner to say exactly that.
+ * `path.pop_back()` would do the same job in one call and is deliberately NOT
+ * used: it is a method nothing in this course has taught, and the point of the
+ * card is that the undo is a visible statement rather than a spell. `substr`
+ * arrived in `m6.l4` for the palindrome and is reused here on the other end of
+ * the word, which is the whole difference `b5` asks about.
+ *
+ * That undo is real, not a decoration: delete the third line and `path` keeps
+ * growing past `n`, the base case never fires, and the recursion does not stop.
+ * `m6.l6.b9` asks the learner to say exactly that — and its marking points were
+ * rewritten for C++, because what happens next is NOT Python's `RecursionError`.
+ * C++ counts no depth and raises nothing: the call stack fills, the program
+ * stops, and there is no message to read. That is stated as the reason to
+ * reason about depth in advance, which is the habit `m6.l4.b1` sells.
  *
  * Because `path` is local, the caller's own `path` is never touched, so the
  * final choice in a call needs no erase after it. That asymmetry is stated in
  * the worked example rather than hidden behind a redundant symmetric line.
+ *
+ * ## Lengths are read into an `int` before they are compared
+ *
+ * `path.size()` is not an `int`, so every generator here writes
+ * `int len = path.size();` on its own line and compares that. It is the same
+ * recipe `m6.l3` and `m6.l5` use for `vector`, and it keeps the interesting
+ * line — the base case — free of anything that is not the base case.
  *
  * ## A requirement no checker can see, and which of the three options was taken
  *
@@ -76,6 +94,14 @@ import type { LessonBlock } from "../../types";
  *
  * Programs print digits and integers only — no Kazakh or Russian word reaches
  * stdout anywhere in this lesson.
+ *
+ * ## Bounds
+ *
+ * `b7` caps n at 5, so 32 lines and a recursion 5 deep. `b8`'s grid is at most
+ * 8 × 8, where the answer is 3432 and the tree holds a few thousand calls, at a
+ * depth of at most 14. `b10`'s board is at most 8 × 8, which the whole search
+ * covers in a small fraction of a second at a depth of 8. Every one of them is
+ * far inside `int` and far inside any stack.
  */
 export const M6_L6: LessonBlock[] = [
   {
@@ -96,11 +122,24 @@ export const M6_L6: LessonBlock[] = [
      * string — an empty output line teaches nothing here and looks like a bug.
      */
     body: {
-      kk: "Барлық нұсқаны құрастыру тәсілі қарапайым: бір орынға бір мәнді таңдаймыз, сол таңдаумен бірге тереңірек кетеміз, содан кейін кері қайтып, дәл сол орынға екінші мәнді қоямыз. Жиналған бөлікті `path` айнымалысында мәтін түрінде сақтаймыз. `path + \"0\"` соңына бір таңба қосады. `path[0:len(path) - 1]` соңғы таңбадан басқасының бәрін алады, яғни ең соңғы таңдауды өшіреді — тілім жазуы қазан айынан таныс. Төмендегі үш әрекетті мұқият қара: таңдау, кері қайту, басқа таңдау.",
-      ru: "Приём для построения всех вариантов простой: выбираем одно значение для одной позиции, уходим с этим выбором вглубь, а потом возвращаемся и ставим на ту же позицию второе значение. Собранную часть храним в переменной `path` как текст. Запись `path + \"0\"` добавляет в конец один символ. Запись `path[0:len(path) - 1]` берёт всё, кроме последнего символа, то есть стирает самый последний выбор — срез знаком с октября. Посмотри внимательно на три действия ниже: выбор, возврат, другой выбор.",
+      kk: "Барлық нұсқаны құрастыру тәсілі қарапайым: бір орынға бір мәнді таңдаймыз, сол таңдаумен бірге тереңірек кетеміз, содан кейін кері қайтып, дәл сол орынға екінші мәнді қоямыз. Жиналған бөлікті `path` айнымалысында `string` түрінде сақтаймыз. `path + \"0\"` соңына бір таңба қосады. `path.substr(0, path.size() - 1)` нөлінші таңбадан бастап `path.size() - 1` таңба алады, яғни соңғысынан басқасының бәрін — сол арқылы ең соңғы таңдау өшіріледі. `substr` жазуы өткен сабақтан таныс, тек ол жерде сөздің басынан кесіп алғанбыз, ал мұнда — соңынан. Төмендегі үш әрекетті мұқият қара: таңдау, кері қайту, басқа таңдау.",
+      ru: "Приём для построения всех вариантов простой: выбираем одно значение для одной позиции, уходим с этим выбором вглубь, а потом возвращаемся и ставим на ту же позицию второе значение. Собранную часть храним в переменной `path` типа `string`. Запись `path + \"0\"` добавляет в конец один символ. Запись `path.substr(0, path.size() - 1)` берёт `path.size() - 1` символов начиная с нулевого, то есть всё, кроме последнего, — так стирается самый последний выбор. Сам `substr` знаком с прошлого урока, только там мы отрезали от начала слова, а здесь — с конца. Посмотри внимательно на три действия ниже: выбор, возврат, другой выбор.",
     },
     code:
-      'path = "01"\npath = path + "0"\nprint(path)\npath = path[0:len(path) - 1]\nprint(path)\npath = path + "1"\nprint(path)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string path = \"01\";\n" +
+      "    path = path + \"0\";\n" +
+      "    cout << path << endl;\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    cout << path << endl;\n" +
+      "    path = path + \"1\";\n" +
+      "    cout << path << endl;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     id: "m6.l6.b2",
@@ -118,24 +157,24 @@ export const M6_L6: LessonBlock[] = [
     },
     steps: [
       {
-        kk: "Тізбекті бірден толық жазуға болмайды. Оны солдан оңға қарай, бір таңбадан құрастырамыз. `path` — әзірге жиналған бөлік, ал `n` — керекті ұзындық.",
-        ru: "Последовательность нельзя написать целиком сразу. Мы строим её слева направо, по одному символу. `path` — уже собранная часть, а `n` — нужная длина.",
+        kk: "Тізбекті бірден толық жазуға болмайды. Оны солдан оңға қарай, бір таңбадан құрастырамыз. `path` — әзірге жиналған бөлік, ал `n` — керекті ұзындық. Функция ешнәрсе қайтармайды, тек экранға шығарады, сондықтан оның түрі — `void`.",
+        ru: "Последовательность нельзя написать целиком сразу. Мы строим её слева направо, по одному символу. `path` — уже собранная часть, а `n` — нужная длина. Функция ничего не возвращает, только печатает, поэтому её тип — `void`.",
       },
       {
-        kk: "Егер `path` ұзындығы `n`-ге жетсе, тізбек дайын: оны шығарамыз да, `return` арқылы осы шақырудан шығамыз. Бұл — тоқтату шарты, ол функцияның ең басында тұр.",
-        ru: "Если длина `path` дошла до `n`, последовательность готова: печатаем её и выходим из этого вызова через `return`. Это базовый случай, и он стоит в самом начале функции.",
+        kk: "Ұзындықты бір рет `int len = path.size();` деп жазып аламыз. Егер `len` `n`-ге жетсе, тізбек дайын: оны шығарамыз да, `return;` арқылы осы шақырудан шығамыз. Бұл — тоқтату шарты, ол функцияның ең басында тұр.",
+        ru: "Длину один раз записываем в `int len = path.size();`. Если `len` дошёл до `n`, последовательность готова: печатаем её и выходим из этого вызова через `return;`. Это базовый случай, и он стоит в самом начале функции.",
       },
       {
         kk: "Әйтпесе алдымен «0» таңдаймыз: соңына нөлді қосып, функцияны өзіне қайта шақырамыз. Терең шақыру қалған орындардың бәрін өзі толтырып шығады.",
         ru: "Иначе сначала выбираем «0»: добавляем ноль в конец и вызываем функцию саму себя. Более глубокий вызов сам заполнит все оставшиеся позиции.",
       },
       {
-        kk: "Терең шақыру аяқталып, басқару келесі жолға оралғанда `path` әлі «0»-мен тұр. Сондықтан оны өшіреміз: `path = path[0:len(path) - 1]`. Осыдан кейін ғана «1»-ді таңдай аламыз — әйтпесе екеуі бірге жиналып қалады.",
-        ru: "Когда глубокий вызов закончился и управление вернулось на следующую строку, `path` всё ещё стоит с «0». Поэтому стираем его: `path = path[0:len(path) - 1]`. Только после этого можно выбрать «1» — иначе оба символа накопятся вместе.",
+        kk: "Терең шақыру аяқталып, басқару келесі жолға оралғанда `path` әлі «0»-мен тұр. Сондықтан оны өшіреміз: `path = path.substr(0, path.size() - 1);`. Осыдан кейін ғана «1»-ді таңдай аламыз — әйтпесе екеуі бірге жиналып қалады.",
+        ru: "Когда глубокий вызов закончился и управление вернулось на следующую строку, `path` всё ещё стоит с «0». Поэтому стираем его: `path = path.substr(0, path.size() - 1);`. Только после этого можно выбрать «1» — иначе оба символа накопятся вместе.",
       },
       {
-        kk: "Екінші шақырудан кейін бұл шақыруда ешқандай әрекет қалмайды, сондықтан соңынан өшірудің қажеті жоқ. Әр шақырудың өз `path`-ы бар: біздің өзгертулеріміз бізді шақырған жақтағы `path`-қа мүлде тимейді.",
-        ru: "После второго вызова в этом вызове больше не остаётся действий, поэтому стирать в конце не нужно. У каждого вызова свой `path`: наши изменения никак не затрагивают `path` того вызова, который нас позвал.",
+        kk: "Екінші шақырудан кейін бұл шақыруда ешқандай әрекет қалмайды, сондықтан соңынан өшірудің қажеті жоқ. Әр шақырудың өз `path`-ы бар: параметр `string path` деп мән бойынша берілген, яғни әр шақыру көшірмесін алады, ал біздің өзгертулеріміз бізді шақырған жақтағы `path`-қа мүлде тимейді.",
+        ru: "После второго вызова в этом вызове больше не остаётся действий, поэтому стирать в конце не нужно. У каждого вызова свой `path`: параметр `string path` передан по значению, то есть каждый вызов получает копию, и наши изменения никак не затрагивают `path` того вызова, который нас позвал.",
       },
       {
         kk: "Ағаш солдан оңға жүреді, ал әр шақыруда «0» әрқашан «1»-ден бұрын таңдалады. Сондықтан жолдар өсу ретімен шығады.",
@@ -143,7 +182,28 @@ export const M6_L6: LessonBlock[] = [
       },
     ],
     code:
-      'def build(path, n):\n    if len(path) == n:\n        print(path)\n        return\n    path = path + "0"\n    build(path, n)\n    path = path[0:len(path) - 1]\n    path = path + "1"\n    build(path, n)\n\nbuild("", 3)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int n) {\n" +
+      "    int len = path.size();\n" +
+      "    if (len == n) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, n);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"1\";\n" +
+      "    build(path, n);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    build(\"\", 3);\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
       kk: "Экранға сегіз жол шығады: 000, 001, 010, 011, 100, 101, 110, 111 — әрқайсысы бөлек жолда.",
       ru: "На экран выйдут восемь строк: 000, 001, 010, 011, 100, 101, 110, 111 — каждая на отдельной строке.",
@@ -165,7 +225,27 @@ export const M6_L6: LessonBlock[] = [
       ru: "Этот генератор сначала выбирает «1», а потом «0», длина равна 2. Что он выведет на экран? Выбери четыре строки в правильном порядке.",
     },
     code:
-      'def build(path, n):\n    if len(path) == n:\n        print(path)\n        return\n    path = path + "1"\n    build(path, n)\n    path = path[0:len(path) - 1]\n    path = path + "0"\n    build(path, n)\n\nbuild("", 2)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int n) {\n" +
+      "    int len = path.size();\n" +
+      "    if (len == n) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"1\";\n" +
+      "    build(path, n);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, n);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    build(\"\", 2);\n" +
+      "    return 0;\n" +
+      "}",
     answer: "11\n10\n01\n00",
     options: ["11\n10\n01\n00", "00\n01\n10\n11", "11\n01\n10\n00", "10\n11\n00\n01"],
     diagnosticMapping: {
@@ -195,7 +275,7 @@ export const M6_L6: LessonBlock[] = [
      * visualiser does not exist, so the tree is made visible two ways at once:
      * the program prints `path` at the START of every call (so the printed
      * output is the tree, not just its leaves), and the learner writes `path`
-     * down for ten executed lines. Step 9 is the payoff — line 7 restores
+     * down for ten executed lines. Step 9 is the payoff — line 13 restores
      * `path` from "000" back to "00", which is the undo doing its work.
      */
     prompt: {
@@ -203,18 +283,38 @@ export const M6_L6: LessonBlock[] = [
       ru: "Это знакомый генератор, но он печатает текущее значение `path` в самом начале каждого вызова, поэтому на экране видно всё дерево вызовов. Выполни программу пошагово при n = 3. На каждом шаге запиши значение `path` в том самом вызове, сразу после выполнения этой строки. В самом первом вызове `path` — пустой текст, поэтому и первая напечатанная строка пустая.",
     },
     code:
-      'def show(path, n):\n    print(path)\n    if len(path) == n:\n        return\n    path = path + "0"\n    show(path, n)\n    path = path[0:len(path) - 1]\n    path = path + "1"\n    show(path, n)\n\nshow("", 3)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void show(string path, int n) {\n" +
+      "    cout << path << endl;\n" +
+      "    int len = path.size();\n" +
+      "    if (len == n) {\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    show(path, n);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"1\";\n" +
+      "    show(path, n);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    show(\"\", 3);\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 2, vars: { path: '""' } },
-      { line: 5, vars: { path: '"0"' } },
-      { line: 2, vars: { path: '"0"' } },
-      { line: 5, vars: { path: '"00"' } },
-      { line: 2, vars: { path: '"00"' } },
-      { line: 5, vars: { path: '"000"' } },
-      { line: 2, vars: { path: '"000"' } },
-      { line: 4, vars: { path: '"000"' } },
-      { line: 7, vars: { path: '"00"' } },
-      { line: 8, vars: { path: '"001"' } },
+      { line: 6, vars: { path: '""' } },
+      { line: 11, vars: { path: '"0"' } },
+      { line: 6, vars: { path: '"0"' } },
+      { line: 11, vars: { path: '"00"' } },
+      { line: 6, vars: { path: '"00"' } },
+      { line: 11, vars: { path: '"000"' } },
+      { line: 6, vars: { path: '"000"' } },
+      { line: 9, vars: { path: '"000"' } },
+      { line: 13, vars: { path: '"00"' } },
+      { line: 14, vars: { path: '"001"' } },
     ],
   },
   {
@@ -223,16 +323,43 @@ export const M6_L6: LessonBlock[] = [
     skillRefs: ["recursion.core", "enumerate.all"],
     sourceType: "product-authored",
     /*
-     * Four lines lifted out of the generator and written without indentation,
-     * so that nothing on this card is a copy of a whole program the learner has
-     * been shown. The prompt says they are an excerpt, so nobody mistakes it
-     * for a runnable program.
+     * The Python version of this card showed four unindented lines lifted out
+     * of the generator. C++ cannot: every snippet in the curriculum is compiled
+     * as a whole translation unit, and four statements with no `main` around
+     * them are not a program. So the card shows the generator the worked
+     * example already revealed in full — `build(path, n)` from `b2`, never the
+     * `left` form, because that one is `b6`'s answer and `b6` comes next — and
+     * points at the one line it asks about by number.
+     *
+     * Nothing is given away: the learner has seen this exact program, and the
+     * question is about reading one line of it.
      */
     prompt: {
-      kk: "Төменде генератордың ішінен алынған төрт жол тұр (шегініссіз жазылған). Үшінші жол — рекурсивті шақырудан кейін тұрған жол. Ол не істейді?",
-      ru: "Ниже — четыре строки, взятые из генератора (записаны без отступа). Третья строка стоит сразу после рекурсивного вызова. Что она делает?",
+      kk: "Төменде саған таныс генератор тұр. 13-жолға қара — ол рекурсивті шақырудан кейін бірден тұрған жол. Ол не істейді?",
+      ru: "Ниже — знакомый тебе генератор. Посмотри на строку 13 — она стоит сразу после рекурсивного вызова. Что она делает?",
     },
-    code: 'path = path + "0"\nbuild(path, n)\npath = path[0:len(path) - 1]\npath = path + "1"',
+    code:
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int n) {\n" +
+      "    int len = path.size();\n" +
+      "    if (len == n) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, n);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"1\";\n" +
+      "    build(path, n);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    build(\"\", 3);\n" +
+      "    return 0;\n" +
+      "}",
     options: [
       {
         id: "o1",
@@ -269,12 +396,12 @@ export const M6_L6: LessonBlock[] = [
        * o3 and o4 stay unmapped: either can come from simply not reading the
        * line, and "did not read it" is not a named misconception. o2 is
        * different — every symbol has been read, and only the meaning of the two
-       * slice bounds has been swapped.
+       * `substr` arguments has been swapped.
        */
       o2: {
         failureClass: "slice_end_bound_misread",
         justification:
-          "Тілім `path[0:len(path) - 1]` нөлінші таңбадан басталып, соңғысына жетпей тоқтайды. «Бірінші таңба алынып тасталды» деген жауап басталу нүктесін алынып тасталатын таңба деп оқығанда ғана шығады.",
+          "`path.substr(0, path.size() - 1)` жазуындағы бірінші сан — БАСТАЛАТЫН орын, ал екіншісі — АЛЫНАТЫН таңбалардың саны. Демек нөлінші таңбадан бастап, соңғысынан басқасының бәрі алынады. «Бірінші таңба алынып тасталды» деген жауап нөлді алынып тасталатын таңбаның нөмірі деп оқығанда ғана шығады.",
       },
     },
   },
@@ -294,17 +421,36 @@ export const M6_L6: LessonBlock[] = [
      * from the card itself.
      */
     prompt: {
-      kk: "Генератор дайын, бірақ үш жері жоқ. Мұнда `left` — әлі толтырылмаған орындардың саны. Толықтыр: «0» таңдағаннан кейінгі рекурсивті шақыруды, таңдауды кері қайтаратын өрнекті және «1» таңдағаннан кейінгі рекурсивті шақыруды. Бағдарлама ұзындығы 3 болатын барлық тізбекті бөлек жолмен, өсу ретімен шығаруы керек.",
-      ru: "Генератор готов, но в нём не хватает трёх мест. Здесь `left` — количество ещё не заполненных позиций. Дополни: рекурсивный вызов после выбора «0», выражение, отменяющее выбор, и рекурсивный вызов после выбора «1». Программа должна вывести все последовательности длины 3, каждую на отдельной строке, в порядке возрастания.",
+      kk: "Генератор дайын, бірақ үш жері жоқ. Мұнда `left` — әлі толтырылмаған орындардың саны, сондықтан ұзындықты өлшеудің де қажеті жоқ. Толықтыр: «0» таңдағаннан кейінгі рекурсивті шақыруды, таңдауды кері қайтаратын өрнекті және «1» таңдағаннан кейінгі рекурсивті шақыруды. Бағдарлама ұзындығы 3 болатын барлық тізбекті бөлек жолмен, өсу ретімен шығаруы керек.",
+      ru: "Генератор готов, но в нём не хватает трёх мест. Здесь `left` — количество ещё не заполненных позиций, поэтому измерять длину уже не нужно. Дополни: рекурсивный вызов после выбора «0», выражение, отменяющее выбор, и рекурсивный вызов после выбора «1». Программа должна вывести все последовательности длины 3, каждую на отдельной строке, в порядке возрастания.",
     },
     template:
-      'def build(path, left):\n    if left == 0:\n        print(path)\n        return\n    path = path + "0"\n    build(path, ___)\n    path = ___\n    path = path + "1"\n    ___\n\nbuild("", 3)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int left) {\n" +
+      "    if (left == 0) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, ___);\n" +
+      "    path = ___;\n" +
+      "    path = path + \"1\";\n" +
+      "    ___;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    build(\"\", 3);\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "left - 1", alternatives: ["left-1"] },
       {
         id: "f2",
-        answer: "path[0:len(path) - 1]",
-        alternatives: ["path[0:len(path)-1]", "path[:len(path) - 1]", "path[:len(path)-1]"],
+        answer: "path.substr(0, path.size() - 1)",
+        alternatives: ["path.substr(0, path.size()-1)"],
       },
       { id: "f3", answer: "build(path, left - 1)", alternatives: ["build(path, left-1)"] },
     ],
@@ -324,13 +470,14 @@ export const M6_L6: LessonBlock[] = [
      *
      * checker: exact. The prompt states one sequence per line, no separator,
      * increasing order — under the default token checker a program printing all
-     * sixteen sequences on a single line would be graded correct against a
+     * thirty-two sequences on a single line would be graded correct against a
      * prompt that forbids exactly that.
      *
      * The degenerate programs and the case that kills each:
      *   - ignores n and always prints length 3   → n = 1, 2, 4, 5
      *   - prints "1" before "0"                  → every case, on the first line
-     *   - drops the undo line                    → RecursionError, every case
+     *   - drops the undo line                    → the recursion never stops,
+     *                                              every case
      *   - prints n lines instead of 2^n          → n = 2 (visible) and up
      */
     prompt: {
@@ -338,9 +485,49 @@ export const M6_L6: LessonBlock[] = [
       ru: "Генератор, который ты только что дополнил, выводит последовательности длины ровно 3. Измени его: сначала читается одно целое число n (1 ≤ n ≤ 5), затем выводятся все последовательности из 0 и 1 длины n. Каждая последовательность — на отдельной строке, между символами нет никакого разделителя, порядок по возрастанию: первая строка состоит только из нулей, последняя — только из единиц.",
     },
     code:
-      'def build(path, left):\n    if left == 0:\n        print(path)\n        return\n    path = path + "0"\n    build(path, left - 1)\n    path = path[0:len(path) - 1]\n    path = path + "1"\n    build(path, left - 1)\n\nbuild("", 3)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int left) {\n" +
+      "    if (left == 0) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, left - 1);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"1\";\n" +
+      "    build(path, left - 1);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    build(\"\", 3);\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      'def build(path, left):\n    if left == 0:\n        print(path)\n        return\n    path = path + "0"\n    build(path, left - 1)\n    path = path[0:len(path) - 1]\n    path = path + "1"\n    build(path, left - 1)\n\nn = int(input())\nbuild("", n)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "void build(string path, int left) {\n" +
+      "    if (left == 0) {\n" +
+      "        cout << path << endl;\n" +
+      "        return;\n" +
+      "    }\n" +
+      "    path = path + \"0\";\n" +
+      "    build(path, left - 1);\n" +
+      "    path = path.substr(0, path.size() - 1);\n" +
+      "    path = path + \"1\";\n" +
+      "    build(path, left - 1);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    build(\"\", n);\n" +
+      "    return 0;\n" +
+      "}",
     checker: { kind: "exact" },
     cases: [
       { input: "2", expectedOutput: "00\n01\n10\n11" },
@@ -383,13 +570,28 @@ export const M6_L6: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Тор r жол мен c бағаннан тұрады. Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін жүреміз, әр қадамда тек оңға немесе төмен жүруге болады. Осындай жолдардың саны неше? Код дайын, үш жері жоқ. Ойлан: егер тор бір ғана жолдан немесе бір ғана бағаннан тұрса, жол қанша? Ал соңғы ұяшыққа тек екі жақтан келуге болады — жоғарыдан және сол жақтан.",
-      ru: "Сетка состоит из r строк и c столбцов. Мы идём из левой верхней клетки в правую нижнюю, на каждом шаге разрешено двигаться только вправо или вниз. Сколько всего таких путей? Код готов, в нём не хватает трёх мест. Подумай: если сетка состоит всего из одной строки или из одного столбца, сколько путей? А в последнюю клетку можно прийти только с двух сторон — сверху и слева.",
+      kk: "Тор r жол мен c бағаннан тұрады. Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін жүреміз, әр қадамда тек оңға немесе төмен жүруге болады. Осындай жолдардың саны неше? Код дайын, үш жері жоқ. Ойлан: егер тор бір ғана жолдан немесе бір ғана бағаннан тұрса, жол қанша? Ал соңғы ұяшыққа тек екі жақтан келуге болады — жоғарыдан және сол жақтан. Бірінші орынға логикалық амал керек — қыркүйекте `||` таңбасын көргенбіз.",
+      ru: "Сетка состоит из r строк и c столбцов. Мы идём из левой верхней клетки в правую нижнюю, на каждом шаге разрешено двигаться только вправо или вниз. Сколько всего таких путей? Код готов, в нём не хватает трёх мест. Подумай: если сетка состоит всего из одной строки или из одного столбца, сколько путей? А в последнюю клетку можно прийти только с двух сторон — сверху и слева. На первое место нужна логическая операция — знак `||` мы видели в сентябре.",
     },
     template:
-      "def paths(r, c):\n    if r == 1 ___ c == 1:\n        return ___\n    return paths(r - 1, c) ___ paths(r, c - 1)\n\nr, c = map(int, input().split())\nprint(paths(r, c))",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int paths(int r, int c) {\n" +
+      "    if (r == 1 ___ c == 1) {\n" +
+      "        return ___;\n" +
+      "    }\n" +
+      "    return paths(r - 1, c) ___ paths(r, c - 1);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int r, c;\n" +
+      "    cin >> r >> c;\n" +
+      "    cout << paths(r, c);\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: "or" },
+      { id: "f1", answer: "||" },
       { id: "f2", answer: "1" },
       { id: "f3", answer: "+" },
     ],
@@ -417,19 +619,53 @@ export const M6_L6: LessonBlock[] = [
      *   - r + c                                     → "3 3": 6 by accident, so
      *                                                 "2 3" (5, not 3) is here
      *   - base case on r == 0 or c == 0             → "1 1": returns 2, not 1
-     *   - base case on r == 1 and c == 1            → "1 8": endless recursion
+     *   - base case on r == 1 and c == 1            → "1 8": the recursion does
+     *                                                 not stop
      *   - only one of the two moves recursed        → any non-edge grid
      * "1 8" and "8 1" are both present: a solution that special-cases only the
      * single row survives one of them and dies on the other.
+     *
+     * At the top of the range the answer is 3432 and the tree is a few thousand
+     * calls at a depth of at most 14 — `int`, and nowhere near a stack limit.
      */
     prompt: {
       kk: "Тор r жол мен c бағаннан тұрады. Сол жақ жоғарғы ұяшықтан оң жақ төменгі ұяшыққа дейін жүреміз, әр қадамда тек оңға немесе төмен жүруге болады. Осындай жолдардың саны неше? Мына бағдарлама тек төмен жүруді санайды, сондықтан ол әрқашан 1 шығарады. Оңға жүруді де қос. Бір жолда бос орынмен бөлінген r мен c беріледі (1 ≤ r ≤ 8, 1 ≤ c ≤ 8), жауап — жалғыз бүтін сан.",
       ru: "Сетка состоит из r строк и c столбцов. Мы идём из левой верхней клетки в правую нижнюю, на каждом шаге разрешено двигаться только вправо или вниз. Сколько всего таких путей? Эта программа считает только движение вниз, поэтому она всегда выводит 1. Добавь и движение вправо. В одной строке через пробел даны r и c (1 ≤ r ≤ 8, 1 ≤ c ≤ 8), ответ — одно целое число.",
     },
     code:
-      "def paths(r, c):\n    if r == 1 or c == 1:\n        return 1\n    return paths(r - 1, c)\n\nr, c = map(int, input().split())\nprint(paths(r, c))",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int paths(int r, int c) {\n" +
+      "    if (r == 1 || c == 1) {\n" +
+      "        return 1;\n" +
+      "    }\n" +
+      "    return paths(r - 1, c);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int r, c;\n" +
+      "    cin >> r >> c;\n" +
+      "    cout << paths(r, c);\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "def paths(r, c):\n    if r == 1 or c == 1:\n        return 1\n    return paths(r - 1, c) + paths(r, c - 1)\n\nr, c = map(int, input().split())\nprint(paths(r, c))",
+      "#include <iostream>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int paths(int r, int c) {\n" +
+      "    if (r == 1 || c == 1) {\n" +
+      "        return 1;\n" +
+      "    }\n" +
+      "    return paths(r - 1, c) + paths(r, c - 1);\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int r, c;\n" +
+      "    cin >> r >> c;\n" +
+      "    cout << paths(r, c);\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 3", expectedOutput: "6" },
       { input: "2 3", expectedOutput: "3" },
@@ -453,6 +689,15 @@ export const M6_L6: LessonBlock[] = [
      * It also carries the half of `m6.l6.b7` that output comparison cannot see:
      * what the two parameters mean and what the undo line is for. A teacher
      * reads it; nothing here is machine-scored, and it settles as `unknown`.
+     *
+     * The fourth marking point is the one the C++ migration rewrote. In Python
+     * the answer was «RecursionError», a named event with a message. In C++
+     * there is no such event: the calls simply keep going until the stack is
+     * gone, and then the program stops with nothing to read — or, if the
+     * compiler has optimised the impossible recursion away, prints something
+     * meaningless instead. Both are legal, and «нақты не болатынын алдын ала
+     * айту мүмкін емес» is the honest teaching point, which is why the marking
+     * point now ends on the habit rather than on an error name.
      */
     prompt: {
       kk: "Екі сұраққа жаз. 1) `build` функциясы қандай екі мәнді алады, әрқайсысы нені білдіреді және генератор жолдарды қандай ретпен шығарады — неге дәл сол ретпен? 2) Рекурсивті шақырудан кейінгі кері қайтару жолын («0» өшірілетін жолды) алып тастасақ, бағдарламамен не болады?",
@@ -472,12 +717,12 @@ export const M6_L6: LessonBlock[] = [
         ru: "Дерево обходится в глубину слева направо: одна ветка доводится до конца, и только потом начинается следующая.",
       },
       {
-        kk: "Кері қайтару жолы алынып тасталса, «0» `path`-та қалады да, оның үстіне «1» қосылады. `path` ұзындығы `n`-нен асып кетеді, тоқтату шарты ешқашан орындалмайды — бағдарлама RecursionError қатесімен құлайды.",
-        ru: "Если убрать строку возврата, «0» останется в `path`, и поверх него допишется «1». Длина `path` перескочит через `n`, базовый случай никогда не сработает — программа упадёт с ошибкой RecursionError.",
+        kk: "Кері қайтару жолы алынып тасталса, «0» `path`-та қалады да, оның үстіне «1» қосылады. `path` ұзындығы `n`-нен асып кетеді, тоқтату шарты ешқашан орындалмайды және шақырулар тоқтамайды. C++-та бұдан кейін не болатынын алдын ала айту мүмкін емес: көбіне шақыруларға арналған жад бітеді де, бағдарлама ешбір хабарсыз үзіліп қалады; кейде компилятор мұндай кодты басқаша аударып, мағынасыз бірдеңе шығарады. Түсінікті қате хабары мұнда мүлде болмайды — сондықтан тереңдікті іске қоспас бұрын өзің ойлап шығуың керек.",
+        ru: "Если убрать строку возврата, «0» останется в `path`, и поверх него допишется «1». Длина `path` перескочит через `n`, базовый случай не сработает никогда, и вызовы не прекратятся. Что будет дальше в C++, заранее сказать нельзя: чаще всего кончается память под вызовы и программа обрывается без всякого сообщения; иногда компилятор переводит такой код иначе и печатает что-то бессмысленное. Никакого понятного сообщения об ошибке здесь не будет — поэтому о глубине нужно думать самому, до запуска.",
       },
       {
-        kk: "Әр шақырудың өз `path`-ы болғандықтан, кері қайтару тек осы шақырудың ішінде керек: шақырған жақтағы `path` бәрібір өзгермеген күйінде қалады.",
-        ru: "Так как у каждого вызова свой `path`, возврат нужен только внутри этого вызова: `path` вызывающей стороны и так остаётся нетронутым.",
+        kk: "Әр шақырудың өз `path`-ы болғандықтан (параметр мән бойынша берілген), кері қайтару тек осы шақырудың ішінде керек: шақырған жақтағы `path` бәрібір өзгермеген күйінде қалады.",
+        ru: "Так как у каждого вызова свой `path` (параметр передан по значению), возврат нужен только внутри этого вызова: `path` вызывающей стороны и так остаётся нетронутым.",
       },
     ],
   },
@@ -494,10 +739,20 @@ export const M6_L6: LessonBlock[] = [
      * for this route — the source is specifying the differentiation, so
      * `tracks: ["advanced"]` cites p.9 rather than a product decision.
      *
-     * The reference solution builds `cols + [c]` instead of appending and
-     * undoing, because a list appended in a callee stays appended in the caller
-     * and `.pop()` is not a construct this course has taught. The board is
-     * capped at 8, where the whole search runs in about 0.05 s.
+     * The reference solution builds a NEW list for the deeper call —
+     * `vector<int> next = cols; next.push_back(c);` — instead of appending and
+     * undoing, because `pop_back` is a method nothing in this course has taught
+     * and because a fresh copy is what the Python `cols + [c]` meant. The board
+     * is capped at 8, where the whole search runs in a small fraction of a
+     * second at a depth of 8.
+     *
+     * The diagonal test is written as two comparisons rather than with `abs`,
+     * so no header beyond `<iostream>` and `<vector>` is needed and nothing on
+     * the card is a function the learner has not met: `row - i` is always
+     * positive, so «сол диагональ» and «оң диагональ» are simply two cases.
+     *
+     * `ok` is an `int` holding 0 or 1 rather than a `bool`, matching the
+     * convention every other decision recursion in this month uses.
      *
      * The degenerate programs and the case that kills each:
      *   - columns checked, diagonals forgotten → n = 4 (24, not 2), n = 6 (720)
@@ -508,29 +763,42 @@ export const M6_L6: LessonBlock[] = [
      * that returns 1 for an unfinished board fails both.
      */
     prompt: {
-      kk: "Мықты оқушыларға. n × n шахмат тақтасына n уәзірді бір-біріне тимейтіндей етіп қою керек: екі уәзір бір жолда, бір бағанда немесе бір диагональда тұрмауы тиіс. Бір бүтін сан n беріледі (1 ≤ n ≤ 8). Осындай орналастырулардың санын — жалғыз бүтін санды — шығар. Мысалы, n = 4 болғанда жауап 2, ал n = 3 болғанда жауап 0.",
-      ru: "Для сильных учеников. На доске n × n нужно расставить n ферзей так, чтобы они не били друг друга: никакие два не стоят в одной строке, в одном столбце или на одной диагонали. Дано одно целое число n (1 ≤ n ≤ 8). Выведи количество таких расстановок — одно целое число. Например, при n = 4 ответ 2, а при n = 3 ответ 0.",
+      kk: "Мықты оқушыларға. n × n шахмат тақтасына n уәзірді бір-біріне тимейтіндей етіп қою керек: екі уәзір бір жолда, бір бағанда немесе бір диагональда тұрмауы тиіс. Бір бүтін сан n беріледі (1 ≤ n ≤ 8). Осындай орналастырулардың санын — жалғыз бүтін санды — шығар. Мысалы, n = 4 болғанда жауап 2, ал n = 3 болғанда жауап 0. Кеңес: әр жолға бір уәзірден қой да, сол жолдағы бағанды таңдағанда жоғарыдағы уәзірлердің бәрімен салыстыр. Тереңдігі n-нен аспайды, ал n ең көбі 8.",
+      ru: "Для сильных учеников. На доске n × n нужно расставить n ферзей так, чтобы они не били друг друга: никакие два не стоят в одной строке, в одном столбце или на одной диагонали. Дано одно целое число n (1 ≤ n ≤ 8). Выведи количество таких расстановок — одно целое число. Например, при n = 4 ответ 2, а при n = 3 ответ 0. Подсказка: ставь по одному ферзю в каждую строку и, выбирая столбец в этой строке, сравнивай его со всеми ферзями выше. Глубина не превысит n, а n не больше 8.",
     },
     referenceSolution:
-      "def place(cols, row, n):\n" +
-      "    if row == n:\n" +
-      "        return 1\n" +
-      "    total = 0\n" +
-      "    c = 0\n" +
-      "    while c < n:\n" +
-      "        ok = True\n" +
-      "        i = 0\n" +
-      "        while i < row:\n" +
-      "            if cols[i] == c or abs(row - i) == abs(cols[i] - c):\n" +
-      "                ok = False\n" +
-      "            i = i + 1\n" +
-      "        if ok:\n" +
-      "            total = total + place(cols + [c], row + 1, n)\n" +
-      "        c = c + 1\n" +
-      "    return total\n" +
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n = int(input())\n" +
-      "print(place([], 0, n))",
+      "int place(vector<int> cols, int row, int n) {\n" +
+      "    if (row == n) {\n" +
+      "        return 1;\n" +
+      "    }\n" +
+      "    int total = 0;\n" +
+      "    for (int c = 0; c < n; c++) {\n" +
+      "        int ok = 1;\n" +
+      "        for (int i = 0; i < row; i++) {\n" +
+      "            if (cols[i] == c) ok = 0;\n" +
+      "            if (row - i == c - cols[i]) ok = 0;\n" +
+      "            if (row - i == cols[i] - c) ok = 0;\n" +
+      "        }\n" +
+      "        if (ok == 1) {\n" +
+      "            vector<int> next = cols;\n" +
+      "            next.push_back(c);\n" +
+      "            total = total + place(next, row + 1, n);\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return total;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> cols;\n" +
+      "    cout << place(cols, 0, n);\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4", expectedOutput: "2" },
       { input: "1", expectedOutput: "1" },

@@ -8,31 +8,35 @@ import type { LessonBlock } from "../../types";
  * саны» and «палиндромды тексеру». Both are written here, and both are written
  * as traversals.
  *
- * The one temptation this lesson exists to refuse is `s[::-1]`. A palindrome
- * check written as `s == s[::-1]` is one line, it is correct, and it teaches
- * nothing October is trying to teach: the whole point is that the learner pairs
- * position `i` with position `len(s) - 1 - i` and discovers that the `- 1` is
- * not decoration. So the reference solutions below compare characters in a
- * loop, the find_bug is the missing `- 1`, and slicing appears nowhere in the
- * lesson even though October has met it.
+ * ## What C++ changed
  *
- * Input contract, stated in every prompt in both languages: one line of
- * lowercase Latin letters. Every block here reads a single word with no
- * spaces except `m2.l6.b7` and its support twin, which read a phrase whose
- * words are separated by one space each — and both say so in the statement
- * and again in the example inside it, because dropping those spaces IS the
- * first half of that task. No case smuggles in a capital, a digit or a
- * separator its own prompt did not name.
+ * `string` needs `#include <string>`, and a single character is a `char`
+ * written in single quotes — `'a'`, never `"a"`, which is a string of length
+ * one. That distinction is the one new type this lesson introduces and the
+ * concept card gives it a paragraph.
  *
- * The second thing the lesson refuses, and it took a review to see it: the
- * same program twice. `revealFor` hands the repaired program to every learner
- * who answers a `find_bug` correctly, so once `m2.l6.b5` is answered the
- * finished palindrome loop is on screen — and it used to be, character for
- * character, what `m2.l6.b7` then asked to be written and `m2.l6.b7s` asked to
- * be filled in. `m2.l6.b4`'s template leaks the same way for a different
- * reason: a scaffold has to ship its scaffold, so five of the six lines of a
- * vowel count are public, and that used to be `m2.l6.b6`'s answer. Neither b6
- * nor b7 can be assembled from anything the lesson prints now.
+ * `cin >> s` reads ONE word: it stops at the first space. That is a gift for
+ * six of the eight blocks here, which want a single word anyway, and it is a
+ * problem for exactly one — `m2.l6.b7`, the palindrome over a phrase. Rather
+ * than reach for `getline`, which nothing in October needs and which behaves
+ * badly next to `cin >>`, that task now states how many words are coming and
+ * reads them one at a time. The exercise is untouched: the learner still builds
+ * a new string out of pieces and then pairs `i` with `n - 1 - i`.
+ *
+ * `s[i]` out of range is not the crash Python's was. For `std::string` the one
+ * index past the end is DEFINED — it hands back the invisible terminating
+ * character — so `m2.l6.b5`'s bug prints a wrong answer instead of stopping.
+ * That is a more useful lesson than a traceback and the prompt says so
+ * outright: the index left the word, nothing complained, and the program lied.
+ * It is also the reason `m2.l4` taught `at()`.
+ *
+ * ## What the lesson refuses
+ *
+ * A ready-made reversal, and the same program twice. `revealFor` hands the
+ * repaired program to every learner who answers a `find_bug` correctly, so once
+ * `m2.l6.b5` is answered the finished palindrome loop is on screen — which is
+ * why `m2.l6.b7` asks for a phrase assembled from words rather than for that
+ * loop again, and why `m2.l6.b7s` blanks the three decisions b5 does not make.
  *
  * Output tokens are English (`yes` / `no`) and both prompts name them, so a
  * Russian-track learner is reasoning about the comparison rather than matching
@@ -50,15 +54,29 @@ export const M2_L6: LessonBlock[] = [
       ru: "Строка — последовательность символов",
     },
     body: {
-      kk: "Жол дегеніміз — бірінен соң бірі тұрған таңбалар тізбегі. Таңбалар нөлден нөмірленеді: `s[0]` — бірінші таңба, `s[1]` — екіншісі. `len(s)` жолдағы таңба санын береді, сондықтан соңғы таңбаның индексі `len(s)` емес, `len(s) - 1`. Ал `for c in s` деп жазсақ, цикл әр таңбаны басынан аяғына дейін кезекпен `c` айнымалысына салады — индексті өзіміз санаудың қажеті жоқ.",
-      ru: "Строка — это последовательность символов, стоящих друг за другом. Символы нумеруются с нуля: `s[0]` — первый символ, `s[1]` — второй. `len(s)` даёт количество символов, поэтому индекс последнего равен не `len(s)`, а `len(s) - 1`. А если написать `for c in s`, цикл по очереди положит в переменную `c` каждый символ — от первого до последнего, и считать индексы вручную не нужно.",
+      kk: "Жол дегеніміз — бірінен соң бірі тұрған таңбалар тізбегі. C++-та ол `string` деп аталады, ал ол үшін жоғарыға `#include <string>` жолы қосылады.\n\nБір ғана таңбаның өз түрі бар: `char`. Оны ЖАЛҚЫ тырнақшамен жазады — `'a'`. Ал `\"a\"` деп жазсаң, бұл бір таңбадан тұратын ЖОЛ болады, ал жол мен таңба — екі бөлек нәрсе. `c == 'a'` деп салыстырамыз, `c == \"a\"` деп емес.\n\nТаңбалар нөлден нөмірленеді: `s[0]` — бірінші таңба, `s[1]` — екіншісі. `s.size()` жолдағы таңба санын береді, сондықтан соңғы таңбаның индексі `s.size()` емес, `s.size() - 1`. Ал `for (char c : s)` деп жазсақ, цикл әр таңбаны басынан аяғына дейін кезекпен `c` айнымалысына салады — индексті өзіміз санаудың қажеті жоқ.\n\nЖолды оқу: `cin >> s` БІР сөзді оқиды, яғни бірінші бос орынға дейін тоқтайды. Жаңа жолды таңбалап жинауға да болады: `r += c` деген «r-дің соңына c таңбасын қос» дегені.",
+      ru: "Строка — это последовательность символов, стоящих друг за другом. В C++ она называется `string`, и для неё сверху добавляется строка `#include <string>`.\n\nУ одного символа свой тип: `char`. Его записывают в ОДИНАРНЫХ кавычках — `'a'`. А `\"a\"` — это уже СТРОКА из одного символа, а строка и символ — разные вещи. Сравниваем `c == 'a'`, а не `c == \"a\"`.\n\nСимволы нумеруются с нуля: `s[0]` — первый символ, `s[1]` — второй. `s.size()` даёт количество символов, поэтому индекс последнего равен не `s.size()`, а `s.size() - 1`. А если написать `for (char c : s)`, цикл по очереди положит в переменную `c` каждый символ — от первого до последнего, и считать индексы вручную не нужно.\n\nЧтение строки: `cin >> s` читает ОДНО слово, то есть останавливается на первом пробеле. Новую строку можно собирать по символам: запись `r += c` означает «допиши символ c в конец r».",
     },
-    code: 's = "code"\nprint(len(s))  # 4\nprint(s[0])    # c\nfor c in s:\n    print(c)',
+    code:
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s = \"code\";\n" +
+      "    int n = s.size();\n" +
+      "    cout << n << endl;      // 4\n" +
+      "    cout << s[0] << endl;   // c\n" +
+      "    for (char c : s) {\n" +
+      "        cout << c << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
      * The trailing dash is the whole point: the body runs once per character,
-     * INCLUDING the last one, so the separator comes out four times for four
+     * INCLUDING the last one, so the separator comes out three times for three
      * characters. It is also the shape `m2.l6.b7` and `m2.l6.b8` both reuse —
      * build a new string one character at a time — met here as a prediction
      * before either asks for it as a task.
@@ -78,7 +96,20 @@ export const M2_L6: LessonBlock[] = [
       kk: "Бұл бағдарлама экранға нені шығарады?",
       ru: "Что выведет эта программа на экран?",
     },
-    code: 's = "abc"\nr = ""\nfor c in s:\n    r = r + c + "-"\nprint(r)',
+    code:
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s = \"abc\";\n" +
+      "    string r = \"\";\n" +
+      "    for (char c : s) {\n" +
+      "        r = r + c + \"-\";\n" +
+      "    }\n" +
+      "    cout << r;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "a-b-c-",
     options: ["a-b-c-", "a-b-c", "abc-", "-a-b-c"],
   },
@@ -87,21 +118,29 @@ export const M2_L6: LessonBlock[] = [
     bank: {
       role: "extra_practice",
       why:
-        "m2.l4.b4 is this question already: which expression gives the last element, with len versus len - 1 as the same pair of options and the same off-by-one as the mapped failure. Only the sequence type changes, and m2.l6.b1 — the concept card one screen earlier — states that transfer outright, so the block asks the learner to confirm what they have just been told rather than to decide anything.",
+        "m2.l4.b4 is this question already: which expression gives the last element, with size versus size - 1 as the same pair of options and the same off-by-one as the mapped failure. Only the sequence type changes, and m2.l6.b1 — the concept card one screen earlier — states that transfer outright, so the block asks the learner to confirm what they have just been told rather than to decide anything.",
     },
     type: "multiple_choice",
     skillRefs: ["strings.sequence", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "`s = \"python\"` берілген. Қай өрнек жолдың соңғы таңбасын береді?",
-      ru: "Дано `s = \"python\"`. Какое выражение даёт последний символ строки?",
+      kk: "`string s = \"python\";` берілген. Қай өрнек жолдың соңғы таңбасын береді?",
+      ru: "Дано `string s = \"python\";`. Какое выражение даёт последний символ строки?",
     },
-    code: 's = "python"',
+    code:
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s = \"python\";\n" +
+      "    return 0;\n" +
+      "}",
     options: [
-      { id: "o1", label: { kk: "s[len(s)]", ru: "s[len(s)]" } },
-      { id: "o2", label: { kk: "s[len(s) - 1]", ru: "s[len(s) - 1]" } },
+      { id: "o1", label: { kk: "s[s.size()]", ru: "s[s.size()]" } },
+      { id: "o2", label: { kk: "s[s.size() - 1]", ru: "s[s.size() - 1]" } },
       { id: "o3", label: { kk: "s[0]", ru: "s[0]" } },
-      { id: "o4", label: { kk: "len(s)", ru: "len(s)" } },
+      { id: "o4", label: { kk: "s.size()", ru: "s.size()" } },
     ],
     correctOptionId: "o2",
     diagnosticMapping: {
@@ -114,7 +153,7 @@ export const M2_L6: LessonBlock[] = [
       o1: {
         failureClass: "index_off_by_one_upper_bound",
         justification:
-          "«python» жолында алты таңба бар, бірақ олардың нөмірлері 0-ден 5-ке дейін. `s[len(s)]` дегенді таңдау — соңғы индексті ұзындыққа тең деп есептеу, ал бұл индекс мүлде жоқ: бағдарлама «string index out of range» деп тоқтайды.",
+          "«python» жолында алты таңба бар, бірақ олардың нөмірлері 0-ден 5-ке дейін. `s[s.size()]` дегенді таңдау — соңғы индексті ұзындыққа тең деп есептеу. C++ мұнда бағдарламаны тоқтатпайды: `s[s.size()]` жолдың соңындағы көрінбейтін таңбаны береді, сондықтан экранға ештеңе шықпайды да, қате де шықпайды. Дәл сол үнсіздік бұл қатені қауіпті етеді.",
       },
     },
   },
@@ -125,13 +164,28 @@ export const M2_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Сөздегі дауысты әріптерді санайтын циклді толықтыр. Дауыстылар — a, e, i, o, u. Бірінші бос орынға таңбаның дауыстылар тізбегінде бар-жоғын тексеретін сөзді, екіншісіне санағышты бірге өсіретін амалды қой.",
-      ru: "Дополни цикл, который считает гласные в слове. Гласные — a, e, i, o, u. В первый пропуск поставь слово, проверяющее, есть ли символ среди гласных, во второй — операцию, увеличивающую счётчик на единицу.",
+      kk: "Сөздегі дауысты әріптерді санайтын циклді толықтыр. Дауыстылар — a, e, i, o, u. Таңба осы бес әріптің КЕЗ КЕЛГЕН БІРІ болса жеткілікті: бірінші орынға сол «немесе» мағынасын беретін логикалық амалды қой (қалған үшеуі көрініп тұр — олар да дәл сондай). Екінші орынға санағышты бірге өсіретін амалды қой.",
+      ru: "Дополни цикл, который считает гласные в слове. Гласные — a, e, i, o, u. Достаточно, чтобы символ совпал с ЛЮБОЙ ОДНОЙ из этих пяти букв: в первый пропуск поставь логическую операцию со смыслом «или» (остальные три видны — они точно такие же). Во второй пропуск — операцию, увеличивающую счётчик на единицу.",
     },
     template:
-      's = input()\nn = 0\nfor c in s:\n    if c ___ "aeiou":\n        n ___ 1\nprint(n)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s;\n" +
+      "    cin >> s;\n" +
+      "    int n = 0;\n" +
+      "    for (char c : s) {\n" +
+      "        if (c == 'a' ___ c == 'e' || c == 'i' || c == 'o' || c == 'u') {\n" +
+      "            n ___ 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << n;\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: "in" },
+      { id: "f1", answer: "||" },
       { id: "f2", answer: "+=" },
     ],
   },
@@ -140,18 +194,24 @@ export const M2_L6: LessonBlock[] = [
      * PDF p.7 names «индекстің шекарадан шығуы» as one of October's four
      * typical errors, and this is that error in its most useful form: the
      * mirror index written as `n - i` instead of `n - 1 - i`. On i = 0 it asks
-     * for `s[n]`, which does not exist, so the program does not print a wrong
-     * answer — it stops. That is worth meeting once, because the traceback is
-     * the clearest teacher of «соңғы индекс — len(s) - 1» there is.
+     * for `s[n]`, one past the last letter.
+     *
+     * In Python that raised IndexError and the program stopped. C++ does not
+     * stop: for `std::string` the index `size()` is defined and returns the
+     * invisible terminating character, so the comparison `s[0] != s[n]` is true
+     * for every word and the program calmly prints `no` for a palindrome. The
+     * prompt says exactly that, because "the index left the word and nothing
+     * complained" is the lesson C++ actually has to teach — and the reason
+     * `m2.l4.b1` introduced `at()`.
      *
      * symptomInput is mandatory here and the contract says why: the fallback
      * probe is a spread of numbers, and a numeric probe fed to a program that
      * measures a word reports «the two programs behave identically». `level`
-     * makes the broken program crash and the repaired one print `yes`.
+     * makes the broken program print `no` and the repaired one `yes`.
      *
-     * No diagnosticMapping. Blaming line 4 (`range(n // 2)`) has two honest
-     * causes — «цикл тым көп айналады» and «ортадағы таңба тексерілмей қалады»
-     * — and the second is not even a misunderstanding of this bug.
+     * No diagnosticMapping. Blaming the loop header has two honest causes —
+     * «цикл тым көп айналады» and «ортадағы таңба тексерілмей қалады» — and the
+     * second is not even a misunderstanding of this bug.
      */
     id: "m2.l6.b5",
     type: "find_bug",
@@ -159,34 +219,66 @@ export const M2_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Бұл бағдарлама сөздің палиндром екенін тексеруі керек: бірінші таңбаны соңғысымен, екіншісін соңынан екіншісімен салыстырады. Бірақ `level` сөзін бергенде ол ештеңе шығармай, «string index out of range» деген қатемен тоқтап қалады. Қай жол кінәлі?",
-      ru: "Эта программа должна проверять, является ли слово палиндромом: первый символ сравнивается с последним, второй — со вторым с конца. Но на слове `level` она ничего не выводит и падает с ошибкой «string index out of range». Какая строка виновата?",
+      kk: "Бұл бағдарлама сөздің палиндром екенін тексеруі керек: бірінші таңбаны соңғысымен, екіншісін соңынан екіншісімен салыстырады. Бірақ `level` сөзін бергенде ол `yes` емес, `no` шығарады. Бағдарлама құламайды да, ескертпейді де: индекс сөздің шегінен шығып, соңындағы көрінбейтін таңбаға тиіп тұр, ал ол ешбір әріппен тең емес. Қай жол кінәлі?",
+      ru: "Эта программа должна проверять, является ли слово палиндромом: первый символ сравнивается с последним, второй — со вторым с конца. Но на слове `level` она выводит `no` вместо `yes`. Программа при этом не падает и ни о чём не предупреждает: индекс вышел за пределы слова и попал на невидимый символ в его конце, а он не равен ни одной букве. Какая строка виновата?",
     },
     code:
-      's = input()\nn = len(s)\nok = 1\nfor i in range(n // 2):\n    if s[i] != s[n - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
-    buggyLine: 5,
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s;\n" +
+      "    cin >> s;\n" +
+      "    int n = s.size();\n" +
+      "    int ok = 1;\n" +
+      "    for (int i = 0; i < n / 2; i++) {\n" +
+      "        if (s[i] != s[n - i]) {\n" +
+      "            ok = 0;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (ok == 1) {\n" +
+      "        cout << \"yes\";\n" +
+      "    } else {\n" +
+      "        cout << \"no\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 11,
     symptomInput: "level",
     fixedCode:
-      's = input()\nn = len(s)\nok = 1\nfor i in range(n // 2):\n    if s[i] != s[n - 1 - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s;\n" +
+      "    cin >> s;\n" +
+      "    int n = s.size();\n" +
+      "    int ok = 1;\n" +
+      "    for (int i = 0; i < n / 2; i++) {\n" +
+      "        if (s[i] != s[n - 1 - i]) {\n" +
+      "            ok = 0;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (ok == 1) {\n" +
+      "        cout << \"yes\";\n" +
+      "    } else {\n" +
+      "        cout << \"no\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
-     * This block used to BE «сөздегі дауыстылар саны», and its reference
-     * solution was `m2.l6.b4` with the two blanks filled in — the same six
-     * lines, byte for byte. A fill_blank has to ship its template to the
-     * browser or there is no scaffold to complete, so five of those six lines
-     * were public two cards earlier, on every route, and the month counted the
-     * retyping as one of its independent solutions.
-     *
-     * The named family does not leave the lesson: b4 is the vowel count, and
-     * `m2.p5` counts a letter that is only known at run time. What is asked
-     * here is the POSITION of the last vowel — which b4's program cannot be
-     * edited into, because `for c in s` never learns where it is standing. The
-     * learner has to move to `for i in range(len(s))` and carry the index
-     * themselves, which is «жолды таңбалар тізбегі ретінде өңдеу» (p.7) doing
-     * actual work, and it makes b4 a model of the vowel test rather than the
-     * answer to this task. The task is a variant the programme does not name,
-     * so it is product-authored; the citation stays where the family is.
+     * What is asked here is the POSITION of the last vowel — which b4's program
+     * cannot be edited into, because `for (char c : s)` never learns where it is
+     * standing. The learner has to move to `for (int i = 0; i < n; i++)` and
+     * carry the index themselves, which is «жолды таңбалар тізбегі ретінде
+     * өңдеу» (p.7) doing actual work, and it makes b4 a model of the vowel test
+     * rather than the answer to this task. The task is a variant the programme
+     * does not name, so it is product-authored; the citation stays where the
+     * family is, at b4.
      *
      * The cases are aimed at named wrong programs:
      *   `programming` — the first vowel is at 2 and the last at 8, so the
@@ -211,7 +303,24 @@ export const M2_L6: LessonBlock[] = [
       ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Выведи индекс последней гласной буквы этого слова. Индексы начинаются с нуля: `s[0]` — первая буква. Гласные — a, e, i, o, u. Например, в слове `code` гласные — o (индекс 1) и e (индекс 3), поэтому ответ 3. Если гласных в слове нет совсем, выведи -1.",
     },
     referenceSolution:
-      's = input()\nans = -1\nfor i in range(len(s)):\n    if s[i] in "aeiou":\n        ans = i\nprint(ans)',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s;\n" +
+      "    cin >> s;\n" +
+      "    int n = s.size();\n" +
+      "    int ans = -1;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        char c = s[i];\n" +
+      "        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {\n" +
+      "            ans = i;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << ans;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "programming", expectedOutput: "8" },
       { input: "sky", expectedOutput: "-1" },
@@ -225,36 +334,31 @@ export const M2_L6: LessonBlock[] = [
   },
   {
     /*
-     * PDF p.7: «палиндромды тексеру». The statement moved, and `m2.l6.b5` two
-     * cards up is the reason. `revealFor` returns `fixedCode` to every learner
-     * who answers a find_bug correctly, and that repaired program WAS this
-     * block's reference solution, character for character — so the platform
-     * showed the answer and then asked for it back. Support had it worse:
-     * `m2.l6.b7s` asked them to drop two tokens into the program they had just
-     * been handed finished. The pairing loop is what b5 exists to teach, and a
-     * task that asks for it again is asking for a copy of it.
+     * PDF p.7: «палиндромды тексеру». The statement sits one step away from
+     * `m2.l6.b5` on purpose: `revealFor` returns `fixedCode` to every learner
+     * who answers a find_bug correctly, so the repaired pairing loop is on
+     * screen by the time this card is reached, and a task that asked for that
+     * loop again would be asking for a copy of it.
      *
-     * The word became a phrase, and the spaces have to go first. The pairing
-     * itself is untouched — still `i` against `n - 1 - i` over half the string
-     * — but it now runs on a string the learner builds, one character at a
-     * time, which is the loop `m2.l6.b2` had them predict the output of. Two
-     * things the lesson showed separately, joined by the learner; not one
-     * thing the lesson showed whole.
+     * So the letters have to be ASSEMBLED before they can be paired. Python
+     * read a phrase and dropped the spaces; C++'s `cin >> s` stops at the first
+     * space, so the statement says how many words are coming and the learner
+     * reads them one at a time, appending each to a string they build — the
+     * loop `m2.l6.b2` had them predict the output of. Two things the lesson
+     * showed separately, joined by the learner; not one thing it showed whole.
      *
      * The cases:
-     *   `step on no pets` — the visible yes. Its spaces sit symmetrically, so
-     *                       it does NOT catch a program that forgets to drop
-     *                       them, and that is the point of the next two;
-     *   `abb a`, `no lemon no melon` — those do: leave the spaces in and both
-     *                       come out `no`;
+     *   `step on no pets` — the visible yes, four words;
+     *   `a bc`            — the visible no;
+     *   `abb a`, `no lemon no melon` — a yes that only appears once the words
+     *                       are joined, so a program that tests one word fails;
      *   `aba cba`         — the letters are `abacba`: first and last equal,
-     *                       middle not. That is the endpoints-only shortcut
-     *                       the first review found passing `m2.p6`;
-     *   `a b`             — two letters, where `range(n // 2 - 1)` never runs
-     *                       and prints `yes`;
-     *   `a`               — one letter and no space at all;
-     *   `level`           — a plain word, so the phrase framing never quietly
-     *                       requires a space to exist.
+     *                       middle not. That is the endpoints-only shortcut;
+     *   `a b`             — two letters, where a loop bound of `n / 2 - 1`
+     *                       never runs and prints `yes`;
+     *   `a`               — one word, one letter;
+     *   `level`           — one word, so the phrase framing never quietly
+     *                       requires more than one.
      */
     id: "m2.l6.b7",
     type: "write_code",
@@ -263,20 +367,46 @@ export const M2_L6: LessonBlock[] = [
     pdfPage: 7,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Бір жолда бір немесе бірнеше сөз беріледі: тек кіші латын әріптері, сөздер бір бос орынмен бөлінген. Бос орындарды тастап жібергенде, қалған әріптер палиндром құрай ма — алдынан оқығанда да, артынан оқығанда да бірдей ме? Палиндром болса `yes`, болмаса `no` деп шығар. Мысалы, `abb a` жолынан `abba` жиналады, жауабы `yes`; ал `a bc` жолынан `abc` жиналады, жауабы `no`. Алдымен бос орынсыз жаңа жол жинақта, содан кейін таңбаларды жұптап салыстыр: біріншісін соңғысымен, екіншісін соңынан екіншісімен.",
-      ru: "В одной строке дано одно или несколько слов: только строчные латинские буквы, слова разделены одним пробелом. Если отбросить пробелы, образуют ли оставшиеся буквы палиндром — читаются ли они одинаково слева направо и справа налево? Выведи `yes`, если да, и `no`, если нет. Например, из строки `abb a` собирается `abba`, ответ `yes`, а из `a bc` собирается `abc`, ответ `no`. Сначала собери новую строку без пробелов, потом сравнивай символы парами: первый с последним, второй со вторым с конца.",
+      kk: "Бірінші жолда сөздердің саны k беріледі (1 ≤ k ≤ 20). Екінші жолда сол k сөз бос орынмен бөлініп жазылады: тек кіші латын әріптері. Барлық сөзді біріктіріп жазғанда (араларына ештеңе қоймай), шыққан әріптер палиндром құрай ма — алдынан оқығанда да, артынан оқығанда да бірдей ме? Палиндром болса `yes`, болмаса `no` деп шығар. Мысалы, `abb` және `a` сөздерінен `abba` жиналады, жауабы `yes`; ал `a` мен `bc` сөздерінен `abc` жиналады, жауабы `no`. Алдымен сөздерді бір жолға жинақта, содан кейін таңбаларды жұптап салыстыр: біріншісін соңғысымен, екіншісін соңынан екіншісімен.",
+      ru: "В первой строке дано количество слов k (1 ≤ k ≤ 20). Во второй строке через пробел записаны эти k слов: только строчные латинские буквы. Если записать все слова подряд, ничего между ними не вставляя, образуют ли получившиеся буквы палиндром — читаются ли они одинаково слева направо и справа налево? Выведи `yes`, если да, и `no`, если нет. Например, из слов `abb` и `a` собирается `abba`, ответ `yes`, а из `a` и `bc` собирается `abc`, ответ `no`. Сначала собери слова в одну строку, потом сравнивай символы парами: первый с последним, второй со вторым с конца.",
     },
     referenceSolution:
-      's = input()\nt = ""\nfor c in s:\n    if c != " ":\n        t = t + c\nn = len(t)\nok = 1\nfor i in range(n // 2):\n    if t[i] != t[n - 1 - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    string t = \"\";\n" +
+      "    for (int i = 0; i < k; i++) {\n" +
+      "        string w;\n" +
+      "        cin >> w;\n" +
+      "        t += w;\n" +
+      "    }\n" +
+      "    int n = t.size();\n" +
+      "    int ok = 1;\n" +
+      "    for (int i = 0; i < n / 2; i++) {\n" +
+      "        if (t[i] != t[n - 1 - i]) {\n" +
+      "            ok = 0;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (ok == 1) {\n" +
+      "        cout << \"yes\";\n" +
+      "    } else {\n" +
+      "        cout << \"no\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
-      { input: "step on no pets", expectedOutput: "yes" },
-      { input: "a bc", expectedOutput: "no" },
-      { input: "abb a", expectedOutput: "yes", hidden: true },
-      { input: "no lemon no melon", expectedOutput: "yes", hidden: true },
-      { input: "aba cba", expectedOutput: "no", hidden: true },
-      { input: "a b", expectedOutput: "no", hidden: true },
-      { input: "a", expectedOutput: "yes", hidden: true },
-      { input: "level", expectedOutput: "yes", hidden: true },
+      { input: "4\nstep on no pets", expectedOutput: "yes" },
+      { input: "2\na bc", expectedOutput: "no" },
+      { input: "2\nabb a", expectedOutput: "yes", hidden: true },
+      { input: "4\nno lemon no melon", expectedOutput: "yes", hidden: true },
+      { input: "2\naba cba", expectedOutput: "no", hidden: true },
+      { input: "2\na b", expectedOutput: "no", hidden: true },
+      { input: "1\na", expectedOutput: "yes", hidden: true },
+      { input: "1\nlevel", expectedOutput: "yes", hidden: true },
     ],
   },
   {
@@ -285,22 +415,14 @@ export const M2_L6: LessonBlock[] = [
      * мен толықтыру көбірек, нөлден жазу азырақ». Same phrase, same `yes`/`no`,
      * same two steps — what is withheld is the blank editor, not the problem.
      *
-     * It used to blank two tokens of the program `m2.l6.b5` prints in full the
-     * moment its bug is found, which on the one route that receives this card
-     * is copying with the source open beside it. The three blanks now are the
-     * three decisions the task is made of: the test that keeps a character out
-     * of the new string, the bound that stops the loop in the middle, and the
-     * `- 1` b5 showed crashing when it is missing. Only the last two can be
-     * read off b5 — and those are the ones b5 is there to teach.
+     * The three blanks are the three decisions the task is made of: how a word
+     * joins the string being built, the bound that stops the loop in the
+     * middle, and the `- 1` b5 showed going wrong when it is missing. Only the
+     * last two can be read off b5 — and those are the ones b5 is there to teach.
      *
-     * The prompt points at the blanks as `___` rather than calling them «бос
-     * орын» the way `m2.l6.b4` does, because in Kazakh «бос орын» is also the
-     * space character — and here the space character is the task. Russian
-     * keeps «пропуск», which does not collide with «пробел».
-     *
-     * The block points at no neighbour. Its route never receives `m2.l6.b7`,
-     * so «алдыңғы тапсырма» here would mean the vowel index, which is the
-     * defect `m2.l1.b8s` was rewritten for.
+     * The block points at no neighbour. Its route never receives `m2.l6.b7`, so
+     * «алдыңғы тапсырма» here would mean the vowel index, which is a different
+     * problem.
      */
     id: "m2.l6.b7s",
     type: "fill_blank",
@@ -308,14 +430,40 @@ export const M2_L6: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Жолдағы әріптер, бос орындарды есепке алмағанда, палиндром құрай ма — соны тексеретін бағдарламаны толықтыр. Бірінші `___` орнына салыстыру амалын қой: таңба бос орын БОЛМАҒАНДА ғана жаңа `t` жолына қосылады. Екінші `___` орнына цикл жолдың тек жартысын айналатындай амалды, үшінші `___` орнына `i`-ші таңба соңынан саналған дұрыс таңбамен салыстырылуы үшін жетпей тұрған санды қой. Мысалы, `abb a` үшін бағдарлама `yes`, ал `a bc` үшін `no` шығаруы керек.",
-      ru: "Дополни программу, которая проверяет, образуют ли буквы строки палиндром, если не считать пробелы. Вместо первого `___` поставь операцию сравнения: символ попадает в новую строку `t`, только если он НЕ пробел. Вместо второго `___` — операцию, из-за которой цикл проходит лишь половину строки, вместо третьего — число, которого не хватает, чтобы символ с номером `i` сравнивался с нужным символом с конца. Например, для `abb a` программа должна вывести `yes`, а для `a bc` — `no`.",
+      kk: "Бірінші жолда сөздердің саны k, екінші жолда сол k сөз беріледі. Сөздерді біріктіріп жазғандағы әріптер палиндром құрай ма — соны тексеретін бағдарламаны толықтыр. Бірінші `___` орнына оқылған сөзді `t` жолының соңына жалғайтын амалды қой. Екінші `___` орнына цикл жолдың тек жартысын айналатындай амалды, үшінші `___` орнына `i`-ші таңба соңынан саналған дұрыс таңбамен салыстырылуы үшін жетпей тұрған санды қой. Мысалы, `abb a` үшін бағдарлама `yes`, ал `a bc` үшін `no` шығаруы керек.",
+      ru: "В первой строке дано количество слов k, во второй — эти k слов. Дополни программу, которая проверяет, образуют ли буквы этих слов, записанных подряд, палиндром. Вместо первого `___` поставь операцию, которая дописывает прочитанное слово в конец строки `t`. Вместо второго `___` — операцию, из-за которой цикл проходит лишь половину строки, вместо третьего — число, которого не хватает, чтобы символ с номером `i` сравнивался с нужным символом с конца. Например, для `abb a` программа должна вывести `yes`, а для `a bc` — `no`.",
     },
     template:
-      's = input()\nt = ""\nfor c in s:\n    if c ___ " ":\n        t = t + c\nn = len(t)\nok = 1\nfor i in range(n ___ 2):\n    if t[i] != t[n - ___ - i]:\n        ok = 0\nif ok == 1:\n    print("yes")\nelse:\n    print("no")',
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int k;\n" +
+      "    cin >> k;\n" +
+      "    string t = \"\";\n" +
+      "    for (int i = 0; i < k; i++) {\n" +
+      "        string w;\n" +
+      "        cin >> w;\n" +
+      "        t ___ w;\n" +
+      "    }\n" +
+      "    int n = t.size();\n" +
+      "    int ok = 1;\n" +
+      "    for (int i = 0; i < n ___ 2; i++) {\n" +
+      "        if (t[i] != t[n - ___ - i]) {\n" +
+      "            ok = 0;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (ok == 1) {\n" +
+      "        cout << \"yes\";\n" +
+      "    } else {\n" +
+      "        cout << \"no\";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
-      { id: "f1", answer: "!=", alternatives: ["not in"] },
-      { id: "f2", answer: "//" },
+      { id: "f1", answer: "+=" },
+      { id: "f2", answer: "/" },
       { id: "f3", answer: "1" },
     ],
   },
@@ -327,9 +475,9 @@ export const M2_L6: LessonBlock[] = [
      * way to walk backwards.
      *
      * `r = c + r` — put each new character in FRONT of what is already
-     * collected — needs no reverse range and no slice. `level` is a deliberate
-     * callback: it comes back unchanged, which is the same fact `m2.l6.b7`
-     * printed as `yes`.
+     * collected — needs no reverse loop and no library call. `level` is a
+     * deliberate callback: it comes back unchanged, which is the same fact
+     * `m2.l6.b7` printed as `yes`.
      */
     id: "m2.l6.b8",
     type: "write_code",
@@ -337,10 +485,24 @@ export const M2_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 7,
     prompt: {
-      kk: "Бір жолда сөз беріледі: тек кіші латын әріптері, бос орын жоқ. Сол сөзді кері оқылған күйінде шығар, мысалы `step` → `pets`. Жаңа жолды циклмен, таңбалап жинақта.",
-      ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Выведи это слово задом наперёд, например `step` → `pets`. Собирай новую строку в цикле, по одному символу.",
+      kk: "Бір жолда сөз беріледі: тек кіші латын әріптері, бос орын жоқ. Сол сөзді кері оқылған күйінде шығар, мысалы `step` → `pets`. Дайын аударып беретін құралдарды қолдануға болмайды — жаңа жолды циклмен, таңбалап жинақта.",
+      ru: "В одной строке дано слово: только строчные латинские буквы, пробелов нет. Выведи это слово задом наперёд, например `step` → `pets`. Пользоваться готовыми средствами переворота нельзя — собирай новую строку в цикле, по одному символу.",
     },
-    referenceSolution: 's = input()\nr = ""\nfor c in s:\n    r = c + r\nprint(r)',
+    referenceSolution:
+      "#include <iostream>\n" +
+      "#include <string>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    string s;\n" +
+      "    cin >> s;\n" +
+      "    string r = \"\";\n" +
+      "    for (char c : s) {\n" +
+      "        r = c + r;\n" +
+      "    }\n" +
+      "    cout << r;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "step", expectedOutput: "pets" },
       { input: "banana", expectedOutput: "ananab" },

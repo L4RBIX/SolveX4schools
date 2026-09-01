@@ -1,11 +1,28 @@
-import "server-only";
-
 /**
  * The code execution port.
  *
  * Everything above it — lesson blocks, Arena, the evidence pipeline, the
  * teacher projection — speaks this and nothing else. Swapping a self-hosted
  * judge for a managed one is a provider file and an environment variable.
+ *
+ * ## No `server-only`, unlike every implementation of it
+ *
+ * This file is the port DEFINITION: an interface, two type unions, four pure
+ * predicates and a re-export of some numbers. It imports nothing, reads no
+ * configuration, holds no credential and touches no node API, so there is
+ * nothing here for a client bundle to pull in and nothing to leak.
+ *
+ * The marker belongs on the IMPLEMENTATIONS, and they all still carry it:
+ * `./index.ts` (which resolves the provider and can load a key-holding module),
+ * `./limits.ts` (which counts and refuses), and every file under `./providers/`.
+ * `tests/execution/pyodide-boundary.test.ts` asserts that, and names this file
+ * and `./execution-limits.ts` as the two deliberate exceptions beside
+ * `./checker.ts`.
+ *
+ * The concrete cost of the marker being here was a broken tool: it made
+ * `scripts/check-blocks.ts` — which reads `EXECUTION_LIMITS` to tell a content
+ * author their case input is oversized — throw on startup, so that check had not
+ * run for several commits.
  */
 
 export interface ExecutionRequest {
@@ -251,68 +268,8 @@ export interface CodeExecutionProvider {
   runBatch?(requests: readonly ExecutionRequest[]): Promise<ExecutionResult[]>;
 }
 
-/**
- * The ceilings, and the reasoning for each.
- *
- * Every one is generous by a factor nobody will ever notice and small enough
- * that no single request can cost the class its judge. They are enforced by
- * `schools/exec/limits.ts` — the numbers living here without an enforcer was
- * the actual defect, not the numbers.
- */
-export const EXECUTION_LIMITS = {
-  /** Generous for a beginner's program, tight enough to catch a runaway loop. */
-  timeLimitMs: 5_000,
-  memoryLimitMb: 256,
-  /** Beyond this the output is not a result, it is a print statement in a loop. */
-  maxOutputBytes: 64 * 1024,
-  /**
-   * 64 KiB of source — roughly 1,600 lines of ordinary C++ at 40 bytes a line,
-   * or 800 if it is commented in Kazakh at two bytes a character.
-   *
-   * Grade 9 does not write 1,600 lines. The longest reference solution in the
-   * approved programme is under 20, and the longest thing a learner plausibly
-   * pastes is a whole worked file from a lesson — a few hundred bytes. So this
-   * sits about two orders of magnitude above anything legitimate: a learner
-   * cannot reach it by working, and it cannot be used to push megabytes through
-   * a judge sized for eighteen simultaneous presses of Check.
-   *
-   * Kept at the value it already had. It was never wrong — it was never
-   * enforced, and it was compared against `String.length` in the one place it
-   * was checked at all.
-   */
-  maxSourceBytes: 64 * 1024,
-  /**
-   * 16 KiB of stdin, and it had no limit at all before.
-   *
-   * It used to say here that "the largest input any case in the curriculum
-   * declares is eight characters («1000 100»)", which stopped being true the
-   * moment May's complexity guards landed. It is now about 16 000 — those cases
-   * are deliberately at the ceiling — and the second-largest is 670 bytes
-   * (m9.c2.p5's 25×25 map). The limit still comfortably covers a learner on
-   * manual Run pasting a few hundred lines to test a loop that reads until EOF,
-   * and still refuses a payload designed to make a subprocess sit on a full pipe.
-   *
-   * A quarter of the source limit on purpose: a learner types stdin, they do
-   * not paste a program into it, so the honest ceiling is lower.
-   *
-   * ## What this number costs the curriculum, measured
-   *
-   * At two bytes per value it caps a case at roughly 8 190 numbers, which caps
-   * the work a naive solution can be made to do at about 3e7 operations. That
-   * is enough to defeat an O(n²) solution inside the 5 s cpu budget — May's two
-   * new guards run the reference in 0.1 s and the naive in 8-12 s — and it is
-   * NOT enough to defeat an O(n·q) one: at the largest legal input `m9.c4.p3`'s
-   * quadratic solution finishes in 2.9 s and `m9.c1.p4`'s in 4.5 s, both inside
-   * the budget. So those two tasks cannot test the bound their own prompts
-   * state, and raising this number is the only thing that would let them.
-   *
-   * That is a decision about the judge rather than about content, which is why
-   * it is written down here rather than acted on: a bigger ceiling is a bigger
-   * payload through a rented service for every learner, and the case for it
-   * should be made deliberately.
-   *
-   * `runCases` appends a newline, so a case's `input` literal may be at most
-   * 16 383 bytes.
-   */
-  maxStdinBytes: 16 * 1024,
-} as const;
+/* The ceilings live in a module with no `server-only` and no imports, so the
+   authoring checker can read them — see `./execution-limits.ts`. Re-exported
+   here because every consumer of the port already reads them from the port, and
+   moving a constant should not move an import. */
+export { EXECUTION_LIMITS } from "./execution-limits";

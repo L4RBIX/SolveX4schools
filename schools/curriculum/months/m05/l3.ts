@@ -364,7 +364,7 @@ export const M5_L3: LessonBlock[] = [
            both endpoints are in the list, answers 1 instead of 3;
        forgets the + 1 and computes first(r) - first(l) → the same case answers
            2, and "2 2 2 5" / "2 2" answers 0 instead of 3;
-       prints len(a), or counts without testing → "5 6 7" / "1 4" and
+       prints n, or counts without testing → "5 6 7" / "1 4" and
            "5 6 7" / "8 100", where the answer is 0 on either side of the list;
        counts nothing, or an accumulator that never fires → "3 3 3" / "1 10",
            where the whole list qualifies;

@@ -43,7 +43,7 @@ import type { LessonBlock } from "../../types";
  *
  * | | month | technique |
  * |---|---|---|
- * | A | Sept + Oct | `//` with a rounding-up boundary, inside one traversal |
+ * | A | Sept + Oct | `/` with a rounding-up boundary, inside one traversal |
  * | B | Oct **or** Dec | an inner counting loop, or sort then neighbours |
  * | C | Nov + Dec + Jan | a helper applied q times, over a sorted list |
  * | D | Apr | a table over a grid of costs, filled one row at a time |
@@ -71,37 +71,49 @@ import type { LessonBlock } from "../../types";
  * counts the words in a line that satisfy a property. B asks about duplicates
  * in a list of numbers instead, which nothing in the month asks.
  *
+ * ## Where the type boundary bites, worked out per problem
+ *
+ * A: `a[i] + k - 1` reaches 2 · 10⁹ and the bus total reaches 10¹², so `long
+ * long` is required twice and the statement says neither. B: at most 1000
+ * numbers, so `int`. C: the answer is a sum of q counts and reaches
+ * 2.5 · 10¹¹ — `long long`, and the last hidden case is the one that charges
+ * for it. D: costs of 1000 over 200 rows is 2 · 10⁵, so `int`. E: a `yes`/`no`,
+ * so `int` everywhere.
+ *
+ * Three `int` problems and two that are not, decided by arithmetic rather than
+ * by habit. A month where every reference reaches for `long long` teaches a
+ * reflex; `m9.l2.b1` asked for a check, and this is what performing it looks
+ * like.
+ *
  * ## Structural requirements: which honest option each place took
  *
  * The contract's rule is that a requirement no checker can see is not a
  * requirement, and there are three honest options. This file uses two of them,
  * deliberately:
  *
- * - **C takes option 2 — guidance, graded on the answer.** Its prompt suggests
- *   a helper function that answers one query and says out loud that this is
- *   advice and that the judge compares only the printed lines. Option 1 is
- *   unavailable: no output here becomes impossible without a function. Option 3
- *   would need an `explain` block, and a 45-minute contest of five problems has
- *   no room for one — `m9.l4` («Шешімді қорғау») is where the written defence
- *   lives, and the tournament is where it is marked.
- * - **D and E take option 1 — the output is impossible without the method.**
- *   E's last hidden case is forty numbers whose answer is `no`, so a search
- *   over subsets cannot short-circuit and has to look at all of them; D's is a
- *   twenty-row field with up to 5 · 3^19 routes through it. Measured, not
- *   asserted:
- *   E's table answers in 0.02 s while the plain recursive search does not finish
- *   in 12 s and neither does the same search pruned at `s > half`; D's table
- *   answers in 0.02 s while a recursive walk over the routes does not finish in
- *   15 s. That is a constraint the other method cannot meet, not a sentence in
- *   a prompt that nothing enforces.
+ * - **C now takes option 1 — the output is impossible without the method**, and
+ *   that is the one thing about this file the C++ migration changed. See the
+ *   note on `M9_C4_P3_LARGE_CASE` for what it used to be, why it stopped
+ *   working, and what it does now. Its «Кеңес» about a helper function stays as
+ *   guidance, because the helper is still not something a checker can see; what
+ *   is enforced now is the complexity, not the shape.
+ * - **D and E take option 1 as well — the output is impossible without the
+ *   method.** E's last hidden case is forty numbers whose answer is `no`, so a
+ *   search over subsets cannot short-circuit and has to look at all 2⁴⁰ of them;
+ *   D's is a twenty-row field with up to 5 · 3¹⁹ routes through it. Both are
+ *   EXPONENTIAL counts, which is why the migration did not touch them: C++ being
+ *   a hundred times faster than Python moves an exponential wall by two of its
+ *   forty steps and nothing else. Measured under C++17 at -O2: E's table answers
+ *   in 0.02 s and the recursive search over subsets does not finish; D's table
+ *   answers in 0.02 s and a recursive walk over the routes does not finish.
  *
  * Nowhere below does a prompt say «функция жаз», «return қайтар» or «мына
  * әдісті қолдан» as a rule. C's own `skillRefs` follow from that decision: they
  * name `bsearch.*`, `sort.basic` and `perf.time_estimate` and **not** any
- * `func.*` skill, because a judge that sees one number per line cannot produce
- * evidence about whether a function was defined. B follows the same rule from
- * the other side: it declares no `sort.basic`, because sorting is one of the two
- * ways to answer it and half of the correct submissions never sort at all.
+ * `func.*` skill, because a judge that sees one number cannot produce evidence
+ * about whether a function was defined. B follows the same rule from the other
+ * side: it declares no `sort.basic`, because sorting is one of the two ways to
+ * answer it and half of the correct submissions never sort at all.
  *
  * ## What the skills say in general
  *
@@ -121,40 +133,92 @@ import type { LessonBlock } from "../../types";
  * problems rehearses an event that does not exist. Support's differentiation in
  * May is when help opens and what happens in the three days after («талдаудан
  * кейін толық шешіп шығу»), not a shorter contest.
- *
- * ## What the cases can prove and what they cannot
- *
- * C states n, q ≤ 100 000. That bound is real and it is what rules out a scan
- * of the whole list per query — but the cases here are small, and a correct
- * linear solution passes every one of them. The input a timing case would need
- * is two hundred thousand numbers, which is not a thing a source file should
- * carry. So it is recorded here rather than dressed up, exactly as `m9.c1` did,
- * and no prompt claims the checker times anything. D and E are the two problems
- * where a case genuinely does separate the methods, and they manage it only
- * because a small input can still have an enormous number of routes through it —
- * which C's shape does not allow.
  */
+
+/**
+ * The seed for `m9.c4.p3`'s largest case, and why that problem was re-authored.
+ *
+ * ## What it used to be, and why it stopped working
+ *
+ * C stated n, q ≤ 100 000 and read both the results and the queries from stdin.
+ * It could never test that bound: `EXECUTION_LIMITS.maxStdinBytes` is 16 KiB, so
+ * a case tops out around 8 190 numbers, and the most work an O(n·q) solution
+ * could be made to do was about 1.7 · 10⁷ comparisons. Under Python that took
+ * 2.9 s against a 5 s budget — already too close to call — and under C++ the same
+ * scan is roughly two hundred times faster, so the task could no longer
+ * distinguish a binary search from a linear count at all. The old file said as
+ * much, in a paragraph beginning «What the cases can prove».
+ *
+ * ## What it is now
+ *
+ * The results and the queries are generated inside the program from one seed, so
+ * `500000 500000 12345` is eighteen bytes of stdin and a million numbers of data.
+ * Measured under C++17 at -O2: sorting once and binary-searching each query
+ * answers in **0.09 s**; counting each query by a full scan is 2.5 · 10¹¹
+ * comparisons and was **still running after twenty seconds**. That is a
+ * constraint the other method cannot meet — option 1 of the authoring contract —
+ * instead of a bound stated in a prompt and enforced by nothing.
+ *
+ * ## Two consequences worth stating out loud
+ *
+ * **The output shape changed, and the `exact` checker went with it.** Printing
+ * 500 000 answers would be about 3 MB against `EXECUTION_LIMITS.maxOutputBytes`
+ * of 64 KiB, so the problem now asks for the SUM of the q answers — one number.
+ * The block used to declare `{ kind: "exact" }` because its prompt promised one
+ * answer per line; with a single number `exact` and `token` accept exactly the
+ * same outputs, so the declaration is gone rather than left standing as
+ * decoration.
+ *
+ * **The sum is what makes `long long` compulsory.** 500 000 queries answered by
+ * up to 500 000 athletes each is 2.5 · 10¹¹, a hundred times past `int`, and no
+ * small case reaches it. That is a second lesson the old version could not
+ * teach, and it arrives without a word in the statement — the bounds are the
+ * warning, which is what m9.l2.b1 spent a page on.
+ *
+ * The recurrence is `int`-safe on purpose: t stays below 1 000 003 and t · 1103
+ * is at most 1.1 · 10⁹, inside `int` by a factor of two. The generator is not
+ * the trap.
+ *
+ * ## Why the queries continue the same sequence
+ *
+ * `x[j] = t[n + j]` rather than a second seed, and that is what makes the
+ * `>=` boundary testable. The recurrence's period is 166 667, so any case with
+ * n + q past that wraps and the query values start landing exactly on result
+ * values. `1 500000 7` is the cheap witness — it answers 5 with `>=` and 3 with
+ * `>` — and `100000 100000 1` and the largest case are the same trap at scale.
+ * With two independent seeds an exact hit would essentially never happen and the
+ * `>` solution would pass everything.
+ */
+const M9_C4_P3_LARGE_CASE = "500000 500000 12345";
+
 export const M9_C4: LessonBlock[] = [
   {
     /*
      * A · five minutes. SEPTEMBER's integer division and its rounding-up
-     * boundary (m1.l6, `//` and `%`), applied once per element of a list —
+     * boundary (m1.l6, `/` and `%`), applied once per element of a vector —
      * OCTOBER's traversal (m2.l5). Nothing else, and nothing later.
+     *
+     * All values are positive, so `/` truncates the way Python's `//` floored
+     * and every expected output is unchanged. The rounding-up idiom
+     * `(a + k - 1) / k` is the same in both languages; what is NOT the same is
+     * that `a[i] + k - 1` reaches 2 · 10⁹ and overflows an `int`, and that the
+     * bus total reaches 10¹². Both are `long long` here and the statement says
+     * neither — the bounds are the warning.
      *
      * The whole problem is that the rounding happens PER CLASS. Every wrong
      * program is a program that rounded somewhere else, or not at all:
      *   · one division of the total — «4 5» / «1 1 1 1» answers 1, the truth is
      *     4, and the visible sample already answers 4 instead of 5;
-     *   · `a[i] // k`, no rounding up — «1 10» / «1» answers 0 for a class that
+     *   · `a[i] / k`, no rounding up — «1 10» / «1» answers 0 for a class that
      *     plainly needs a bus;
-     *   · `a[i] // k + 1`, rounding up unconditionally — «1 10» / «10» answers 2
+     *   · `a[i] / k + 1`, rounding up unconditionally — «1 10» / «10» answers 2
      *     and «5 3» / «3 3 3 3 3» answers 10, both exactly on the boundary where
      *     the division comes out even;
      *   · a loop that stops one class short, or starts one class late — «2 7» /
      *     «7 1» and «2 7» / «1 7» both answer 1 against a truth of 2. That is
      *     «соңғы элементті өткізіп жіберу», the error October's page names by
      *     hand, and problem A is where it costs the least to meet it.
-     *   · `/` instead of `//` — every case, because `5.0` is not `5`.
+     *   · an `int` anywhere in the arithmetic — the last two cases, silently.
      */
     id: "m9.c4.p1",
     type: "challenge",
@@ -165,19 +229,29 @@ export const M9_C4: LessonBlock[] = [
       ru: "**A. Автобусы на экскурсию.** Из школы на экскурсию едут n классов, в i-м классе a[i] учеников. В один автобус помещается не больше k учеников. Классы едут по отдельности: в одном автобусе не могут оказаться ученики двух разных классов, а вот один класс может ехать в нескольких автобусах.\n\nСколько автобусов нужно самое меньшее, чтобы увезти все классы?\n\n**Вход.** В первой строке через пробел числа n и k (1 ≤ n ≤ 1000, 1 ≤ k ≤ 1000000000). Во второй строке n целых чисел: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Выход.** Одно целое число — наименьшее количество автобусов.\n\n**Пример.**\n\n```\n3 10\n15 20 3\n```\n\nОтвет: `5` — первому классу 2 автобуса, второму 2, третьему 1.",
     },
     referenceSolution:
-      "n, k = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "buses = 0\n" +
-      "for i in range(n):\n" +
-      "    buses = buses + (a[i] + k - 1) // k\n" +
-      "print(buses)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    long long k;\n" +
+      "    cin >> n >> k;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    long long buses = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        buses = buses + (a[i] + k - 1) / k;\n" +
+      "    }\n" +
+      "    cout << buses;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 10\n15 20 3", expectedOutput: "5" },
       /* Every class is far smaller than one bus: dividing the total gives 1. */
       { input: "4 5\n1 1 1 1", expectedOutput: "4", hidden: true },
       /* Exactly on the boundary — one full bus, not two. */
       { input: "1 10\n10", expectedOutput: "1", hidden: true },
-      /* One child still needs a whole bus: plain `//` gives 0. */
+      /* One child still needs a whole bus: plain `/` gives 0. */
       { input: "1 10\n1", expectedOutput: "1", hidden: true },
       /* The class that must not be skipped is last, then first. */
       { input: "2 7\n7 1", expectedOutput: "2", hidden: true },
@@ -186,9 +260,13 @@ export const M9_C4: LessonBlock[] = [
       { input: "5 3\n3 3 3 3 3", expectedOutput: "5", hidden: true },
       /* One child per bus. */
       { input: "3 1\n5 1 4", expectedOutput: "10", hidden: true },
-      /* The top of both stated ranges, and one either side of it. */
+      /* The top of both stated ranges, and one either side of it. These are the
+         two cases where `a[i] + k - 1` leaves `int`. */
       { input: "1 1000000000\n1000000000", expectedOutput: "1", hidden: true },
       { input: "2 1000000000\n999999999 1", expectedOutput: "2", hidden: true },
+      /* A thousand classes of a billion children each, one child per bus: the
+         answer is 10¹², which no `int` total can hold. */
+      { input: "2 1\n1000000000 1000000000", expectedOutput: "2000000000", hidden: true },
     ],
   },
   {
@@ -196,26 +274,28 @@ export const M9_C4: LessonBlock[] = [
      * B · seven minutes, and the one problem here with two correct solutions
      * from two different months. OCTOBER: a second loop inside the first
      * («қарапайым ішкі циклдер», m2.l8) counting how often each value occurs.
-     * DECEMBER: `.sort()` first (m4.l7), after which equal values stand next to
-     * each other and one pass over the neighbours answers it. n ≤ 1000 is
-     * chosen so both finish comfortably; the statement names neither, which is
-     * this contest's whole point.
+     * DECEMBER: `sort(a.begin(), a.end())` first (m4.l7), after which equal
+     * values stand next to each other and one pass over the neighbours answers
+     * it. n ≤ 1000 is chosen so both finish comfortably; the statement names
+     * neither, which is this contest's whole point.
      *
      * The reference below is the December one, written so the first and last
-     * elements are handled by the same three lines as everything else — that
-     * boundary is where the shorter versions of it break. As with C and D, the
-     * block declares only what both routes to the answer have in common:
-     * `sort.basic` is absent, because half of the correct solutions never sort
-     * anything and evidence about ordering would be a claim about them that is
-     * not true.
+     * elements are handled by the same lines as everything else — that boundary
+     * is where the shorter versions of it break. As with C and D, the block
+     * declares only what both routes to the answer have in common: `sort.basic`
+     * is absent, because half of the correct solutions never sort anything and
+     * evidence about ordering would be a claim about them that is not true.
+     *
+     * Everything is `int`: at most 1000 submissions, so the answer is at most
+     * 1000, and the values themselves are only ever compared, never added.
      *
      * The degenerate programs:
      *   · counting the DISTINCT problem numbers instead of the ones solved once
      *     — the visible sample answers 3 where the truth is 1, and «3» /
      *     «1 1 5» answers 2 against 1;
-     *   · the inner loop written `for j in range(i + 1, n)`, so a number is
-     *     "alone" whenever nothing after it matches — the sample answers 3, and
-     *     «3» / «1 2 1» answers 2 against 1;
+     *   · the inner loop written from i + 1, so a number is "alone" whenever
+     *     nothing after it matches — the sample answers 3, and «3» / «1 2 1»
+     *     answers 2 against 1;
      *   · comparing neighbours WITHOUT sorting first — the sample answers 6,
      *     and «3» / «1 2 1» answers 3, because the equal values are not next to
      *     each other until they are put there;
@@ -234,20 +314,26 @@ export const M9_C4: LessonBlock[] = [
       ru: "**B. Задачи с единственным решением.** На тренировочном соревновании отправили всего n решений. i-е решение отправлено к задаче с номером a[i]; к одной задаче может прийти и несколько решений.\n\nСколько задач получили ровно одно решение?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 1000). Во второй строке n целых чисел через пробел: a[1] … a[n] (1 ≤ a[i] ≤ 1000000000).\n\n**Выход.** Одно целое число — сколько номеров встречается в списке ровно один раз. Если таких номеров нет, выведи 0.\n\n**Пример.**\n\n```\n6\n4 5 4 3 5 4\n```\n\nОтвет: `1` — это задача с номером 3. К номеру 4 пришло три решения, к номеру 5 — два.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "alone = 0\n" +
-      "for i in range(n):\n" +
-      "    left = 0\n" +
-      "    if i > 0 and a[i - 1] == a[i]:\n" +
-      "        left = 1\n" +
-      "    right = 0\n" +
-      "    if i < n - 1 and a[i + 1] == a[i]:\n" +
-      "        right = 1\n" +
-      "    if left == 0 and right == 0:\n" +
-      "        alone = alone + 1\n" +
-      "print(alone)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int alone = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        int left = 0;\n" +
+      "        if (i > 0 && a[i - 1] == a[i]) left = 1;\n" +
+      "        int right = 0;\n" +
+      "        if (i < n - 1 && a[i + 1] == a[i]) right = 1;\n" +
+      "        if (left == 0 && right == 0) alone = alone + 1;\n" +
+      "    }\n" +
+      "    cout << alone;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "6\n4 5 4 3 5 4", expectedOutput: "1" },
       /* The number that is alone is the largest, then the smallest. */
@@ -270,18 +356,29 @@ export const M9_C4: LessonBlock[] = [
   {
     /*
      * C · ten minutes, and the first problem here that needs three months at
-     * once. DECEMBER to put the results in order (m4.l3, `.sort()`), JANUARY to
+     * once. DECEMBER to put the results in order (m4.l3, `sort`), JANUARY to
      * find the boundary inside them (m5.l2, «екіге бөліп іздеу» over a sorted
      * list), and NOVEMBER to write the search once and call it q times (m3.l3,
-     * m3.l5). The list is deliberately given UNSORTED: the ordering step is
-     * part of the problem, not part of the input format.
+     * m3.l5). The results are deliberately generated in a scrambled order: the
+     * ordering step is part of the problem, not part of the input format.
+     *
+     * THE PROBLEM THAT WAS RE-AUTHORED, and the whole story is on
+     * `M9_C4_P3_LARGE_CASE` — what it used to be, why 16 KiB of stdin could
+     * never enforce its bound, why C++ made that strictly worse, and what
+     * generating the data from a seed buys. The question is unchanged: for each
+     * of q thresholds, how many results reach it. What changed is that the data
+     * is computed instead of listed, and that the output is the SUM of the q
+     * answers rather than q lines — 500 000 lines would be 3 MB against a 64 KiB
+     * output ceiling.
      *
      * THE STRUCTURAL REQUIREMENT. The helper is stated as ADVICE — «кеңес қана»
-     * / «это только совет» — with a sentence saying the judge compares the
-     * printed lines and nothing else. Option 2 of the contract, chosen because
-     * no output here can be made impossible without a function, and because
-     * option 3 would need an `explain` block this contest has no minutes for.
-     * A learner who writes one long loop has broken no rule and is told so.
+     * / «это только совет» — because a checker still cannot see a function.
+     * What IS enforced now is the complexity, by the last hidden case, and that
+     * is option 1 of the contract rather than the option 2 this block used to
+     * take.
+     *
+     * `long long` is compulsory for the answer and nothing says so: 500 000
+     * queries of up to 500 000 athletes is 2.5 · 10¹¹.
      *
      * The tournament also has a sorted list with a boundary in it — its B takes
      * the k-th best score and asks who advances, its C searches over the answer
@@ -290,72 +387,79 @@ export const M9_C4: LessonBlock[] = [
      * list. Rehearsing the idea while leaving the tournament's questions unseen
      * is the point of a rehearsal.
      *
-     * THE LAYOUT. The prompt states one answer per line, so the block declares
-     * `{ kind: "exact" }`. Under the default `token` checker a program printing
-     * all q answers on one line would be graded correct against a prompt that
-     * says otherwise — `m2.l3.b8`'s defect, and the reason the rule exists.
-     *
      * The degenerate programs:
-     *   · searching without sorting first — «5 1» / «1 9 1 9 1» / «9» answers 0
-     *     where the truth is 2, and the visible sample passes, because the
-     *     sample happens to answer correctly from an unsorted list;
-     *   · `>` where the statement says «кем емес» — «1 1» / «5» / «5» answers 0
-     *     and «4 2» / «7 7 7 7» / «7 8» answers 0 on the first query, both of
-     *     which put x exactly on a value that is present;
-     *   · an off-by-one on the boundary index — the same two cases, plus
-     *     «6 1» / «5 5 5 6 4 4» / «5», where the value on the boundary is
-     *     repeated three times;
-     *   · x below every result and x above every result — «5 2» / «1 2 3 4 5» /
-     *     «1 6» is n and 0 in one case.
-     * A linear count per query is CORRECT and passes: see the file header, which
-     * says so rather than pretending the bound is enforced.
+     *   · counting each query with a full scan — correct, and the last hidden
+     *     case does not finish;
+     *   · searching without sorting first — «5 3 0» answers 4 instead of 7,
+     *     because the generated results are not in order;
+     *   · `>` where the statement says «кем емес» — «1 500000 7» answers 3
+     *     instead of 5, and the two large cases differ as well: the recurrence
+     *     repeats after 166 667 terms, so once n + q passes that, query values
+     *     land exactly on result values;
+     *   · an `int` total — the last hidden case, silently;
+     *   · a generator that advances t BEFORE storing t[0] — every case,
+     *     starting with the sample, which is why the sample prints its numbers.
      */
     id: "m9.c4.p3",
     type: "challenge",
     skillRefs: ["bsearch.core", "bsearch.boundary", "sort.basic", "perf.time_estimate"],
     sourceType: "product-authored",
-    checker: { kind: "exact" },
     prompt: {
-      kk: "**C. Норманы орындағандар.** Жарысқа n спортшы қатысты, i-спортшы r[i] ұпай жинады. Нәтижелер кез келген ретпен берілген — олар реттелмеген.\n\nЖаттықтырушы q рет сұрақ қояды. Әр сұрақта бір x саны беріледі: ұпайы x-тен кем емес, яғни x-ке тең немесе одан үлкен спортшылар нешеу?\n\n**Кіріс.** Бірінші жолда n мен q сандары (1 ≤ n ≤ 100000, 1 ≤ q ≤ 100000). Екінші жолда n бүтін сан: r[1] … r[n] (1 ≤ r[i] ≤ 1000000000). Үшінші жолда q бүтін сан — сұрақтардың x мәндері (1 ≤ x ≤ 1000000000).\n\n**Шығыс.** q жол шығар: әр сұрақтың жауабы жеке жолда, сұрақтар берілген ретпен.\n\n**Мысал.**\n\n```\n5 3\n10 4 7 4 9\n5 4 11\n```\n\nЖауап:\n\n```\n3\n5\n0\n```\n\nКеңес: бір x үшін жауап беретін көмекші функция жазып, оны әр сұраққа шақырған ыңғайлы. Бұл — кеңес қана, талап емес: тексеру жүйесі тек шыққан жолдарды салыстырады.",
-      ru: "**C. Выполнившие норматив.** В соревновании участвовали n спортсменов, i-й набрал r[i] очков. Результаты даны в произвольном порядке — они не отсортированы.\n\nТренер задаёт q вопросов. В каждом вопросе дано одно число x: сколько спортсменов набрали не меньше x очков, то есть ровно x или больше?\n\n**Вход.** В первой строке числа n и q (1 ≤ n ≤ 100000, 1 ≤ q ≤ 100000). Во второй строке n целых чисел: r[1] … r[n] (1 ≤ r[i] ≤ 1000000000). В третьей строке q целых чисел — значения x (1 ≤ x ≤ 1000000000).\n\n**Выход.** Выведи q строк: ответ на каждый вопрос на отдельной строке, в том порядке, в каком заданы вопросы.\n\n**Пример.**\n\n```\n5 3\n10 4 7 4 9\n5 4 11\n```\n\nОтвет:\n\n```\n3\n5\n0\n```\n\nСовет: удобно написать вспомогательную функцию, которая отвечает на один вопрос, и вызывать её для каждого x. Это только совет, а не требование: проверяющая система сравнивает лишь выведенные строки.",
+      kk: "**C. Норманы орындағандар.** Жарысқа n спортшы қатысты, i-спортшы r[i] ұпай жинады. Нәтижелер реттелмеген.\n\nЖаттықтырушы q сұрақ қояды. j-сұрақта x[j] саны беріледі: ұпайы x[j]-ден кем емес, яғни оған тең немесе одан үлкен спортшылар нешеу?\n\n**Кіріс.** Бір жолда бос орынмен бөлінген үш бүтін сан: n, q және s (1 ≤ n ≤ 500000, 1 ≤ q ≤ 500000, 0 ≤ s ≤ 1000002).\n\nНәтижелер де, сұрақтар да тізім түрінде берілмейді — оларды бағдарламаның өзі есептейді. Бір миллион санды шартқа жазып қою мүмкін емес.\n\nt[0] = s, ал i ≥ 1 үшін t[i] = (t[i−1] · 1103 + 12345) mod 1000003.\ni-спортшының ұпайы r[i] = t[i], мұндағы i = 0 … n−1.\nj-сұрақтың мәні x[j] = t[n + j], мұндағы j = 0 … q−1.\n\n**Шығыс.** Бір бүтін сан — q сұрақтың жауаптарының ҚОСЫНДЫСЫ. Әр жауапты бөлек шығарудың қажеті жоқ.\n\n**Мысал.** n = 5, q = 3, s = 0 болғанда:\n\n```\nt = 0 12345 628841 621889 953857 113460 158350 671873\nұпайлар:  0 12345 628841 621889 953857\nсұрақтар: 113460 158350 671873\nжауаптар: 3 3 1\n```\n\nЖауап: `7` — бұл 3 + 3 + 1.\n\nn мен q екеуі де жарты миллионға жетеді, сондықтан әр сұраққа бүкіл тізімді қарап шығуға уақыт жетпейді: ол 2,5 · 10¹¹ қадам болар еді, ал C++ бір секундта шамамен 100 000 000 қадам жасайды.\n\nКеңес: бір x үшін жауап беретін көмекші функция жазып, оны әр сұраққа шақырған ыңғайлы. Бұл — кеңес қана, талап емес: тексеру жүйесі тек шыққан санды салыстырады.",
+      ru: "**C. Выполнившие норматив.** В соревновании участвовали n спортсменов, i-й набрал r[i] очков. Результаты не отсортированы.\n\nТренер задаёт q вопросов. В j-м вопросе дано число x[j]: сколько спортсменов набрали не меньше x[j] очков, то есть ровно столько же или больше?\n\n**Вход.** В одной строке через пробел даны три целых числа: n, q и s (1 ≤ n ≤ 500000, 1 ≤ q ≤ 500000, 0 ≤ s ≤ 1000002).\n\nНи результаты, ни вопросы списком не даются — их вычисляет сама программа. Миллион чисел в условие не впишешь.\n\nt[0] = s, а при i ≥ 1 t[i] = (t[i−1] · 1103 + 12345) mod 1000003.\nОчки i-го спортсмена r[i] = t[i], где i = 0 … n−1.\nЗначение j-го вопроса x[j] = t[n + j], где j = 0 … q−1.\n\n**Выход.** Одно целое число — СУММА ответов на все q вопросов. Выводить ответы по отдельности не нужно.\n\n**Пример.** При n = 5, q = 3, s = 0:\n\n```\nt = 0 12345 628841 621889 953857 113460 158350 671873\nочки:    0 12345 628841 621889 953857\nвопросы: 113460 158350 671873\nответы:  3 3 1\n```\n\nОтвет: `7` — это 3 + 3 + 1.\n\nИ n, и q доходят до полумиллиона, поэтому просматривать весь список на каждый вопрос времени не хватит: это было бы 2,5 · 10¹¹ шагов, а C++ успевает около 100 000 000 шагов в секунду.\n\nСовет: удобно написать вспомогательную функцию, которая отвечает на один вопрос, и вызывать её для каждого x. Это только совет, а не требование: проверяющая система сравнивает только выведенное число.",
     },
     referenceSolution:
-      "def count_at_least(a, x):\n" +
-      "    lo = 0\n" +
-      "    hi = len(a)\n" +
-      "    while lo < hi:\n" +
-      "        mid = (lo + hi) // 2\n" +
-      "        if a[mid] >= x:\n" +
-      "            hi = mid\n" +
-      "        else:\n" +
-      "            lo = mid + 1\n" +
-      "    return len(a) - lo\n" +
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
       "\n" +
-      "n, q = map(int, input().split())\n" +
-      "r = list(map(int, input().split()))\n" +
-      "r.sort()\n" +
-      "asked = list(map(int, input().split()))\n" +
-      "for j in range(q):\n" +
-      "    print(count_at_least(r, asked[j]))",
+      "long long count_at_least(vector<long long> &a, long long x) {\n" +
+      "    long long lo = 0;\n" +
+      "    long long hi = a.size();\n" +
+      "    while (lo < hi) {\n" +
+      "        long long mid = (lo + hi) / 2;\n" +
+      "        if (a[mid] >= x) hi = mid;\n" +
+      "        else lo = mid + 1;\n" +
+      "    }\n" +
+      "    return (long long)a.size() - lo;\n" +
+      "}\n" +
+      "\n" +
+      "int main() {\n" +
+      "    long long n, q, s;\n" +
+      "    cin >> n >> q >> s;\n" +
+      "    vector<long long> t(n + q);\n" +
+      "    long long cur = s;\n" +
+      "    for (long long i = 0; i < n + q; i++) {\n" +
+      "        t[i] = cur;\n" +
+      "        cur = (cur * 1103 + 12345) % 1000003;\n" +
+      "    }\n" +
+      "    vector<long long> r(t.begin(), t.begin() + n);\n" +
+      "    sort(r.begin(), r.end());\n" +
+      "    long long total = 0;\n" +
+      "    for (long long j = 0; j < q; j++) {\n" +
+      "        total = total + count_at_least(r, t[n + j]);\n" +
+      "    }\n" +
+      "    cout << total;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
-      { input: "5 3\n10 4 7 4 9\n5 4 11", expectedOutput: "3\n5\n0" },
-      /* One athlete, one question: x exactly on the result, then one above it. */
-      { input: "1 1\n5\n5", expectedOutput: "1", hidden: true },
-      { input: "1 1\n5\n6", expectedOutput: "0", hidden: true },
-      /* Every result identical: `>` instead of `>=` prints 0 here. */
-      { input: "4 2\n7 7 7 7\n7 8", expectedOutput: "4\n0", hidden: true },
-      /* An unsorted list a binary search would walk straight past. */
-      { input: "5 1\n1 9 1 9 1\n9", expectedOutput: "2", hidden: true },
-      /* The boundary value appears three times, and 4 sits just below it. */
-      { input: "6 1\n5 5 5 6 4 4\n5", expectedOutput: "4", hidden: true },
-      /* The top of the value range, and one either side of the middle result. */
-      {
-        input: "3 3\n1000000000 1 500000000\n1000000000 1 500000001",
-        expectedOutput: "1\n3\n1",
-        hidden: true,
-      },
-      /* x below everything, then above everything: n and 0. */
-      { input: "5 2\n1 2 3 4 5\n1 6", expectedOutput: "5\n0", hidden: true },
+      { input: "5 3 0", expectedOutput: "7" },
+      { input: "10 10 42", expectedOutput: "49" },
+      /* The smallest legal input, twice: once where the single result clears the
+         single query and once where it does not. */
+      { input: "1 1 896", expectedOutput: "1", hidden: true },
+      { input: "1 1 0", expectedOutput: "0", hidden: true },
+      /* Fewer results than questions, and the reverse. */
+      { input: "3 7 5", expectedOutput: "7", hidden: true },
+      { input: "500000 1 7", expectedOutput: "163145", hidden: true },
+      /* One result and half a million questions: the sequence wraps past its own
+         period, so query values land exactly on the result. `>` answers 3. */
+      { input: "1 500000 7", expectedOutput: "5", hidden: true },
+      /* A hundred thousand of each: the answer passes 2³¹ already, and the wrap
+         makes exact hits common. */
+      { input: "100000 100000 1", expectedOutput: "4984477364", hidden: true },
+      /* The stated bound, enforced. See M9_C4_P3_LARGE_CASE: sort plus binary
+         search answers in 0.09 s and a scan per query does not finish. */
+      { input: M9_C4_P3_LARGE_CASE, expectedOutput: "125001184686", hidden: true },
     ],
   },
   {
@@ -364,9 +468,9 @@ export const M9_C4: LessonBlock[] = [
      * costs, filled one row at a time, where the entry for a cell is the
      * cheapest way of ARRIVING at it — «алдыңғы жауаптар арқылы шешу» with the
      * previous answers being the row above. Only the previous row is ever
-     * needed, so the reference keeps two lists rather than a full table; that is
-     * a choice, not a requirement, and a learner who builds the whole table gets
-     * the same number.
+     * needed, so the reference keeps two vectors rather than a full table; that
+     * is a choice, not a requirement, and a learner who builds the whole table
+     * gets the same number.
      *
      * WHY THIS IS A TABLE AND NOT A MAP. March is contested three times already
      * — twice in `m9.c2` and once in the tournament itself, whose D is «Ең үлкен
@@ -374,12 +478,17 @@ export const M9_C4: LessonBlock[] = [
      * not a rehearsal, so the grid here is a field of numbers to fill in rather
      * than a map to walk, and no wave appears in this contest at all.
      *
-     * The bound n, m ≤ 200 is what rules out walking every route, and unlike C
-     * a case can prove it: the 20 × 5 field below holds up to 5 · 3^19 routes,
+     * The bound n, m ≤ 200 is what rules out walking every route, and unlike
+     * C's old version a case can prove it without any help from the input size:
+     * the 20 × 5 field below holds up to 5 · 3¹⁹ routes, an EXPONENTIAL count,
      * and every one of them has to be walked before the cheapest is known.
-     * Measured
-     * — the table answers in 0.02 s and a recursive enumeration of the routes
-     * does not finish in 15 s. Option 1 of the authoring contract again.
+     * Measured under C++17 at -O2 — the table answers in 0.02 s and a recursive
+     * enumeration of the routes does not finish. That is why this block needed
+     * nothing from the migration: a hundredfold constant factor does not touch
+     * 3¹⁹.
+     *
+     * Costs of at most 1000 over at most 200 rows is 200 000, so `int` is right
+     * throughout and no `long long` appears.
      *
      * The degenerate programs:
      *   · the smallest number in each row added up, with the neighbour rule
@@ -392,10 +501,13 @@ export const M9_C4: LessonBlock[] = [
      *   · stepping to the cheapest of the three cells below at every step,
      *     which is the greedy rule that looks obviously right — «2 3» / «2 3 6 /
      *     6 7 1» answers 8, the truth is 4, and it is the only case built for it;
-     *   · `prev[j - 1]` written without the `j > 0` guard, which in Python does
-     *     not crash: index −1 silently reads the LAST column of the row above.
-     *     «4 3» / «1 1 4 / 7 1 0 / 4 9 7 / 4 6 5» answers 9 against 10 for it,
-     *     and no other case here does;
+     *   · `prev[j - 1]` written without the `j > 0` guard. In Python that did
+     *     not crash — index −1 read the LAST column of the row above — so the
+     *     defect had one predictable wrong answer. In C++ it is undefined
+     *     behaviour: the program reads memory that is not the row, and may stop
+     *     with nothing readable attached or print anything at all. «4 3» /
+     *     «1 1 4 / 7 1 0 / 4 9 7 / 4 6 5» is the case built for it; the truth is
+     *     10 and no outcome of the unguarded version is reliably 10;
      *   · enumerating every route — the 20 × 5 field.
      * n = 1, m = 1 and the 1 × 1 field are all legal inputs, and each of them
      * breaks a loop that assumes there is a row above or a column beside.
@@ -409,28 +521,35 @@ export const M9_C4: LessonBlock[] = [
       ru: "**D. Арык через поле.** Поле разбито на n строк и m столбцов. Прокопать клетку, стоящую в строке i и столбце j, стоит a[i][j].\n\nЧерез поле нужно прокопать арык от первой строки до последней: в каждой строке выбирается ровно одна клетка. Столбцы клеток, выбранных в двух соседних строках, должны отличаться не больше чем на единицу — то есть арык идёт либо прямо вниз, либо вниз по диагонали. С какого столбца начать в первой строке и каким закончить в последней, ты выбираешь сам.\n\nСтоимость арыка — сумма стоимостей выбранных клеток. Какова стоимость самого дешёвого арыка?\n\n**Вход.** В первой строке числа n и m (1 ≤ n ≤ 200, 1 ≤ m ≤ 200). В каждой из следующих n строк m целых чисел через пробел (0 ≤ a[i][j] ≤ 1000).\n\n**Выход.** Одно целое число — стоимость самого дешёвого арыка.\n\n**Пример.**\n\n```\n3 3\n2 1 3\n6 5 4\n7 8 9\n```\n\nОтвет: `13` — выбраны клетки стоимостью 1, затем 5, затем 7.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "a = []\n" +
-      "for i in range(n):\n" +
-      "    a.append(list(map(int, input().split())))\n" +
-      "prev = []\n" +
-      "for j in range(m):\n" +
-      "    prev.append(a[0][j])\n" +
-      "for i in range(1, n):\n" +
-      "    cur = []\n" +
-      "    for j in range(m):\n" +
-      "        best = prev[j]\n" +
-      "        if j > 0 and prev[j - 1] < best:\n" +
-      "            best = prev[j - 1]\n" +
-      "        if j < m - 1 and prev[j + 1] < best:\n" +
-      "            best = prev[j + 1]\n" +
-      "        cur.append(best + a[i][j])\n" +
-      "    prev = cur\n" +
-      "answer = prev[0]\n" +
-      "for j in range(m):\n" +
-      "    if prev[j] < answer:\n" +
-      "        answer = prev[j]\n" +
-      "print(answer)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<vector<int>> a(n, vector<int>(m, 0));\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        for (int j = 0; j < m; j++) cin >> a[i][j];\n" +
+      "    }\n" +
+      "    vector<int> prev(m, 0);\n" +
+      "    for (int j = 0; j < m; j++) prev[j] = a[0][j];\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        vector<int> cur(m, 0);\n" +
+      "        for (int j = 0; j < m; j++) {\n" +
+      "            int best = prev[j];\n" +
+      "            if (j > 0 && prev[j - 1] < best) best = prev[j - 1];\n" +
+      "            if (j < m - 1 && prev[j + 1] < best) best = prev[j + 1];\n" +
+      "            cur[j] = best + a[i][j];\n" +
+      "        }\n" +
+      "        prev = cur;\n" +
+      "    }\n" +
+      "    int answer = prev[0];\n" +
+      "    for (int j = 0; j < m; j++) {\n" +
+      "        if (prev[j] < answer) answer = prev[j];\n" +
+      "    }\n" +
+      "    cout << answer;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "3 3\n2 1 3\n6 5 4\n7 8 9", expectedOutput: "13" },
       /* The cheapest first step leads into the expensive row: greedy gives 8. */
@@ -441,7 +560,7 @@ export const M9_C4: LessonBlock[] = [
       /* The road has to start in the right column and step left: a straight
          line, and a road forced to start at column one, both give 8. */
       { input: "3 2\n6 0\n1 8\n1 5", expectedOutput: "2", hidden: true },
-      /* An unguarded prev[j - 1] reads the last column of the row above here. */
+      /* An unguarded prev[j - 1] reads outside the row here. */
       { input: "4 3\n1 1 4\n7 1 0\n4 9 7\n4 6 5", expectedOutput: "10", hidden: true },
       /* One row: the answer is the cheapest cell in it, with no step at all. */
       { input: "1 4\n7 2 9 5", expectedOutput: "2", hidden: true },
@@ -450,7 +569,7 @@ export const M9_C4: LessonBlock[] = [
       /* The smallest field there is, and a field where every road is free. */
       { input: "1 1\n0", expectedOutput: "0", hidden: true },
       { input: "3 3\n0 0 0\n0 0 0\n0 0 0", expectedOutput: "0", hidden: true },
-      /* Twenty rows of five: 5 · 3^19 routes. Filling the table takes 0.02 s;
+      /* Twenty rows of five: 5 · 3¹⁹ routes. Filling the table takes 0.02 s;
          walking the routes one at a time does not finish. */
       {
         input:
@@ -472,11 +591,16 @@ export const M9_C4: LessonBlock[] = [
      * нұсқаны тексеру» is the first idea anyone has here and it is the one
      * method that does not finish: the last hidden case is forty students whose
      * answer is `no`, so a search over subsets cannot stop early and must look
-     * at all 2^40 of them. Measured on this machine: the table answers in
-     * 0.02 s; the plain recursive search does not finish in 12 s; neither does
-     * the same search pruned at `2 * s > total`. This is option 1 of the
-     * authoring contract — the output is impossible without the method — and it
-     * is the only place in this file where a method claim is actually enforced.
+     * at all 2⁴⁰ of them. Measured under C++17 at -O2: the table answers in
+     * 0.02 s; the plain recursive search does not finish, and neither does the
+     * same search pruned at `2 * s > total`. This is option 1 of the authoring
+     * contract — the output is impossible without the method — and it survived
+     * the migration untouched because 2⁴⁰ is exponential and a faster language
+     * buys about six of its forty doublings.
+     *
+     * At most 100 students of at most 100 points is a total of 10 000 and a half
+     * of 5 000, so the table is 5 001 entries of `int` and nothing here can
+     * leave it.
      *
      * The degenerate programs:
      *   · «қосынды жұп болса — yes» — «4» / «1 1 1 5» answers yes where the
@@ -501,29 +625,37 @@ export const M9_C4: LessonBlock[] = [
       ru: "**E. Две команды равной силы.** В классе n учеников, сила i-го ученика измерена числом a[i]. Всех учеников нужно разбить на две команды, причём каждый ученик попадает ровно в одну команду. Можно ли разбить их так, чтобы суммы очков обеих команд оказались в точности равны?\n\n**Вход.** В первой строке число n (1 ≤ n ≤ 100). Во второй строке n чисел через пробел: a[1] … a[n] (1 ≤ a[i] ≤ 100).\n\n**Выход.** Выведи `yes`, если разбить можно, и `no`, если нельзя, — латинскими буквами, без кавычек.\n\n**Пример.**\n\n```\n4\n1 5 3 3\n```\n\nОтвет: `yes` — в одной команде 1 и 5, в другой 3 и 3, сумма у обеих равна 6.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "total = 0\n" +
-      "for i in range(n):\n" +
-      "    total = total + a[i]\n" +
-      "if total % 2 == 1:\n" +
-      '    print("no")\n' +
-      "else:\n" +
-      "    half = total // 2\n" +
-      "    can = [0] * (half + 1)\n" +
-      "    can[0] = 1\n" +
-      "    for i in range(n):\n" +
-      "        nxt = [0] * (half + 1)\n" +
-      "        for s in range(half + 1):\n" +
-      "            if can[s] == 1:\n" +
-      "                nxt[s] = 1\n" +
-      "                if s + a[i] <= half:\n" +
-      "                    nxt[s + a[i]] = 1\n" +
-      "        can = nxt\n" +
-      "    if can[half] == 1:\n" +
-      '        print("yes")\n' +
-      "    else:\n" +
-      '        print("no")',
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int total = 0;\n" +
+      "    for (int i = 0; i < n; i++) total = total + a[i];\n" +
+      "    if (total % 2 == 1) {\n" +
+      '        cout << "no";\n' +
+      "        return 0;\n" +
+      "    }\n" +
+      "    int half = total / 2;\n" +
+      "    vector<int> can(half + 1, 0);\n" +
+      "    can[0] = 1;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        vector<int> nxt(half + 1, 0);\n" +
+      "        for (int s = 0; s <= half; s++) {\n" +
+      "            if (can[s] == 1) {\n" +
+      "                nxt[s] = 1;\n" +
+      "                if (s + a[i] <= half) nxt[s + a[i]] = 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "        can = nxt;\n" +
+      "    }\n" +
+      '    if (can[half] == 1) cout << "yes";\n' +
+      '    else cout << "no";\n' +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\n1 5 3 3", expectedOutput: "yes" },
       /* The greedy split answers no here. */

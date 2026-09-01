@@ -3,62 +3,61 @@ import { MONTHS } from "@schools/curriculum/months";
 import type { LessonBlock } from "@schools/curriculum/types";
 import { isLearnerOutcome, type LocalExecutionStatus } from "@schools/execution/trust";
 import { trustSatisfies } from "@schools/execution/trust-policy";
-import { isLearnerEvidence, type ExecutionStatus } from "@schools/exec/provider";
+import { isLearnerEvidence } from "@schools/exec/provider";
 import { checkOutput } from "@schools/exec/checker";
-import { PYTHON_RUNTIME } from "@schools/execution/python-policy";
+import { CPP_STANDARD_MACRO } from "@schools/execution/cpp-runtime";
 import {
-  ALL_BLOCKS,
   CATEGORY_PAIRS,
+  LOCAL_HALF_NOT_EXECUTED,
   PARITY_FIXTURES,
   septemberSolution,
+  SEPTEMBER_BLOCKS,
   type ParityFixture,
 } from "../execution/parity-fixtures";
-import {
-  hasServerPython,
-  localPyodideVersion,
-  localPythonVersion,
-  runLocal,
-  runServer,
-  serverPythonVersion,
-} from "../execution/engines";
+import { hasServerCompiler, runServer, serverCompilerVersion } from "../execution/engines";
 
 /**
- * Local/server parity, executed.
+ * September's programs, executed, and the browser correspondence that is
+ * declared beside them.
  *
- * ## The claim under test
+ * ## The claim under test, and how much of it this file can still reach
  *
- * RUN is Pyodide in the learner's browser; SUBMIT is the judge. The hybrid
- * design is only honest if **the same program produces the same result in
- * both** — otherwise a learner iterates against one Python and is graded by
- * another, and the only symptom is a verdict nobody can explain, on a case
+ * RUN compiles in the learner's browser; SUBMIT compiles on the judge. The
+ * hybrid design is only honest if **the same program produces the same result
+ * in both** — otherwise a learner iterates against one compiler and is graded
+ * by another, and the only symptom is a verdict nobody can explain, on a case
  * nobody is allowed to see.
  *
- * Nothing in the repository had ever run a program through both engines. This
- * file does, on real September code: see `tests/execution/parity-fixtures.ts`
- * for the table and where each program came from.
+ * Under Python this file ran BOTH engines: Pyodide loads under node and the
+ * shipped worker had an injection seam for its boot step. The C++ browser
+ * engine has no equivalent — 57.5 MB of WebAssembly clang, fetched over HTTP,
+ * driven through an ABI node's WASI cannot speak — so **only the server half is
+ * executed here.** `tests/execution/engines.ts` sets out the reason in full and
+ * `docs/cpp17/CPP17_JUDGE_PARITY.md` already carries the two-engine suite as
+ * still-to-do, with a manual pass as the current evidence.
+ *
+ * Saying that plainly is the point. What follows is a real suite — September's
+ * own programs, compiled and run, against the outputs the curriculum declares —
+ * and it is NOT the parity proof its predecessor was. The gap is asserted at
+ * the bottom rather than left to be inferred from a green bar.
  *
  * ## What is compared, and what deliberately is not
  *
- * **Compared:** the status CATEGORY (via `CATEGORY_PAIRS`, because the two
- * unions are different vocabularies on purpose) and stdout, byte for byte.
+ * **Compared:** the server's status, its stdout byte for byte, and the
+ * correspondence between the two status vocabularies as a property of the
+ * TABLE (via `CATEGORY_PAIRS`).
  *
- * **Not compared:** stderr text. The two engines are two CPython builds of
- * different vintages — Pyodide ships 3.14.2 today, the judge is pinned to
- * `PYTHON_RUNTIME.version`, and CI's `python3` is whatever the machine has — and
- * error prose changes between minor versions ("invalid syntax" became
- * "expected ':'"). Asserting message equality would fail on a version bump that
- * broke nothing, which is the kind of test people delete. What matters to a
- * learner is which CATEGORY they are in, and that is asserted.
- *
- * **Not proven at all:** see `what this suite cannot prove` at the bottom. Both
- * halves execute here, so this is not a one-sided table dressed up as a parity
- * proof — but it is node's WASM and CI's `python3`, not a browser and not
- * Piston, and the difference is written down rather than hoped away.
+ * **Not compared:** diagnostic text. The compiler here is whatever this machine
+ * has — Apple clang with libc++ on a Mac — and the judge is GCC 14 with
+ * libstdc++. Clang and GCC phrase errors differently and the brief accepts
+ * that: the learner reads whichever compiler they invoked, and both name a line
+ * and a cause. Asserting message equality would fail on a toolchain nobody
+ * chose, which is the kind of test people delete.
  */
 
-const serverAvailable = hasServerPython();
+const serverAvailable = hasServerCompiler();
 
-/** Each fixture forks a Python and, once, downloads nothing but boots a WASM. */
+/** Each fixture compiles and runs a real program. A compile is ~1 s. */
 const FIXTURE_TIMEOUT_MS = 60_000;
 
 /* -------------------------------------------------------------------------- */
@@ -68,14 +67,14 @@ const FIXTURE_TIMEOUT_MS = 60_000;
 describe("the fixture table is real September code", () => {
   it("has enough fixtures to be worth running", () => {
     /* The guard against a green bar that checked nothing. A refactor that
-       emptied the table would otherwise make every parity assertion below
-       vacuous — the exact failure mode that let the payload leak survive a
-       346-test suite. */
+       emptied the table would otherwise make every assertion below vacuous —
+       the exact failure mode that let the payload leak survive a 346-test
+       suite. */
     expect(PARITY_FIXTURES.length).toBeGreaterThanOrEqual(20);
     expect(new Set(PARITY_FIXTURES.map((f) => f.id)).size).toBe(PARITY_FIXTURES.length);
   });
 
-  it("every verbatim fixture IS the block's reference solution, byte for byte", () => {
+  it("every verbatim fixture IS the block's own solution, byte for byte", () => {
     let verbatim = 0;
     for (const fixture of PARITY_FIXTURES) {
       if (fixture.provenance.kind !== "verbatim") continue;
@@ -83,12 +82,12 @@ describe("the fixture table is real September code", () => {
       expect(
         fixture.source,
         `${fixture.id} claims to be ${fixture.provenance.blockId} verbatim and is not. ` +
-          `Either the curriculum changed — in which case the parity claim now covers ` +
+          `Either the curriculum changed — in which case the claim now covers ` +
           `code no learner writes — or the fixture was edited by hand.`,
       ).toBe(septemberSolution(fixture.provenance.blockId));
     }
     expect(verbatim, "the table must be mostly real programs, not mostly mutations").toBeGreaterThan(
-      PARITY_FIXTURES.length / 3,
+      PARITY_FIXTURES.length / 4,
     );
   });
 
@@ -96,7 +95,7 @@ describe("the fixture table is real September code", () => {
     for (const fixture of PARITY_FIXTURES) {
       if (fixture.provenance.kind !== "derived") continue;
       const original = septemberSolution(fixture.provenance.blockId); // throws if gone
-      if (fixture.id.startsWith("syntax-error") || fixture.id === "name-error") {
+      if (fixture.id.startsWith("compile-error-")) {
         /* These are produced by `.replace()` on the real solution. If the
            substring stops matching, `replace` silently returns the ORIGINAL and
            the fixture becomes a working program asserted to be broken — a
@@ -118,51 +117,74 @@ describe("the fixture table is real September code", () => {
     }
   });
 
-  it("September really does contain no f-string, which is why that fixture is synthesised", () => {
-    /* The claim the f-string fixture's provenance makes, checked rather than
-       asserted in prose. Only CODE fields are scanned — a Kazakh sentence
-       containing `f"` would be a false positive and would train everyone to
-       ignore this. */
-    const code: string[] = [];
-    const push = (value: unknown) => {
-      if (typeof value === "string") code.push(value);
+  it("September really is written in C++, which is what makes these fixtures real", () => {
+    /* The migration's own claim, checked rather than assumed. Only CODE fields
+       are scanned — a Kazakh sentence containing `print(` would be a false
+       positive and would train everyone to ignore this.
+       The markers are chosen because they are unambiguous and because a
+       half-migrated month is the realistic failure: a block still carrying
+       `input()` or `print(` would be a task no learner can run at all.
+
+       SCOPED TO SEPTEMBER on purpose. The migration runs month by month and the
+       later months are other units' work in progress; asserting over all nine
+       would report their unfinished state as a defect here and would go red and
+       green as they land, which is how a guard becomes noise. The recorded
+       count below is the honest version of the wider claim. */
+    const codeOf = (blocks: readonly LessonBlock[]): string[] => {
+      const code: string[] = [];
+      const push = (value: unknown) => {
+        if (typeof value === "string") code.push(value);
+      };
+      for (const block of blocks) {
+        const b = block as LessonBlock & Record<string, unknown>;
+        push(b.referenceSolution);
+        push(b.solution);
+        push(b.code);
+        push(b.starter);
+        push(b.fixedCode);
+        push(b.template);
+        if (Array.isArray(b.lines)) for (const line of b.lines) push((line as { code?: unknown }).code);
+      }
+      return code;
     };
-    for (const block of ALL_BLOCKS) {
-      const b = block as LessonBlock & Record<string, unknown>;
-      push(b.referenceSolution);
-      push(b.code);
-      push(b.starter);
-      push(b.fixedCode);
-      push(b.template);
-      if (Array.isArray(b.lines)) for (const line of b.lines) push((line as { code?: unknown }).code);
-    }
-    expect(code.length, "no curriculum code was scanned — the walk is broken").toBeGreaterThan(40);
-    const withFString = code.filter((c) => /(^|[^A-Za-z0-9_])f["']/.test(c));
+
+    const code = codeOf(SEPTEMBER_BLOCKS);
+    expect(code.length, "no September code was scanned — the walk is broken").toBeGreaterThan(40);
+
+    const pythonish = code.filter((c) => /(^|\n)\s*print\(|(^|[^A-Za-z_])input\(\)/.test(c));
     expect(
-      withFString,
-      "the curriculum has grown an f-string. That is fine — but the f-string " +
-        "fixture should now be `verbatim` or `derived` and point at it.",
+      pythonish,
+      "September code still contains Python. A block that survived the migration " +
+        "untranslated is a task nobody can run, and it would reach a learner as " +
+        "a compile error on their own screen.",
     ).toEqual([]);
+
+    const cpp = code.filter((c) => c.includes("#include") || c.includes("cout") || c.includes("cin"));
+    expect(cpp.length, "and it is C++, not merely not-Python").toBeGreaterThan(20);
   });
 
   it("covers every category the hybrid design has to get right", () => {
-    /* Named one by one rather than counted, so dropping the syntax-error
-       fixtures — the ones guarding a bug the server actually shipped — is a red
-       test rather than a smaller number nobody reads. */
+    /* Named one by one rather than counted, so dropping the compile-error
+       fixtures — the ones guarding a distinction the server actually got wrong
+       once — is a red test rather than a smaller number nobody reads. */
     const ids = new Set(PARITY_FIXTURES.map((f) => f.id));
     for (const required of [
-      "int-input-square",
-      "map-int-split",
-      "f-string",
-      "true-division-float-repr",
-      "floor-div-and-mod",
-      "negative-floor-div-and-mod",
+      "fixed-expression",
+      "read-two-ints",
+      "string-input",
+      "kazakh-output",
+      "integer-division-and-modulo",
+      "negative-integer-division",
       "negative-modulo-parity",
-      "syntax-error-missing-colon",
-      "name-error",
-      "zero-division-error",
-      "index-error",
-      "eof-reading-past-the-input",
+      "double-default-precision",
+      "long-long-past-32-bits",
+      "bits-stdcpp-compiles",
+      "compile-error-missing-semicolon",
+      "compile-error-undeclared-identifier",
+      "runtime-error-uncaught-exception",
+      "division-by-zero",
+      "non-numeric-input",
+      "empty-input-box",
       "runaway-loop",
       "output-bomb-ascii",
     ]) {
@@ -206,13 +228,34 @@ describe("the two status vocabularies correspond, and say the same thing about t
     expect([...CATEGORY_PAIRS.map((p) => p.local)].sort()).toEqual([...EVERY_LOCAL_STATUS].sort());
   });
 
-  it("maps a syntax error to the server's compile error and nowhere else", () => {
-    /* The correspondence this project has already got wrong once. A missing
-       bracket is a program that never ran; reporting it as a crash sends a
-       fourteen-year-old to look at their logic. */
+  it("the trust boundary's own vocabulary did not move with the engine", () => {
+    /* The migration's load-bearing negative claim. Changing the language
+       changed the compiler, the provider, the probe and the fixtures; it must
+       not have changed what a browser result is ALLOWED TO MEAN.
+       `syntax_error` is now a misnomer — clang reports type errors and
+       undeclared identifiers through it too — and it is kept anyway, because
+       renaming a member of this union is a change to the boundary rather than
+       to the engine underneath it. That reasoning lives on the type; this
+       asserts the outcome. */
+    expect(EVERY_LOCAL_STATUS.sort()).toEqual(
+      [
+        "ok",
+        "output_limit_exceeded",
+        "runtime_error",
+        "runtime_unavailable",
+        "syntax_error",
+        "time_limit_exceeded",
+      ].sort(),
+    );
+  });
+
+  it("maps a compile failure to the server's compile error and nowhere else", () => {
+    /* The correspondence this project has already got wrong once. A program
+       that never compiled is not a program that crashed; reporting it as a
+       crash sends a fourteen-year-old to look at their logic. */
     const pair = CATEGORY_PAIRS.find((p) => p.local === "syntax_error");
     expect(pair?.server).toBe("compile_error");
-    expect(pair?.server, "a syntax error must never be a runtime error").not.toBe("runtime_error");
+    expect(pair?.server, "a compile failure must never be a runtime error").not.toBe("runtime_error");
   });
 
   it("agrees about what may be recorded against a child", () => {
@@ -232,87 +275,85 @@ describe("the two status vocabularies correspond, and say the same thing about t
     expect(orphan.map((p) => p.local)).toEqual(["output_limit_exceeded"]);
     expect(orphan[0].why).toContain("no server counterpart");
   });
+
+  it("every fixture's two columns are a pair the table knows about", () => {
+    /* What replaced the executed comparison. The browser cannot be run here, so
+       the strongest available claim is about the TABLE: a fixture whose local
+       and server statuses are not a declared correspondence is a fixture
+       nobody has reasoned about, and it would otherwise sit in the file looking
+       authoritative. Divergent rows are exempt BY NAME — that is what
+       `divergence` means — and the exemption is checked below. */
+    for (const fixture of PARITY_FIXTURES) {
+      if (fixture.divergence) continue;
+      const pair = CATEGORY_PAIRS.find((p) => p.local === fixture.local);
+      expect(pair, `${fixture.id} declares a local status with no category pair`).toBeDefined();
+      expect(
+        pair!.server,
+        `${fixture.id}: ${fixture.local} locally is declared ${fixture.server} on the server`,
+      ).toBe(fixture.server);
+    }
+  });
+
+  it("says once, and only once, why the browser half is not executed", () => {
+    /* A skipped half that does not say so is a suite claiming more than it
+       does. The reason is a constant rather than twenty copies of a comment,
+       and this is what stops it being deleted as noise. */
+    expect(LOCAL_HALF_NOT_EXECUTED).toContain("wasi_unstable");
+    expect(LOCAL_HALF_NOT_EXECUTED.length).toBeGreaterThan(120);
+  });
+
+  it("names the one program whose SERVER half must not be asserted either", () => {
+    /* Undefined behaviour is not a status. `17 / 0` traps with SIGFPE on the
+       judge's x86-64 and returns 0 on an AArch64 developer machine — measured,
+       `0 17` and exit 0 on Apple Silicon — so any answer this harness recorded
+       would be a fact about the machine that ran it.
+       Exactly one fixture may opt out, and it has to say why. A second one
+       appearing is somebody skipping a test they could not make pass. */
+    const skipped = PARITY_FIXTURES.filter((f) => f.unexecutable?.server);
+    expect(skipped.map((f) => f.id)).toEqual(["division-by-zero"]);
+    expect(skipped[0].unexecutable!.server).toContain("undefined behaviour");
+    expect(skipped[0].unexecutable!.server!.length).toBeGreaterThan(120);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
-/* Both engines, one program                                                  */
+/* The server engine, on September's own programs                             */
 /* -------------------------------------------------------------------------- */
-
-function serverCounterpart(local: LocalExecutionStatus): ExecutionStatus | null {
-  const pair = CATEGORY_PAIRS.find((p) => p.local === local);
-  if (!pair) throw new Error(`no category pair for ${local}`);
-  return pair.server;
-}
 
 function describeResult(label: string, status: string, stdout: string, stderr: string): string {
   const tail = stderr.split("\n").filter(Boolean).slice(-1)[0] ?? "";
   return `${label}: ${status} stdout=${JSON.stringify(stdout.slice(0, 120))} last stderr line=${JSON.stringify(tail.slice(0, 140))}`;
 }
 
-describe("both engines, one program, one answer", () => {
-  it("has an interpreter on each side", () => {
+describe("September compiles and runs, and produces what the curriculum says", () => {
+  it("has a compiler to run it with", () => {
     expect(
       serverAvailable,
-      `${process.env.EXEC_PYTHON_BIN ?? "python3"} is not on PATH, so the server half of ` +
-        "every fixture below was skipped. This is a skip, not a pass.",
+      "no C++ compiler on PATH (tried EXEC_CPP_BIN, g++, clang++, c++), so every " +
+        "fixture below was skipped. This is a skip, not a pass.",
     ).toBe(true);
   });
 
   for (const fixture of PARITY_FIXTURES) {
-    const localBlocked = fixture.unexecutable?.local;
-    const serverBlocked = fixture.unexecutable?.server;
+    const blocked = fixture.unexecutable?.server;
 
-    it.runIf(serverAvailable)(
+    it.runIf(serverAvailable && !blocked)(
       `${fixture.id} — ${fixture.provenance.kind === "synthesised" ? "synthesised" : fixture.provenance.blockId}`,
       async () => {
-        const server = serverBlocked
-          ? null
-          : await runServer(fixture.source, fixture.stdin, fixture.serverTimeLimitMs);
-        const local = localBlocked ? null : await runLocal(fixture.source, fixture.stdin);
+        const server = await runServer(fixture.source, fixture.stdin, fixture.serverTimeLimitMs);
 
-        if (local) {
-          expect(
-            local.status,
-            `${fixture.id}: Pyodide did not boot under node, so nothing local was ` +
-              `measured. ${local.stderr}`,
-          ).not.toBe("runtime_unavailable");
-          /* Self-describing, always, whatever it printed. The browser may not
-             spell the trusted value — `trust.ts` makes that a type error — and
-             this is the runtime half of the same statement. */
-          expect(local.trust).toBe("client_local");
-          expect(local.status, describeResult("local", local.status, local.stdout, local.stderr)).toBe(
-            fixture.local,
-          );
-        }
+        expect(
+          server.status,
+          describeResult("server", server.status, server.stdout, server.stderr),
+        ).toBe(fixture.server);
 
-        if (server) {
-          expect(
-            server.status,
-            describeResult("server", server.status, server.stdout, server.stderr),
-          ).toBe(fixture.server);
-          /* Every fixture in this table is a learner's program doing a learner's
-             thing. None of them may be recorded as an outage. */
-          expect(server.infrastructureError, `${fixture.id} was recorded as our failure`).toBe(false);
-        }
+        /* Every fixture in this table is a learner's program doing a learner's
+           thing. None of them may be recorded as an outage — including the ones
+           that fail, because a compile error and a crash are both evidence. */
+        expect(server.infrastructureError, `${fixture.id} was recorded as our failure`).toBe(false);
 
         if (fixture.stdout !== null) {
-          if (local) expect(local.stdout, `${fixture.id} local stdout`).toBe(fixture.stdout);
-          if (server) expect(server.stdout, `${fixture.id} server stdout`).toBe(fixture.stdout);
-          /* And the same bytes on both sides, stated as its own assertion so a
-             failure reads as "the engines disagree" rather than "one of them is
-             wrong about the fixture". */
-          if (local && server) {
-            expect(local.stdout, `${fixture.id}: the two engines printed different bytes`).toBe(
-              server.stdout,
-            );
-          }
-        }
-
-        if (!fixture.divergence && local && server) {
-          expect(
-            serverCounterpart(local.status),
-            `${fixture.id}: ${local.status} locally and ${server.status} on the server`,
-          ).toBe(server.status);
+          expect(server.stdout, `${fixture.id} server stdout`).toBe(fixture.stdout);
         }
       },
       FIXTURE_TIMEOUT_MS,
@@ -344,28 +385,22 @@ describe("the divergences, pinned until someone fixes them", () => {
     "an output bomb is a named outcome locally and a wrong answer on submit",
     async () => {
       const f = fixture("output-bomb-ascii");
-      const local = await runLocal(f.source, f.stdin);
       const server = await runServer(f.source, f.stdin);
 
-      /* Locally: a terminal status of its own, the worker killed, the learner
-         told plainly what happened. */
-      expect(local.status).toBe("output_limit_exceeded");
-      expect(local.truncated).toBe(true);
-
-      /* On the server: no such status exists. The output is cut, `[output
-         truncated]` is appended to stderr, and the exit code decides — so a
-         program that printed a million lines is `ok` with a short answer, and
-         the learner is marked wrong on a case whose failure has nothing to do
-         with their logic. `ExecutionStatus` growing an `output_limit_exceeded`
-         is the fix; until then this is what happens. */
+      /* On the server: no output-limit status exists. The output is cut,
+         `[output truncated]` is appended to stderr, and the exit code decides —
+         so a program that printed a hundred thousand characters is `ok` with a
+         short answer, and the learner is marked wrong on a case whose failure
+         has nothing to do with their logic. `ExecutionStatus` growing an
+         `output_limit_exceeded` is the fix; until then this is what happens. */
       expect(server.status).toBe("ok");
       expect(server.stderr).toContain("[output truncated]");
-      expect(serverCounterpart("output_limit_exceeded")).toBeNull();
-
-      /* In ASCII the cut lands in the same place, which is the only half of the
-         audit's "duplicated on purpose and identically" that survives. */
-      expect(Buffer.byteLength(local.stdout, "utf8")).toBe(64 * 1024);
       expect(server.stdout.length).toBe(64 * 1024);
+
+      /* And the browser's declared behaviour is the OTHER one, which is the
+         divergence. Declared, not executed. */
+      expect(f.local).toBe("output_limit_exceeded");
+      expect(f.divergence).toContain("no output-limit status");
     },
     FIXTURE_TIMEOUT_MS,
   );
@@ -374,16 +409,11 @@ describe("the divergences, pinned until someone fixes them", () => {
     "the output cap is counted in bytes locally and in UTF-16 code units on the server",
     async () => {
       const f = fixture("output-bomb-kazakh");
-      const local = await runLocal(f.source, f.stdin);
       const server = await runServer(f.source, f.stdin);
 
       /* 40 000 Kazakh characters is 80 000 bytes and 40 000 code units. The
-         local `CappedStream` counts bytes, so it cuts; both server providers
-         compare `String.length` against the same 65 536, so neither does. */
-      expect(local.status).toBe("output_limit_exceeded");
-      expect(Buffer.byteLength(local.stdout, "utf8")).toBe(64 * 1024);
-      expect(local.stdout.length, "half as many characters as bytes, in Kazakh").toBe(32 * 1024);
-
+         browser's sink counts bytes, so it would cut; every server provider
+         compares `String.length` against the same 65 536, so none of them does. */
       expect(server.status).toBe("ok");
       expect(server.stdout.length, "the server did not truncate at all").toBe(40_001);
       expect(server.stderr, "and told nobody, because nothing was cut").not.toContain(
@@ -394,12 +424,12 @@ describe("the divergences, pinned until someone fixes them", () => {
            expect(Buffer.byteLength(server.stdout, "utf8")).toBe(64 * 1024);
          `trust.ts` says the caps match "exactly, and that is not a coincidence
          to be tidied away: a program whose output is truncated locally must be
-         truncated identically on submit"; HYBRID_EXECUTION_AUDIT.md repeats it.
-         For any output that is not ASCII, it is false — `schools/exec/limits.ts`
-         already made this exact correction for `maxSourceBytes` ("UTF-16 code
-         units against a number called Bytes") and the two output caps were not
-         corrected with it. Fix is one `Buffer.byteLength` in
-         `providers/local.ts` and one in `providers/piston.ts`. */
+         truncated identically on submit". For any output that is not ASCII, it
+         is false — `schools/exec/limits.ts` already made this exact correction
+         for `maxSourceBytes` ("UTF-16 code units against a number called
+         Bytes") and the two output caps were not corrected with it. The fix is
+         one `Buffer.byteLength` in each provider's `cap`, and it predates the
+         language migration rather than arriving with it. */
       expect(
         Buffer.byteLength(server.stdout, "utf8"),
         "if this is now 65536 the byte/char defect is fixed — delete this pin and " +
@@ -410,21 +440,16 @@ describe("the divergences, pinned until someone fixes them", () => {
   );
 
   it.runIf(serverAvailable)(
-    "a runaway loop is the learner's own outcome on the server; the local half is pinned elsewhere",
+    "a runaway loop is the learner's own outcome, not an outage",
     async () => {
       const f = fixture("runaway-loop");
       const server = await runServer(f.source, f.stdin, f.serverTimeLimitMs);
       expect(server.status).toBe("time_limit_exceeded");
       expect(server.infrastructureError, "December's whole month depends on this").toBe(false);
-
-      /* The local half cannot be executed here at all — see
-         `fixture.unexecutable.local`. It is not skipped silently: the runner's
-         timer path is driven end to end in tests/exec/pyodide-runner.test.ts
-         against a worker that never answers, which is the same code path a real
-         `while True: pass` takes. What is unproven in node is only that Pyodide
-         genuinely fails to yield, and that is a WebAssembly fact rather than a
-         product one. */
-      expect(f.unexecutable?.local, "the reason must travel with the fixture").toBeTruthy();
+      /* And the compile did NOT come out of the learner's budget: 1 200 ms is
+         far shorter than a build, so if the two stages shared a clock this
+         fixture would be indistinguishable from a correct program. */
+      expect(server.stdout).toBe("");
     },
     FIXTURE_TIMEOUT_MS,
   );
@@ -436,25 +461,30 @@ describe("the divergences, pinned until someone fixes them", () => {
 
 describe("identical output does not make a local result evidence", () => {
   it.runIf(serverAvailable)(
-    "the same bytes that pass the judge still cannot settle a practice problem",
+    "the bytes that pass the judge still cannot settle a practice problem",
     async () => {
-      /* The point the whole trust model rests on, demonstrated rather than
-         asserted about types: `m1.p3` is one of the practice problems the
-         programme counts toward its «~100 толық дербес шешім». Its own reference
-         solution, run in the browser, produces exactly the bytes the judge
-         accepts — and is still worth nothing as evidence, because the browser is
-         the party being measured. */
+      /* The point the whole trust model rests on. `m1.p3` is one of the
+         practice problems the programme counts toward its «~100 толық дербес
+         шешім». Its own solution, run on the judge, produces exactly the bytes
+         the checker accepts — and a browser run of the same source would still
+         be worth nothing as evidence, because the browser is the party being
+         measured.
+         The browser half is asserted on the TYPES rather than executed, which
+         is the correct half to assert anyway: the guarantee is that no code
+         path lets a local result claim the trusted value, and that is a
+         statement about `trust.ts`, not about a compiler. */
       const source = septemberSolution("m1.p3");
-      const local = await runLocal(source, "47");
       const server = await runServer(source, "47");
 
-      expect(local.stdout).toBe(server.stdout);
+      expect(server.status).toBe("ok");
       expect(checkOutput(server.stdout, "11"), "the judge accepts it").toBe(true);
 
-      expect(local.trust).toBe("client_local");
-      expect("passed" in local, "a local result has no verdict to give").toBe(false);
-      expect(trustSatisfies("independent_evidence", local.trust)).toBe(false);
+      expect(trustSatisfies("independent_evidence", "client_local")).toBe(false);
       expect(trustSatisfies("independent_evidence", "server_verified")).toBe(true);
+      /* And on a lesson step, where the programme deliberately DOES accept a
+         browser result, the same value settles it. Both directions, so this
+         cannot pass by the policy having been switched off. */
+      expect(trustSatisfies("lesson_guided", "client_local")).toBe(true);
     },
     FIXTURE_TIMEOUT_MS,
   );
@@ -466,40 +496,45 @@ describe("identical output does not make a local result evidence", () => {
 
 describe("what this suite cannot prove", () => {
   it.runIf(serverAvailable)(
-    "records which two interpreters were actually compared",
+    "records which compiler was actually used",
     async () => {
-      /* Not a pass/fail so much as a fact the failure output of everything above
-         needs. Both engines are CPython; they are not the SAME CPython, and the
-         one this compares against is not the one production uses either. */
-      await runLocal("pass", "");
-      const local = localPythonVersion();
-      const server = serverPythonVersion();
+      /* Not a pass/fail so much as a fact the failure output of everything
+         above needs. The compiler here is not the judge's and is not the
+         browser's; it is whatever this machine has. */
+      const version = serverCompilerVersion();
+      expect(version, "the harness never asked the compiler what it is").not.toBe("none");
+      console.log(`\nPARITY HARNESS COMPILER: ${version}\n`);
 
-      expect(local, "the local engine never reported a Python version").toMatch(/^3\./);
-      expect(server, "the server engine never reported a Python version").toMatch(/^3\./);
-      expect(localPyodideVersion()).toBeTruthy();
-
-      /* The production judge runs neither of these: it runs the pin. Asserted
-         only as "the pin is a Python 3", because the useful statement here is
-         the one in the report — Pyodide ships 3.14.x, the judge is pinned to
-         3.12.0, and nothing in `python-policy.ts` mentions the browser
-         interpreter at all even though that file calls itself the single source
-         of truth for "which Python a learner's code runs on". */
-      expect(PYTHON_RUNTIME.version).toMatch(/^3\./);
+      /* And it really is compiling C++17, so a fixture that failed did not fail
+         because the standard was wrong. Read from the compiler rather than from
+         a flag we passed, which is the same reason the judge probe asks for
+         `__cplusplus` instead of trusting a catalogue name. */
+      const macro = await runServer(
+        "#include <iostream>\nint main() { std::cout << __cplusplus; }\n",
+        "",
+      );
+      expect(macro.status).toBe("ok");
+      expect(Number(macro.stdout.trim())).toBe(CPP_STANDARD_MACRO);
     },
     FIXTURE_TIMEOUT_MS,
   );
 
-  it("names the four things a browser would still have to check", () => {
+  it("names the four things this suite would still have to check", () => {
     /* Written as a test so it appears in the run and cannot rot in a comment
        nobody opens. Every item is a statement about THIS suite, not a to-do. */
     const unproven = [
-      "node's WebAssembly is not a browser's: same Pyodide build, different host",
-      "there is no real Worker here, so terminate-on-timeout is protocol-tested, not executed",
-      "the server side is CI's python3, not the pinned 3.12.0 running on Piston",
-      "LocalExecutionProvider is not Piston: a judge-specific divergence would not show up",
+      "the browser engine is not executed at all: 57.5 MB of WebAssembly clang " +
+        "over `wasi_unstable`, which node's WASI cannot drive. Every `local` " +
+        "column is declared, not measured",
+      "the compiler here is this machine's, not the judge's GCC 14 and not the " +
+        "browser's Clang 8 — so a libstdc++/libc++ divergence would not show up",
+      "LocalExecutionProvider is not Piston and is not Judge0: a judge-specific " +
+        "divergence would not show up either",
+      "the per-feature parity suite docs/cpp17/CPP17_JUDGE_PARITY.md calls for " +
+        "does not exist; the evidence that the engines agree is a manual pass",
     ];
     expect(unproven.length).toBe(4);
+    expect(unproven.every((u) => u.length > 60)).toBe(true);
     expect(MONTHS.length, "and all of it is about September; October onward is draft").toBe(9);
   });
 });

@@ -22,23 +22,47 @@ import type { LessonBlock } from "../../types";
  *   the lesson actually teaches about programs — that `<` and `<=` are different
  *   answers to the same sentence — is September's `debug.boundary`.
  *
- * ## The verdicts are this product's, not Codeforces'
+ * ## The verdicts are this product's, and C++ adds four events under them
  *
  * This platform shows a learner exactly four outcomes, and their strings are in
  * `schools/presentation/labels.ts`: «Дұрыс», «Бір бөлігі дұрыс», «Әзірге дұрыс
  * емес», «Әлі өлшенбеген». There is no `WA on test 3`, no `TLE`, no test index.
  * Teaching Codeforces vocabulary here would hand a fourteen-year-old a word they
- * will never see on the screen in front of them, so the whole lesson is built on
- * the four strings the product actually renders plus the two things the Run
- * panel shows: the program's own output, or Python's error text with a line
- * number (`runStatusNote` deliberately returns null for those, so the learner
- * reads CPython and not a reassurance written over it).
+ * will never see on the screen in front of them, so the lesson is built on the
+ * four strings the product actually renders.
  *
- * That vocabulary turns out to carry the distinctions the lesson needs, and
- * carry them better than verdict names would:
+ * What C++ changed is the layer UNDERNEATH those four, and `b1` is re-authored
+ * rather than translated because of it. In Python a submission that reached the
+ * judge had already parsed and the only two things that could happen were a
+ * wrong answer and a traceback. In C++ there are four distinct events, three of
+ * which Python effectively did not have, and every one of them can arrive
+ * wearing the same «Әзірге дұрыс емес»:
+ *
+ *   1. **A compile error.** Common, and a first-class outcome rather than a
+ *      curiosity: the program never ran, so nothing about the learner's thinking
+ *      has been measured. `runStderrIsCompiler` in `labels.ts` exists for this
+ *      moment. The judge's and the browser's wording differ (GCC 14 against
+ *      Clang 8, `CPP17_JUDGE_PARITY.md`) and both name a line and a cause.
+ *   2. **A wrong answer from a silent `int` overflow.** The algorithm is right,
+ *      the arithmetic is right, and the answer is wrong because the type was too
+ *      small. Python had no analogue at all — its integers do not overflow — and
+ *      this is the single most valuable thing C++ adds to this month, because it
+ *      is the one failure a learner cannot find by re-reading their logic.
+ *   3. **A runtime error with NO message.** Out of bounds in C++ does not raise
+ *      `IndexError`; it either stops the program with nothing readable attached
+ *      or lets it continue and print a meaningless number. The absence of a
+ *      traceback is the normal case and is taught as such.
+ *   4. **A time limit**, against 3 s in the browser and 5 s on the judge, at
+ *      roughly 10⁸ operations a second — an order of magnitude more than the
+ *      Python figure this month's estimates were originally written against, so
+ *      every one of them was re-derived. `ios_base::sync_with_stdio(false)` and
+ *      `cin.tie(nullptr)` are taught here, with the rule that comes with them.
+ *
+ * The four product verdicts still carry the distinctions the lesson needs:
  *
  *   - «Бір бөлігі дұрыс» can only mean the visible sample passed and something
- *     hidden did not — a thinking problem, and almost always an edge case.
+ *     hidden did not — a thinking problem, and almost always an edge case or an
+ *     overflow.
  *   - «Әзірге дұрыс емес» means not one check passed, INCLUDING the sample
  *     printed in the statement, which the learner can run and read. A debugging
  *     problem, and in a contest the cheapest one there is.
@@ -49,17 +73,22 @@ import type { LessonBlock } from "../../types";
  *
  * ## Crash versus wrong answer
  *
- * `b4` and `b5` are the pair. `b4`'s program finishes and prints 0 on every
- * input, because it read the numbers from the line that holds `n` — the input
- * format misread, the five-second fix, and the most common contest loss.
- * `b5`'s program is right on the sample and wrong the moment the maximum sits at
- * position 0, which is what a hidden case is for. One is found by running the
- * sample; the other is found by inventing an input. That is the whole lesson.
+ * `b4` and `b5` are the pair. `b4`'s program compiles, finishes and prints 0 on
+ * every input, because the read loop stores into a scratch variable instead of
+ * into the vector — the C++ shape of the input misread, the five-second fix, and
+ * the most common contest loss. `b5`'s program is right on the sample and wrong
+ * the moment the maximum sits at position 0, which is what a hidden case is for.
+ * One is found by running the sample; the other is found by inventing an input.
+ * That is the whole lesson.
  *
- * `b4`'s repaired program reads `n` and never uses it. That is deliberate and it
- * is the point: consuming a line you do not need is exactly what "reading the
- * input in the shape the statement gives it" means, and `len(a)` is where the
- * count actually comes from.
+ * `b4` is the one block where the defect is genuinely a different mistake from
+ * the Python original's. There, the program read the wrong LINE; in C++ `cin >>`
+ * names the variable it fills, so the same misreading of the input shape becomes
+ * naming the wrong variable, and the symptom — a program that prints 0 whatever
+ * you feed it — is identical. The repaired program is deterministic on every
+ * input, which matters: a version of this bug that walked off the end of the
+ * vector would be undefined behaviour, and «prints 0 on any input» would then be
+ * a claim nobody could make.
  *
  * ## The structural requirement, and which of the three options this lesson took
  *
@@ -97,20 +126,34 @@ export const M9_L2: LessonBlock[] = [
       kk: "Вердикт нені айтады",
       ru: "Что говорит вердикт",
     },
-    /* Four verdicts, then the crash/wrong-answer split, then four actions. The
-       actions are the reason the block exists: «хабарламаларына дұрыс жауап
-       беру» is a response, and a lesson that only names the four strings would
+    /* Four verdicts, then the four C++ events under them, then five actions.
+       The actions are the reason the block exists: «хабарламаларына дұрыс жауап
+       беру» is a response, and a lesson that only named the four strings would
        have taught a vocabulary instead of a decision.
 
-       The snippet is an illustration and nothing else — a three-line program
-       that asks for `a[n]` in a list of length n. It is the shortest honest
-       picture of "the program stopped and printed no answer", and nothing later
-       in the lesson asks the learner to reproduce it. */
+       The snippet is an illustration and nothing else — a program that asks for
+       `a[n]` in a vector of length n. It is deliberately the WEAKEST kind of
+       failure to reason about, because in C++ it has two possible outcomes and
+       the body says both: the program stops with nothing readable, or it keeps
+       going and prints a meaningless number. Nothing later in the lesson asks
+       the learner to reproduce it. */
     body: {
-      kk: "«Тексеру» түймесін басқанда жүйе бағдарламаңды бірнеше кіріске жібереді: шартта басылып тұрған мысалдарға да, сен көрмейтін жасырын тексерулерге де. Содан кейін ол төрт жауаптың бірін береді, әрі әрқайсысының өз мағынасы бар.\n\n**Дұрыс.** Тексерулердің бәрі өтті — көрінетіні де, жасырыны да. Есеп жабылды.\n\n**Бір бөлігі дұрыс.** Тексерулердің бір бөлігі өтті, бір бөлігі өтпеді. Демек бағдарлама іске қосылды және жауап шығарды, бірақ кейбір кірісте оның жауабы басқа болды. Әдетте бұл көрінетін мысалдың өтіп, жасырын тексерудің өтпегенін білдіреді, ал жасырын тексерулерде көбіне шеткі жағдайлар тұрады: n = 1, барлық сан бірдей, жауап дәл шекарада, сандар теріс.\n\n**Әзірге дұрыс емес.** Бірде-бір тексеру өтпеді — шартта басылып тұрған мысал да. Бір қарағанда жаман көрінгенімен, бұл ең қолайлы жағдай: сол мысалды өз браузеріңде «Іске қосу» арқылы жіберіп, шыққан нәтижені шарттағы жауаппен қатар қоя аласың. Жарыста уақыт дәл осы жерде ең көп жоғалады, себебі бірінші мысалдың өтпеуі көбіне кірістің пішімін қате оқығаннан болады: бір жолда берілгенді екі жолдан іздеу немесе керісінше.\n\n**Әлі өлшенбеген.** Ештеңе өлшенген жоқ. Бұл вердикт емес: не жүйе жауап бермеді, не тапсырманы адам оқиды. Мұнда ешкімге қате қойылмайды.\n\nЕнді екі бөлек оқиғаны шатастырмау керек. Бағдарлама ТОҚТАП ҚАЛУЫ мүмкін: Python қате туралы хабарламаны жол нөмірімен бірге жазады да, ешқандай жауап шықпайды — бұл құлау. Немесе бағдарлама АЯҚТАЛЫП, дұрыс емес жауап шығаруы мүмкін — бұл қате жауап. Айырмашылығы экранда көрініп тұрады: құлағанда хабарлама мен жол нөмірі бар, қате жауапта ешқандай хабарлама жоқ, тек сан. Төмендегі бағдарлама n элементтен тұратын тізімнен a[n] элементін сұрайды, ал тізімде ондай орын жоқ, сондықтан ол құлайды.\n\nВердикт бойынша келесі қадам:\n\n1. «Бір бөлігі дұрыс» — шеткі кірістерді өзің құрастырып, оларды браузерде жіберіп көр. Бұл — ойлау жұмысы, кейде алгоритмнің өзін қайта қарауға тура келеді.\n2. «Әзірге дұрыс емес» — алдымен шарттағы мысалды жіберіп, кірістің неше жолдан тұратынын қайта оқы. Бұл — түзету жұмысы, әрі көбіне бірер минут алады.\n3. Құлау — Python жазған жол нөміріне қара да, сол жолда не оқылып, не жазылып жатқанын тексер.\n4. «Әлі өлшенбеген» — біраз күтіп, қайта жібер. Бұл сенің қатең емес.\n\nСоңғы ескерту: бұл курстағы тапсырмалардың басым бөлігінде тексеру бос орындар мен жол ауысуларына қарамайды, ол шыққан сандар мен сөздердің өзін салыстырады. Пішімнің шынымен маңызы бар сирек жағдай шартта бөлек айтылады. Сондықтан «бос орынды артық қойдым» деген «Бір бөлігі дұрыс» вердиктінің себебі бола алмайды.",
-      ru: "Когда ты нажимаешь «Проверить», система прогоняет твою программу на нескольких вводах: и на примерах, напечатанных в условии, и на скрытых проверках, которых ты не видишь. После этого она даёт один из четырёх ответов, и у каждого свой смысл.\n\n**Верно.** Прошли все проверки — и видимые, и скрытые. Задача закрыта.\n\n**Часть верна.** Часть проверок прошла, часть — нет. Значит, программа запустилась и выдала ответ, но на некоторых вводах её ответ оказался другим. Обычно это означает, что видимый пример прошёл, а скрытая проверка — нет, а в скрытых проверках чаще всего стоят крайние случаи: n = 1, все числа одинаковые, ответ ровно на границе, отрицательные числа.\n\n**Пока неверно.** Не прошла ни одна проверка — в том числе пример, напечатанный в условии. На первый взгляд это выглядит хуже, но на деле это самый удобный случай: этот пример можно запустить у себя в браузере кнопкой «Запустить» и положить свой вывод рядом с ответом из условия. Больше всего времени на соревновании теряется именно здесь, потому что непройденный первый пример чаще всего означает неверно прочитанный формат ввода: то, что дано в одной строке, ищут в двух, или наоборот.\n\n**Ещё не измерено.** Ничего не измерено. Это не вердикт: либо система не ответила, либо задание читает человек. Ошибка при этом никому не поставлена.\n\nТеперь про два разных события, которые нельзя путать. Программа может ОСТАНОВИТЬСЯ: Python пишет сообщение об ошибке вместе с номером строки, и никакого ответа не появляется — это падение. А может ДОРАБОТАТЬ до конца и выдать неправильный ответ — это неверный ответ. Разницу видно прямо на экране: при падении есть сообщение и номер строки, при неверном ответе никакого сообщения нет, есть только число. Программа ниже обращается к элементу a[n] списка из n элементов, а такой позиции в списке нет, поэтому она падает.\n\nЧто делать после вердикта:\n\n1. «Часть верна» — придумай крайние вводы сам и прогони их в браузере. Это работа мысли: иногда приходится пересматривать и сам алгоритм.\n2. «Пока неверно» — сначала запусти пример из условия и перечитай, из скольких строк состоит ввод. Это работа по отладке, и чаще всего она занимает пару минут.\n3. Падение — посмотри на номер строки, который назвал Python, и проверь, что в этой строке читается или пишется.\n4. «Ещё не измерено» — подожди немного и отправь снова. Это не твоя ошибка.\n\nИ последнее замечание: в большинстве заданий этого курса проверка не смотрит на пробелы и переводы строк, она сравнивает сами выведенные числа и слова. Редкий случай, когда формат действительно важен, оговаривается в условии отдельно. Поэтому «поставил лишний пробел» не может быть причиной вердикта «Часть верна».",
+      kk: "«Тексеру» түймесін басқанда жүйе алдымен бағдарламаңды компиляциялайды, содан кейін оны бірнеше кіріске жібереді: шартта басылып тұрған мысалдарға да, сен көрмейтін жасырын тексерулерге де. Содан кейін ол төрт жауаптың бірін береді, әрі әрқайсысының өз мағынасы бар.\n\n**Дұрыс.** Тексерулердің бәрі өтті — көрінетіні де, жасырыны да. Есеп жабылды.\n\n**Бір бөлігі дұрыс.** Тексерулердің бір бөлігі өтті, бір бөлігі өтпеді. Демек бағдарлама компиляциядан өтіп, іске қосылды және жауап шығарды, бірақ кейбір кірісте оның жауабы басқа болды.\n\n**Әзірге дұрыс емес.** Бірде-бір тексеру өтпеді — шартта басылып тұрған мысал да. Бір қарағанда жаман көрінгенімен, бұл ең қолайлы жағдай: сол мысалды өз браузеріңде «Іске қосу» арқылы жіберіп, шыққан нәтижені шарттағы жауаппен қатар қоя аласың.\n\n**Әлі өлшенбеген.** Ештеңе өлшенген жоқ. Бұл вердикт емес: не жүйе жауап бермеді, не тапсырманы адам оқиды. Мұнда ешкімге қате қойылмайды.\n\nЕнді ең маңыздысы. Осы төрт сөздің астында C++-та төрт мүлде бөлек оқиға жатыр, ал экранда олар ұқсас көрінуі мүмкін.\n\n**1. Компиляция қатесі.** Бағдарлама мүлде іске қосылмады. Компилятор ағылшынша хабарлама береді, онда жол мен баған нөмірі тұрады. Бұл — ең арзан қате: ойлауыңда қате бар деген сөз емес, әлі ештеңе өлшенген жоқ. Ең жиі кездесетіні — нүктелі үтірдің жоқтығы, ал компилятор ол туралы көбіне КЕЛЕСІ жолда шағымданады, сондықтан аталған жолдан бір жол жоғары қарау керек. Браузердегі және тексеру жүйесіндегі компиляторлар әртүрлі, сөзі де сәл өзгеше — екеуі де жол мен себепті атайды.\n\n**2. Қате жауап: түр тым кіші болды.** `int` ең үлкені 2 147 483 647 санын ұстайды. Одан асып кетсең, ешқандай хабарлама шықпайды — бағдарлама жұмысын жалғастыра береді, ал сан теріске айналып кетуі мүмкін. Мысалы 200 000 санның әрқайсысы 1 000 000 000-ға дейін болса, олардың қосындысы 2 · 10¹⁴ шамасында, ал бұл `int` сыйдыратыннан жүз мың есе үлкен. Мұнда алгоритм дұрыс, арифметика дұрыс, ал жауап қате — себебі бір сөзде: түр. Емі де бір сөз: қосындыны, көбейтіндіні және аралық нәтижелерді `long long` етіп ал. Бұл — C++ қосатын, Python-да мүлде болмаған жағдай, әрі оны кодқа қарап табу қиын: жол дұрыс жазылған, тек түрі кішкентай.\n\n**3. Орындалу қатесі — түсіндірмесіз.** Векторда жоқ орынға жүгінсең, C++ саған ештеңе айтпайды. Екеуінің бірі болады: бағдарлама кенет тоқтайды (ешқандай хабарламасыз) немесе жұмысын жалғастырып, мағынасыз санды шығарады. Түсіндірменің болмауы — қалыпты жағдай, оны күт. Сондықтан индексті өзің тексересің: `i` 0-ден n − 1-ге дейін ғана болуы тиіс. Төмендегі бағдарлама n элементтен тұратын вектордан a[n] элементін сұрайды, ал ондай орын жоқ.\n\n**4. Уақыт шегі.** Браузердегі «Іске қосу» 3 секунд, тексеру жүйесі 5 секунд береді. Есептеу үшін бір санды жаттап ал: C++ бір секундта шамамен 10⁸, яғни жүз миллион қарапайым әрекет жасайды. Демек n = 200 000 болғанда n² = 4 · 10¹⁰ — үлгермейді, ал n·log n ≈ 3,5 миллион — бірден бітеді. Кіріс өте үлкен болғанда (жүз мыңдаған сан) `cin`-нің өзі баяу болып қалады. Оның емі — `main`-нің ең басына қойылатын екі жол:\n\n```\nios_base::sync_with_stdio(false);\ncin.tie(nullptr);\n```\n\nБірінші жол `cin` мен `cout`-ты C тіліндегі `scanf`/`printf`-пен үнемі үндестіріп отыруды өшіреді, екіншісі әр оқу алдында шығысты мәжбүрлеп босатуды тоқтатады. Бір ғана ереже: осыдан кейін бір бағдарламада `scanf`/`printf`-ті `cin`/`cout`-пен араластыруға болмайды. Бұл екі жол алгоритмді тездетпейді — тек оқу мен жазуды тездетеді, сондықтан n² есебін құтқармайды.\n\n**Бөлшек сан туралы бір ескерту.** `cout << 1.0 / 3` әдепкі күйде `0.333333` деп қана шығарады — алты мәнді цифр, одан әрі кесіледі. Шартта одан дәлірек жауап сұралса, бұл — қате жауап. Емі: `#include <iomanip>` және `cout << fixed << setprecision(6) << x;`, мұндағы цифр санын шарттың өзі айтады.\n\nВердикт бойынша келесі қадам:\n\n1. Компиляция қатесі — компилятордың өз сөзін оқы, аталған жолдан бір жол ЖОҒАРЫ қара. Бұл бірнеше минуттық жұмыс.\n2. «Әзірге дұрыс емес» — алдымен шарттағы мысалды өзің жіберіп, кірістің неше жолдан тұратынын қайта оқы. Бұл — түзету жұмысы, көбіне бірер минут алады.\n3. «Бір бөлігі дұрыс» — шеткі кірістерді өзің құрастырып, браузерде жіберіп көр; сонымен қатар жауабың `int`-ке сыя ма деп тексер. Бұл — ойлау жұмысы.\n4. Бағдарлама тоқтап қалса немесе мағынасыз сан шығарса — индекстерді тексер: ең кіші және ең үлкен орын дұрыс па.\n5. «Әлі өлшенбеген» — біраз күтіп, қайта жібер. Бұл сенің қатең емес.\n\nСоңғы ескерту: бұл курстағы тапсырмалардың басым бөлігінде тексеру бос орындар мен жол ауысуларына қарамайды, ол шыққан сандар мен сөздердің өзін салыстырады. Пішімнің шынымен маңызы бар сирек жағдай шартта бөлек айтылады. Сондықтан «бос орынды артық қойдым» деген «Бір бөлігі дұрыс» вердиктінің себебі бола алмайды.",
+      ru: "Когда ты нажимаешь «Проверить», система сначала компилирует твою программу, а потом прогоняет её на нескольких вводах: и на примерах, напечатанных в условии, и на скрытых проверках, которых ты не видишь. После этого она даёт один из четырёх ответов, и у каждого свой смысл.\n\n**Верно.** Прошли все проверки — и видимые, и скрытые. Задача закрыта.\n\n**Часть верна.** Часть проверок прошла, часть — нет. Значит, программа скомпилировалась, запустилась и выдала ответ, но на некоторых вводах её ответ оказался другим.\n\n**Пока неверно.** Не прошла ни одна проверка — в том числе пример, напечатанный в условии. На первый взгляд это выглядит хуже, но на деле это самый удобный случай: этот пример можно запустить у себя в браузере кнопкой «Запустить» и положить свой вывод рядом с ответом из условия.\n\n**Ещё не измерено.** Ничего не измерено. Это не вердикт: либо система не ответила, либо задание читает человек. Ошибка при этом никому не поставлена.\n\nА теперь самое главное. Под этими четырьмя словами в C++ прячутся четыре совершенно разных события, и на экране они выглядят похоже.\n\n**1. Ошибка компиляции.** Программа вообще не запустилась. Компилятор выдаёт сообщение по-английски, с номером строки и столбца. Это самая дешёвая ошибка: она не означает, что ты неправильно думал, — просто ещё ничего не измерено. Чаще всего это пропущенная точка с запятой, и жалуется на неё компилятор обычно уже в СЛЕДУЮЩЕЙ строке, так что смотреть надо на строку выше названной. В браузере и в проверяющей системе компиляторы разные, слова у них немного отличаются — но и тот и другой называют строку и причину.\n\n**2. Неверный ответ: тип оказался мал.** Наибольшее число, которое держит `int`, — это 2 147 483 647. Если выйти за него, никакого сообщения не будет: программа спокойно продолжит работать, а число может стать отрицательным. Например, сумма 200 000 чисел, каждое из которых доходит до 1 000 000 000, — это порядка 2 · 10¹⁴, в сто тысяч раз больше того, что помещается в `int`. Здесь алгоритм верен, арифметика верна, а ответ неверен — и причина в одном слове: тип. Лечение тоже в одном слове: суммы, произведения и промежуточные результаты бери как `long long`. Такого случая в Python не было вовсе, и глазами по коду его найти трудно: строка написана правильно, просто тип маленький.\n\n**3. Ошибка во время выполнения — без объяснения.** Если обратиться к позиции, которой в векторе нет, C++ ничего тебе не скажет. Произойдёт одно из двух: программа внезапно остановится (без всякого сообщения) или продолжит работу и напечатает бессмысленное число. Отсутствие объяснения — это норма, к ней надо быть готовым. Значит, индексы проверяешь ты сам: `i` должен идти только от 0 до n − 1. Программа ниже обращается к элементу a[n] вектора из n элементов, а такой позиции нет.\n\n**4. Предел по времени.** Кнопка «Запустить» в браузере даёт 3 секунды, проверяющая система — 5 секунд. Для прикидки запомни одно число: C++ успевает примерно 10⁸, то есть сто миллионов простых действий в секунду. Значит, при n = 200 000 величина n² = 4 · 10¹⁰ не уложится, а n·log n ≈ 3,5 миллиона закончится мгновенно. Когда ввод очень большой (сотни тысяч чисел), медленным становится и сам `cin`. Лечение — две строки в самом начале `main`:\n\n```\nios_base::sync_with_stdio(false);\ncin.tie(nullptr);\n```\n\nПервая отключает постоянную синхронизацию `cin` и `cout` с сишными `scanf`/`printf`, вторая перестаёт принудительно сбрасывать вывод перед каждым чтением. Правило при этом одно: после них нельзя в одной программе смешивать `scanf`/`printf` с `cin`/`cout`. Эти две строки не ускоряют алгоритм — они ускоряют только чтение и вывод, поэтому решение за n² они не спасут.\n\n**Одно замечание про дробные числа.** `cout << 1.0 / 3` по умолчанию печатает всего `0.333333` — шесть значащих цифр, дальше обрезается. Если в условии просят ответ точнее, это неверный ответ. Лечение: `#include <iomanip>` и `cout << fixed << setprecision(6) << x;`, где число цифр называет само условие.\n\nЧто делать после вердикта:\n\n1. Ошибка компиляции — прочитай собственные слова компилятора и посмотри на строку ВЫШЕ названной. Это работа на пару минут.\n2. «Пока неверно» — сначала запусти пример из условия и перечитай, из скольких строк состоит ввод. Это отладка, и чаще всего она занимает пару минут.\n3. «Часть верна» — придумай крайние вводы сам и прогони их в браузере, а заодно проверь, помещается ли твой ответ в `int`. Это работа мысли.\n4. Если программа останавливается или печатает бессмыслицу — проверь индексы: верны ли самая первая и самая последняя позиция.\n5. «Ещё не измерено» — подожди немного и отправь снова. Это не твоя ошибка.\n\nИ последнее замечание: в большинстве заданий этого курса проверка не смотрит на пробелы и переводы строк, она сравнивает сами выведенные числа и слова. Редкий случай, когда формат действительно важен, оговаривается в условии отдельно. Поэтому «поставил лишний пробел» не может быть причиной вердикта «Часть верна».",
     },
-    code: "n = int(input())\na = list(map(int, input().split()))\nprint(a[n])",
+    code:
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    cout << a[n];\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -118,9 +161,13 @@ export const M9_L2: LessonBlock[] = [
      * were written for that job:
      *
      *   n ≤ 1000 kills o1 — a single traversal of a thousand numbers is nowhere
-     *   near a time limit, which is December's own arithmetic;
+     *   near a time limit, and even further from one in C++ at 10⁸ operations a
+     *   second than it was in Python;
      *   "one integer" plus b1's closing paragraph kills o2 — the checker
      *   compares values, not spacing;
+     *   |a[i]| ≤ 1000 kills the overflow reading — the answer is one of the
+     *   input numbers and cannot leave `int`, which is stated so that a learner
+     *   who has just met b1's second point does not answer with it;
      *   the verdict itself kills o4 — an outage settles as «Әлі өлшенбеген»,
      *   never as a partial pass.
      *
@@ -135,8 +182,8 @@ export const M9_L2: LessonBlock[] = [
     skillRefs: ["contest.verdict_reading", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Жарыстағы есеп: бірінші жолда n саны (1 ≤ n ≤ 1000), екінші жолда n бүтін сан беріледі, солардың ең үлкенін шығару керек. Шығару — бір ғана бүтін сан. Шартта басылып тұрған мысалды бағдарламаң дұрыс шығарды, ал «Тексеру» түймесінен кейін «Бір бөлігі дұрыс» деген жауап келді. Ең ықтимал себебі қайсысы?",
-      ru: "Задача на соревновании: в первой строке дано число n (1 ≤ n ≤ 1000), во второй — n целых чисел, нужно вывести наибольшее из них. Вывод — одно целое число. На примере из условия твоя программа отвечает верно, а после кнопки «Проверить» пришёл ответ «Часть верна». Какая причина наиболее вероятна?",
+      kk: "Жарыстағы есеп: бірінші жолда n саны (1 ≤ n ≤ 1000), екінші жолда n бүтін сан (әрқайсысының абсолют шамасы 1000-нан аспайды), солардың ең үлкенін шығару керек. Шығару — бір ғана бүтін сан. Шартта басылып тұрған мысалды бағдарламаң дұрыс шығарды, ал «Тексеру» түймесінен кейін «Бір бөлігі дұрыс» деген жауап келді. Ең ықтимал себебі қайсысы?",
+      ru: "Задача на соревновании: в первой строке дано число n (1 ≤ n ≤ 1000), во второй — n целых чисел (каждое по модулю не больше 1000), нужно вывести наибольшее из них. Вывод — одно целое число. На примере из условия твоя программа отвечает верно, а после кнопки «Проверить» пришёл ответ «Часть верна». Какая причина наиболее вероятна?",
     },
     options: [
       {
@@ -173,7 +220,7 @@ export const M9_L2: LessonBlock[] = [
       o4: {
         failureClass: "measured_verdict_read_as_outage",
         justification:
-          "«Бір бөлігі дұрыс» — өлшенген вердикт: ол бір тексерудің өтіп, екіншісінің өтпегенін білдіреді, яғни бағдарлама шынымен іске қосылған. Жүйе жауап бермеген жағдайда экранда мүлде басқа сөз тұрар еді — «Әлі өлшенбеген». Осы нұсқаны таңдау сол екеуін бір-бірінен ажыратпағанды көрсетеді.",
+          "«Бір бөлігі дұрыс» — өлшенген вердикт: ол бір тексерудің өтіп, екіншісінің өтпегенін білдіреді, яғни бағдарлама компиляциядан өтіп, шынымен іске қосылған. Жүйе жауап бермеген жағдайда экранда мүлде басқа сөз тұрар еді — «Әлі өлшенбеген». Осы нұсқаны таңдау сол екеуін бір-бірінен ажыратпағанды көрсетеді.",
       },
     },
   },
@@ -183,11 +230,12 @@ export const M9_L2: LessonBlock[] = [
      * quietly depends on: a learner who answers a visible failure with hidden-
      * case reasoning spends ten minutes on a two-minute problem.
      *
-     * "Программа не упала" is in the prompt on purpose. Without it a learner
-     * could reasonably answer "look at the line number Python named", which is
-     * b1's third action and is not wrong — it is simply about a different
-     * screen. A card with two defensible answers is a card that measures
-     * nothing.
+     * The prompt now rules out TWO other screens rather than one. «Бағдарлама
+     * компиляциядан өтті» is there because in C++ a failed submission is a
+     * compile error often enough that "read what the compiler said" is a
+     * defensible first move — b1 lists it first — and a card with two defensible
+     * answers measures nothing. «Құламады» rules out the runtime-error screen
+     * the same way it used to rule out a traceback.
      *
      * o1 and o4 carry no mapping. o1 comes both from panic and from a genuine
      * belief that a failure on every case means the method is wrong; o4 both
@@ -199,8 +247,8 @@ export const M9_L2: LessonBlock[] = [
     skillRefs: ["contest.verdict_reading"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Жарыс жүріп жатыр. Бағдарламаңды жібердің, «Әзірге дұрыс емес» деген жауап келді: бірде-бір тексеру өтпеген, шартта басылып тұрған мысал да өтпеген. Бағдарлама құлаған жоқ — Python ешқандай қате хабарламасын шығарған жоқ. Ең алдымен не істейсің?",
-      ru: "Идёт соревнование. Ты отправил программу и получил ответ «Пока неверно»: не прошла ни одна проверка, в том числе пример, напечатанный в условии. Программа не упала — Python не выдал никакого сообщения об ошибке. Что сделаешь в первую очередь?",
+      kk: "Жарыс жүріп жатыр. Бағдарламаңды жібердің, «Әзірге дұрыс емес» деген жауап келді: бірде-бір тексеру өтпеген, шартта басылып тұрған мысал да өтпеген. Бағдарлама компиляциядан өтті — компилятор ешқандай қате көрсеткен жоқ — және орындалу кезінде де тоқтап қалмады: ол әр кіріске сан шығарды. Ең алдымен не істейсің?",
+      ru: "Идёт соревнование. Ты отправил программу и получил ответ «Пока неверно»: не прошла ни одна проверка, в том числе пример, напечатанный в условии. Программа скомпилировалась — компилятор не выдал ни одной ошибки — и во время работы не остановилась: на каждом вводе она напечатала число. Что сделаешь в первую очередь?",
     },
     options: [
       {
@@ -243,47 +291,82 @@ export const M9_L2: LessonBlock[] = [
   },
   {
     /*
-     * The input-format misread, and the symptom is a WRONG ANSWER rather than a
-     * crash: the program finishes, prints 0, and prints 0 on every input in the
-     * world, because `a` is always the one-element list `[n]`.
+     * The input misread, and the symptom is a WRONG ANSWER rather than a crash:
+     * the program compiles, finishes, prints 0, and prints 0 on every input in
+     * the world, because nothing was ever stored in `a`.
      *
-     * Chosen over a crashing version deliberately. A crash names its own line,
-     * which is b1's third action and a solved problem; a silent 0 names nothing,
-     * and the only route to it is rereading the statement's input shape against
-     * the program's first line. That is the five-second fix the brief calls the
-     * most common contest loss.
+     * Chosen over a crashing version deliberately. A crash in C++ names nothing
+     * at all — b1's third point — so a card built on one would teach "look at
+     * the message" and there is no message; a silent 0 is found by running the
+     * statement's own sample and comparing two numbers. That is the five-second
+     * fix the brief calls the most common contest loss.
      *
-     * The repair inserts a line rather than replacing one, and the repaired
-     * program reads `n` without ever using it. Both are deliberate: consuming
-     * the count line is the entire defect, and `len(a)` is where the count
-     * genuinely comes from once the numbers are read.
+     * The Python original's bug was reading the wrong LINE. In C++ `cin >>`
+     * names the variable it fills, so the same class of mistake takes the shape
+     * of naming the wrong one: the loop consumes exactly the right numbers off
+     * the input and drops each of them into a scratch variable. Every input is
+     * read, `a` stays all zeros, and `big - small` is 0 forever — with no
+     * undefined behaviour anywhere, which is what lets the prompt say "0 on any
+     * input" and mean it.
      *
-     * No diagnosticMapping. Line 2 (`big = a[0]`) is the plausible wrong answer
-     * and it has two causes — reading the initialisation as October's named
-     * accumulator error, or believing `a[0]` cannot be both the maximum and the
-     * minimum — so the engine asks.
+     * No diagnosticMapping. Line 9 (`int big = a[0];`) is the plausible wrong
+     * answer and it has two causes — reading the initialisation as October's
+     * named accumulator error, or believing `a[0]` cannot be both the maximum
+     * and the minimum — so the engine asks.
      */
     id: "m9.l2.b4",
     type: "find_bug",
     skillRefs: ["contest.verdict_reading", "io.read", "lists.traverse"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Есеп шарты: бірінші жолда n саны, екінші жолда n бүтін сан — бір аптадағы түнгі температура. Ең жоғары мен ең төмен температураның айырмасын шығару керек. `5` және `3 9 1 7 4` кірісі үшін дұрыс жауап — 8.\n\nБағдарлама құлаған жоқ: ол аяғына дейін орындалып, сан шығарды. Бірақ ол сан 0 болып шықты, әрі қандай кіріс берсең де 0 шығады. Қате қай жолда?",
-      ru: "Условие задачи: в первой строке дано число n, во второй — n целых чисел, ночные температуры за неделю. Нужно вывести разность между самой высокой и самой низкой температурой. Для ввода `5` и `3 9 1 7 4` верный ответ — 8.\n\nПрограмма не упала: она доработала до конца и вывела число. Но этим числом оказался ноль, и ноль получается на любом вводе. В какой строке ошибка?",
+      kk: "Есеп шарты: бірінші жолда n саны, екінші жолда n бүтін сан — бір аптадағы түнгі температура. Ең жоғары мен ең төмен температураның айырмасын шығару керек. `5` және `3 9 1 7 4` кірісі үшін дұрыс жауап — 8.\n\nБағдарлама компиляциядан өтті және құлаған жоқ: ол аяғына дейін орындалып, сан шығарды. Бірақ ол сан 0 болып шықты, әрі қандай кіріс берсең де 0 шығады. Қате қай жолда?",
+      ru: "Условие задачи: в первой строке дано число n, во второй — n целых чисел, ночные температуры за неделю. Нужно вывести разность между самой высокой и самой низкой температурой. Для ввода `5` и `3 9 1 7 4` верный ответ — 8.\n\nПрограмма скомпилировалась и не упала: она доработала до конца и вывела число. Но этим числом оказался ноль, и ноль получается на любом вводе. В какой строке ошибка?",
     },
     code:
-      "a = list(map(int, input().split()))\nbig = a[0]\nsmall = a[0]\nfor i in range(len(a)):\n    if a[i] > big:\n        big = a[i]\n    if a[i] < small:\n        small = a[i]\nprint(big - small)",
-    buggyLine: 1,
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, x;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> x;\n" +
+      "    int big = a[0];\n" +
+      "    int small = a[0];\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] > big) big = a[i];\n" +
+      "        if (a[i] < small) small = a[i];\n" +
+      "    }\n" +
+      "    cout << big - small;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 8,
     fixedCode:
-      "n = int(input())\na = list(map(int, input().split()))\nbig = a[0]\nsmall = a[0]\nfor i in range(len(a)):\n    if a[i] > big:\n        big = a[i]\n    if a[i] < small:\n        small = a[i]\nprint(big - small)",
-    /* Buggy: reads "5", so a = [5] and it prints 0. Fixed: prints 8. */
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int big = a[0];\n" +
+      "    int small = a[0];\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] > big) big = a[i];\n" +
+      "        if (a[i] < small) small = a[i];\n" +
+      "    }\n" +
+      "    cout << big - small;\n" +
+      "    return 0;\n" +
+      "}",
+    /* Buggy: `a` is never filled, so it prints 0. Fixed: prints 8. */
     symptomInput: "5\n3 9 1 7 4",
   },
   {
     /*
-     * The other half of the pair: right on the sample, wrong on a hidden case.
-     * The second loop starts at index 1, so the maximum is never counted when it
-     * sits at position 0 — and with n = 1 the answer collapses to 0.
+     * The other half of the pair: right on the visible sample, wrong on a hidden
+     * case. The counting loop starts at index 1, so the maximum is never counted
+     * when it sits at position 0 — and with n = 1 the answer collapses to 0.
      *
      * The card states the verdict («Бір бөлігі дұрыс») rather than the failing
      * input, which is what a contest actually gives you. The sample in the
@@ -291,11 +374,10 @@ export const M9_L2: LessonBlock[] = [
      * find the defect by running what is on screen; they have to ask which
      * inputs the second loop treats differently from the first.
      *
-     * No diagnosticMapping. Line 4 (`for i in range(n)`, the maximum loop) is
-     * the plausible wrong answer and has two causes: a learner may believe the
-     * two loops must have the same bounds and pick the wrong one of the pair, or
-     * may think a maximum search should skip the element it started from. Two
-     * causes, so no claim.
+     * No diagnosticMapping. Line 10 (the maximum loop) is the plausible wrong
+     * answer and has two causes: a learner may believe the two loops must have
+     * the same bounds and pick the wrong one of the pair, or may think a maximum
+     * search should skip the element it started from. Two causes, so no claim.
      */
     id: "m9.l2.b5",
     type: "find_bug",
@@ -306,10 +388,46 @@ export const M9_L2: LessonBlock[] = [
       ru: "Условие задачи: в первой строке n, во второй — n целых чисел. Нужно вывести, СКОЛЬКО РАЗ в списке встречается наибольшее число. Пример из условия — `5` и `3 9 1 9 4`, его ответ 2, и программа выводит именно 2. А после кнопки «Проверить» пришёл ответ «Часть верна»: часть скрытых проверок не прошла. В какой строке ошибка?",
     },
     code:
-      "n = int(input())\na = list(map(int, input().split()))\nbest = a[0]\nfor i in range(n):\n    if a[i] > best:\n        best = a[i]\ncnt = 0\nfor i in range(1, n):\n    if a[i] == best:\n        cnt = cnt + 1\nprint(cnt)",
-    buggyLine: 8,
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int best = a[0];\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] > best) best = a[i];\n" +
+      "    }\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == best) cnt = cnt + 1;\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 14,
     fixedCode:
-      "n = int(input())\na = list(map(int, input().split()))\nbest = a[0]\nfor i in range(n):\n    if a[i] > best:\n        best = a[i]\ncnt = 0\nfor i in range(n):\n    if a[i] == best:\n        cnt = cnt + 1\nprint(cnt)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int best = a[0];\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] > best) best = a[i];\n" +
+      "    }\n" +
+      "    int cnt = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] == best) cnt = cnt + 1;\n" +
+      "    }\n" +
+      "    cout << cnt;\n" +
+      "    return 0;\n" +
+      "}",
     /* The smallest input that exposes it: one number, so the maximum IS a[0].
        Buggy prints 0, fixed prints 1. */
     symptomInput: "1\n5",
@@ -332,6 +450,14 @@ export const M9_L2: LessonBlock[] = [
      *
      * The prompt asks for the input alone, with nothing else typed, because the
      * comparison is exact string equality against those four.
+     *
+     * `while (cin >> x)` — reading to the end of the input — is the one idiom on
+     * this card the year has not shown, and it is here because the problem's own
+     * input shape carries no count. It costs nothing: this is a `test_case`
+     * block, so the learner reads the program and invents an input, and is never
+     * asked to write the loop. Adding a count line to the statement would have
+     * been the alternative, and it would have made the learner's answer two
+     * lines instead of the four numbers the block compares.
      */
     id: "m9.l2.b6",
     type: "test_case",
@@ -343,7 +469,18 @@ export const M9_L2: LessonBlock[] = [
       ru: "Условие задачи: в одной строке даны целые числа через пробел. Если список читается одинаково с обеих сторон, то есть является палиндромом, надо вывести слово `yes`, иначе — слово `no`. В условии два примера: для `1 2 3 2 1` — `yes`, для `1 2 3` — `no`. Программа ниже отвечает верно на обоих примерах, в таком виде её и отправили на соревновании.\n\nНайди ввод, который её ломает: напиши ввод, на котором программа даёт неверный ответ. Ограничение — ровно четыре числа, каждое равно 1 или 2. В ответ впиши только эти четыре числа в одну строку через пробел, больше ничего.",
     },
     code:
-      "a = list(map(int, input().split()))\nn = len(a)\nif a[0] == a[n - 1]:\n    print(\"yes\")\nelse:\n    print(\"no\")",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) a.push_back(x);\n" +
+      "    int n = a.size();\n" +
+      '    if (a[0] == a[n - 1]) cout << "yes";\n' +
+      '    else cout << "no";\n' +
+      "    return 0;\n" +
+      "}",
     /* The complete set under the stated constraint: a[0] == a[3] and
        a[1] != a[2]. Verified by enumeration — there are no others. */
     breakingInputs: ["1 1 2 1", "1 2 1 1", "2 1 2 2", "2 2 1 2"],
@@ -382,7 +519,18 @@ export const M9_L2: LessonBlock[] = [
       ru: "Условие задачи: в одной строке даны целые числа через пробел. Если список читается одинаково с обеих сторон, то есть является палиндромом, надо вывести слово `yes`, иначе — слово `no`. Программа ниже отвечает верно на обоих примерах из условия: для `1 2 3 2 1` — `yes`, для `1 2 3` — `no`. Но на одном из четырёх вводов она даёт неверный ответ. На каком?",
     },
     code:
-      "a = list(map(int, input().split()))\nn = len(a)\nif a[0] == a[n - 1]:\n    print(\"yes\")\nelse:\n    print(\"no\")",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<int> a;\n" +
+      "    int x;\n" +
+      "    while (cin >> x) a.push_back(x);\n" +
+      "    int n = a.size();\n" +
+      '    if (a[0] == a[n - 1]) cout << "yes";\n' +
+      '    else cout << "no";\n' +
+      "    return 0;\n" +
+      "}",
     options: [
       {
         id: "o1",
@@ -417,11 +565,16 @@ export const M9_L2: LessonBlock[] = [
   },
   {
     /*
-     * Repair from the verdict alone. The learner is told three things and no
-     * more: the program did not crash, it was right on the visible sample, and
-     * the verdict is «Бір бөлігі дұрыс». Those three facts point at exactly one
-     * kind of defect — a boundary — and the statement says «шеттері де кіреді»
-     * in both languages while the program says `<`.
+     * Repair from the verdict alone. The learner is told four things and no
+     * more: the program compiled, it did not stop during the run, it was right
+     * on the visible sample, and the verdict is «Бір бөлігі дұрыс». Those four
+     * facts point at exactly one kind of defect — a boundary — and the statement
+     * says «шеттері де кіреді» in both languages while the program says `<`.
+     *
+     * The stated bounds keep every intermediate value inside `int` on purpose.
+     * b1 has just taught that a partial pass in C++ is often an overflow, so a
+     * card whose answer is a boundary has to close that door in its own text, or
+     * it has two defensible answers and measures nothing.
      *
      * The visible sample is chosen so the BROKEN program passes it: no element
      * in `7 15 25 12 19 30` equals 10 or 20. Without that the story on the card
@@ -437,10 +590,10 @@ export const M9_L2: LessonBlock[] = [
      *   itself)                        → "5 10 20\n10 20 9 21 15" wants 3, it prints 1.
      *   one bound repaired, the other
      *   left strict                    → the same case: it prints 2.
-     *   `range(1, n)`, first element
-     *   skipped                        → "4 1 10\n1 2 3 10" wants 4, it prints 3.
-     *   `range(n - 1)`, last element
-     *   skipped                        → "4 1 10\n1 2 3 10" wants 4, it prints 3.
+     *   a loop starting at 1, first
+     *   element skipped                → "4 1 10\n1 2 3 10" wants 4, it prints 3.
+     *   a loop stopping at n - 1, last
+     *   element skipped                → "4 1 10\n1 2 3 10" wants 4, it prints 3.
      *   counting what falls OUTSIDE
      *   the range                      → "3 100 200\n50 60 70" wants 0, it prints 3.
      *   printing n and ignoring the
@@ -453,13 +606,41 @@ export const M9_L2: LessonBlock[] = [
     skillRefs: ["contest.verdict_reading", "debug.boundary", "loops.counter", "compare.operators"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Мына бағдарламаны жарыста жібердің. Есеп шарты: бірінші жолда n, l және r бос орынмен бөлініп берілген, екінші жолда n бүтін сан. l мен r аралығына түсетін сандардың санын шығару керек, әрі шеттері де кіреді: `l ≤ a[i] ≤ r` шарты орындалса, сан есептеледі. Шартта басылып тұрған мысал — `6 10 20` және `7 15 25 12 19 30`, жауабы 3.\n\nЖүйе «Бір бөлігі дұрыс» деді. Бағдарлама құлаған жоқ және мысалды дұрыс шығарды. Осы үш дерекке сүйеніп қатені тауып, түзет. Кеңес: түзетілетін жер — бір жол. Бұл кеңес қана: тапсырма шыққан жауап бойынша тексеріледі.",
-      ru: "Эту программу ты отправил на соревновании. Условие задачи: в первой строке через пробел даны n, l и r, во второй — n целых чисел. Нужно вывести, сколько чисел попадает в промежуток от l до r, причём границы входят: число засчитывается, если выполняется `l ≤ a[i] ≤ r`. Пример из условия — `6 10 20` и `7 15 25 12 19 30`, ответ 3.\n\nСистема ответила «Часть верна». Программа не упала и на примере ответила верно. Опираясь на эти три факта, найди ошибку и исправь её. Совет: исправлять нужно одну строку. Это только совет: задание проверяется по выведенному ответу.",
+      kk: "Мына бағдарламаны жарыста жібердің. Есеп шарты: бірінші жолда n, l және r бос орынмен бөлініп берілген (1 ≤ n ≤ 1000, әрі l мен r-дің абсолют шамасы 1 000 000-нан аспайды), екінші жолда n бүтін сан, олардың да абсолют шамасы 1 000 000-нан аспайды. l мен r аралығына түсетін сандардың санын шығару керек, әрі шеттері де кіреді: `l ≤ a[i] ≤ r` шарты орындалса, сан есептеледі. Шартта басылып тұрған мысал — `6 10 20` және `7 15 25 12 19 30`, жауабы 3.\n\nЖүйе «Бір бөлігі дұрыс» деді. Бағдарлама компиляциядан өтті, орындалу кезінде тоқтаған жоқ және мысалды дұрыс шығарды; жауап та `int`-ке еркін сыяды. Осы деректерге сүйеніп қатені тауып, түзет. Кеңес: түзетілетін жер — бір жол. Бұл кеңес қана: тапсырма шыққан жауап бойынша тексеріледі.",
+      ru: "Эту программу ты отправил на соревновании. Условие задачи: в первой строке через пробел даны n, l и r (1 ≤ n ≤ 1000, а l и r по модулю не больше 1 000 000), во второй — n целых чисел, тоже по модулю не больше 1 000 000. Нужно вывести, сколько чисел попадает в промежуток от l до r, причём границы входят: число засчитывается, если выполняется `l ≤ a[i] ≤ r`. Пример из условия — `6 10 20` и `7 15 25 12 19 30`, ответ 3.\n\nСистема ответила «Часть верна». Программа скомпилировалась, во время работы не остановилась и на примере ответила верно; ответ свободно помещается в `int`. Опираясь на эти факты, найди ошибку и исправь её. Совет: исправлять нужно одну строку. Это только совет: задание проверяется по выведенному ответу.",
     },
     code:
-      "n, l, r = map(int, input().split())\na = list(map(int, input().split()))\nc = 0\nfor i in range(n):\n    if l < a[i] and a[i] < r:\n        c = c + 1\nprint(c)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, l, r;\n" +
+      "    cin >> n >> l >> r;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (l < a[i] && a[i] < r) c = c + 1;\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, l, r = map(int, input().split())\na = list(map(int, input().split()))\nc = 0\nfor i in range(n):\n    if l <= a[i] and a[i] <= r:\n        c = c + 1\nprint(c)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, l, r;\n" +
+      "    cin >> n >> l >> r;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int c = 0;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (l <= a[i] && a[i] <= r) c = c + 1;\n" +
+      "    }\n" +
+      "    cout << c;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "6 10 20\n7 15 25 12 19 30", expectedOutput: "3" },
       { input: "3 100 200\n50 60 70", expectedOutput: "0" },
@@ -503,8 +684,8 @@ export const M9_L2: LessonBlock[] = [
         ru: "Назван способ проверки: ввод прогоняется в браузере кнопкой «Запустить», а полученный вывод кладётся рядом с ответом, посчитанным вручную. «Просмотрю код глазами» проверкой не считается.",
       },
       {
-        kk: "Шарттан қайта оқылатын нәрсе аталады: салыстыру қатаң ба, әлде «кем емес» пе; аралықтың шеттері кіре ме; сәйкес элемент мүлде болмаса не шығару керек; кірістің неше жолдан тұратыны.",
-        ru: "Названо, что перечитывается в условии: сравнение строгое или «не меньше»; входят ли границы промежутка; что выводить, если подходящих элементов нет вовсе; из скольких строк состоит ввод.",
+        kk: "Шарттан қайта оқылатын нәрсе аталады: салыстыру қатаң ба, әлде «кем емес» пе; аралықтың шеттері кіре ме; сәйкес элемент мүлде болмаса не шығару керек; кірістің неше жолдан тұратыны; шектеулердегі ең үлкен сан қандай және жауап `int`-ке сыя ма.",
+        ru: "Названо, что перечитывается в условии: сравнение строгое или «не меньше»; входят ли границы промежутка; что выводить, если подходящих элементов нет вовсе; из скольких строк состоит ввод; каковы наибольшие числа в ограничениях и помещается ли ответ в `int`.",
       },
       {
         kk: "Өлшенетін шығу ережесі бар: шамамен он минуттан кейін есеп қалдырылады, жазылған код өшірілмейді, ал қалған уақыт оқылмаған есепке беріледі. Жарыстан кейін бұл есеп толық шешіліп, себебі қателер журналына жазылады.",

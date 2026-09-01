@@ -49,6 +49,35 @@ import type { LessonBlock } from "../../types";
  * жоқ», so each block's comment names the month and the technique, and a
  * problem that needed anything else would be out of scope however good it was.
  *
+ * ## Every input carries its own count, and that is a C++ decision
+ *
+ * The Python originals read a bare line of numbers, because `input().split()`
+ * makes the count free. In C++ reading a line whose length is not given needs
+ * `while (cin >> x)`, which is an idiom the year has never shown, and this month
+ * may not introduce one. So each problem here states n on its own first line and
+ * the learner writes the `for` loop the year has taught since October. The
+ * exception is `m9.l2.b6`, where the learner only READS the program and the
+ * answer format is the four numbers themselves.
+ *
+ * ## `long long`, worked out rather than assumed
+ *
+ * Both written problems here were checked against `int` by arithmetic, not by
+ * habit, because a comment that guesses is worse than no comment.
+ *
+ *   `b6`: the running total is bounded by S + max a[i] — the window shrinks the
+ *   moment it passes S — so it never exceeds 2 · 10⁹, which fits `int` by seven
+ *   per cent. `long long` there is prudence, not necessity, and the block does
+ *   not punish an `int`.
+ *
+ *   `b7`: 1000 houses at up to 2 · 10⁹ apart is 2 · 10¹², eighty times past what
+ *   `int` holds, and nothing in the prompt says so — the stated bounds are the
+ *   only warning, exactly as they are in a real contest, and `m9.l2.b1` is where
+ *   the learner was told to read them for that. `M9_L3_B7_WIDE_INPUT` is the
+ *   hidden case that charges for it: a thousand coordinates at the two ends of
+ *   the range, whose answer is 10¹². A learner who writes `int` gets a right
+ *   algorithm and a wrong answer there, which is the failure this month exists
+ *   to make familiar.
+ *
  * ## The structural requirement, and which of the three honest options
  *
  * `b6` and `b7` both have a shape in mind — a window whose left border moves,
@@ -57,11 +86,12 @@ import type { LessonBlock } from "../../types";
  * so does one that sorts and takes the median. Both prompts therefore take
  * **option 2 of the authoring contract — guidance, graded on the answer**, and
  * both say so in the prompt itself. Option 1 was genuinely unavailable at these
- * input sizes (the cases are small; nothing in the output distinguishes the
- * shapes), and option 3 would have spent the lesson's one written block on
- * complexity instead of on the journal entry, which is the objective the month
- * names. `b7`'s «n ≤ 1000, демек 1 000 000 қадам» is a statement that the
- * straightforward method FITS, not a rule that it must be used.
+ * input sizes — see the note on `M9_L3_B6_LARGE_INPUT`, which used to be a
+ * complexity guard and, under C++, is not one any more — and option 3 would have
+ * spent the lesson's one written block on complexity instead of on the journal
+ * entry, which is the objective the month names. `b7`'s «n ≤ 1000, демек
+ * 1 000 000 қадам» is a statement that the straightforward method FITS, not a
+ * rule that it must be used.
  *
  * ## Two defects the October review found, and where they were avoided here
  *
@@ -69,11 +99,11 @@ import type { LessonBlock } from "../../types";
  * support route receives: `b7` is core+advanced, and support meets this problem
  * for the first and only time at `b7s`. Nothing is transcribed.
  *
- * Its lines cannot be ordered by indentation. Five sit at indent 0 and their
- * order is a decision; three sit at indent 4 and their order is a decision; and
- * the two at indent 8 belong to DIFFERENT blocks — one under the inner `for`,
- * one under the `if` — so whitespace says which pair they are and nothing more.
- * Putting them the wrong way round still compiles, and still answers wrongly.
+ * Its lines cannot be ordered by looking at the braces alone. The two braces
+ * that ARE on their own cards fix the outer loop's extent and nothing else;
+ * inside it three cards sit at the same indent and their order is the whole
+ * exercise — putting the `if` before the inner loop compiles, runs, and answers
+ * wrongly, and so does hoisting `total = 0` out of the outer loop.
  *
  * ## Where a diagnostic mapping is deliberately absent
  *
@@ -86,19 +116,49 @@ import type { LessonBlock } from "../../types";
 const P = 10; // PDF page for all of May
 
 /**
- * The witness for `m9.l3.b6`'s own stated ceiling.
+ * A large input for `m9.l3.b6`, and an honest note about what it no longer does.
  *
- * The prompt says n ≤ 200 000 and the largest case tested n = 6, so the block
- * that exists to teach two pointers accepted the all-subarrays solution it
- * exists to replace. 8 000 ones with S = 7 999: the window never has to shrink,
- * so the reference does one pass while the quadratic scan does ~3.2e7 steps.
+ * Under Python this was a complexity guard and the file said so: 8 000 ones with
+ * S = 7 999 makes the window never shrink, so the two-pointer reference did one
+ * pass in 0.09 s while the all-subarrays scan did ~3.2 · 10⁷ steps and took
+ * 12.37 s against a 5 s budget.
  *
- * Measured: reference 0.09 s, naive 12.37 s, against a 5 s cpu budget.
+ * Re-measured under C++17 at -O2, the same two programs on the same input take
+ * **0.00 s and 0.04 s.** The quadratic scan is now roughly three hundred times
+ * faster than it was, and 3.2 · 10⁷ steps is a rounding error against a 5 s
+ * limit. There is no way to restore the guard through stdin: at two bytes a
+ * value `EXECUTION_LIMITS.maxStdinBytes` (16 KiB) caps a case at about 8 190
+ * numbers, so ~3 · 10⁷ operations is the most a naive solution can be made to do
+ * here, and in C++ that is fast. Restoring it would mean generating the data
+ * inside the program from a seed, which is what `m9.c1.p4` and `m9.c4.p3` now
+ * do — and doing it here would rewrite the partial program this block hands the
+ * learner, which is the block's whole point.
+ *
+ * So the case stays, and its job is stated correctly: it is the stated ceiling
+ * actually exercised — 8 000 values read, a window that spans almost the whole
+ * input, and an answer of 7 999 that no small case reaches. It does not
+ * distinguish the two-pointer solution from the quadratic one, and the prompt
+ * never claimed it did: the shape is guidance there, graded on the answer.
+ *
  * 16 010 bytes with the newline `runCases` appends — inside
- * `EXECUTION_LIMITS.maxStdinBytes` (16 384), which is what caps how far this
- * technique goes at all.
+ * `EXECUTION_LIMITS.maxStdinBytes` (16 384).
  */
 const M9_L3_B6_LARGE_INPUT = `8000 7999\n${"1 ".repeat(7999)}1`;
+
+/**
+ * The case that makes `m9.l3.b7` need `long long`, and the only one that can.
+ *
+ * A thousand houses, five hundred at each end of the stated coordinate range.
+ * Wherever the stop is put, five hundred students walk 2 · 10⁹ each, so the
+ * answer is 10¹² — four hundred and sixty times what `int` holds. Every other
+ * case in that block fits `int` comfortably, including
+ * "2 / -1000000000 1000000000", whose answer of 2 · 10⁹ lands seven per cent
+ * inside the ceiling; without this one the block would state a bound it never
+ * charged anybody for.
+ *
+ * 11 505 bytes, well inside `EXECUTION_LIMITS.maxStdinBytes` (16 384).
+ */
+const M9_L3_B7_WIDE_INPUT = `1000\n${"-1000000000 1000000000 ".repeat(499)}-1000000000 1000000000`;
 
 export const M9_L3: LessonBlock[] = [
   {
@@ -136,9 +196,13 @@ export const M9_L3: LessonBlock[] = [
      * the truth. A wrong idea that survives the sample teaches a learner to
      * trust samples; one that dies on it teaches them to test.
      *
-     * The order of the two `if`s in the code is the point of step 5 and is the
+     * The order of the two `if`s in the code is the point of step 6 and is the
      * kind of thing an analysis exists to say out loud: update `best` first,
      * then `low`, or the program sells on the same day it buys.
+     *
+     * Prices are bounded at 10⁹ and the answer is a DIFFERENCE of two of them,
+     * so everything here fits in `int` — the one problem in this lesson where it
+     * does, and step 4's arithmetic says so rather than leaving it to luck.
      */
     id: "m9.l3.b2",
     type: "worked_example",
@@ -150,8 +214,8 @@ export const M9_L3: LessonBlock[] = [
       ru: "Задача C, которая вчера не вышла",
     },
     problem: {
-      kk: "C. Ең үлкен пайда.\n\nБір жолда бос орынмен бөлінген n бүтін сан беріледі (2 ≤ n ≤ 200 000) — тауардың n күндегі бағасы. Тауарды бір күні сатып алып, кейінгі бір күні сатасың: сату күні сатып алу күнінен кейін болуы міндетті. Пайда — сату бағасы мен сатып алу бағасының айырмасы.\n\nЕң үлкен пайданы шығар. Бағалар күн сайын түсіп отырса, ең үлкен пайда теріс болады — сонда да сол теріс санды шығар.\n\nМысал: `7 2 8 1 5` үшін жауап 6.",
-      ru: "C. Наибольшая прибыль.\n\nВ одной строке через пробел даны n целых чисел (2 ≤ n ≤ 200 000) — цена товара в каждый из n дней. Ты покупаешь товар в один день и продаёшь в один из следующих: день продажи обязан быть позже дня покупки. Прибыль — это разность между ценой продажи и ценой покупки.\n\nВыведи наибольшую прибыль. Если цена падает каждый день, наибольшая прибыль окажется отрицательной — тогда выведи это отрицательное число.\n\nПример: для `7 2 8 1 5` ответ 6.",
+      kk: "C. Ең үлкен пайда.\n\nБірінші жолда n саны беріледі (2 ≤ n ≤ 200 000), екінші жолда бос орынмен бөлінген n бүтін сан — тауардың n күндегі бағасы (1 ≤ a[i] ≤ 1 000 000 000). Тауарды бір күні сатып алып, кейінгі бір күні сатасың: сату күні сатып алу күнінен кейін болуы міндетті. Пайда — сату бағасы мен сатып алу бағасының айырмасы.\n\nЕң үлкен пайданы шығар. Бағалар күн сайын түсіп отырса, ең үлкен пайда теріс болады — сонда да сол теріс санды шығар.\n\nМысал: `5` және `7 2 8 1 5` үшін жауап 6.",
+      ru: "C. Наибольшая прибыль.\n\nВ первой строке дано число n (2 ≤ n ≤ 200 000), во второй — n целых чисел через пробел, цена товара в каждый из n дней (1 ≤ a[i] ≤ 1 000 000 000). Ты покупаешь товар в один день и продаёшь в один из следующих: день продажи обязан быть позже дня покупки. Прибыль — это разность между ценой продажи и ценой покупки.\n\nВыведи наибольшую прибыль. Если цена падает каждый день, наибольшая прибыль окажется отрицательной — тогда выведи это отрицательное число.\n\nПример: для `5` и `7 2 8 1 5` ответ 6.",
     },
     steps: [
       {
@@ -171,25 +235,37 @@ export const M9_L3: LessonBlock[] = [
         ru: "Вторая мысль: если отсортировать список, найти минимум и максимум станет легко. Тоже не годится — сортировка уничтожает порядок дней, а задача держится именно на нём. Возвращаемся назад.",
       },
       {
-        kk: "Дұрыс жол. Сату күнін j деп бекітейік. Сонда ең тиімді сатып алу күні — j-ден бұрынғы күндердің ішіндегі ең арзаны. Демек тізімді солдан оңға бір рет жүріп өтіп, «осы сәтке дейінгі ең төмен баға» деген бір айнымалыны ұстап отырсақ жеткілікті. Бұл — қазандағы жинақтаушы айнымалы, жаңа тәсіл емес.",
-        ru: "Верный путь. Зафиксируем день продажи j. Тогда самый выгодный день покупки — самый дешёвый из дней до j. Значит, достаточно один раз пройти список слева направо, храня одну переменную: «самая низкая цена на этот момент». Это октябрьский накопитель, а не новый приём.",
+        kk: "Дұрыс жол. Сату күнін j деп бекітейік. Сонда ең тиімді сатып алу күні — j-ден бұрынғы күндердің ішіндегі ең арзаны. Демек векторды солдан оңға бір рет жүріп өтіп, «осы сәтке дейінгі ең төмен баға» деген бір айнымалыны ұстап отырсақ жеткілікті. Бұл — қазандағы жинақтаушы айнымалы, жаңа тәсіл емес.",
+        ru: "Верный путь. Зафиксируем день продажи j. Тогда самый выгодный день покупки — самый дешёвый из дней до j. Значит, достаточно один раз пройти вектор слева направо, храня одну переменную: «самая низкая цена на этот момент». Это октябрьский накопитель, а не новый приём.",
       },
       {
         kk: "Реті маңызды. Әр қадамда алдымен бүгінгі бағамен сатамыз, содан кейін ғана ең төмен бағаны жаңартамыз. Керісінше жасасақ, тауарды сатып алған күні бірден сатып жіберер едік, ал шарт бойынша сату кейінгі күні болуы керек. Жауаптың бастапқы мәні де 0 емес: бағалар түсіп отырса дұрыс жауап теріс, сондықтан `best` бірінші мүмкін мәміледен, яғни a[1] − a[0]-ден басталады.",
         ru: "Порядок важен. На каждом шаге сначала продаём по сегодняшней цене и только потом обновляем самую низкую. Сделав наоборот, мы продали бы товар в тот же день, когда купили, а по условию продажа должна быть позже. Начальное значение ответа тоже не 0: при падающих ценах верный ответ отрицателен, поэтому `best` начинается с первой возможной сделки, то есть с a[1] − a[0].",
       },
+      {
+        kk: "Түрі туралы бір сөз. Бағалар миллиардқа дейін жетеді, ал жауап — екі бағаның айырмасы, сондықтан ол да миллиардтан аспайды және `int` ішіне еркін сыяды. Мұнда `long long` керек емес — бірақ бұл тексерілген факт, болжам емес: шектеулерді осылай оқу керек.",
+        ru: "Одно слово о типе. Цены доходят до миллиарда, а ответ — это разность двух цен, поэтому он тоже не больше миллиарда и свободно помещается в `int`. `long long` здесь не нужен — но это проверенный факт, а не догадка: именно так и читают ограничения.",
+      },
     ],
     code:
-      "a = list(map(int, input().split()))\n" +
-      "low = a[0]\n" +
-      "best = a[1] - a[0]\n" +
-      "for i in range(1, len(a)):\n" +
-      "    if a[i] - low > best:\n" +
-      "        best = a[i] - low\n" +
-      "    if a[i] < low:\n" +
-      "        low = a[i]\n" +
-      "print(best)",
-    stdin: "7 2 8 1 5",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int low = a[0];\n" +
+      "    int best = a[1] - a[0];\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] - low > best) best = a[i] - low;\n" +
+      "        if (a[i] < low) low = a[i];\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "5\n7 2 8 1 5",
     result: {
       kk: "`7 2 8 1 5` кірісінде бағдарлама 6 шығарады: 2-ге сатып алып, 8-ге сату. Бірінші ой 7 берер еді — айырмашылық дәл сол жерде.",
       ru: "На входе `7 2 8 1 5` программа выводит 6: купить по 2, продать по 8. Первая мысль дала бы 7 — вот в чём была разница.",
@@ -220,13 +296,13 @@ export const M9_L3: LessonBlock[] = [
      * hidden cases.
      *
      * The degenerate programs, and the case that kills each:
-     *   n + 1 without looking       → "2 3" expects 1, it prints 3.
-     *   the walk without sorting    → "3 1 2 6" expects 4, it prints 3, and
-     *                                 "2 1 3 5 4 7" expects 6, it prints 3.
+     *   n + 1 without looking       → "2\n2 3" expects 1, it prints 3.
+     *   the walk without sorting    → "4\n3 1 2 6" expects 4, it prints 3, and
+     *                                 "6\n2 1 3 5 4 7" expects 6, it prints 3.
      *   `<=` instead of `==`, so a
-     *   duplicate advances the answer → "1 1 2" expects 3, it prints 4.
+     *   duplicate advances the answer → "3\n1 1 2" expects 3, it prints 4.
      *   the answer started at 0     → every case with a 1 in it.
-     *   a loop one element short    → "1 2 3 4 5" expects 6, it prints 5.
+     *   a loop one element short    → "5\n1 2 3 4 5" expects 6, it prints 5.
      */
     id: "m9.l3.b3",
     type: "verify",
@@ -235,34 +311,43 @@ export const M9_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Апта сайынғы қайта шешу. Бұл есептің тәсілі — желтоқсаннан: алдымен ретте, содан кейін тізімді басынан бір рет жүріп өт. Сұрақ жаңа, тәсіл ескі. Көмек сұрама және ескі шешімдеріңді ашпа — өз бетіңше жаз.\n\nБір жолда бос орынмен бөлінген бүтін сандар беріледі: кемінде біреу, ең көбі 100 000, әрқайсысының модулі 1 000 000 000-нан аспайды. Тізімде кездеспейтін ең кіші оң бүтін санды шығар. Оң сандар 1-ден басталады.\n\nМысал: `3 1 2 6` үшін жауап 4, ал `2 3` үшін жауап 1.\n\nТізімде бірдей сандар да, теріс сандар да, нөл де кездесуі мүмкін. Реттеу үшін `a.sort()` жеткілікті — оны желтоқсанда қолдандың.",
-      ru: "Еженедельное повторное решение. Приём в этой задаче — декабрьский: сначала отсортируй, потом пройди список от начала ровно один раз. Вопрос новый, приём старый. Не проси помощи и не открывай свои старые решения — напиши сам.\n\nВ одной строке через пробел даны целые числа: не меньше одного и не больше 100 000, каждое по модулю не больше 1 000 000 000. Выведи наименьшее целое положительное число, которого нет в списке. Положительные числа начинаются с единицы.\n\nПример: для `3 1 2 6` ответ 4, а для `2 3` ответ 1.\n\nВ списке могут встретиться одинаковые числа, отрицательные числа и ноль. Для сортировки достаточно `a.sort()` — ты пользовался этим в декабре.",
+      kk: "Апта сайынғы қайта шешу. Бұл есептің тәсілі — желтоқсаннан: алдымен ретте, содан кейін векторды басынан бір рет жүріп өт. Сұрақ жаңа, тәсіл ескі. Көмек сұрама және ескі шешімдеріңді ашпа — өз бетіңше жаз.\n\nБірінші жолда n саны беріледі (1 ≤ n ≤ 100 000), екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1 000 000 000-нан аспайды. Тізімде кездеспейтін ең кіші оң бүтін санды шығар. Оң сандар 1-ден басталады.\n\nМысал: `4` және `3 1 2 6` үшін жауап 4, ал `2` және `2 3` үшін жауап 1.\n\nТізімде бірдей сандар да, теріс сандар да, нөл де кездесуі мүмкін. Реттеу үшін `sort(a.begin(), a.end())` жеткілікті — оны желтоқсанда қолдандың.",
+      ru: "Еженедельное повторное решение. Приём в этой задаче — декабрьский: сначала отсортируй, потом пройди вектор от начала ровно один раз. Вопрос новый, приём старый. Не проси помощи и не открывай свои старые решения — напиши сам.\n\nВ первой строке дано число n (1 ≤ n ≤ 100 000), во второй — n целых чисел через пробел, каждое по модулю не больше 1 000 000 000. Выведи наименьшее целое положительное число, которого нет в списке. Положительные числа начинаются с единицы.\n\nПример: для `4` и `3 1 2 6` ответ 4, а для `2` и `2 3` ответ 1.\n\nВ списке могут встретиться одинаковые числа, отрицательные числа и ноль. Для сортировки достаточно `sort(a.begin(), a.end())` — ты пользовался этим в декабре.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "ans = 1\n" +
-      "for i in range(len(a)):\n" +
-      "    if a[i] == ans:\n" +
-      "        ans = ans + 1\n" +
-      "print(ans)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int ans = 1;\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        if (a[i] == ans) ans = ans + 1;\n" +
+      "    }\n" +
+      "    cout << ans;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
-      { input: "3 1 2 6", expectedOutput: "4" },
-      { input: "2 3", expectedOutput: "1" },
+      { input: "4\n3 1 2 6", expectedOutput: "4" },
+      { input: "2\n2 3", expectedOutput: "1" },
       /* Duplicates: a walk that advances on every element that is not larger
          than the answer counts the repeated 1 twice and reports 4. */
-      { input: "1 1 2", expectedOutput: "3", hidden: true },
+      { input: "3\n1 1 2", expectedOutput: "3", hidden: true },
       /* Zero and negatives, and 1 itself missing. */
-      { input: "-5 0 2", expectedOutput: "1", hidden: true },
-      { input: "-3 -2 -1", expectedOutput: "1", hidden: true },
+      { input: "3\n-5 0 2", expectedOutput: "1", hidden: true },
+      { input: "3\n-3 -2 -1", expectedOutput: "1", hidden: true },
       /* One number, twice: with 1 present and with 1 absent. */
-      { input: "1", expectedOutput: "2", hidden: true },
-      { input: "1000000000", expectedOutput: "1", hidden: true },
+      { input: "1\n1", expectedOutput: "2", hidden: true },
+      { input: "1\n1000000000", expectedOutput: "1", hidden: true },
       /* No gap at all — the answer really is one past the end. */
-      { input: "1 2 3 4 5", expectedOutput: "6", hidden: true },
+      { input: "5\n1 2 3 4 5", expectedOutput: "6", hidden: true },
       /* Unsorted input where the gap is at the end, and where it is early. */
-      { input: "2 1 3 5 4 7", expectedOutput: "6", hidden: true },
-      { input: "1 3 3 3 4", expectedOutput: "2", hidden: true },
+      { input: "6\n2 1 3 5 4 7", expectedOutput: "6", hidden: true },
+      { input: "5\n1 3 3 3 4", expectedOutput: "2", hidden: true },
     ],
   },
   {
@@ -367,8 +452,8 @@ export const M9_L3: LessonBlock[] = [
         ru: "Вторая строка показывает, где и на чём ошибка проявилась: какое сообщение пришло от проверяющей системы или на каком входе ответ сломался. По возможности назван конкретный вход или конкретное число.",
       },
       {
-        kk: "Үшінші жол — жіберер алдында бір минутта орындауға болатын сұрақ. «Мұқият боламын» өлшенбейді; «бір элементті тізімде не шығады?» немесе «шекарада `<` па, әлде `<=` ме?» өлшенеді.",
-        ru: "Третья строка — вопрос, на который перед отправкой можно ответить за минуту. «Буду внимательнее» неизмеримо; «что выведет программа на списке из одного элемента?» или «на границе `<` или `<=`?» измеримо.",
+        kk: "Үшінші жол — жіберер алдында бір минутта орындауға болатын сұрақ. «Мұқият боламын» өлшенбейді; «бір элементті тізімде не шығады?», «шекарада `<` па, әлде `<=` ме?» немесе «қосындым `int`-ке сыя ма?» өлшенеді.",
+        ru: "Третья строка — вопрос, на который перед отправкой можно ответить за минуту. «Буду внимательнее» неизмеримо; «что выведет программа на списке из одного элемента?», «на границе `<` или `<=`?» или «помещается ли моя сумма в `int`?» измеримо.",
       },
       {
         kk: "Жазба өзі туралы емес, істелген жұмыс туралы жазылған: «мен мұндайды түсінбеймін» емес, «мен мынаны жаздым, ол мынада бұзылды». Бұл — журналдың басты айырмашылығы.",
@@ -393,7 +478,14 @@ export const M9_L3: LessonBlock[] = [
      *
      * The starting program appears on no other card in this month; it is not a
      * shortened copy of the reference solution but the reference solution's
-     * first five statements, which is what "the clock ran out" means.
+     * first statements, which is what "the clock ran out" means.
+     *
+     * `total` is `long long` in the program the learner is handed, and that is
+     * prudence rather than necessity: the window shrinks the moment the sum
+     * passes S, so the total never exceeds S + max a[i] = 2 · 10⁹, which fits
+     * `int` by seven per cent. The block does not punish an `int` and no comment
+     * here pretends it does — the problem in this lesson that genuinely needs
+     * `long long` is b7, and it has a case that says so.
      *
      * The degenerate programs, and the case that kills each:
      *   the left border never moves → "5 6 / 1 2 3 4 5" expects 3, it prints 5.
@@ -428,28 +520,48 @@ export const M9_L3: LessonBlock[] = [
       ru: "D. Самый длинный участок.\n\nВчера, когда соревнование закончилось, от задачи D у тебя осталось только это. Программа читает вход, двигает правую границу окна и копит сумму — но левая граница пока не двигается вообще, и ответ не обновляется, поэтому сейчас она на любом входе выводит 0. Доделай её.\n\nУсловие. Вход. В первой строке через пробел даны n и S (1 ≤ n ≤ 200 000, 1 ≤ S ≤ 1 000 000 000). Во второй строке n целых положительных чисел, каждое от 1 до 1 000 000 000.\n\nВыход. Одно целое число: длина самого длинного участка из подряд идущих чисел, сумма которого не превышает S. Если сумма равна ровно S, участок годится. Если такого участка нет вовсе, то есть каждое число по отдельности больше S, выведи 0.\n\nПример. При n = 5, S = 6 и `1 2 3 4 5` ответ 3 — это участок `1 2 3`.\n\nПриём знаком с января: две границы. Правая граница на каждом шаге сдвигается на одну позицию, а если сумма вышла за S, левая подтягивается вперёд, пока сумма снова не поместится. Это совет, а не требование: задание проверяется по выведенному числу.",
     },
     code:
-      "n, limit = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "total = 0\n" +
-      "best = 0\n" +
-      "for right in range(n):\n" +
-      "    total = total + a[right]\n" +
-      "print(best)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    long long limit;\n" +
+      "    cin >> n >> limit;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int left = 0;\n" +
+      "    long long total = 0;\n" +
+      "    int best = 0;\n" +
+      "    for (int right = 0; right < n; right++) {\n" +
+      "        total = total + a[right];\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n, limit = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "left = 0\n" +
-      "total = 0\n" +
-      "best = 0\n" +
-      "for right in range(n):\n" +
-      "    total = total + a[right]\n" +
-      "    while total > limit:\n" +
-      "        total = total - a[left]\n" +
-      "        left = left + 1\n" +
-      "    if right - left + 1 > best:\n" +
-      "        best = right - left + 1\n" +
-      "print(best)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    long long limit;\n" +
+      "    cin >> n >> limit;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    int left = 0;\n" +
+      "    long long total = 0;\n" +
+      "    int best = 0;\n" +
+      "    for (int right = 0; right < n; right++) {\n" +
+      "        total = total + a[right];\n" +
+      "        while (total > limit) {\n" +
+      "            total = total - a[left];\n" +
+      "            left = left + 1;\n" +
+      "        }\n" +
+      "        if (right - left + 1 > best) best = right - left + 1;\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 6\n1 2 3 4 5", expectedOutput: "3" },
       { input: "3 1\n5 5 5", expectedOutput: "0" },
@@ -467,16 +579,18 @@ export const M9_L3: LessonBlock[] = [
       /* One huge number in the middle: the window has to be emptied completely
          and rebuilt, which one subtraction per step will not do. */
       { input: "6 3\n1 1 1 10 1 1", expectedOutput: "3", hidden: true },
-      /* The top of the stated range. */
+      /* The top of the stated range: every element is exactly S, so the window
+         is emptied and refilled on every step and the running total reaches its
+         own ceiling of 2 · 10⁹. */
       {
         input: "5 1000000000\n1000000000 1000000000 1000000000 1000000000 1000000000",
         expectedOutput: "1",
         hidden: true,
       },
-      /* The stated ceiling, actually tested.
-         Time-based on purpose, and it has to be: the quadratic solution is
-         CORRECT here, only slow, and telling those two apart is precisely what
-         `twopointers.core` is for. See M9_L3_B6_LARGE_INPUT. */
+      /* The stated ceiling, actually exercised: 8 000 values and a window that
+         spans almost all of them. See M9_L3_B6_LARGE_INPUT — under C++ this no
+         longer separates the quadratic solution from the two-pointer one, and
+         the note says so rather than the comment claiming otherwise. */
       { input: M9_L3_B6_LARGE_INPUT, expectedOutput: "7999", hidden: true },
     ],
   },
@@ -488,20 +602,26 @@ export const M9_L3: LessonBlock[] = [
      *
      * FEBRUARY: «барлық нұсқаны тексеру» (m6, `enumerate.all`). The stop may
      * only stand at a house, so there are exactly n candidates; each costs n
-     * distances; n ≤ 1000 makes that 1 000 000 steps, which December's own
-     * «уақытқа үлгеруді бағалау» says fits. Sorting and taking the middle house
-     * is equally correct and equally taught, and both pass.
+     * distances; n ≤ 1000 makes that 1 000 000 steps, which at C++'s ~10⁸
+     * operations a second is a hundredth of a second. Sorting and taking the
+     * middle house is equally correct and equally taught, and both pass.
      *
      * THE STRUCTURAL REQUIREMENT: none is stated, because none could be
      * enforced. The prompt says the double loop fits; it does not say it is
      * required, and the block is graded on the printed number. Option 2 of the
      * authoring contract, argued in the file header.
      *
+     * `long long` IS required and the bounds are the only warning: 1000 houses
+     * at up to 2 · 10⁹ apiece is 2 · 10¹². Every small case here fits `int` —
+     * "2 / -1000000000 1000000000" answers 2 · 10⁹, which lands seven per cent
+     * inside the ceiling — so `M9_L3_B7_WIDE_INPUT` is the case that charges for
+     * it, and it is the only one that does.
+     *
      * The degenerate programs, and the case that kills each:
      *   the average instead of a house
      *   as the stop                  → "4 / 1 2 3 10" expects 10, it prints 12,
      *                                  and "4 / 1 1 1 100" expects 99, it prints
-     *                                  148.5.
+     *                                  148.
      *   always the smallest house    → "4 / 1 2 3 10" expects 10, it prints 12.
      *   always the largest house     → the same case, it prints 24.
      *   a candidate loop that misses
@@ -523,20 +643,27 @@ export const M9_L3: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "E. Автобус аялдамасы.\n\nБір түзу көшенің бойында n оқушының үйі тұр. Мектеп сол көшеге бір автобус аялдамасын қояды, бірақ аялдама міндетті түрде оқушылардың біреуінің үйінің дәл тұсында болуы керек — басқа орынға қоюға болмайды. Әр оқушы үйінен аялдамаға дейін көше бойымен жүреді, оның жүретін жолы — үйі мен аялдаманың арақашықтығы.\n\nАялдаманы барлық оқушының жүретін жолының қосындысы ең аз болатындай орналастыр.\n\nКіріс. Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n бүтін сан — үйлердің координаталары, әрқайсысының модулі 1 000 000 000-нан аспайды. Екі үй бір координатада тұруы мүмкін.\n\nШығыс. Бір бүтін сан: жолдардың ең аз қосындысы.\n\nМысал. n = 4 және `1 2 3 10` болғанда жауап 10: аялдама 2 координатасында тұрса, жолдар 1 + 0 + 1 + 8 = 10 болады. Ал 1 координатасында 0 + 1 + 2 + 9 = 12 шығады.\n\nn ең үлкені 1000 болғандықтан, әр үйді аялдама орны ретінде кезекпен сынап көру 1000 · 1000 = 1 000 000 қадам ғана алады, ал бұл бір секундқа еркін сыяды. Есеп шыққан сан бойынша тексеріледі: қай жолмен шығарғаныңды тексеру жүйесі көрмейді.",
-      ru: "E. Автобусная остановка.\n\nВдоль одной прямой улицы стоят дома n учеников. Школа ставит на этой улице одну автобусную остановку, но остановка обязана находиться ровно напротив дома одного из учеников — в другом месте её поставить нельзя. Каждый ученик идёт от своего дома до остановки вдоль улицы, и его путь равен расстоянию между домом и остановкой.\n\nПоставь остановку так, чтобы сумма путей всех учеников была наименьшей.\n\nВход. В первой строке число n (1 ≤ n ≤ 1000). Во второй строке n целых чисел через пробел — координаты домов, каждая по модулю не больше 1 000 000 000. Два дома могут стоять в одной координате.\n\nВыход. Одно целое число: наименьшая сумма путей.\n\nПример. При n = 4 и `1 2 3 10` ответ равен 10: если остановка стоит в координате 2, пути дают 1 + 0 + 1 + 8 = 10. А в координате 1 получилось бы 0 + 1 + 2 + 9 = 12.\n\nПоскольку n не больше 1000, перебор всех домов как места остановки занимает всего 1000 · 1000 = 1 000 000 шагов, а это свободно укладывается в секунду. Задача проверяется по выведенному числу: каким путём ты его получил, проверяющая система не видит.",
+      kk: "E. Автобус аялдамасы.\n\nБір түзу көшенің бойында n оқушының үйі тұр. Мектеп сол көшеге бір автобус аялдамасын қояды, бірақ аялдама міндетті түрде оқушылардың біреуінің үйінің дәл тұсында болуы керек — басқа орынға қоюға болмайды. Әр оқушы үйінен аялдамаға дейін көше бойымен жүреді, оның жүретін жолы — үйі мен аялдаманың арақашықтығы.\n\nАялдаманы барлық оқушының жүретін жолының қосындысы ең аз болатындай орналастыр.\n\nКіріс. Бірінші жолда n саны (1 ≤ n ≤ 1000). Екінші жолда бос орынмен бөлінген n бүтін сан — үйлердің координаталары, әрқайсысының модулі 1 000 000 000-нан аспайды. Екі үй бір координатада тұруы мүмкін.\n\nШығыс. Бір бүтін сан: жолдардың ең аз қосындысы.\n\nМысал. n = 4 және `1 2 3 10` болғанда жауап 10: аялдама 2 координатасында тұрса, жолдар 1 + 0 + 1 + 8 = 10 болады. Ал 1 координатасында 0 + 1 + 2 + 9 = 12 шығады.\n\nn ең үлкені 1000 болғандықтан, әр үйді аялдама орны ретінде кезекпен сынап көру 1000 · 1000 = 1 000 000 қадам ғана алады, ал C++ бір секундта шамамен 100 000 000 қадам жасайды. Есеп шыққан сан бойынша тексеріледі: қай жолмен шығарғаныңды тексеру жүйесі көрмейді.",
+      ru: "E. Автобусная остановка.\n\nВдоль одной прямой улицы стоят дома n учеников. Школа ставит на этой улице одну автобусную остановку, но остановка обязана находиться ровно напротив дома одного из учеников — в другом месте её поставить нельзя. Каждый ученик идёт от своего дома до остановки вдоль улицы, и его путь равен расстоянию между домом и остановкой.\n\nПоставь остановку так, чтобы сумма путей всех учеников была наименьшей.\n\nВход. В первой строке число n (1 ≤ n ≤ 1000). Во второй строке n целых чисел через пробел — координаты домов, каждая по модулю не больше 1 000 000 000. Два дома могут стоять в одной координате.\n\nВыход. Одно целое число: наименьшая сумма путей.\n\nПример. При n = 4 и `1 2 3 10` ответ равен 10: если остановка стоит в координате 2, пути дают 1 + 0 + 1 + 8 = 10. А в координате 1 получилось бы 0 + 1 + 2 + 9 = 12.\n\nПоскольку n не больше 1000, перебор всех домов как места остановки занимает всего 1000 · 1000 = 1 000 000 шагов, а C++ успевает около 100 000 000 шагов в секунду. Задача проверяется по выведенному числу: каким путём ты его получил, проверяющая система не видит.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "best = -1\n" +
-      "for j in range(n):\n" +
-      "    total = 0\n" +
-      "    for i in range(n):\n" +
-      "        total = total + abs(a[i] - a[j])\n" +
-      "    if best == -1 or total < best:\n" +
-      "        best = total\n" +
-      "print(best)",
+      "#include <bits/stdc++.h>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) cin >> a[i];\n" +
+      "    long long best = -1;\n" +
+      "    for (int j = 0; j < n; j++) {\n" +
+      "        long long total = 0;\n" +
+      "        for (int i = 0; i < n; i++) total = total + abs(a[i] - a[j]);\n" +
+      "        if (best == -1 || total < best) best = total;\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4\n1 2 3 10", expectedOutput: "10" },
       { input: "1\n7", expectedOutput: "0" },
@@ -554,6 +681,9 @@ export const M9_L3: LessonBlock[] = [
       /* The two ends of the stated range at once. */
       { input: "2\n-1000000000 1000000000", expectedOutput: "2000000000", hidden: true },
       { input: "6\n1 2 3 4 5 6", expectedOutput: "9", hidden: true },
+      /* The stated bound, actually charged for: 10¹² does not fit `int`.
+         See M9_L3_B7_WIDE_INPUT. */
+      { input: M9_L3_B7_WIDE_INPUT, expectedOutput: "1000000000000", hidden: true },
     ],
   },
   {
@@ -567,16 +697,19 @@ export const M9_L3: LessonBlock[] = [
      * than pointing at «the task above», which on this route is the journal
      * entry and not a problem at all.
      *
-     * ## Indentation does not order these lines
+     * ## What the braces give away, and what they do not
      *
-     * Five lines sit at indent 0 (`n = …`, `a = …`, `best = -1`, the outer
-     * `for`, `print`) and their order is four separate decisions. Three sit at
-     * indent 4 (`total = 0`, the inner `for`, the `if`) and putting the `if`
-     * before the inner loop compiles and answers wrongly. And the two at indent
-     * 8 belong to DIFFERENT blocks: `total = total + abs(...)` under the inner
-     * `for`, `best = total` under the `if`. Swapping those two is legal Python
-     * and a wrong program, so the whitespace tells the learner they are a pair
-     * and nothing more.
+     * In Python the argument was about indentation; in C++ it is about braces,
+     * and the honest version is shorter. The frame — the includes, `main`, and
+     * the reading loop — is one card, because reordering `#include` against
+     * `int main()` is not a decision about this problem. `r3` opens the outer
+     * loop and `r7` closes it, so the extent of that loop is given; everything
+     * else is not.
+     *
+     * The three cards inside the loop (`r4`, `r5`, `r6`) sit at the same indent
+     * and their order is the exercise: hoisting `total = 0` out of the loop
+     * compiles and answers wrongly, and putting the `if` before the inner loop
+     * compiles and answers wrongly. Six orderings, one correct.
      */
     id: "m9.l3.b7s",
     type: "reorder_code",
@@ -584,22 +717,31 @@ export const M9_L3: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Жолдарды дұрыс ретке қой.\n\nБір түзу көшенің бойында n оқушының үйі тұр; координаталары екінші жолда беріледі. Автобус аялдамасы міндетті түрде осы үйлердің біреуінің тұсында тұруы керек. Бағдарлама әр үйді аялдама орны ретінде кезекпен сынап көріп, барлық оқушының жүретін жолының қосындысын есептеуі және сол қосындылардың ең кішісін шығаруы керек. `1 2 3 10` үшін жауап 10 — аялдама 2 координатасында.\n\n`abs(a[i] - a[j])` — i-үй мен j-үйдің арақашықтығы. `best = -1` дегені «әзірге бірде-бір нұсқа қаралған жоқ»: сондықтан бірінші есептелген қосынды `best`-ке сөзсіз жазылады.",
-      ru: "Расставь строки по порядку.\n\nВдоль одной прямой улицы стоят дома n учеников; их координаты даны во второй строке. Автобусная остановка обязана стоять напротив одного из этих домов. Программа должна по очереди примерить каждый дом как место остановки, посчитать сумму путей всех учеников и вывести наименьшую из этих сумм. Для `1 2 3 10` ответ равен 10 — остановка в координате 2.\n\n`abs(a[i] - a[j])` — это расстояние между домом i и домом j. Значение `best = -1` означает «пока не рассмотрен ни один вариант»: поэтому первая же посчитанная сумма записывается в `best` без сравнения.",
+      kk: "Жолдарды дұрыс ретке қой.\n\nБір түзу көшенің бойында n оқушының үйі тұр; координаталары екінші жолда беріледі. Автобус аялдамасы міндетті түрде осы үйлердің біреуінің тұсында тұруы керек. Бағдарлама әр үйді аялдама орны ретінде кезекпен сынап көріп, барлық оқушының жүретін жолының қосындысын есептеуі және сол қосындылардың ең кішісін шығаруы керек. `1 2 3 10` үшін жауап 10 — аялдама 2 координатасында.\n\n`abs(a[i] - a[j])` — i-үй мен j-үйдің арақашықтығы. `best = -1` дегені «әзірге бірде-бір нұсқа қаралған жоқ»: сондықтан бірінші есептелген қосынды `best`-ке сөзсіз жазылады. Бірінші карта дайын: онда жақтау мен кірісті оқу тұр.",
+      ru: "Расставь строки по порядку.\n\nВдоль одной прямой улицы стоят дома n учеников; их координаты даны во второй строке. Автобусная остановка обязана стоять напротив одного из этих домов. Программа должна по очереди примерить каждый дом как место остановки, посчитать сумму путей всех учеников и вывести наименьшую из этих сумм. Для `1 2 3 10` ответ равен 10 — остановка в координате 2.\n\n`abs(a[i] - a[j])` — это расстояние между домом i и домом j. Значение `best = -1` означает «пока не рассмотрен ни один вариант»: поэтому первая же посчитанная сумма записывается в `best` без сравнения. Первая карточка готова: в ней рамка и чтение ввода.",
     },
     lines: [
-      { id: "r1", code: "n = int(input())" },
-      { id: "r2", code: "a = list(map(int, input().split()))" },
-      { id: "r3", code: "best = -1" },
-      { id: "r4", code: "for j in range(n):" },
-      { id: "r5", code: "    total = 0" },
-      { id: "r6", code: "    for i in range(n):" },
-      { id: "r7", code: "        total = total + abs(a[i] - a[j])" },
-      { id: "r8", code: "    if best == -1 or total < best:" },
-      { id: "r9", code: "        best = total" },
-      { id: "r10", code: "print(best)" },
+      {
+        id: "r1",
+        code:
+          "#include <bits/stdc++.h>\n" +
+          "using namespace std;\n" +
+          "\n" +
+          "int main() {\n" +
+          "    int n;\n" +
+          "    cin >> n;\n" +
+          "    vector<long long> a(n);\n" +
+          "    for (int i = 0; i < n; i++) cin >> a[i];",
+      },
+      { id: "r2", code: "    long long best = -1;" },
+      { id: "r3", code: "    for (int j = 0; j < n; j++) {" },
+      { id: "r4", code: "        long long total = 0;" },
+      { id: "r5", code: "        for (int i = 0; i < n; i++) total = total + abs(a[i] - a[j]);" },
+      { id: "r6", code: "        if (best == -1 || total < best) best = total;" },
+      { id: "r7", code: "    }" },
+      { id: "r8", code: "    cout << best;\n    return 0;\n}" },
     ],
-    correctOrder: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10"],
+    correctOrder: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8"],
   },
   {
     /*
@@ -620,8 +762,8 @@ export const M9_L3: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Жыл бойы жіберген қателеріңді еске түсір. Солардың ішінен өзің ең жиі қайталайтын үшеуін таңда да, әрқайсысын жіберер алдында бір минутта орындауға болатын сұраққа айналдыр — мысалы, «бір элементті тізімде не шығады?» немесе «шекарада `<` па, әлде `<=` ме?». Осы үшеуі — сенің жеке тексеру тізімің. Оны қайда сақтайсың, және «жіберу» түймесін баспас бұрын оған қарауды қалай ұмытпайсың?",
-      ru: "Вспомни ошибки, которые ты делал в течение года. Выбери три, которые повторяются у тебя чаще всего, и преврати каждую в вопрос, на который перед отправкой можно ответить за минуту, — например, «что выведет программа на списке из одного элемента?» или «на границе `<` или `<=`?». Эти три вопроса и есть твой личный список проверок. Где ты будешь его хранить и как не забудешь заглянуть в него, прежде чем нажать «отправить»?",
+      kk: "Жыл бойы жіберген қателеріңді еске түсір. Солардың ішінен өзің ең жиі қайталайтын үшеуін таңда да, әрқайсысын жіберер алдында бір минутта орындауға болатын сұраққа айналдыр — мысалы, «бір элементті тізімде не шығады?», «шекарада `<` па, әлде `<=` ме?» немесе «қосындым `int`-ке сыя ма, әлде `long long` керек пе?». Осы үшеуі — сенің жеке тексеру тізімің. Оны қайда сақтайсың, және «жіберу» түймесін баспас бұрын оған қарауды қалай ұмытпайсың?",
+      ru: "Вспомни ошибки, которые ты делал в течение года. Выбери три, которые повторяются у тебя чаще всего, и преврати каждую в вопрос, на который перед отправкой можно ответить за минуту, — например, «что выведет программа на списке из одного элемента?», «на границе `<` или `<=`?» или «помещается ли моя сумма в `int` или нужен `long long`?». Эти три вопроса и есть твой личный список проверок. Где ты будешь его хранить и как не забудешь заглянуть в него, прежде чем нажать «отправить»?",
     },
   },
 ];

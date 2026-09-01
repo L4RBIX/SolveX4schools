@@ -1220,11 +1220,6 @@ function infraResult(
   };
 }
 
-/** Judge0 uses `null` where a field is absent; the rest of this file wants "". */
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
 /**
  * Judge0 speaks base64, and it is not optional.
  *

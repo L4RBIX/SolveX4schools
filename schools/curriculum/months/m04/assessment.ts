@@ -41,21 +41,23 @@ import type { LessonBlock } from "../../types";
  *
  * ## The two numbers the check hands over, and why
  *
- * `m4.l1` installs one figure for the whole month — 10⁷ to 10⁸ simple steps per
- * second — and every judgement block in the month is built so the verdict holds
- * at both ends of that range. Kept here: plan A is 2 · 10¹⁰, which fails by two
- * orders of magnitude at the optimistic end; plan B is under 4.2 · 10⁶, which
- * finishes in under half a second at the pessimistic end. Nothing in this check
- * depends on guessing where inside the range the machine sits.
+ * `m4.l1` installs one figure for the whole month, and the C++ migration
+ * changed it: **about 100 000 000 simple steps a second**, not the 10⁷–10⁸ the
+ * Python course reasoned with. Every judgement in the month is built so the
+ * verdict survives a machine ten times faster or ten times slower, and this
+ * check is no exception: plan A is 2 · 10¹⁰ steps, which is two hundred seconds
+ * at the stated rate and still twenty at ten times that, and plan B is under
+ * 4.2 · 10⁶, which is four hundredths of a second and still under half a second
+ * at a tenth of it. Nothing here depends on guessing where the machine sits.
  *
- * The second figure is new and is *stated in the task* rather than assumed:
- * ordering 200 000 numbers costs roughly 4 000 000 steps. The course never
- * writes n·log n and never will — the programme does not — so the cost of
- * sorting cannot be derived by a Grade 9 from anything they have been taught.
- * It is therefore given as an assumption of this task, the way `m4.l1.b7` gives
- * its per-second budget inside its own prompt. What the learner is asked to do
- * with it is arithmetic they can check: about twenty steps per number, against
- * plan A's hundred thousand scans.
+ * The second figure is stated in the task rather than assumed: ordering 200 000
+ * numbers costs roughly 4 000 000 steps. The course never writes n·log n and
+ * never will — the programme does not — so the cost of `sort` cannot be derived
+ * by a Grade 9 from anything they have been taught. It is therefore given as an
+ * assumption of this task, the way `m4.l1.b7` gives its per-second budget
+ * inside its own prompt. What the learner is asked to do with it is arithmetic
+ * they can check: about twenty steps per number, against plan A's hundred
+ * thousand scans.
  *
  * ## Why this problem, when the month has already sorted six lists
  *
@@ -75,8 +77,10 @@ import type { LessonBlock } from "../../types";
  * dropped, ties included. An unfair hidden case is not a hard hidden case.
  *
  * The scores are allowed to be negative — a round can carry a penalty — which
- * costs nothing to state and kills the accumulator initialised to zero and
- * guarded with `if x > 0`.
+ * costs nothing to state and kills the accumulator guarded with `if (x > 0)`.
+ * At |score| ≤ 1000 and n ≤ 200 000 the total stays inside ±2 · 10⁸, so `int`
+ * is genuinely enough here and the task does not also become a `long long`
+ * exercise; `m4.l5.b8` and `m4.l6.b6` are where that lesson lives.
  *
  * ## The cases, and the wrong program each one kills
  *
@@ -86,18 +90,20 @@ import type { LessonBlock } from "../../types";
  *   · no sort at all                          → the visible sample answers 17
  *   · drops the k LARGEST                     → the visible sample answers 5
  *   · prints the sum of the k dropped rounds  → the visible sample answers 0
- *   · `range(k + 1, n)` / `range(k - 1, n)`   → the visible sample answers 16 / 24
+ *   · a loop from k + 1 or from k − 1         → the visible sample answers 16 / 24
  *   · drops by value, not by count            → «5 5 5 7» k=2 answers 7, «2 2 2 2 9 1 1» k=3 answers 9
  *   · drops by absolute value                 → «1000 -1000 0» k=1 answers 0
- *   · `range(k, n - 1)`, one short            → «1 0 / -5» answers 0
- *   · indexes `a[k]` when nothing remains     → «1 1» crashes instead of printing 0
+ *   · a loop stopping at n − 1, one short     → «1 0 / -5» answers 0
+ *   · indexes a[k] when nothing remains       → «1 1» reads past the end
  *   · counts only positive scores             → «-8 -8 -8 -8 -8» k=4 answers 0
  *
  * n = 1 appears twice on purpose, once with k = 0 and once with k = 1: the same
  * shortest input is both "nothing is dropped" and "everything is dropped", and
  * the second is where a solution that assumes at least one round survives falls
- * over. k = n and k = 0 are the problem's own two edges and both are covered at
- * n = 6 as well, where an off-by-one has room to show.
+ * over. In C++ that read is undefined behaviour rather than an exception, which
+ * makes the case more valuable, not less. k = n and k = 0 are the problem's own
+ * two edges and both are covered at n = 6 as well, where an off-by-one has room
+ * to show.
  *
  * ## Provenance and tracks
  *
@@ -159,15 +165,15 @@ export const M4_ASSESSMENT: LessonBlock[] = [
         "Есептің шарты. Турнирде n раунд ойналды, әр раундта ойыншы ұпай жинады; ұпай теріс те болуы мүмкін. Қорытынды нәтижені шығарғанда ең нашар k раунд есептен шығарылады, ал қалған раундтардың ұпайлары қосылады. Шектеулер: n ең көбі 200 000, k нөл мен n аралығында, әр ұпай -1000 мен 1000 аралығында. Уақыт шегі — 1 секунд.\n" +
         "Кодқа отырмас бұрын екі жоспарды таразыла. Екеуі де дұрыс жауап береді — сұрақ тек уақыт туралы.\n" +
         "А жоспары. Алдымен барлық ұпайдың қосындысын тап. Содан кейін k рет мынаны қайтала: бүкіл тізімді басынан аяғына дейін қарап шығып, әлі сызылмаған ең кіші ұпайды тап, оны қосындыдан шығар да, сызып таста.\n" +
-        "Б жоспары. Тізімді бір рет реттеп ал. Содан кейін реттелген тізімнің алғашқы k ұпайын аттап өтіп, қалғандарын қос.\n" +
-        "Есептеу үшін екі шаманы қолдан: компьютер бір секундта 10 000 000-нан 100 000 000-ға дейін қарапайым қадам жасайды, ал 200 000 санды реттеу шамамен 4 000 000 қадам тұрады.\n" +
+        "Б жоспары. Тізімді `sort` арқылы бір рет реттеп ал. Содан кейін реттелген тізімнің алғашқы k ұпайын аттап өтіп, қалғандарын қос.\n" +
+        "Есептеу үшін екі шаманы қолдан: C++ бағдарламасы бір секундта шамамен 100 000 000 қарапайым қадам жасайды, ал 200 000 санды реттеу шамамен 4 000 000 қадам тұрады.\n" +
         "n = 200 000, k = 100 000 болғанда әр жоспар шамамен қанша қадам жасайды және қайсысы 1 секундке үлгереді?",
       ru:
         "Условие задачи. На турнире сыграно n раундов, в каждом игрок набрал очки; очки могут быть и отрицательными. При подведении итога k худших раундов не учитываются, а очки остальных раундов складываются. Ограничения: n не больше 200 000, k от нуля до n, каждое значение очков от -1000 до 1000. Ограничение по времени — 1 секунда.\n" +
         "Прежде чем сесть за код, взвесь два плана. Оба дают верный ответ — вопрос только во времени.\n" +
         "План А. Сначала найди сумму всех очков. Затем повтори k раз: пройди список целиком от начала до конца, найди наименьшее ещё не вычеркнутое значение, вычти его из суммы и вычеркни.\n" +
-        "План Б. Отсортируй список один раз. Затем пропусти первые k значений отсортированного списка и сложи остальные.\n" +
-        "Для подсчёта пользуйся двумя величинами: компьютер делает от 10 000 000 до 100 000 000 простых шагов в секунду, а сортировка 200 000 чисел стоит примерно 4 000 000 шагов.\n" +
+        "План Б. Отсортируй список один раз при помощи `sort`. Затем пропусти первые k значений отсортированного списка и сложи остальные.\n" +
+        "Для подсчёта пользуйся двумя величинами: программа на C++ делает около 100 000 000 простых шагов в секунду, а сортировка 200 000 чисел стоит примерно 4 000 000 шагов.\n" +
         "Сколько примерно шагов сделает каждый план при n = 200 000 и k = 100 000 и какой из них уложится в 1 секунду?",
     },
     options: [
@@ -221,15 +227,6 @@ export const M4_ASSESSMENT: LessonBlock[] = [
      * one-in-four event, whereas 20 000 000 000 does not appear on a page by
      * accident.
      *
-     * Four numbered questions, four marking points, in the same order, so a
-     * teacher reads down the page rather than hunting. Point 4 is the one that
-     * separates a learner who applied a rule from one who understood it: plan A
-     * is not a bad plan, it is a plan whose cost is written in the CONSTRAINTS,
-     * and at k ≤ 500 it is perfectly acceptable. A learner who cannot name a k
-     * at which the slow plan wins has learnt "nested is bad" and not much else.
-     *
-     * Written, stored, read by a teacher. `explain` settles as `unknown`.
-     *
      * TWO numbered questions, not four — and the marking points were cut to
      * match rather than left asking a teacher to score answers nobody was asked
      * for.
@@ -247,6 +244,8 @@ export const M4_ASSESSMENT: LessonBlock[] = [
      * which solution fits, and justify the choice. The dropped questions (where
      * exactly the boundary in k lies; whether the values matter as well as the
      * sizes) are good questions that belong in a lesson, not in a timed check.
+     *
+     * Written, stored, read by a teacher. `explain` settles as `unknown`.
      */
     id: "m4.as.b2",
     type: "explain",
@@ -273,8 +272,8 @@ export const M4_ASSESSMENT: LessonBlock[] = [
         ru: "Две части плана Б названы отдельно: сортировка выполняется один-единственный раз и по условию стоит примерно 4 000 000 шагов, а последующее сложение — это один проход по оставшимся 100 000 значениям. Всего не больше 4 100 000. Получается, что сортировка стоит около двадцати шагов на число, то есть всего в несколько раз дороже одного прохода по списку.",
       },
       {
-        kk: "Екі сан да секундтық шамамен салыстырылған. Ең жақсы жағдайда секундына 100 000 000 қадам: 20 000 000 000 : 100 000 000 = 200, яғни А жоспарына кемінде екі жүз секунд керек, ал бізде бір секунд бар. Б жоспарының 4 100 000 қадамы ең баяу бағамен де (секундына 10 000 000) жарты секундтен аз. Айырма шамамен бес мың есе, сондықтан жауап секундтық шаманың қай шетін алсақ та өзгермейді.",
-        ru: "Оба числа сопоставлены с числом шагов в секунду. В лучшем случае это 100 000 000 шагов: 20 000 000 000 : 100 000 000 = 200, то есть плану А нужно не меньше двухсот секунд, а у нас есть одна. А 4 100 000 шагов плана Б даже при самой медленной оценке (10 000 000 шагов в секунду) — меньше половины секунды. Разница примерно в пять тысяч раз, поэтому ответ не меняется, какой бы край оценки мы ни взяли.",
+        kk: "Екі сан да секундтық шамамен салыстырылған: секундына 100 000 000 қадам. 20 000 000 000 : 100 000 000 = 200, яғни А жоспарына екі жүз секундтай уақыт керек, ал бізде бір секунд бар. Б жоспарының 4 100 000 қадамы сол шамамен секундтың жиырмадан бірінен де аз. Айырма шамамен бес мың есе, сондықтан машина он есе жылдам не он есе баяу болса да, жауап өзгермейді.",
+        ru: "Оба числа сопоставлены с числом шагов в секунду: сто миллионов шагов в секунду. 20 000 000 000 : 100 000 000 = 200, то есть плану А нужно около двухсот секунд, а у нас есть одна. А 4 100 000 шагов плана Б при той же мерке — меньше одной двадцатой секунды. Разница примерно в пять тысяч раз, поэтому ответ не меняется, даже если машина окажется в десять раз быстрее или в десять раз медленнее.",
       },
     ],
   },
@@ -290,13 +289,14 @@ export const M4_ASSESSMENT: LessonBlock[] = [
      * on it and a hidden case that punishes a reading the statement permits is
      * not a test, it is a trap. And k = n, spelled out as "print 0", because
      * "the sum of nothing" is a genuine question at fourteen and the answer
-     * belongs in the statement rather than in a stack trace.
+     * belongs in the statement rather than in whatever a program does when it
+     * indexes past the end of a vector.
      *
      * The reference is written the way a learner is expected to write it: sort
-     * in place, then one loop from k to n - 1. `sum(a[k:])` is shorter, arrives
-     * this month and passes every case; it is not what is defended here because
-     * the explicit loop is the version whose step count b2 has just been asked
-     * to justify.
+     * in place, then one loop from k to n - 1. That loop is also the version
+     * whose step count b2 has just been asked to justify, and in C++ there is no
+     * shorter form to be tempted by — the whole-list sum this course teaches IS
+     * a loop.
      */
     id: "m4.as.b3",
     type: "verify",
@@ -312,6 +312,7 @@ export const M4_ASSESSMENT: LessonBlock[] = [
         "Кіріс. Бірінші жолда бос орынмен бөлінген екі бүтін сан: n және k, мұнда 1 ≤ n ≤ 200 000 және 0 ≤ k ≤ n. Екінші жолда бос орынмен бөлінген n бүтін сан — раундтардың ұпайлары, әрқайсысы -1000 мен 1000 аралығында.\n" +
         "Шығыс. Бір ғана сан: есептен шығарылмаған раундтардың ұпайларының қосындысы. k = n болса, бірде-бір раунд қалмайды — ондай жағдайда 0 шығар.\n" +
         "Мысал. `5 2` және `7 -3 9 3 5` берілсе, ұпайларды өсу ретімен қойғанда -3 3 5 7 9 болады; ең нашар екеуі, яғни -3 пен 3, алынып тасталады, қалғаны 5 + 7 + 9 = 21. Жауап: `21`.\n" +
+        "Ұпайлар -1000 мен 1000 аралығында, раунд саны 200 000-нан аспайды, сондықтан қосынды `int`-ке еркін сыяды.\n" +
         "Уақыт шегі — 1 секунд, сондықтан бірінші тапсырмада үлгереді деп таңдаған жоспарыңды жаз.",
       ru:
         "Теперь напиши это решение.\n" +
@@ -320,16 +321,30 @@ export const M4_ASSESSMENT: LessonBlock[] = [
         "Ввод. В первой строке через пробел два целых числа: n и k, где 1 ≤ n ≤ 200 000 и 0 ≤ k ≤ n. Во второй строке через пробел n целых чисел — очки раундов, каждое от -1000 до 1000.\n" +
         "Вывод. Одно число: сумма очков тех раундов, которые не были отброшены. Если k = n, не остаётся ни одного раунда — в этом случае выведи 0.\n" +
         "Пример. Для `5 2` и `7 -3 9 3 5` очки по возрастанию дают -3 3 5 7 9; два худших, то есть -3 и 3, отбрасываются, остаётся 5 + 7 + 9 = 21. Ответ: `21`.\n" +
+        "Очки лежат между -1000 и 1000, а раундов не больше 200 000, поэтому сумма свободно помещается в `int`.\n" +
         "Ограничение по времени — 1 секунда, поэтому пиши тот план, который в первом задании ты счёл укладывающимся.",
     },
     referenceSolution:
-      "n, k = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "total = 0\n" +
-      "for i in range(k, n):\n" +
-      "    total = total + a[i]\n" +
-      "print(total)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, k;\n" +
+      "    cin >> n >> k;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int total = 0;\n" +
+      "    for (int i = k; i < n; i++) {\n" +
+      "        total = total + a[i];\n" +
+      "    }\n" +
+      "    cout << total;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The visible sample, and it is doing real work. Unsorted, with a negative
          among the two dropped rounds: no sort answers 17, dropping the k largest
@@ -337,10 +352,11 @@ export const M4_ASSESSMENT: LessonBlock[] = [
          ranges answer 16 and 24. Five mutants die before the learner submits. */
       { input: "5 2\n7 -3 9 3 5", expectedOutput: "21" },
       /* n = 1, nothing dropped. The shortest input on which a loop that stops
-         one element short (`range(k, n - 1)`) prints 0 instead of the score. */
+         one element short (`i < n - 1`) prints 0 instead of the score. */
       { input: "1 0\n-5", expectedOutput: "-5", hidden: true },
       /* n = 1, everything dropped. k = n at its smallest: a solution that
-         assumes at least one round survives indexes a[1] and crashes here. */
+         assumes at least one round survives reads a[1] here, which is past the
+         end of the vector and therefore undefined behaviour. */
       { input: "1 1\n-5", expectedOutput: "0", hidden: true },
       /* The duplicates case the problem exists for. Dropping every value equal
          to the second smallest removes all three fives and answers 7. */
@@ -351,7 +367,7 @@ export const M4_ASSESSMENT: LessonBlock[] = [
          dropped and the answer is the whole sum. */
       { input: "6 0\n-1 -2 -3 4 5 6", expectedOutput: "9", hidden: true },
       /* All equal, all negative. A total that only accumulates positive scores,
-         or one guarded with `if x > 0`, answers 0 instead of -8. */
+         or one guarded with `if (x > 0)`, answers 0 instead of -8. */
       { input: "5 4\n-8 -8 -8 -8 -8", expectedOutput: "-8", hidden: true },
       /* The general shape: negatives, duplicates and the cut falling between
          two equal values is not required here — this is the case that simply
@@ -370,7 +386,7 @@ export const M4_ASSESSMENT: LessonBlock[] = [
      * «Ауызша түсіндіру», p.6, asked about the learner's OWN program — the only
      * way the answer can be theirs rather than recalled from b2.
      *
-     * Question 3 is the one that is not a rephrasing of anything earlier in the
+     * Question 1 is the one that is not a rephrasing of anything earlier in the
      * check, and it is the one worth the most. The slow plan's cost is k × n and
      * depends on neither the values nor their order, so there is no "unlucky
      * input" to invent: any large n and k does it. A learner who answers

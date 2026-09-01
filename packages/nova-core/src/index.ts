@@ -6,8 +6,11 @@
  * `grantHintLevel` is a pure function of (request, history, directive), and the
  * provider only ever receives its output.
  *
- * See `../../../NOVA_PROVIDER.md` for the provider seam and the reference
- * Python enforcement that must sit on the server side of it.
+ * See `../../../NOVA_PROVIDER.md` for the provider seam and, in `../python/`,
+ * the reference enforcement that must sit on the server side of it. That file
+ * is written in Python and is about the DIRECTIVE, not about any language a
+ * learner is taught — it survived the move to C++17 untouched because there
+ * was nothing in it to move.
  */
 
 export {

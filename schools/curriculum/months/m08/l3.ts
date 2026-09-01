@@ -39,6 +39,28 @@ import type { LessonBlock } from "../../types";
  * сәуірде жоямыз». This is that lesson, and it collects the promise by name in
  * b1's concept and in b9's prompt.
  *
+ * ## THE OVERFLOW LESSON, and why it lives here
+ *
+ * This is the first lesson in the year where a correct program prints a number
+ * `int` cannot hold, and every staircase in the file is over that line:
+ *
+ *   b7  steps of 1 or 3, n ≤ 60  →  5 582 216 355
+ *   b8  steps of 1, 2 or 3, n ≤ 60  →  4 680 045 560 037 375
+ *   b9  steps of 1 or 2, n ≤ 80  →  37 889 062 373 143 906
+ *
+ * `int` stops at 2 147 483 647. In Python the same three tables were simply
+ * right, because Python integers have no ceiling; in C++ an `int` table would
+ * compile, run, print a plausible number and be wrong, with nothing to see. So
+ * `long long` is introduced in b1 — where the table itself is introduced —
+ * rather than being discovered on a hidden case, and EVERY table in this file
+ * is `vector<long long>`, including the small ones, so that the habit and the
+ * reason arrive together.
+ *
+ * The initial value is written out for the same reason. `vector<long long> dp(n
+ * + 1, 0)` really is zero-filled without the `, 0`, unlike a raw array; the
+ * zero is written anyway so that the intent is on the page and so that the
+ * habit survives contact with a language where the default is garbage.
+ *
  * ## The visualiser that does not exist
  *
  * `docs/curriculum/RUNTIME_INTEGRATION_REQUIREMENTS.md` §1: `dp_table` has no
@@ -56,13 +78,15 @@ import type { LessonBlock } from "../../types";
  * **option 1** and states no rule it cannot enforce:
  *
  * - the constraint does the grading. n goes to 80, and the recursion of
- *   `m6.l5.b6` needs more than 10^16 calls to answer n = 80, so the hidden
- *   `45` and `80` cases kill every solution that recomputes instead of
- *   remembering. The prompt says this in advance, in both languages, so nobody
+ *   `m6.l5.b6` needs about 2·10^16 calls to answer n = 80 — hundreds of years
+ *   on a machine that manages 10^8 calls a second — so the hidden `45` and `80`
+ *   cases kill every solution that recomputes instead of remembering. The
+ *   hidden `45` alone is about 3·10^9 calls, which is already past the judge's
+ *   5 s. The prompt says this in advance, in both languages, so nobody
  *   discovers it only on a hidden case.
- * - what the prompt does NOT claim is that the answer must be a list. A
+ * - what the prompt does NOT claim is that the answer must be a vector. A
  *   solution keeping only the last two answers passes, is the same idea in a
- *   thriftier form, and the prompt says so rather than pretending a list is
+ *   thriftier form, and the prompt says so rather than pretending a table is
  *   checked. Telling a fourteen-year-old that a rule was verified when it was
  *   not is the defect being avoided.
  *
@@ -73,8 +97,8 @@ import type { LessonBlock } from "../../types";
  *
  * | block | steps allowed | shape |
  * |---|---|---|
- * | b1  | — | a table created and one cell filled, to name `[0] * (n + 1)` |
- * | b3  | 1 or 2, n = 6 | seven explicit assignments, NO loop, `print(dp)` |
+ * | b1  | — | a table created and one cell filled, to name `vector<long long> dp(n + 1, 0)` |
+ * | b3  | 1 or 2, n = 6 | seven explicit assignments, NO loop, the whole table printed |
  * | b5  | — | an invented recurrence with no story at all |
  * | b6  | 1 or 2, step 3 broken | loop from 2, an `if` inside |
  * | b7  | 1 or 3 | loop from 3, three initial cells, one of them wrong |
@@ -96,37 +120,38 @@ import type { LessonBlock } from "../../types";
  * ## The degenerate programs, named, with the case that kills each
  *
  * b9 (ways to climb n steps with 1 or 2):
- * - `print(n)` and `2 ** (n - 1)` both die on the visible `4` (5 ≠ 4, 5 ≠ 8);
+ * - `cout << n` and `1 << (n - 1)` both die on the visible `4` (5 ≠ 4, 5 ≠ 8);
  * - `dp[0] = 0` shifts the whole sequence and answers 3 — dies on the visible `4`;
- * - a loop written `range(2, n)` leaves `dp[n]` at 0 — dies on the visible `4`
+ * - a loop written `i < n` leaves `dp[n]` at 0 — dies on the visible `4`
  *   and again on the hidden `2`;
  * - counting COMBINATIONS instead of sequences (1+1+2 and 2+1+1 as one way)
  *   answers 3 for n = 4 and 4 for n = 7 — dies on both visible cases;
- * - a table built as `[0] * n` raises IndexError everywhere;
- * - anything hard-coding `dp[2]` before the loop crashes on the hidden `1`,
- *   which is the low boundary of the stated range;
+ * - a table built as `vector<long long> dp(n, 0)` reads past its own end;
+ * - anything hard-coding `dp[2]` before the loop writes out of range on the
+ *   hidden `1`, which is the low boundary of the stated range;
  * - printing `dp[n - 1]` answers 3 for n = 4 — dies on the visible case;
- * - the February recursion with no table dies on the hidden `45` and `80`.
+ * - the February recursion with no table dies on the hidden `45` and `80`;
+ * - **an `int` table dies on the hidden `80`, silently**, which is the whole
+ *   reason `long long` is taught in b1 rather than met here.
  * The two ends of the range, `1` and `80`, are both cases.
  *
  * b9s is the same problem, so it carries the same case set for the same reasons,
  * and the hidden `1` additionally kills the most likely incomplete edit: leaving
- * `dp[2] = 2` in place, which raises IndexError on a table of two cells.
+ * `dp[2] = 2` in place, which writes past the end of a table of two cells.
  *
  * b7 (find_bug): the repaired program is nobody's reference solution in this
  * month — it climbs 1 or 3 steps, and no task asks for that — so repairing it
  * cannot be a rehearsal of a later answer.
  *
- * ## No new Python
+ * ## No new C++ beyond the two things b1 names
  *
- * `[0] * (n + 1)` is a list literal multiplied by an integer. It needs no
- * construct that October did not bring, but nothing in the year has WRITTEN it
- * before, so b1 names it in prose and says what it produces — one sentence,
- * which is what defect class 6 of the contract asks for. Everything else here
- * is `for`, `range`, `len`, indexing, `if/else`, `int(input())` and `print`. No
- * import, no `def`, no `sorted`, no comprehension, and every program prints
- * numbers only, so no learner can match a Kazakh or Russian glyph instead of
- * reasoning.
+ * `vector<long long> dp(n + 1, 0)` is October's `vector` with a size and a fill
+ * value, and `long long` is September's l6. Neither has been WRITTEN together
+ * before, so b1 names both in prose and says what each produces — one sentence
+ * each, which is what defect class 6 of the contract asks for. Everything else
+ * here is `for`, indexing, `if/else`, `cin >>` and `cout <<`. No new header
+ * beyond `<vector>`, and every program prints numbers only, so no learner can
+ * match a Kazakh or Russian glyph instead of reasoning.
  */
 
 const P = 10; // PDF page for all of April
@@ -135,10 +160,11 @@ export const M8_L3: LessonBlock[] = [
   {
     /*
      * The month's second half, stated once and without a general program on
-     * screen. The card does three jobs: it collects February's promise, it
-     * names `[0] * (n + 1)` because no lesson has written it before, and it
-     * puts the sentence «dp[i] — … жауабы» in front of every number that
-     * follows, which is the assessment's own order.
+     * screen. The card does four jobs: it collects February's promise, it names
+     * `vector<long long> dp(n + 1, 0)` because no lesson has written it before,
+     * it says why the type is `long long` and not `int` before any table can
+     * overflow, and it puts the sentence «dp[i] — … жауабы» in front of every
+     * number that follows, which is the assessment's own order.
      */
     id: "m8.l3.b1",
     type: "concept",
@@ -152,23 +178,32 @@ export const M8_L3: LessonBlock[] = [
     body: {
       kk:
         "Ақпанда баспалдақ есебін өзін-өзі шақыратын функциямен шештік. Ол дұрыс жауап берді, бірақ бір сұрақтың жауабын қайта-қайта есептеді: `climb(3)` шақырулар ағашында бірнеше рет кездесті. n өскен сайын сол қайталау көбейе берді, сондықтан ол шешімде n ең көбі 25 болатын.\n\n" +
-        "Бүгін дәл сол жауаптарды бір-ақ рет есептеп, кестеге жазып қоямыз. Кесте — қарапайым тізім, оны былай жасаймыз:\n\n" +
-        "```\ndp = [0] * (n + 1)\n```\n\n" +
-        "Бір элементтен тұратын тізімді бүтін санға көбейтсең, сол элемент сонша рет қайталанған тізім шығады: `[0] * 4` дегеніміз — `[0, 0, 0, 0]`. Ұзындығын `n + 1` деп аламыз, өйткені бізге 0-ден n-ге дейінгі, барлығы n + 1 ұяшық керек.\n\n" +
+        "Бүгін дәл сол жауаптарды бір-ақ рет есептеп, кестеге жазып қоямыз. Кесте — қарапайым `vector`, оны былай жасаймыз:\n\n" +
+        "```\nvector<long long> dp(n + 1, 0);\n```\n\n" +
+        "Жақшадағы екі сан екі бөлек нәрсені айтады: біріншісі — ұяшық саны, екіншісі — әр ұяшыққа бірден жазылатын бастапқы мән. Ұзындығын `n + 1` деп аламыз, өйткені бізге 0-ден n-ге дейінгі, барлығы n + 1 ұяшық керек. C++ мұндай `vector`-ды екінші сансыз да нөлмен толтырады, бірақ нөлді әрқашан жазып қой: сонда кестенің бастапқы күйі кодта көрініп тұрады.\n\n" +
+        "Түрі неге `int` емес, `long long`? Себебі кестедегі сандар тез өседі. 80 сатылы баспалдақта тәсілдер саны 37 889 062 373 143 906 болады, ал `int` небәрі 2 147 483 647-ге дейін ғана есептейді. Одан асып кеткен `int` қатемен тоқтамайды — ол үнсіз теріс не мүлде бөтен сан береді, бағдарлама сол күйінде жұмысын жалғастыра береді. Қыркүйекте `long long` дәл осы үшін таныстырылған: жауап үлкен болатыны алдын ала белгілі болса, кестені бірден `long long` етіп жаса.\n\n" +
         "Ең маңыздысы — сан емес, мағына. Кестенің әр ұяшығы — бір кіші сұрақтың жауабы, ал сол сұрақты бір сөйлеммен айта білу керек. Мысалы: «dp[i] — жерден i-сатыға көтерілудің тәсілдер саны». Кодқа отырмас бұрын осы сөйлемді өзіңе дауыстап айт. Айта алмасаң, кестені толтыруға әлі ерте: қандай сан жазатыныңды білмейсің деген сөз.",
       ru:
         "В феврале мы решали задачу про лестницу функцией, которая вызывает саму себя. Ответ получался верный, но одна и та же величина считалась заново много раз: вызов `climb(3)` встречался в дереве вызовов несколько раз. Чем больше n, тем больше повторов, поэтому в том решении n было не больше 25.\n\n" +
-        "Сегодня мы посчитаем те же ответы по одному разу и запишем их в таблицу. Таблица — это обычный список, и создаём мы её так:\n\n" +
-        "```\ndp = [0] * (n + 1)\n```\n\n" +
-        "Если список из одного элемента умножить на целое число, получится список, в котором этот элемент повторён столько раз: `[0] * 4` — это `[0, 0, 0, 0]`. Длину берём `n + 1`, потому что нам нужны ячейки с номерами от 0 до n, а их ровно n + 1.\n\n" +
+        "Сегодня мы посчитаем те же ответы по одному разу и запишем их в таблицу. Таблица — это обычный `vector`, и создаём мы её так:\n\n" +
+        "```\nvector<long long> dp(n + 1, 0);\n```\n\n" +
+        "Два числа в скобках говорят о разном: первое — сколько ячеек, второе — какое начальное значение сразу записать в каждую. Длину берём `n + 1`, потому что нам нужны ячейки с номерами от 0 до n, а их ровно n + 1. C++ заполнит такой `vector` нулями и без второго числа, но ноль всё равно пиши: тогда начальное состояние таблицы видно прямо в коде.\n\n" +
+        "Почему тип `long long`, а не `int`? Потому что числа в таблице растут быстро. Для лестницы из 80 ступенек количество способов равно 37 889 062 373 143 906, а `int` считает только до 2 147 483 647. Переполнившийся `int` не останавливается с ошибкой — он молча выдаёт отрицательное или вовсе постороннее число, и программа спокойно работает дальше. `long long` в сентябре вводили именно для этого: если заранее известно, что ответ большой, сразу делай таблицу из `long long`.\n\n" +
         "Главное здесь не числа, а смысл. Каждая ячейка таблицы — это ответ на один меньший вопрос, и этот вопрос нужно уметь назвать одним предложением. Например: «dp[i] — количество способов подняться с земли на ступеньку i». Проговори это предложение до того, как сядешь за код. Если оно не проговаривается, заполнять таблицу рано: ты ещё не знаешь, какое число в неё записываешь.",
     },
     code:
-      "n = 5\n" +
-      "dp = [0] * (n + 1)\n" +
-      "print(len(dp))\n" +
-      "dp[0] = 1\n" +
-      "print(dp)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 5;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    cout << dp.size() << endl;\n" +
+      "    dp[0] = 1;\n" +
+      "    cout << dp[0] << \" \" << dp[1] << \" \" << dp[5];\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -214,6 +249,10 @@ export const M8_L3: LessonBlock[] = [
      * being filled left to right and leaves the move from «алты жол» to «бір
      * цикл» to b9, which is the task. A looping worked example would have put
      * b9's answer on screen six cards before asking for it.
+     *
+     * The table is `long long` even though 13 fits in a thumbnail, because the
+     * type is a property of the QUESTION — a count of routes up a staircase —
+     * and not of the particular n on this card.
      */
     id: "m8.l3.b3",
     type: "worked_example",
@@ -246,8 +285,8 @@ export const M8_L3: LessonBlock[] = [
         ru: "Заполняем, строго слева направо: `dp[2] = 1 + 1 = 2`, `dp[3] = 2 + 1 = 3`, `dp[4] = 3 + 2 = 5`, `dp[5] = 5 + 3 = 8`, `dp[6] = 8 + 5 = 13`. Почему именно такой порядок? Каждая ячейка смотрит только на две ячейки СЛЕВА от себя, а значит, к моменту её заполнения обе уже записаны.",
       },
       {
-        kk: "Бағдарлама. Кестеде жеті ұяшық бар, бағдарламада да жеті жол: әр жол — кестенің бір ұяшығы, ешқандай цикл жоқ, өйткені n алдын ала белгілі, ол — 6. Егер n енгізуден келсе, ереже бойынша толтырылатын жолдарды бір циклге жинауға тура келеді, ал циклдің қай ұяшықтан басталатынын өзің шешесің. Ол — келесі тапсырмалардың жұмысы.",
-        ru: "Программа. В таблице семь ячеек, и в программе семь строк: каждая строка — одна ячейка таблицы, никакого цикла нет, ведь n известно заранее и равно 6. Если же n придёт с ввода, строки, которые заполняются по правилу, придётся собрать в один цикл, и с какой ячейки этот цикл начинается, решать будешь ты. Это работа следующих заданий.",
+        kk: "Бағдарлама. Кестеде жеті ұяшық бар, оларды толтыратын да жеті жол: әр жол — кестенің бір ұяшығы, ешқандай цикл жоқ, өйткені n алдын ала белгілі, ол — 6. Кестенің түрі — `long long`: бұл жердегі 13 үшін артық сияқты, бірақ түрді біз белгілі бір n үшін емес, сұрақтың өзі үшін таңдаймыз, ал баспалдақтың жауабы n өскенде тез өседі. Егер n енгізуден келсе, ереже бойынша толтырылатын жолдарды бір циклге жинауға тура келеді, ал циклдің қай ұяшықтан басталатынын өзің шешесің. Ол — келесі тапсырмалардың жұмысы.",
+        ru: "Программа. В таблице семь ячеек, и заполняют их семь строк: каждая строка — одна ячейка таблицы, никакого цикла нет, ведь n известно заранее и равно 6. Тип таблицы — `long long`: для числа 13 это кажется избыточным, но тип мы выбираем не под конкретное n, а под сам вопрос, а ответ для лестницы с ростом n растёт быстро. Если же n придёт с ввода, строки, которые заполняются по правилу, придётся собрать в один цикл, и с какой ячейки этот цикл начинается, решать будешь ты. Это работа следующих заданий.",
       },
       {
         kk: "Ақпанмен салыстыр. Сол есепті шешкен рекурсия `climb(4)` мен `climb(3)`-ті бірнеше рет қайта есептеген; мұндағы кесте әр ұяшыққа бір-ақ рет сан жазады да, оны сол жерде сақтап тұрады. Жұмыс көлемі баспалдақтың биіктігіне тең — сатылар қанша болса, соншама қосу.",
@@ -255,18 +294,28 @@ export const M8_L3: LessonBlock[] = [
       },
     ],
     code:
-      "dp = [0] * 7\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "dp[2] = dp[1] + dp[0]\n" +
-      "dp[3] = dp[2] + dp[1]\n" +
-      "dp[4] = dp[3] + dp[2]\n" +
-      "dp[5] = dp[4] + dp[3]\n" +
-      "dp[6] = dp[5] + dp[4]\n" +
-      "print(dp)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<long long> dp(7, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    dp[2] = dp[1] + dp[0];\n" +
+      "    dp[3] = dp[2] + dp[1];\n" +
+      "    dp[4] = dp[3] + dp[2];\n" +
+      "    dp[5] = dp[4] + dp[3];\n" +
+      "    dp[6] = dp[5] + dp[4];\n" +
+      "    for (int i = 0; i <= 6; i++) {\n" +
+      "        cout << dp[i] << \" \";\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
+    stdin: "",
     result: {
-      kk: "Бағдарлама `[1, 1, 2, 3, 5, 8, 13]` шығарады — бұл толық кесте, dp[0]-ден dp[6]-ға дейін. Есептің жауабы — соңғы ұяшық: 6 сатыға көтерілудің 13 түрлі жолы бар.",
-      ru: "Программа выводит `[1, 1, 2, 3, 5, 8, 13]` — это вся таблица целиком, от dp[0] до dp[6]. Ответ задачи — последняя ячейка: подняться на 6 ступенек можно 13 разными способами.",
+      kk: "Бағдарлама `1 1 2 3 5 8 13` шығарады — бұл толық кесте, dp[0]-ден dp[6]-ға дейін. Есептің жауабы — соңғы ұяшық: 6 сатыға көтерілудің 13 түрлі жолы бар.",
+      ru: "Программа выводит `1 1 2 3 5 8 13` — это вся таблица целиком, от dp[0] до dp[6]. Ответ задачи — последняя ячейка: подняться на 6 ступенек можно 13 разными способами.",
     },
   },
   {
@@ -356,12 +405,20 @@ export const M8_L3: LessonBlock[] = [
       ru: "Здесь нет никакой лестницы: в программе записаны только правило и два начальных значения, больше ничего. Заполни таблицу на бумаге слева направо — dp[2], потом dp[3], потом dp[4]. Что выведет программа?",
     },
     code:
-      "dp = [0] * 5\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "for i in range(2, 5):\n" +
-      "    dp[i] = 2 * dp[i - 1] + dp[i - 2]\n" +
-      "print(dp[4])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<long long> dp(5, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    for (int i = 2; i <= 4; i++) {\n" +
+      "        dp[i] = 2 * dp[i - 1] + dp[i - 2];\n" +
+      "    }\n" +
+      "    cout << dp[4];\n" +
+      "    return 0;\n" +
+      "}",
     answer: "17",
     options: ["17", "11", "7", "5"],
     diagnosticMapping: {
@@ -396,25 +453,34 @@ export const M8_L3: LessonBlock[] = [
       ru: "На лестнице 8 ступенек, за один шаг можно подняться на 1 или на 2. Но на третьей ступеньке сломана доска: наступать на неё нельзя, её можно только перешагнуть шагом на 2. `dp[i]` — количество способов подняться с земли на ступеньку i.\n\n`dp[0]` и `dp[1]` уже записаны в программе, а ты заполняешь таблицу начиная с i = 2. Каждая строка — один проход цикла: в столбец `i` запиши значение i на этом проходе, в столбец `dp[i]` — число, записанное на нём в таблицу. Особое внимание удели двум ячейкам после сломанной ступеньки.",
     },
     code:
-      "n = 8\n" +
-      "bad = 3\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "for i in range(2, n + 1):\n" +
-      "    if i == bad:\n" +
-      "        dp[i] = 0\n" +
-      "    else:\n" +
-      "        dp[i] = dp[i - 1] + dp[i - 2]\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n = 8;\n" +
+      "    int bad = 3;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    for (int i = 2; i <= n; i++) {\n" +
+      "        if (i == bad) {\n" +
+      "            dp[i] = 0;\n" +
+      "        } else {\n" +
+      "            dp[i] = dp[i - 1] + dp[i - 2];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     steps: [
-      { line: 10, vars: { i: "2", "dp[i]": "2" } },
-      { line: 8, vars: { i: "3", "dp[i]": "0" } },
-      { line: 10, vars: { i: "4", "dp[i]": "2" } },
-      { line: 10, vars: { i: "5", "dp[i]": "2" } },
-      { line: 10, vars: { i: "6", "dp[i]": "4" } },
-      { line: 10, vars: { i: "7", "dp[i]": "6" } },
-      { line: 10, vars: { i: "8", "dp[i]": "10" } },
+      { line: 15, vars: { i: "2", "dp[i]": "2" } },
+      { line: 13, vars: { i: "3", "dp[i]": "0" } },
+      { line: 15, vars: { i: "4", "dp[i]": "2" } },
+      { line: 15, vars: { i: "5", "dp[i]": "2" } },
+      { line: 15, vars: { i: "6", "dp[i]": "4" } },
+      { line: 15, vars: { i: "7", "dp[i]": "6" } },
+      { line: 15, vars: { i: "8", "dp[i]": "10" } },
     ],
   },
   {
@@ -429,43 +495,66 @@ export const M8_L3: LessonBlock[] = [
      * fix is the next write_code's answer is the defect the first adversarial
      * review found most often, and it is avoided here by construction.
      *
+     * `long long` and not `int`: at the stated n = 60 the answer is
+     * 5 582 216 355, which is past `int`. The type is not part of the bug and
+     * is identical in both halves, so the learner has one thing to find.
+     *
      * symptomInput is required: the fallback probe would run this program on
-     * `0`, `1` and other values below 3, where `dp[2] = 1` raises IndexError in
-     * BOTH versions and the two would read as behaving identically.
+     * `0`, `1` and other values below 3, where `dp[2] = 1` writes past the end
+     * of the table in BOTH versions and the two would read as behaving
+     * identically.
      */
     id: "m8.l3.b7",
     type: "find_bug",
     skillRefs: ["dp.table", "dp.core", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бұл баспалдақта бір аттағанда 1 сатыға немесе 3 сатыға көтерілуге болады — 2 сатылық аттау жоқ (3 ≤ n ≤ 60). n = 6 болғанда дұрыс жауап 6: алты бірлік аттау; бір 3 сатылық аттау мен үш бірлік аттау (3 санының орны төрт түрлі болады); және 3 + 3. Бағдарлама болса 4 шығарады. Алдымен кестені қағазда өзің толтырып шық, содан кейін бағдарламаның кестесімен салыстыр. Қате қай жолда?",
-      ru: "На этой лестнице за один шаг можно подняться на 1 ступеньку или на 3 — шага на 2 нет (3 ≤ n ≤ 60). При n = 6 верный ответ 6: шесть шагов по одной; один шаг на 3 и три шага по одной (тройка может стоять на четырёх разных местах); и 3 + 3. А программа выводит 4. Сначала заполни таблицу на бумаге сам, потом сравни её с таблицей программы. В какой строке ошибка?",
+      kk: "Бұл баспалдақта бір аттағанда 1 сатыға немесе 3 сатыға көтерілуге болады — 2 сатылық аттау жоқ (3 ≤ n ≤ 60). n = 6 болғанда дұрыс жауап 6: алты бірлік аттау; бір 3 сатылық аттау мен үш бірлік аттау (3 санының орны төрт түрлі болады); және 3 + 3. Бағдарлама болса 4 шығарады. Кесте `long long` етіп жасалған, өйткені n = 60 болғанда жауап `int`-ке сыймайды — бірақ қате онда емес. Алдымен кестені қағазда өзің толтырып шық, содан кейін бағдарламаның кестесімен салыстыр. Қате қай жолда?",
+      ru: "На этой лестнице за один шаг можно подняться на 1 ступеньку или на 3 — шага на 2 нет (3 ≤ n ≤ 60). При n = 6 верный ответ 6: шесть шагов по одной; один шаг на 3 и три шага по одной (тройка может стоять на четырёх разных местах); и 3 + 3. А программа выводит 4. Таблица сделана из `long long`, потому что при n = 60 ответ не помещается в `int`, — но ошибка не в этом. Сначала заполни таблицу на бумаге сам, потом сравни её с таблицей программы. В какой строке ошибка?",
     },
     code:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 0\n" +
-      "dp[1] = 1\n" +
-      "dp[2] = 1\n" +
-      "for i in range(3, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 3]\n" +
-      "print(dp[n])",
-    buggyLine: 3,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 0;\n" +
+      "    dp[1] = 1;\n" +
+      "    dp[2] = 1;\n" +
+      "    for (int i = 3; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 3];\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 9,
     symptomInput: "6",
     fixedCode:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "dp[2] = 1\n" +
-      "for i in range(3, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 3]\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    dp[2] = 1;\n" +
+      "    for (int i = 3; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 3];\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     diagnosticMapping: {
-      "7": {
+      "13": {
         failureClass: "searched_the_recurrence_not_the_initial_values",
         justification:
-          "7-жолдағы ереже дұрыс: i-сатыға не (i − 1)-сатыдан бір аттаумен, не (i − 3)-сатыдан үш сатылық аттаумен келеді, басқа жол жоқ. Бұл жауап оқушының қатені кестенің толтыру ережесінен ғана іздеп, ереже мүлде қолданылмайтын бастапқы ұяшықтарды тексермегенін көрсетеді.",
+          "13-жолдағы ереже дұрыс: i-сатыға не (i − 1)-сатыдан бір аттаумен, не (i − 3)-сатыдан үш сатылық аттаумен келеді, басқа жол жоқ. Бұл жауап оқушының қатені кестенің толтыру ережесінен ғана іздеп, ереже мүлде қолданылмайтын бастапқы ұяшықтарды тексермегенін көрсетеді.",
       },
     },
   },
@@ -478,9 +567,11 @@ export const M8_L3: LessonBlock[] = [
      * is the last one written above it), and the missing summand.
      *
      * The lower bound is 3 on purpose: with dp[0], dp[1] and dp[2] written out
-     * before the loop, a table of two cells would raise IndexError, and a
-     * prompt that promised n = 1 would be promising something the program does
-     * not do.
+     * before the loop, a table of two cells would be written past its end, and
+     * a prompt that promised n = 1 would be promising something the program
+     * does not do.
+     *
+     * `long long`: at n = 60 this recurrence answers 4 680 045 560 037 375.
      */
     id: "m8.l3.b8",
     type: "fill_blank",
@@ -491,14 +582,23 @@ export const M8_L3: LessonBlock[] = [
       ru: "Теперь за один шаг можно подняться на 1, 2 или 3 ступеньки (3 ≤ n ≤ 60). `dp[i]` — количество способов подняться с земли на ступеньку i. В программе пропущены три места: количество способов подняться на вторую ступеньку, номер ячейки, с которой начинается цикл, и недостающее слагаемое в правиле. Заполни все три — но сначала проговори, ответ на какой вопрос записывается в каждую ячейку.",
     },
     template:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "dp[2] = ___\n" +
-      "for i in range(___, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 2] + ___\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    dp[2] = ___;\n" +
+      "    for (int i = ___; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 2] + ___;\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     blanks: [
       { id: "f1", answer: "2" },
       { id: "f2", answer: "3" },
@@ -512,11 +612,16 @@ export const M8_L3: LessonBlock[] = [
      *
      * The requirement that cannot be checked — "use a table" — is handled by
      * option 1 of contract §4 and by nothing else: at n = 80 the February
-     * recursion needs more calls than there are seconds in a hundred million
-     * years, so the hidden `45` and `80` do the grading that a sentence in the
-     * prompt could not. The prompt warns about it in advance and, deliberately,
-     * does NOT claim that the answer has to be a list: keeping only the last
-     * two answers passes, is the same idea, and the prompt says so.
+     * recursion needs about 2·10^16 calls, and even the hidden n = 45 needs
+     * about 3·10^9, which is already past the judge's five seconds. So the
+     * hidden `45` and `80` do the grading that a sentence in the prompt could
+     * not. The prompt warns about it in advance and, deliberately, does NOT
+     * claim that the answer has to be a vector: keeping only the last two
+     * answers passes, is the same idea, and the prompt says so.
+     *
+     * The second constraint the prompt states is the type. n = 80 answers
+     * 37 889 062 373 143 906 and an `int` table prints a silently wrong number
+     * instead of failing, so the requirement is named rather than sprung.
      *
      * Nothing on any earlier card in this lesson is this program. b3 fills the
      * same staircase with six separate assignments and no loop; the loops the
@@ -530,17 +635,26 @@ export const M8_L3: LessonBlock[] = [
     pdfPage: P,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Баспалдақта n саты бар (1 ≤ n ≤ 80). Бір аттағанда 1 сатыға немесе 2 сатыға көтерілуге болады. Ең жоғарыға шығудың неше түрлі жолы бар? Екі жол әртүрлі саналады, егер аттаулар тізбегі әртүрлі болса. n = 4 болғанда жауап 5. Тек сол бір санды шығар.\n\nБұл — ақпанда рекурсиямен шешкен есептің дәл өзі, бірақ ол кезде n ең көбі 25 болатын. Енді n 80-ге дейін өседі, ал өзін-өзі шақыратын сол шешім бір жауапты қайта-қайта есептейтіндіктен, мұндай n-ге ешқашан үлгермейді — тексеру уақыты бітеді. Сондықтан әр жауапты бір рет қана есептеп, оны сақтап отыр.\n\nКодқа отырмас бұрын `dp[i]` нені білдіретінін бір сөйлеммен өзіңе айт, сосын бастапқы мәндерді жаз, сосын ережені. Кестенің орнына тек соңғы екі жауапты сақтап отырсаң да болады: бұл — сол идеяның үнемдірек түрі, тексеруші тек шыққан санды салыстырады.",
-      ru: "На лестнице n ступенек (1 ≤ n ≤ 80). За один шаг можно подняться на 1 ступеньку или на 2. Сколькими разными способами можно подняться до самого верха? Два способа считаются разными, если различается последовательность шагов. При n = 4 ответ 5. Выведи только это одно число.\n\nЭто ровно та задача, которую мы решали рекурсией в феврале, но тогда n было не больше 25. Теперь n доходит до 80, а то решение с вызовом самой себя пересчитывает один и тот же ответ снова и снова и при таком n не уложится никогда — время проверки закончится раньше. Поэтому каждый ответ нужно посчитать один раз и сохранить.\n\nПрежде чем сесть за код, проговори одним предложением, что означает `dp[i]`, потом запиши начальные значения, потом правило. Вместо таблицы можно хранить только два последних ответа: это та же идея в более экономном виде, а проверяющая программа сравнивает лишь выведенное число.",
+      kk: "Баспалдақта n саты бар (1 ≤ n ≤ 80). Бір аттағанда 1 сатыға немесе 2 сатыға көтерілуге болады. Ең жоғарыға шығудың неше түрлі жолы бар? Екі жол әртүрлі саналады, егер аттаулар тізбегі әртүрлі болса. n = 4 болғанда жауап 5. Тек сол бір санды шығар.\n\nБұл — ақпанда рекурсиямен шешкен есептің дәл өзі, бірақ ол кезде n ең көбі 25 болатын. Енді n 80-ге дейін өседі, ал өзін-өзі шақыратын сол шешім бір жауапты қайта-қайта есептейтіндіктен, мұндай n-ге ешқашан үлгермейді — тексеру уақыты бітеді. Сондықтан әр жауапты бір рет қана есептеп, оны сақтап отыр.\n\nЖәне түрге абайла: n = 80 болғанда жауап 37 889 062 373 143 906 болады, ал `int` 2 147 483 647-ден асқанда үнсіз бөтен сан береді. Сондықтан кестені де, шығаратын санды да `long long` етіп ал.\n\nКодқа отырмас бұрын `dp[i]` нені білдіретінін бір сөйлеммен өзіңе айт, сосын бастапқы мәндерді жаз, сосын ережені. Кестенің орнына тек соңғы екі жауапты сақтап отырсаң да болады: бұл — сол идеяның үнемдірек түрі, тексеруші тек шыққан санды салыстырады.",
+      ru: "На лестнице n ступенек (1 ≤ n ≤ 80). За один шаг можно подняться на 1 ступеньку или на 2. Сколькими разными способами можно подняться до самого верха? Два способа считаются разными, если различается последовательность шагов. При n = 4 ответ 5. Выведи только это одно число.\n\nЭто ровно та задача, которую мы решали рекурсией в феврале, но тогда n было не больше 25. Теперь n доходит до 80, а то решение с вызовом самой себя пересчитывает один и тот же ответ снова и снова и при таком n не уложится никогда — время проверки закончится раньше. Поэтому каждый ответ нужно посчитать один раз и сохранить.\n\nИ будь внимателен к типу: при n = 80 ответ равен 37 889 062 373 143 906, а `int` после 2 147 483 647 молча выдаёт постороннее число. Поэтому и таблицу, и выводимое число бери типа `long long`.\n\nПрежде чем сесть за код, проговори одним предложением, что означает `dp[i]`, потом запиши начальные значения, потом правило. Вместо таблицы можно хранить только два последних ответа: это та же идея в более экономном виде, а проверяющая программа сравнивает лишь выведенное число.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "for i in range(2, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 2]\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    for (int i = 2; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 2];\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4", expectedOutput: "5" },
       { input: "7", expectedOutput: "21" },
@@ -568,7 +682,9 @@ export const M8_L3: LessonBlock[] = [
      * The edit is not cosmetic. Three places have to move — the summands, the
      * cell the loop starts from, and the hand-written line above it — and the
      * hidden `1` fails any submission that leaves `dp[2] = 2` in place, because
-     * a table of two cells has no cell number 2.
+     * a table of two cells has no cell number 2. The type is already `long
+     * long` in the starting program and stays that way; the C++ trap this task
+     * carries is the out-of-range write, not the overflow.
      *
      * Its reference solution IS b9's, and that is the twin mechanism working as
      * designed: no learner is on both routes, and `tracks.test.ts` and the
@@ -580,26 +696,44 @@ export const M8_L3: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Мына бағдарлама — өзің жаңа ғана толықтырған, бір аттағанда 1, 2 немесе 3 сатыға көтерілуге болатын баспалдақ есебі. Оны 1 немесе 2 сатылық аттауға өзгерт: 3 сатылық аттау енді жоқ, қалғаны бұрынғыдай. Жаңа шектеу — 1 ≤ n ≤ 80, демек n = 1 болғанда да бағдарлама қатесіз жұмыс істеуге тиіс. `dp[i]` — жерден i-сатыға көтерілудің тәсілдер саны. n = 4 болғанда жауап 5.\n\nҮш жерді өзгертуге тура келеді: ережедегі қосылғыштар, циклдің қай ұяшықтан басталатыны және цикл алдында қолмен жазылған мәндер. Соңғысын ұмытпа: n = 1 болғанда кестеде екі-ақ ұяшық болады.",
-      ru: "Эта программа — та самая, которую ты только что дополнил: лестница, где за один шаг можно подняться на 1, 2 или 3 ступеньки. Переделай её под шаг на 1 или на 2: шага на 3 больше нет, остальное как было. Новое ограничение — 1 ≤ n ≤ 80, значит, программа должна работать без ошибки и при n = 1. `dp[i]` — количество способов подняться с земли на ступеньку i. При n = 4 ответ 5.\n\nИзменить придётся три места: слагаемые в правиле, номер ячейки, с которой начинается цикл, и значения, выписанные вручную перед циклом. Про последнее не забудь: при n = 1 в таблице всего две ячейки.",
+      kk: "Мына бағдарлама — өзің жаңа ғана толықтырған, бір аттағанда 1, 2 немесе 3 сатыға көтерілуге болатын баспалдақ есебі. Оны 1 немесе 2 сатылық аттауға өзгерт: 3 сатылық аттау енді жоқ, қалғаны бұрынғыдай. Жаңа шектеу — 1 ≤ n ≤ 80, демек n = 1 болғанда да бағдарлама қатесіз жұмыс істеуге тиіс. `dp[i]` — жерден i-сатыға көтерілудің тәсілдер саны. n = 4 болғанда жауап 5.\n\nҮш жерді өзгертуге тура келеді: ережедегі қосылғыштар, циклдің қай ұяшықтан басталатыны және цикл алдында қолмен жазылған мәндер. Соңғысын ұмытпа: n = 1 болғанда кестеде екі-ақ ұяшық болады, ал жоқ ұяшыққа жазу — C++-та ешқандай хабарламасыз бұзылу. Кестенің `long long` түрін сол күйінде қалдыр: n = 80 болғанда жауап `int`-ке сыймайды.",
+      ru: "Эта программа — та самая, которую ты только что дополнил: лестница, где за один шаг можно подняться на 1, 2 или 3 ступеньки. Переделай её под шаг на 1 или на 2: шага на 3 больше нет, остальное как было. Новое ограничение — 1 ≤ n ≤ 80, значит, программа должна работать без ошибки и при n = 1. `dp[i]` — количество способов подняться с земли на ступеньку i. При n = 4 ответ 5.\n\nИзменить придётся три места: слагаемые в правиле, номер ячейки, с которой начинается цикл, и значения, выписанные вручную перед циклом. Про последнее не забудь: при n = 1 в таблице всего две ячейки, а запись в несуществующую ячейку в C++ ломает программу вообще без сообщения. Тип таблицы `long long` оставь как есть: при n = 80 ответ не помещается в `int`.",
     },
     code:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "dp[2] = 2\n" +
-      "for i in range(3, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 2] + dp[i - 3]\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    dp[2] = 2;\n" +
+      "    for (int i = 3; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 2] + dp[i - 3];\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n = int(input())\n" +
-      "dp = [0] * (n + 1)\n" +
-      "dp[0] = 1\n" +
-      "dp[1] = 1\n" +
-      "for i in range(2, n + 1):\n" +
-      "    dp[i] = dp[i - 1] + dp[i - 2]\n" +
-      "print(dp[n])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> dp(n + 1, 0);\n" +
+      "    dp[0] = 1;\n" +
+      "    dp[1] = 1;\n" +
+      "    for (int i = 2; i <= n; i++) {\n" +
+      "        dp[i] = dp[i - 1] + dp[i - 2];\n" +
+      "    }\n" +
+      "    cout << dp[n];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "4", expectedOutput: "5" },
       { input: "7", expectedOutput: "21" },

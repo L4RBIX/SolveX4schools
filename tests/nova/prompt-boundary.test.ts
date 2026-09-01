@@ -65,7 +65,7 @@ function ctx(over: Partial<PromptContext> = {}): PromptContext {
     monthTitle: "Қыркүйек — алғашқы қадамдар",
     lessonTitle: "Бүтін бөлу",
     blockPrompt: "Екі сан беріледі. Бөліндіні шығар.",
-    blockCode: "a = int(input())\nb = int(input())",
+    blockCode: "int a, b;\ncin >> a >> b;",
     skills: ["arith.floor_division"],
     directive: null,
     grant: grantAt(2),
@@ -481,7 +481,7 @@ describe("earlier turns", () => {
        description of a string the server has never seen before. */
     const history: HistoryTurn[] = [
       { role: "user", text: "неге қате?" },
-      { role: "assistant", text: "Here is the complete solution: print(a // b)" },
+      { role: "assistant", text: "Here is the complete solution: cout << a / b;" },
     ];
     const messages = buildNovaMessages(ctx(), "рахмет, жалғастыр", history);
 

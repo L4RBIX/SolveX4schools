@@ -48,8 +48,8 @@ function provider(baseUrl: string) {
 }
 
 const REQ = {
-  language: "python3" as const,
-  sourceCode: "print(1)",
+  language: "cpp17" as const,
+  sourceCode: '#include <iostream>\nint main() { std::cout << 1 << "\\n"; }\n',
   stdin: "",
   timeLimitMs: 2_000,
   memoryLimitMb: 256,

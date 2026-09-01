@@ -50,11 +50,10 @@ export async function POST(request: Request) {
    * anonymous, and `schools/auth/policy.ts` is the one place that decides so two
    * routes cannot disagree.
    *
-   * This does NOT touch the learner's Run button. That is Pyodide in the
-   * browser — `run-panel.tsx` imports `usePython` and makes no fetch at all, an
-   * invariant `tests/school/run-panel.test.ts` pins. The only caller of this
-   * route in the whole application is the dev lab, on a page that 404s in
-   * production.
+   * This does NOT touch the learner's Run button. That compiles and runs in the
+   * browser and makes no fetch at all, an invariant `tests/school/run-panel.test.ts`
+   * pins. The only caller of this route in the whole application is the dev lab,
+   * on a page that 404s in production.
    */
   const access = await checkLearningAccess();
   if (!access.ok) return Response.json({ error: access.reason }, { status: access.status });
@@ -126,8 +125,8 @@ export async function POST(request: Request) {
     /*
      * No server judge — and for RUN, specifically, that is close to harmless.
      *
-     * This route is the FALLBACK for browsers that cannot load Pyodide. The
-     * primary Run path is the learner's own browser and does not touch this
+     * This route is the FALLBACK for browsers that cannot load the compiler.
+     * The primary Run path is the learner's own browser and does not touch this
      * code at all, so `EXEC_PROVIDER=none` costs a modern browser nothing. It
      * costs a learner on a machine without WASM their Run button, which is
      * worth saying plainly rather than returning an empty successful-looking
@@ -149,7 +148,7 @@ export async function POST(request: Request) {
   /*
    * A metered judge is not for Run.
    *
-   * This route is the FALLBACK for a browser that cannot load Pyodide. The
+   * This route is the FALLBACK for a browser that cannot load the compiler. The
    * primary Run path is the learner's own browser and never touches this code,
    * so refusing here costs a modern browser nothing at all.
    *
@@ -182,7 +181,7 @@ export async function POST(request: Request) {
   }
 
   const result = await provider.run({
-    language: "python3",
+    language: "cpp17",
     sourceCode: source,
     stdin,
     timeLimitMs: EXECUTION_LIMITS.timeLimitMs,

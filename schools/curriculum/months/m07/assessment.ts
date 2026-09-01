@@ -24,7 +24,7 @@ import type { LessonBlock } from "../../types";
  *   b3  explain                   — why that number is the shortest        2 min
  *   b4  verify · oral_explanation — what a twice-queued cell costs         2 min
  *
- * Twenty-two against a stated twenty, by the validator's own arithmetic, and
+ * Twenty-one against a stated twenty, by the validator's own arithmetic, and
  * that is the floor for this shape rather than an oversight. `unseen_problem`
  * costs a flat 12 and `manual_trace` a flat 6; the two written blocks cost two
  * minutes **per question**, and both are written with exactly one question so
@@ -34,7 +34,7 @@ import type { LessonBlock } from "../../types";
  * cell processed twice), no second coding task, and no numbered sub-questions
  * anywhere. September shipped this check at 30 minutes, November at 34,
  * December at 38 — every time because one written prompt carried four numbered
- * questions and each was a separate answer. Two minutes over with one question
+ * questions and each was a separate answer. One minute over with one question
  * per prompt is the honest end of that road, and the trace is the block that
  * absorbs it: nine cells on a 4×4 map is closer to three minutes than to six.
  *
@@ -63,31 +63,37 @@ import type { LessonBlock } from "../../types";
  * clock does not care whose fault that is.
  *
  * The brief's five required boundaries are read onto this problem's own edges:
- * an unreachable finish is a start sealed inside walls (case 2); a start
- * adjacent to the finish is a start one step from the edge (case 3); the 1×1
- * map is case 4; all walls except the start is case 5; and a maze with more
- * than one shortest route is case 6, where two routes of length three leave in
+ * an unreachable finish is a start sealed inside walls (case 5); a start
+ * adjacent to the finish is a start one step from the edge (case 6); the 1×1
+ * map is case 7; all walls except the start is case 8; and a maze with more
+ * than one shortest route is case 9, where two routes of length three leave in
  * opposite directions.
  *
  * ## The degenerate programs, and the case that kills each
  *
- * Every one of these was written out and executed against the full case set
- * before this file was written. None survives:
+ * Every one of these was written out and executed against the full case set:
  *
  *   · `min(r, c, n - 1 - r, m - 1 - c)` — the straight-line distance to the
  *     edge with the walls ignored. Dies on the VISIBLE case (says 1, answer 4),
  *     which is deliberate: a learner who guesses the geometry finds out on
  *     screen and not on a hidden case.
- *   · counting cells instead of steps — dies on cases 1, 3, 4, 6, 7, 8, 9.
+ *   · counting cells instead of steps — dies on cases 4, 6, 7, 9, 10.
  *   · a depth-first walk that returns the first way out it finds — dies on
- *     case 8, where the corridor upwards is explored first and reaches the edge
- *     after four steps while the way out to the right takes two.
- *   · diagonal neighbours — dies on cases 1, 6 and 9.
- *   · the FARTHEST edge cell instead of the nearest — dies on cases 1, 7, 8.
- *   · forgetting that the start itself can be on the edge — dies on cases 4
- *     and 7.
- *   · looking for a way out only in the top row — dies on cases 1, 8, 9.
- *   · no bounds check at all — crashes on cases 1, 4, 6 and 8.
+ *     case 11, where the corridor upwards is explored first and reaches the
+ *     edge after four steps while the way out to the right takes two.
+ *   · diagonal neighbours — dies on cases 4, 9 and 11.
+ *   · the FARTHEST edge cell instead of the nearest — dies on cases 4, 9, 11.
+ *   · forgetting that the start itself can be on the edge — dies on cases 7
+ *     and 10.
+ *   · looking for a way out only in the top row — dies on cases 4, 11, 12.
+ *
+ * A missing bounds check is deliberately absent from that list, and its absence
+ * is a fact about C++ rather than a hole in the cases. Reading `g[r - 1][c]`
+ * with `r = 0` is undefined behaviour: it may print rubbish, may crash, and may
+ * appear to work, so there is no expected output a case could pin it to. The
+ * month catches it where it is still a decision on the screen — `m7.l1.b5`,
+ * `m7.l1.b6`, `m7.l1.b7` — and `m7.l1.b11` asks the learner to say aloud what
+ * C++ does without it.
  *
  * ## What the cases cannot see, and where it is asked instead
  *
@@ -106,20 +112,21 @@ import type { LessonBlock } from "../../types";
  *
  * **The cell queued twice.** Both re-queueing variants — the mark set when a
  * cell is taken out instead of when it is put in, and the distance rewritten on
- * every arrival — were run against all nine cases and passed all nine. That is
- * not a gap in the case set, it is the fact `b4` exists to name: the defect is
- * invisible in the output, which is why it survives, and the only place to
- * catch it is a person asking. `m7.l5` teaches it; the check asks for it aloud.
+ * every arrival — were run against all of `b1`'s cases and passed every one.
+ * That is not a gap in the case set, it is the fact `b4` exists to name: the
+ * defect is invisible in the output, which is why it survives, and the only
+ * place to catch it is a person asking. `m7.l5` teaches it; the check asks for
+ * it aloud.
  *
  * ## Programs
  *
  * Two programs appear here — `b1`'s reference solution and `b2`'s traced
- * program — and they were compared, byte for byte and by script, against each
- * other and against every program in `m7/l1`–`l5` and `m7/practice`. No
- * duplicate. `b2` embeds its map as a literal and prints a distance to one
- * named cell plus the number of free cells the wave never reached, which is a
- * question no block in the month asks; it is not, and must not be, a program
- * that can be handed in as an answer to `b1`.
+ * program — and they were compared against each other and against every
+ * program in `m7/l1`–`l5` and `m7/practice`. No duplicate. `b2` embeds its map
+ * as a literal and prints a distance to one named cell plus the number of free
+ * cells the wave never reached, which is a question no block in the month asks;
+ * it is not, and must not be, a program that can be handed in as an answer to
+ * `b1`.
  *
  * ## Provenance
  *
@@ -127,9 +134,9 @@ import type { LessonBlock } from "../../types";
  * verification methods (p.6: «Бейтаныс есептер · Кодты қолмен орындау ·
  * Ауызша түсіндіру») and cite that page. `b3` carries March's own assessment
  * sentence and cites p.9. No `diagnosticMapping` anywhere: a wrong number on a
- * grid task is reachable from a missing bounds check, a mark set on exit,
- * diagonal neighbours or a misread input format, and four causes behind one
- * answer is precisely when the mapping must be left out.
+ * grid task is reachable from a mark set on exit, from diagonal neighbours,
+ * from a bounds test one too strict or from a misread input format, and four
+ * causes behind one answer is precisely when the mapping must be left out.
  *
  * ## Deliberately left out
  *
@@ -138,7 +145,7 @@ import type { LessonBlock } from "../../types";
  * because it is a re-solve weeks later and belongs to the year's later months.
  * And the route itself: `m7.l4` prints paths, this check prints a number, and
  * adding «жолды да шығар» would have bought a second coding task on a clock
- * that is already two minutes over.
+ * that is already a minute over.
  */
 export const M7_ASSESSMENT: LessonBlock[] = [
   {
@@ -162,10 +169,11 @@ export const M7_ASSESSMENT: LessonBlock[] = [
      * never violate it — an edge cell is answered and never expanded, so every
      * cell whose neighbours are read is interior. A reference that stayed in
      * range only by an argument the reader has to reconstruct is not the
-     * program to put in front of a school director, and the check is the
-     * month's convention besides (`m7.l1`).
+     * program to put in front of a school director, and in C++ the price of
+     * being wrong about that argument is undefined behaviour rather than a
+     * message. The check is the month's convention besides (`m7.l1`).
      *
-     * Nine cases, one visible. The visible one is the case that kills the
+     * Twelve cases, one visible. The visible one is the case that kills the
      * straight-line guess: the start at (1, 1) is one step from the edge in
      * geometry and four steps from a way out in the maze.
      */
@@ -194,51 +202,61 @@ export const M7_ASSESSMENT: LessonBlock[] = [
         "Если сам старт стоит на краю карты, ответ 0. Если ни до одной клетки-выхода добраться нельзя, выведи -1.",
     },
     referenceSolution:
-      "n, m = map(int, input().split())\n" +
-      "g = []\n" +
-      "for i in range(n):\n" +
-      "    g.append(input())\n" +
-      "sr, sc = map(int, input().split())\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[sr][sc] = 0\n" +
-      "qr = [sr]\n" +
-      "qc = [sc]\n" +
-      "head = 0\n" +
-      "answer = -1\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head += 1\n" +
-      "    if r == 0 or r == n - 1 or c == 0 or c == m - 1:\n" +
-      "        answer = dist[r][c]\n" +
-      "        break\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "print(answer)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, m;\n" +
+      "    cin >> n >> m;\n" +
+      "    vector<string> g(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> g[i];\n" +
+      "    }\n" +
+      "    int sr, sc;\n" +
+      "    cin >> sr >> sc;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[sr][sc] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({sr, sc});\n" +
+      "    int answer = -1;\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        if (r == 0 || r == n - 1 || c == 0 || c == m - 1) {\n" +
+      "            answer = dist[r][c];\n" +
+      "            break;\n" +
+      "        }\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << answer;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Two maps, and both are needed, because the first guard case was not
          enough. It killed a depth-first fill that used the REFERENCE's
          direction order and nothing else: the same wrong idea written with
-         `dr = [1, 0, -1, 0]` — clockwise from down, an ordinary choice — still
-         scored 10/10. A search over 32508 random maps found no single map that
-         defeats all 24 orderings, which is the real shape of the problem: for
-         any one map some ordering stumbles onto the short path first. These
-         two cover all 24 between them (22 and 16, overlapping). The month's
-         whole subject is that a wave measures distance and a walk does not,
-         and this is what it takes to hold a check to it. */
+         `dr = {1, 0, -1, 0}` — clockwise from down, an ordinary choice — still
+         scored full marks. A search over 32508 random maps found no single map
+         that defeats all 24 orderings, which is the real shape of the problem:
+         for any one map some ordering stumbles onto the short path first.
+         These two cover all 24 between them (22 and 16, overlapping). The
+         month's whole subject is that a wave measures distance and a walk does
+         not, and this is what it takes to hold a check to it. */
       { input: "5 6\n....##\n...#.#\n.....#\n#....#\n#..###\n3 3", expectedOutput: "2", hidden: true },
       { input: "6 6\n......\n#...#.\n.#..#.\n.#...#\n.#.#..\n.....#\n2 3", expectedOutput: "2", hidden: true },
 
@@ -321,48 +339,57 @@ export const M7_ASSESSMENT: LessonBlock[] = [
         "В конце запиши две строки, которые программа выведет на экран.",
     },
     code:
-      'g = ["..#.", ".#.#", "...#", "#..#"]\n' +
-      "n = 4\n" +
-      "m = 4\n" +
-      "dist = []\n" +
-      "for r in range(n):\n" +
-      "    row = []\n" +
-      "    for c in range(m):\n" +
-      "        row.append(-1)\n" +
-      "    dist.append(row)\n" +
-      "dr = [-1, 1, 0, 0]\n" +
-      "dc = [0, 0, -1, 1]\n" +
-      "dist[0][0] = 0\n" +
-      "qr = [0]\n" +
-      "qc = [0]\n" +
-      "head = 0\n" +
-      "while head < len(qr):\n" +
-      "    r = qr[head]\n" +
-      "    c = qc[head]\n" +
-      "    head += 1\n" +
-      "    for k in range(4):\n" +
-      "        nr = r + dr[k]\n" +
-      "        nc = c + dc[k]\n" +
-      "        if nr >= 0 and nr < n and nc >= 0 and nc < m:\n" +
-      '            if g[nr][nc] == "." and dist[nr][nc] == -1:\n' +
-      "                dist[nr][nc] = dist[r][c] + 1\n" +
-      "                qr.append(nr)\n" +
-      "                qc.append(nc)\n" +
-      "left = 0\n" +
-      "for r in range(n):\n" +
-      "    for c in range(m):\n" +
-      '        if g[r][c] == "." and dist[r][c] == -1:\n' +
-      "            left += 1\n" +
-      "print(dist[1][2])\n" +
-      "print(left)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <string>\n" +
+      "#include <queue>\n" +
+      "#include <utility>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<string> g = {\"..#.\", \".#.#\", \"...#\", \"#..#\"};\n" +
+      "    int n = 4;\n" +
+      "    int m = 4;\n" +
+      "    vector<vector<int>> dist(n, vector<int>(m, -1));\n" +
+      "    int dr[4] = {-1, 1, 0, 0};\n" +
+      "    int dc[4] = {0, 0, -1, 1};\n" +
+      "    dist[0][0] = 0;\n" +
+      "    queue<pair<int, int>> q;\n" +
+      "    q.push({0, 0});\n" +
+      "    while (!q.empty()) {\n" +
+      "        auto [r, c] = q.front();\n" +
+      "        q.pop();\n" +
+      "        for (int k = 0; k < 4; k++) {\n" +
+      "            int nr = r + dr[k];\n" +
+      "            int nc = c + dc[k];\n" +
+      "            if (nr >= 0 && nr < n && nc >= 0 && nc < m) {\n" +
+      "                if (g[nr][nc] == '.' && dist[nr][nc] == -1) {\n" +
+      "                    dist[nr][nc] = dist[r][c] + 1;\n" +
+      "                    q.push({nr, nc});\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int left = 0;\n" +
+      "    for (int r = 0; r < n; r++) {\n" +
+      "        for (int c = 0; c < m; c++) {\n" +
+      "            if (g[r][c] == '.' && dist[r][c] == -1) {\n" +
+      "                left = left + 1;\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << dist[1][2] << endl;\n" +
+      "    cout << left << endl;\n" +
+      "    return 0;\n" +
+      "}",
     expectedPoints: [
       {
         kk: "Қашықтықтар кестесі дұрыс толтырылған. Жоғарғы жол: (0,0) — 0, (0,1) — 1, (0,2) — қабырға, (0,3) — бос қалады. Екінші жол: (1,0) — 1, (1,1) — қабырға, (1,2) — 5, (1,3) — қабырға. Үшінші жол: (2,0) — 2, (2,1) — 3, (2,2) — 4, (2,3) — қабырға. Төртінші жол: (3,0) — қабырға, (3,1) — 4, (3,2) — 5, (3,3) — қабырға.",
         ru: "Таблица расстояний заполнена верно. Верхняя строка: (0,0) — 0, (0,1) — 1, (0,2) — стена, (0,3) — остаётся пустой. Вторая строка: (1,0) — 1, (1,1) — стена, (1,2) — 5, (1,3) — стена. Третья строка: (2,0) — 2, (2,1) — 3, (2,2) — 4, (2,3) — стена. Четвёртая строка: (3,0) — стена, (3,1) — 4, (3,2) — 5, (3,3) — стена.",
       },
       {
-        kk: "Ұяшықтар кезектен қашықтығы кемімейтін ретпен алынады: алдымен 0 қашықтықтағы (0,0), сосын 1 қашықтықтағы (1,0) мен (0,1), сосын 2 қашықтықтағы (2,0), сосын 3 қашықтықтағы (2,1), содан кейін 4 қашықтықтағы (3,1) мен (2,2), ең соңында 5 қашықтықтағы (3,2) мен (1,2). Толқын осылай қабат-қабат таралады, ал `head` тек алға жылжиды.",
-        ru: "Клетки достаются из очереди в порядке неубывания расстояния: сначала (0,0) с расстоянием 0, затем (1,0) и (0,1) с расстоянием 1, затем (2,0) с расстоянием 2, затем (2,1) с расстоянием 3, после них (3,1) и (2,2) с расстоянием 4 и в самом конце (3,2) и (1,2) с расстоянием 5. Волна расходится слоями, а `head` только движется вперёд.",
+        kk: "Ұяшықтар кезектен қашықтығы кемімейтін ретпен алынады: алдымен 0 қашықтықтағы (0,0), сосын 1 қашықтықтағы (1,0) мен (0,1), сосын 2 қашықтықтағы (2,0), сосын 3 қашықтықтағы (2,1), содан кейін 4 қашықтықтағы (3,1) мен (2,2), ең соңында 5 қашықтықтағы (3,2) мен (1,2). Толқын осылай қабат-қабат таралады, себебі кезекке салынған ұяшық одан кейін салынғандардың бәрінен бұрын шығады.",
+        ru: "Клетки достаются из очереди в порядке неубывания расстояния: сначала (0,0) с расстоянием 0, затем (1,0) и (0,1) с расстоянием 1, затем (2,0) с расстоянием 2, затем (2,1) с расстоянием 3, после них (3,1) и (2,2) с расстоянием 4 и в самом конце (3,2) и (1,2) с расстоянием 5. Волна расходится слоями именно потому, что клетка, положенная в очередь раньше, раньше из неё и выходит.",
       },
       {
         kk: "Суретте (1,2) ұяшығы бастаудан үш қадамдай көрінеді, ал оның шын қашықтығы — 5. Оған тура жол жоқ: (1,1) қабырға болғандықтан толқын төменнен, (2,0) — (2,1) — (2,2) арқылы айналып келеді. Кестеге 3 деп жазған оқушы картаның үстінен санаған, лабиринтпен жүрмеген.",
@@ -412,8 +439,8 @@ export const M7_ASSESSMENT: LessonBlock[] = [
     },
     expectedPoints: [
       {
-        kk: "Кезектегі сандар ешқашан кемімейді. Жаңа ұяшық кезекке тек k қашықтықтағы ұяшық өңделіп жатқанда қосылады, ал оның нөмірі k + 1 болады. Сондықтан k қашықтықтағы ұяшықтардың бәрі k + 1 қашықтықтағы кез келген ұяшықтан бұрын кезектен алынады. `head` тек алға жылжитындықтан, бұл рет бұзылмайды.",
-        ru: "Числа в очереди никогда не убывают. Новая клетка попадает в очередь только тогда, когда обрабатывается клетка с расстоянием k, и её номер равен k + 1. Поэтому все клетки с расстоянием k достаются из очереди раньше любой клетки с расстоянием k + 1. Поскольку `head` только движется вперёд, этот порядок не нарушается.",
+        kk: "Кезектегі сандар ешқашан кемімейді. Жаңа ұяшық кезекке тек k қашықтықтағы ұяшық өңделіп жатқанда қосылады, ал оның нөмірі k + 1 болады. Сондықтан k қашықтықтағы ұяшықтардың бәрі k + 1 қашықтықтағы кез келген ұяшықтан бұрын кезектен алынады: кезекке ерте түскен ұяшық ерте шығады.",
+        ru: "Числа в очереди никогда не убывают. Новая клетка попадает в очередь только тогда, когда обрабатывается клетка с расстоянием k, и её номер равен k + 1. Поэтому все клетки с расстоянием k достаются из очереди раньше любой клетки с расстоянием k + 1: кто попал в очередь раньше, тот раньше из неё и выйдет.",
       },
       {
         kk: "Ұяшыққа нөмір бір-ақ рет жазылады — толқын оған алғаш жеткенде. Мұны `dist[nr][nc] == -1` шарты қамтамасыз етеді: нөмір жазылған ұяшық енді ешқашан кезекке түспейді, демек оның саны — сол ұяшыққа жеткен ЕҢ БІРІНШІ жолдың ұзындығы. Ал бірінші жол — ең қысқа жол, өйткені одан қысқа жол болса, толқын оған ертерек жеткен болар еді.",
@@ -434,13 +461,13 @@ export const M7_ASSESSMENT: LessonBlock[] = [
      * «Ауызша түсіндіру» (p.6), pointed at the one defect in this month that no
      * checker can see.
      *
-     * Both re-queueing variants were written out and run against all nine of
-     * b1's cases: the mark set when a cell is taken OUT of the queue instead of
-     * when it is put in, and the distance rewritten on every arrival. Both
-     * printed the right answer on all nine. So this block is not asking the
-     * learner to find a wrong answer — it is asking them to explain a fault
-     * that leaves the output untouched, which is the only honest way to grade
-     * it and the reason `m7.l5` exists.
+     * Both re-queueing variants were written out and run against all of b1's
+     * cases: the mark set when a cell is taken OUT of the queue instead of when
+     * it is put in, and the distance rewritten on every arrival. Both printed
+     * the right answer every time. So this block is not asking the learner to
+     * find a wrong answer — it is asking them to explain a fault that leaves
+     * the output untouched, which is the only honest way to grade it and the
+     * reason `m7.l5` exists.
      *
      * One question. The marking points deliberately do NOT claim the answer
      * becomes wrong: on maps this size it does not, and telling a fourteen-
@@ -467,16 +494,16 @@ export const M7_ASSESSMENT: LessonBlock[] = [
         ru: "Ответ на экране обычно остаётся правильным: номер записывается клетке при первом попадании, и повторная копия в очереди не делает это число меньше. Именно поэтому ошибка опасна: ни один тест не падает, и найти её можно только читая код.",
       },
       {
-        kk: "Өзгеретіні — жұмыс көлемі. Ұяшық әр бос көршісі үшін бір реттен кезекке түсе алады, сондықтан кезек ұяшық санынан бірнеше есе ұзарады, ал әр көшірме кезектен қайта алынып, оның төрт көршісі қайта қаралады. 20×20 картада бұл жүздеген артық қадам; карта үлкейген сайын айырма өседі.",
-        ru: "Меняется объём работы. Клетка может попасть в очередь по одному разу за каждого свободного соседа, поэтому очередь становится в несколько раз длиннее числа клеток, и каждая копия снова достаётся из очереди, а её четыре соседа снова просматриваются. На карте 20×20 это сотни лишних шагов, и чем больше карта, тем больше разрыв.",
+        kk: "Өзгеретіні — жұмыс көлемі. Ұяшық әр бос көршісі үшін бір реттен кезекке түсе алады, сондықтан кезекке салынған ұяшықтардың саны картадағы ұяшық санынан бірнеше есе көп болады, ал әр көшірме кезектен қайта алынып, оның төрт көршісі қайта қаралады. 20×20 картада бұл жүздеген артық қадам; карта үлкейген сайын айырма өседі.",
+        ru: "Меняется объём работы. Клетка может попасть в очередь по одному разу за каждого свободного соседа, поэтому положенных в очередь клеток оказывается в несколько раз больше, чем клеток на карте, и каждая копия снова достаётся из очереди, а её четыре соседа снова просматриваются. На карте 20×20 это сотни лишних шагов, и чем больше карта, тем больше разрыв.",
       },
       {
         kk: "Ең бастысы — үшінші тапсырмадағы дәлел құлайды. Ол дәлел «әр ұяшыққа нөмір бір-ақ рет, алғаш жеткенде жазылады» дегенге сүйенеді. Ұяшық екі рет өңделсе және екінші рет оның нөмірі қайта жазылса, ол сан енді бірінші жолдың ұзындығы емес, сондықтан жауап дұрыс шыққан күнде де оның неге ең қысқа екенін дәлелдеу мүмкін емес.",
         ru: "Главное — рушится доказательство из третьего задания. Оно опирается на то, что номер записывается клетке ровно один раз, при первом попадании. Если клетка обрабатывается дважды и на втором заходе её номер переписывается, это число больше не длина первого пути, и тогда, даже когда ответ выходит верным, доказать, что он кратчайший, уже нельзя.",
       },
       {
-        kk: "Түзету — бір жол, әрі ол «қашан» деген сұрақтың жауабы: `dist[nr][nc]`-ге сан жазу мен ұяшықты кезекке қосу бір қадамда, ұяшық алғаш көрінген сәтте болуы керек. Сонда `dist[nr][nc] == -1` шарты дәл «бұл ұяшық әлі кезекте болған жоқ» дегенді білдіреді. Белгіні ұяшық кезектен алынған кезде қою — дұрыс көрінетін, бірақ дұрыс емес нұсқа.",
-        ru: "Исправление — одна строка, и это ответ на вопрос «когда»: записать число в `dist[nr][nc]` и добавить клетку в очередь нужно одним шагом, в момент, когда клетку увидели впервые. Тогда условие `dist[nr][nc] == -1` означает ровно «эта клетка ещё не была в очереди». А ставить отметку тогда, когда клетку достают из очереди, — это вариант, который выглядит правильным и таковым не является.",
+        kk: "Түзету — бір жол, әрі ол «қашан» деген сұрақтың жауабы: `dist[nr][nc]`-ге сан жазу мен ұяшықты `q.push({nr, nc})` арқылы кезекке қосу бір қадамда, ұяшық алғаш көрінген сәтте болуы керек. Сонда `dist[nr][nc] == -1` шарты дәл «бұл ұяшық әлі кезекте болған жоқ» дегенді білдіреді. Белгіні ұяшық кезектен алынған кезде қою — дұрыс көрінетін, бірақ дұрыс емес нұсқа.",
+        ru: "Исправление — одна строка, и это ответ на вопрос «когда»: записать число в `dist[nr][nc]` и добавить клетку в очередь через `q.push({nr, nc})` нужно одним шагом, в момент, когда клетку увидели впервые. Тогда условие `dist[nr][nc] == -1` означает ровно «эта клетка ещё не была в очереди». А ставить отметку тогда, когда клетку достают из очереди, — это вариант, который выглядит правильным и таковым не является.",
       },
     ],
   },

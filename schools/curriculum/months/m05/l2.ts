@@ -282,7 +282,8 @@ export const M5_L2: LessonBlock[] = [
      * already written — core and advanced in `m5.l1.b9`, support in `m5.l1.b9s`
      * — which is the only direction the contract allows a `modify_code` to run.
      * It is deliberately not byte-identical to either (`found` rather than
-     * `ans`, plain `if` rather than `elif`): an exact copy would make l1's
+     * `pos`, a bare `if` after the equality test rather than an `else if`
+     * chain): an exact copy would make l1's
      * write_code a task whose answer this card prints.
      *
      * The edit is structural rather than cosmetic — stop reporting found-ness,

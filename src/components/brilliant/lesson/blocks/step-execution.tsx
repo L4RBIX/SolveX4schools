@@ -178,10 +178,18 @@ export function buildStepProgram(
   ];
 
   return {
-    /* The same program the learner writes for themselves four blocks later at
-       m1.l3.b5, down to the variable names AND the frame around them. Stepping
+    /* Deliberately the same shape as the program the learner writes for
+       themselves three blocks later at `m1.l3.b5`: the same frame, the same
+       variable names, the same two operators in the same order. Stepping
        through one shape and then being asked for another would waste the
-       demonstration — and in C++ the frame is part of the shape. */
+       demonstration, and in C++ the frame is part of the shape.
+
+       Two differences, both on purpose. `n` and `k` are literals rather than
+       read with `cin >>`, because this block's prompt names 17 and 5 and a
+       trace cannot show a value arriving from stdin without a step for it that
+       has no label. And the two answers go on separate lines rather than
+       `m1.l3.b5`'s single space-separated line, because each press of Next has
+       to add exactly one visible thing to the output panel. */
     code: [...PROLOGUE, ...body, ...EPILOGUE].join("\n"),
     steps: [
       {
@@ -287,72 +295,105 @@ export function StepExecution({
 
       <p className="w-full text-[16px] leading-6 text-b-fg/80">{t(step.note, locale)}</p>
 
-      <div className="grid w-full items-start gap-3 sm:grid-cols-2">
-        <div className="w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] px-4 py-3">
-          <p className="mb-3 text-[14px] leading-5 text-b-fg/60">
-            {t(L.stepVariables, locale)}
-          </p>
-          {step.vars.length ? (
-            <ul className="flex flex-wrap gap-2">
-              {step.vars.map((v) => (
-                <li
-                  key={v.name}
-                  className={cn(
-                    "flex items-baseline gap-2 rounded-[8px] border-2 px-3 py-1.5",
-                    "font-b-mono text-[15px] leading-6",
-                    // The variable this line wrote is lifted, not recoloured:
-                    // green already means "correct" everywhere else in the player.
-                    v.name === step.wrote
-                      ? "border-b-fg/30 bg-b-fg/[0.06]"
-                      : "border-b-fg/10 bg-b-fg/[0.03]",
-                  )}
-                >
-                  {/* The declared type, ahead of the name, exactly as the line
-                      above declared it. Dimmed rather than coloured: it is
-                      context for the value, not a second thing to read. */}
-                  {v.type ? (
-                    <span className="text-b-fg/40">{v.type}</span>
-                  ) : null}
-                  <span className="text-b-green-2">{v.name}</span>
-                  <span className="text-b-fg/30">=</span>
-                  <span className="text-b-fg">{v.value}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[15px] leading-6 text-b-fg/40">
-              {t(L.stepNoVariables, locale)}
-            </p>
-          )}
-        </div>
+      {/*
+        Both panels grow as the trace proceeds — a variable appears, then a
+        second one, then a line of output, then another — and anything that
+        grows above the controls moves «Келесі қадам» out from under the finger
+        that is pressing it. So every step is laid out in the SAME grid cell and
+        all but the current one is hidden: the panel is as tall as its tallest
+        step from the first press, and nothing below it ever moves.
 
-        <div className="w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] pt-3">
-          <p className="px-4 pb-2 text-[14px] leading-5 text-b-fg/60">
-            {t(L.stepOutput, locale)}
-          </p>
-          <div className="m-2 mt-0 overflow-x-auto rounded-[8px] bg-[#12141a] text-[#e8ecf4] py-3">
-            <pre className="w-max min-w-full font-b-mono text-[15px] leading-[26px]">
-              <code>
-                {step.output.length ? (
-                  step.output.map((line, i) => (
-                    <span
-                      key={i}
+        This got worse before it got fixed. `int n = 17` is wider than the
+        `n = 17` the Python trace showed, wide enough that two chips wrap to a
+        second row where two Python chips did not — so the declared type, which
+        is the whole point of showing C++ variables, was buying a 46px jump
+        between step one and step two.
+      */}
+      <div className="grid w-full items-start gap-3 sm:grid-cols-2">
+        <div className="grid w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] px-4 py-3">
+          {program.steps.map((s, i) => (
+            <div
+              key={i}
+              /* Hidden from assistive technology too. The live region above
+                 already announces the step; a screen reader walking four
+                 stacked copies of the variable panel would hear the whole
+                 trace at once. */
+              aria-hidden={i !== at}
+              className={cn("col-start-1 row-start-1", i !== at && "invisible")}
+            >
+              <p className="mb-3 text-[14px] leading-5 text-b-fg/60">
+                {t(L.stepVariables, locale)}
+              </p>
+              {s.vars.length ? (
+                <ul className="flex flex-wrap gap-2">
+                  {s.vars.map((v) => (
+                    <li
+                      key={v.name}
                       className={cn(
-                        "flex px-3 text-b-green-2",
-                        step.printed && i === step.output.length - 1 && "bg-b-fg/10",
+                        "flex items-baseline gap-2 rounded-[8px] border-2 px-3 py-1.5",
+                        "font-b-mono text-[15px] leading-6",
+                        // The variable this line wrote is lifted, not recoloured:
+                        // green already means "correct" everywhere else in the player.
+                        v.name === s.wrote
+                          ? "border-b-fg/30 bg-b-fg/[0.06]"
+                          : "border-b-fg/10 bg-b-fg/[0.03]",
                       )}
                     >
-                      {line}
-                    </span>
-                  ))
-                ) : (
-                  <span className="flex px-3 text-b-fg/30">
-                    {t(L.stepNoOutput, locale)}
-                  </span>
-                )}
-              </code>
-            </pre>
-          </div>
+                      {/* The declared type, ahead of the name, exactly as the
+                          line above declared it. Dimmed rather than coloured:
+                          it is context for the value, not a second thing to
+                          read. */}
+                      {v.type ? <span className="text-b-fg/40">{v.type}</span> : null}
+                      <span className="text-b-green-2">{v.name}</span>
+                      <span className="text-b-fg/30">=</span>
+                      <span className="text-b-fg">{v.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[15px] leading-6 text-b-fg/40">
+                  {t(L.stepNoVariables, locale)}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] pt-3">
+          {program.steps.map((s, i) => (
+            <div
+              key={i}
+              aria-hidden={i !== at}
+              className={cn("col-start-1 row-start-1", i !== at && "invisible")}
+            >
+              <p className="px-4 pb-2 text-[14px] leading-5 text-b-fg/60">
+                {t(L.stepOutput, locale)}
+              </p>
+              <div className="m-2 mt-0 overflow-x-auto rounded-[8px] bg-[#12141a] text-[#e8ecf4] py-3">
+                <pre className="w-max min-w-full font-b-mono text-[15px] leading-[26px]">
+                  <code>
+                    {s.output.length ? (
+                      s.output.map((line, j) => (
+                        <span
+                          key={j}
+                          className={cn(
+                            "flex px-3 text-b-green-2",
+                            s.printed && j === s.output.length - 1 && "bg-b-fg/10",
+                          )}
+                        >
+                          {line}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="flex px-3 text-b-fg/30">
+                        {t(L.stepNoOutput, locale)}
+                      </span>
+                    )}
+                  </code>
+                </pre>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

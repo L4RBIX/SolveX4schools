@@ -81,26 +81,35 @@ const FOUR_CASES = [
   { input: "-3", expectedOutput: "9", hidden: true },
   { input: "1000", expectedOutput: "1000000", hidden: true },
 ];
-const SOLUTION = "n = int(input())\nprint(n * n)";
+const SOLUTION =
+  "#include <iostream>\nint main() { long long n; std::cin >> n; std::cout << n * n << \"\\n\"; }\n";
 
 let fake: FakePiston;
 let piston: PistonExecutionProvider;
 
-/** The fake's python3: squares whatever arrived on stdin, after a seeded delay. */
+/**
+ * The fake's judge: squares whatever arrived on stdin, after a seeded delay.
+ *
+ * `raw === ""` answers `0` rather than nothing, because that is what the
+ * program above would really do: `std::cin >> n` on empty input sets `failbit`
+ * and leaves `n` value-initialised, so a missing stdin is a running program
+ * printing zero. Modelling it as silence would make a dropped stdin look like a
+ * different failure than it is.
+ */
 function judge(next: () => number) {
   return (req: { stdin?: string }): FakeReply => {
     const raw = (req.stdin ?? "").split("\n")[0]?.trim() ?? "";
-    const n = Number(raw);
+    const n = raw === "" ? 0 : Number(raw);
     return {
       kind: "piston",
-      body: pistonRun({ stdout: raw === "" ? "" : `${n * n}\n` }),
+      body: pistonRun({ stdout: `${n * n}\n` }),
       delayMs: next(),
     };
   };
 }
 
 const REQ = {
-  language: "python3" as const,
+  language: "cpp17" as const,
   stdin: "",
   timeLimitMs: EXECUTION_LIMITS.timeLimitMs,
   memoryLimitMb: EXECUTION_LIMITS.memoryLimitMb,

@@ -39,12 +39,32 @@ import { M4_ASSESSMENT } from "./m04/assessment";
  *
  * ## What arrives this month, and why it was withheld until now
  *
- * `sorted()`, `.sort()`, `min()`, `max()`, `sum()` and `reversed()` all become
- * available here. October and November deliberately forbade them: «тізімдегі
- * максимум мен минимум» is October's traversal exercise and «максимум мен
- * минимум функциясы» is November's, and a builtin in either month deletes the
- * task. December is where the learner has already written them by hand and can
- * be told there is a shorter way.
+ * `sort(a.begin(), a.end())` from `<algorithm>` becomes available here, with
+ * its two mirror recipes: `sort(a.rbegin(), a.rend())` for descending order and
+ * the two-argument `min(x, y)` / `max(x, y)`. October and November deliberately
+ * forbade ordering: «тізімдегі максимум мен минимум» is October's traversal
+ * exercise and «максимум мен минимум функциясы» is November's, and a library
+ * call in either month deletes the task. December is where the learner has
+ * already written them by hand and can be told there is a shorter way.
+ *
+ * There is no whole-list `sum` or `max` to hand over, and that is a decision
+ * rather than an omission: `*max_element(v.begin(), v.end())` needs an iterator
+ * and a dereference, both of which `docs/cpp17/CPP17_PEDAGOGY.md` puts outside
+ * Year 1. Those stay the loops October and November taught, which suits a month
+ * about step counts — the cost is visible in the code instead of hidden behind
+ * a call.
+ *
+ * ## The number every claim in this month rests on, and its C++ value
+ *
+ * `m4.l1.b1` states it once: a C++ program manages roughly **10⁸ simple steps a
+ * second**. The Python course reasoned with 10⁷, and carrying that figure over
+ * would have made this month assert that programs are too slow when they finish
+ * in thirty milliseconds. Every bound, every «үлгере ме?» verdict and every
+ * «үлгермейтін мысал» in `m04/` was re-derived from the new figure, and each is
+ * built to hold whether the machine turns out to be ten times faster or ten
+ * times slower — no task in the month decides a verdict between 10⁸ and 10⁹
+ * steps. The individual recalibrations are recorded in the head comment of the
+ * lesson file that owns them.
  */
 
 const P = 8; // PDF page for all of December

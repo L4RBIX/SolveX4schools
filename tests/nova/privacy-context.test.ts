@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MONTHS } from "@schools/curriculum/months";
 import { capabilityFor } from "@schools/curriculum/capability";
 import { buildNovaMessages, buildSystemPrompt } from "@schools/nova/prompt";
+import { CPP17_FRAME } from "@schools/nova/cpp17";
 import type { LessonBlock, Locale } from "@schools/curriculum/types";
 import type { GrantDecision } from "@solvex/nova-core";
 
@@ -95,10 +96,21 @@ describe("the context object has nowhere to put another learner", () => {
       "blockPrompt",
       "blockCode",
       "skills",
+      /* Where in the nine months the task sits. Added with the C++17 sequence
+         gate, and it is a position in the CURRICULUM — `m1.l7.b4` — not a
+         person. It carries nothing about who is asking. */
+      "blockId",
       "directive",
       "grant",
       "capability",
       "briefOffTopic",
+      /* Both already existed and neither was listed, so the two `Exclude`
+         assertions below were vacuously satisfied and this list had stopped
+         being the review gate it is here to be. Listed now: `execution` is
+         where the code ran, `context` is what the ledger proves. Both are about
+         the learner's own work and neither can name anybody else. */
+      "execution",
+      "context",
     ] as const;
 
     type Allowed = (typeof allowed)[number];
@@ -110,7 +122,7 @@ describe("the context object has nowhere to put another learner", () => {
     const extra: Exclude<Allowed, Actual>[] = [];
     expect(missing).toEqual([]);
     expect(extra).toEqual([]);
-    expect(allowed).toHaveLength(10);
+    expect(allowed).toHaveLength(13);
   });
 });
 
@@ -200,12 +212,24 @@ describe("no judge secret reaches the model, for any block, level or language", 
              would pass the whole-string check while handing over the answer,
              and `blockCode` — the authored starter — is a legitimate reason for
              SOME lines to appear. So the test is on the lines that carry the
-             answer: those the starter does not already contain. */
+             answer: those the starter does not already contain.
+
+             The frame is excluded on the same principle, and C++ is the reason
+             it had to be said out loud. `#include <iostream>`, `using namespace
+             std;` and `int main() {` are in EVERY reference solution in the
+             month and in every program on the learner's screen — the pedagogy
+             gives the frame to them already written and does not require them
+             to produce it until lesson 7. A block with no starter therefore
+             made three lines of shared ceremony look like a leaked answer.
+
+             Taken from `CPP17_FRAME` rather than retyped, so a frame that
+             changes shape cannot leave this filter matching the old one. */
           const starter = (s.block as LessonBlock & { code?: string }).code ?? "";
+          const given = new Set(CPP17_FRAME.split("\n").map((l) => l.trim()));
           const answerLines = ref
             .split("\n")
             .map((l) => l.trim())
-            .filter((l) => l.length >= 12 && !starter.includes(l));
+            .filter((l) => l.length >= 12 && !starter.includes(l) && !given.has(l));
           const prompt = promptFor(s, locale, level);
           for (const line of answerLines) {
             if (prompt.includes(line)) {

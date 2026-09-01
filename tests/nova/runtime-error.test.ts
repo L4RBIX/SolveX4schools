@@ -10,25 +10,33 @@ import { executionContextFor } from "@schools/nova/execution-context";
 import type { GrantDecision } from "@solvex/nova-core";
 
 /**
- * «Почему ошибка?», asked about a traceback that was never written down.
+ * «Почему ошибка?», asked about a diagnostic that was never written down.
  *
  * ## The screenshot this exists for
  *
- * A learner types a name that does not exist, presses Run, and their own
- * browser prints:
+ * A learner mistypes a name, presses Run, and their own browser prints:
  *
- *     NameError: name 'ташгук' is not defined
+ *     main.cpp:5:13: error: use of undeclared identifier 'ташгуk'
  *
  * They ask Nova why. Nova asks them what error they are seeing.
  *
+ * ## What C++ changed about it, and why it got worse
+ *
+ * The Python version of this screenshot was a `NameError` at RUN time, in a
+ * traceback whose last line named the problem in a word a learner could look
+ * up. The C++ version is a COMPILE failure: nothing ran, there is no output to
+ * reason about, the message is a paragraph of English, and the learner reads
+ * Kazakh. The diagnostic is now the only evidence there is — which makes the
+ * property this file defends more load-bearing than it was, not less.
+ *
  * ## Why the previous phase could not have caught this
  *
- * The Nova phase forked before the Pyodide run panel existed, so the branch
+ * The Nova phase forked before the in-browser run panel existed, so the branch
  * that fixed "Nova cannot see the screen" had no Run button to be blind to.
  * Its context builder reads the LEDGER, and a local run is deliberately not in
  * the ledger: `run_executed` is written with a scrubbed payload that carries no
  * streams, because an event stored forever must not carry a child's program
- * output. Correct — and it meant the traceback existed only inside a
+ * output. Correct — and it meant the diagnostic existed only inside a
  * `useState` in `run-panel.tsx` and died when the component unmounted.
  *
  * Meanwhile the shared tree's route already accepted a `lastRun` body field and
@@ -38,8 +46,8 @@ import type { GrantDecision } from "@solvex/nova-core";
  *
  * Not wording — the model's sentences are not a stable thing to pin. What is
  * asserted is that the learner's own code, their own stderr, and the fact that
- * it was a runtime error all reach the payload, and that the prompt explicitly
- * tells the model not to ask for any of it back.
+ * the program did not build at all reach the payload, and that the prompt
+ * explicitly tells the model not to ask for any of it back.
  */
 
 let sql: PgliteExecutor;
@@ -58,12 +66,20 @@ afterAll(async () => await sql?.close());
 /** A block with an editor, so a Run is a thing that can have happened on it. */
 const CODE_BLOCK = "m1.l1.b5";
 
-/** The learner's program, and what CPython said about it in their own browser. */
-const LEARNER_CODE = 'ташгук = 5\nprint(ташгуk)\n';
-const TRACEBACK = [
-  "Traceback (most recent call last):",
-  '  File "<stdin>", line 2, in <module>',
-  "NameError: name 'ташгуk' is not defined",
+/**
+ * The learner's program, and what Clang said about it in their own browser.
+ *
+ * The Kazakh identifier is the point of the fixture and not decoration: the
+ * browser runtime had three separate encoding defects that only showed up on
+ * non-Latin source, and a diagnostic quoting a Kazakh name back is exactly the
+ * shape that broke. Keeping it here keeps that regression testable.
+ */
+const LEARNER_CODE = "int ташгук = 5;\ncout << ташгуk;\n";
+const DIAGNOSTIC = [
+  "main.cpp:5:13: error: use of undeclared identifier 'ташгуk'",
+  "    5 |     cout << ташгуk;",
+  "      |             ^",
+  "1 error generated.",
 ].join("\n");
 
 const grant = (granted: number, mayIncludeCode = false): GrantDecision => ({
@@ -99,9 +115,12 @@ async function payloadFor(opts: { locale: "kk" | "ru"; question: string }) {
   /* And what their program printed, exactly as `nova-chat.tsx` now posts it. */
   const execution = executionContextFor({
     reported: {
-      status: "runtime_error",
+      /* A compile failure, which is what this now is. Nothing ran, so there is
+         no stdout to speak of — and `syntax_error` is the status the browser
+         worker reports for both compile and link failures. */
+      status: "syntax_error",
       stdout: "",
-      stderr: TRACEBACK,
+      stderr: DIAGNOSTIC,
       truncated: false,
     },
     events: [],
@@ -132,26 +151,42 @@ async function payloadFor(opts: { locale: "kk" | "ru"; question: string }) {
   };
 }
 
-describe("a NameError the learner can see and Nova used to have to ask about", () => {
+describe("a diagnostic the learner can see and Nova used to have to ask about", () => {
   it("carries the learner's current code and their own stderr to the model", async () => {
     const { user } = await payloadFor({ locale: "ru", question: "Почему ошибка?" });
 
     /* The editor's contents — not the starter code. This is the field the
        previous phase shipped without and said so. */
-    expect(user).toContain("ташгук = 5");
-    /* The traceback, verbatim enough to be reasoned about. */
-    expect(user).toContain("NameError");
+    expect(user).toContain("int ташгук = 5;");
+    /* The diagnostic, verbatim enough to be reasoned about — including the
+       Kazakh identifier the compiler quoted back. */
+    expect(user).toContain("use of undeclared identifier");
     expect(user).toContain("ташгуk");
   });
 
-  it("tells the model where the code ran, and that a runtime error is what happened", async () => {
+  it("tells the model where the code ran, and that it never compiled", async () => {
     const { system } = await payloadFor({ locale: "ru", question: "Почему ошибка?" });
     expect(system).toContain("EXECUTION STATE");
     /* The status is rendered as a sentence rather than as the enum name — the
        model is being told what happened, not handed a symbol. Asserting the
-       phrase keeps this pinned to the meaning instead of to the spelling. */
-    expect(system).toContain("crashed part-way through");
+       phrase keeps this pinned to the meaning instead of to the spelling.
+
+       "It did not compile" and "it crashed" are different conversations, and
+       telling a learner their program crashed when it never started is the
+       C++-shaped version of the defect this file exists for. */
+    expect(system).toContain("IT DID NOT COMPILE");
+    expect(system).not.toContain("crashed part-way through");
     expect(system).toContain("IN THEIR OWN BROWSER");
+  });
+
+  it("explains what the diagnostic means, without repeating it in the trusted half", async () => {
+    /* The new job. The learner cannot read the English; the family it belongs
+       to is what lets Nova translate it rather than paraphrase it. */
+    const { system } = await payloadFor({ locale: "kk", question: "Неге қате?" });
+    expect(system).toContain("THE COMPILER SAID SOMETHING");
+    expect(system).toContain("Scope is the cause a beginner");
+    /* The diagnostic's own text stays in the fenced half. */
+    expect(system).not.toContain("ташгуk");
   });
 
   it("names the error message among the things it must not ask the learner for", async () => {
@@ -176,8 +211,10 @@ describe("a NameError the learner can see and Nova used to have to ask about", (
     const kk = await payloadFor({ locale: "kk", question: "Неге қате?" });
 
     for (const half of ["system", "user"] as const) {
-      expect(kk[half].includes("NameError")).toBe(ru[half].includes("NameError"));
-      expect(kk[half].includes("ташгук = 5")).toBe(ru[half].includes("ташгук = 5"));
+      expect(kk[half].includes("use of undeclared identifier")).toBe(
+        ru[half].includes("use of undeclared identifier"),
+      );
+      expect(kk[half].includes("int ташгук = 5;")).toBe(ru[half].includes("int ташгук = 5;"));
     }
     expect(kk.system).toContain("BEFORE YOU ANSWER");
     expect(kk.system).toContain("the error message");
@@ -224,6 +261,6 @@ describe("a NameError the learner can see and Nova used to have to ask about", (
        fence may carry — that sentence is documentation and is always there. */
     expect(all).not.toContain('kind="program_stderr"');
     /* Their code is still there — the draft does not depend on a run. */
-    expect(all).toContain("ташгук = 5");
+    expect(all).toContain("int ташгук = 5;");
   });
 });

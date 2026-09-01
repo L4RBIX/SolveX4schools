@@ -120,7 +120,7 @@ import type { LessonBlock } from "../../types";
  *
  * ## What is deliberately absent
  *
- * No `import`, here or anywhere in January — least of all `bisect`, which would
+ * No `lower_bound`, here or anywhere in January — that one call would
  * delete the month. No `set` and no `dict` anywhere in the year, so nothing
  * below leans on one. And no `in` on a list in any of the search tasks:
  * `x in a` answers «тізімде сан бар ма» in one token and would delete p1 and
@@ -163,23 +163,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке даны два числа: n — количество чисел в списке и q — количество вопросов (1 ≤ n ≤ 200000, 1 ≤ q ≤ 200000). Во второй строке стоят n целых чисел, отсортированных по возрастанию; одинаковые числа встречаться могут, а сортировать ничего не нужно — список приходит уже упорядоченным. В третьей строке стоят q чисел, каждое из них — отдельный вопрос. На каждый вопрос выведи ответ в отдельной строке: английское слово `yes`, если такое число есть в списке, и `no`, если его нет; больше ничего выводить не нужно. Например, при n = 5, q = 3, списке `2 5 9 14 20` и вопросах `9 3 20` на экран выйдут три строки: `yes`, `no`, `yes`.\n\nСовет: список отсортирован, поэтому отвечай на каждый вопрос, отбрасывая половину интервала поиска. Если для каждого вопроса просматривать весь список подряд, на самом большом вводе получится 200000 × 200000 сравнений. Проверяющая система сравнивает только выведенные слова и метода не видит — так что это совет, а не правило; но на настоящем соревновании полный просмотр такого списка по времени не проходит.",
     },
     referenceSolution:
-      "n, q = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "qs = list(map(int, input().split()))\n" +
-      "for x in qs:\n" +
-      "    left = 0\n" +
-      "    right = n - 1\n" +
-      '    ans = "no"\n' +
-      "    while left <= right:\n" +
-      "        mid = (left + right) // 2\n" +
-      "        if a[mid] == x:\n" +
-      '            ans = "yes"\n' +
-      "            break\n" +
-      "        elif a[mid] < x:\n" +
-      "            left = mid + 1\n" +
-      "        else:\n" +
-      "            right = mid - 1\n" +
-      "    print(ans)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, q;\n    cin >> n >> q;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    for (int t = 0; t < q; t++) {\n        int x;\n        cin >> x;\n        int left = 0;\n        int right = n - 1;\n        int found = 0;\n        while (left <= right) {\n            int mid = left + (right - left) / 2;\n            if (a[mid] == x) {\n                found = 1;\n                break;\n            } else if (a[mid] < x) {\n                left = mid + 1;\n            } else {\n                right = mid - 1;\n            }\n        }\n        if (found == 1) {\n            cout << \"yes\" << endl;\n        } else {\n            cout << \"no\" << endl;\n        }\n    }\n    return 0;\n}",
     /* The prompt promises one answer per line, so the comparison has to be the
        one the prompt promised. The first case is visible and carries the shape. */
     checker: { kind: "exact" },
@@ -246,33 +230,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано n (1 ≤ n ≤ 200000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа могут стоять рядом), в третьей — число x. Список приходит уже упорядоченным, сортировать его не нужно. В зависимости от того, сколько раз x встречается в списке, выведи ровно одно английское слово: `no`, если не встречается вовсе, `one`, если встречается ровно один раз, и `many`, если два раза или больше. Например, для списка `1 3 3 3 8 8 10` при x = 5 выйдет `no`, при x = 10 — `one`, при x = 3 — `many`.\n\nСовет: одинаковые числа стоят рядом, поэтому и позицию первого вхождения x, и позицию первого числа, большего x, можно найти делением интервала пополам — расстояние между ними и говорит, сколько раз встретился x.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "x = int(input())\n" +
-      "left = 0\n" +
-      "right = n\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if a[mid] < x:\n" +
-      "        left = mid + 1\n" +
-      "    else:\n" +
-      "        right = mid\n" +
-      "lo = left\n" +
-      "left = 0\n" +
-      "right = n\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if a[mid] <= x:\n" +
-      "        left = mid + 1\n" +
-      "    else:\n" +
-      "        right = mid\n" +
-      "cnt = left - lo\n" +
-      "if cnt == 0:\n" +
-      '    print("no")\n' +
-      "elif cnt == 1:\n" +
-      '    print("one")\n' +
-      "else:\n" +
-      '    print("many")',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n;\n    while (left < right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid;\n        }\n    }\n    int lo = left;\n    left = 0;\n    right = n;\n    while (left < right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] <= x) {\n            left = mid + 1;\n        } else {\n            right = mid;\n        }\n    }\n    int cnt = left - lo;\n    if (cnt == 0) {\n        cout << \"no\";\n    } else if (cnt == 1) {\n        cout << \"one\";\n    } else {\n        cout << \"many\";\n    }\n    return 0;\n}",
     cases: [
       { input: "7\n1 3 3 3 8 8 10\n3", expectedOutput: "many" },
       { input: "7\n1 3 3 3 8 8 10\n5", expectedOutput: "no" },
@@ -311,12 +269,12 @@ export const M5_PRACTICE: LessonBlock[] = [
      *
      * The wrong programs, and the case that kills each:
      *   prints the list unchanged        → every case;
-     *   always appends x at the end      → case 2 (x below everything);
+     *   always puts x at the end          → case 2 (x below everything);
      *   always puts x at the front       → case 3 (x above everything);
      *   an off-by-one position           → case 1, which prints `1 3 5 4 7`;
      *   `right = n - 1` with `while left < right`, which cannot reach the end →
      *                                      cases 3 and 7, where the position is n.
-     * Sorting the list with x appended is CORRECT and no case separates it, so
+     * Pushing x onto the end and sorting is CORRECT and no case separates it, so
      * the prompt says so plainly instead of forbidding it — option 2.
      */
     id: "m5.p3",
@@ -329,19 +287,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано n (1 ≤ n ≤ 200000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа встречаться могут), в третьей — число x. Поставь x на своё место в списке и выведи получившиеся n + 1 чисел в одну строку через пробел: результат тоже должен идти по возрастанию. Например, для списка `1 3 5 7` и x = 4 ответ `1 3 4 5 7`. Если x меньше всех чисел, он встанет первым; если больше всех — последним.\n\nСмысл упражнения в том, чтобы найти место делением интервала пополам: количество чисел, строго меньших x, — это и есть его место. Если приписать x в конец списка и отсортировать всё заново, строка получится верной, а проверяющая система сравнивает только её, — но тогда исчезнет само упражнение.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "x = int(input())\n" +
-      "left = 0\n" +
-      "right = n\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if a[mid] < x:\n" +
-      "        left = mid + 1\n" +
-      "    else:\n" +
-      "        right = mid\n" +
-      "res = a[:left] + [x] + a[left:]\n" +
-      'print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n;\n    while (left < right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid;\n        }\n    }\n    vector<int> res;\n    for (int i = 0; i < left; i++) {\n        res.push_back(a[i]);\n    }\n    res.push_back(x);\n    for (int i = left; i < n; i++) {\n        res.push_back(a[i]);\n    }\n    for (int i = 0; i < (int)res.size(); i++) {\n        if (i > 0) {\n            cout << \" \";\n        }\n        cout << res[i];\n    }\n    return 0;\n}",
     /* The prompt promises one line with single spaces, so the checker enforces
        the layout the prompt promised. Both visible cases carry the shape. */
     checker: { kind: "exact" },
@@ -400,23 +346,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано n (1 ≤ n ≤ 200000), во второй — n целых чисел. Внимание: на этот раз числа идут в ПРОИЗВОЛЬНОМ порядке, они не отсортированы — сначала упорядочить их придётся самому, иначе деление интервала пополам не имеет смысла. В третьей строке даны две границы промежутка: l и r (l ≤ r). Выведи, сколько чисел попадает в промежуток [l, r], то есть не меньше l и не больше r. Числа, равные самим границам, тоже считаются. Например, если числа `8 1 3 3 5`, а l = 3 и r = 5, то отсортированный список — `1 3 3 5 8`, в промежуток попадают 3, 3 и 5, поэтому ответ 3.\n\nСовет: после сортировки ответ можно получить как разность двух поисков — из позиции первого числа, большего r, вычесть позицию первого числа, не меньшего l.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "l, r = map(int, input().split())\n" +
-      "a.sort()\n" +
-      "\n" +
-      "def first_at_least(v):\n" +
-      "    left = 0\n" +
-      "    right = n\n" +
-      "    while left < right:\n" +
-      "        mid = (left + right) // 2\n" +
-      "        if a[mid] < v:\n" +
-      "            left = mid + 1\n" +
-      "        else:\n" +
-      "            right = mid\n" +
-      "    return left\n" +
-      "\n" +
-      "print(first_at_least(r + 1) - first_at_least(l))",
+"#include <algorithm>\n#include <iostream>\n#include <vector>\nusing namespace std;\n\nint countBelow(vector<int>& a, int n, int v) {\n    int lo = 0;\n    int hi = n;\n    while (lo < hi) {\n        int mid = lo + (hi - lo) / 2;\n        if (a[mid] < v) {\n            lo = mid + 1;\n        } else {\n            hi = mid;\n        }\n    }\n    return lo;\n}\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int l, r;\n    cin >> l >> r;\n    sort(a.begin(), a.end());\n    cout << countBelow(a, n, r + 1) - countBelow(a, n, l);\n    return 0;\n}",
     cases: [
       { input: "5\n8 1 3 3 5\n3 5", expectedOutput: "3" },
       { input: "5\n8 1 3 3 5\n9 100", expectedOutput: "0" },
@@ -471,26 +401,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано n (2 ≤ n ≤ 200000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа встречаться могут), в третьей — число s. Нужно выбрать два числа, стоящие на разных позициях, так, чтобы их сумма не превышала s. Выведи наибольшую такую сумму. Если ни одна пара не укладывается в s, выведи английское слово `none`. Одно и то же число с одной позиции брать дважды нельзя: пара собирается с двух разных позиций. Например, для списка `1 3 4 9` и s = 8 ответ равен 7, то есть 3 + 4: сумма 4 + 9 = 13 слишком велика, а складывать 4 с самой собой нельзя.\n\nСовет: список отсортирован, поэтому задача решается за один проход двумя указателями — один идёт с начала, другой с конца. Если сумма превысила s, правое число не подойдёт ни к одной паре; если уложилась, лучшего партнёра для левого числа уже не найдётся.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = n - 1\n" +
-      "best = 0\n" +
-      "found = 0\n" +
-      "while left < right:\n" +
-      "    t = a[left] + a[right]\n" +
-      "    if t <= s:\n" +
-      "        if found == 0 or t > best:\n" +
-      "            best = t\n" +
-      "            found = 1\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "if found == 1:\n" +
-      "    print(best)\n" +
-      "else:\n" +
-      '    print("none")',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = n - 1;\n    int best = 0;\n    int found = 0;\n    while (left < right) {\n        int t = a[left] + a[right];\n        if (t <= s) {\n            if (found == 0 || t > best) {\n                best = t;\n                found = 1;\n            }\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    if (found == 1) {\n        cout << best;\n    } else {\n        cout << \"none\";\n    }\n    return 0;\n}",
     cases: [
       { input: "4\n1 3 4 9\n8", expectedOutput: "7" },
       { input: "2\n5 6\n3", expectedOutput: "none" },
@@ -550,48 +461,31 @@ export const M5_PRACTICE: LessonBlock[] = [
     skillRefs: ["twopointers.core", "lists.traverse", "loops.while"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Екі жол беріледі, әрқайсысында бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір, ең көбі 200000 сан). Екі жол да қатаң өсу ретімен реттелген: бір жолдың ішінде бірдей сан екі рет кездеспейді. Екі тізімде де бар сандарды өсу ретімен, бір жолға бос орынмен бөліп шығар. Ортақ сан мүлде болмаса, ағылшынша `none` сөзін шығар. Мысалы, `1 3 5 7 9` және `3 4 5 6` үшін жауап `3 5`.\n\nКеңес: екі тізімді де бір-ақ рет қарап шығуға болады. Әр тізімге бір көрсеткіш қой да, екеуін тек алға жылжыт: әр қадамда көрсеткіштер тұрған екі санды салыстырып, қайсысын жылжыту керегін шеш.",
-      ru: "Даны две строки, в каждой — целые числа через пробел (не меньше одного и не больше 200000 чисел в строке). Обе строки отсортированы строго по возрастанию: внутри одной строки одинаковых чисел нет. Выведи в одну строку через пробел, по возрастанию, все числа, которые есть сразу в обоих списках. Если общих чисел нет вовсе, выведи английское слово `none`. Например, для `1 3 5 7 9` и `3 4 5 6` ответ `3 5`.\n\nСовет: оба списка достаточно просмотреть по одному разу. Поставь на каждый список свой указатель и двигай их только вперёд: на каждом шаге сравнивай два числа под указателями и решай, какой из них сдвинуть.",
+      kk: "Бірінші жолда екі тізімнің ұзындығы n мен m беріледі (әрқайсысы кемінде 1, ең көбі 200000), екінші жолда n сан, үшінші жолда m сан. Екі тізім де қатаң өсу ретімен реттелген: бір тізімнің ішінде бірдей сан екі рет кездеспейді. Екі тізімде де бар сандарды өсу ретімен, бір жолға бос орынмен бөліп шығар. Ортақ сан мүлде болмаса, ағылшынша `none` сөзін шығар. Мысалы, `5 4` / `1 3 5 7 9` / `3 4 5 6` үшін жауап `3 5`.\n\nКеңес: екі тізімді де бір-ақ рет қарап шығуға болады. Әр тізімге бір көрсеткіш қой да, екеуін тек алға жылжыт: әр қадамда көрсеткіштер тұрған екі санды салыстырып, қайсысын жылжыту керегін шеш.",
+      ru: "В первой строке даны длины списков n и m (каждая от 1 до 200000), во второй — n чисел, в третьей — m чисел. Оба списка отсортированы строго по возрастанию: внутри одного списка одинаковых чисел нет. Выведи в одну строку через пробел, по возрастанию, все числа, которые есть сразу в обоих списках. Если общих чисел нет вовсе, выведи английское слово `none`. Например, для `5 4` / `1 3 5 7 9` / `3 4 5 6` ответ `3 5`.\n\nСовет: оба списка достаточно просмотреть по одному разу. Поставь на каждый список свой указатель и двигай их только вперёд: на каждом шаге сравнивай два числа под указателями и решай, какой из них сдвинуть.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "res = []\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    if a[i] == b[j]:\n" +
-      "        res.append(a[i])\n" +
-      "        i += 1\n" +
-      "        j += 1\n" +
-      "    elif a[i] < b[j]:\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        j += 1\n" +
-      "if len(res) == 0:\n" +
-      '    print("none")\n' +
-      "else:\n" +
-      '    print(" ".join(map(str, res)))',
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    vector<int> res;\n    while (i < n && j < m) {\n        if (a[i] == b[j]) {\n            res.push_back(a[i]);\n            i++;\n            j++;\n        } else if (a[i] < b[j]) {\n            i++;\n        } else {\n            j++;\n        }\n    }\n    if ((int)res.size() == 0) {\n        cout << \"none\";\n    } else {\n        for (int k = 0; k < (int)res.size(); k++) {\n            if (k > 0) {\n                cout << \" \";\n            }\n            cout << res[k];\n        }\n    }\n    return 0;\n}",
     /* The prompt promises one line with single spaces; both visible cases show
        the shape, including the `none` line. */
     checker: { kind: "exact" },
     cases: [
-      { input: "1 3 5 7 9\n3 4 5 6", expectedOutput: "3 5" },
-      { input: "1 2 3\n7 8 9", expectedOutput: "none" },
+      { input: "5 4\n1 3 5 7 9\n3 4 5 6", expectedOutput: "3 5" },
+      { input: "3 3\n1 2 3\n7 8 9", expectedOutput: "none" },
       /* Identical lists: the answer is the whole of both. */
-      { input: "1 2 3\n1 2 3", expectedOutput: "1 2 3", hidden: true },
+      { input: "3 3\n1 2 3\n1 2 3", expectedOutput: "1 2 3", hidden: true },
       /* One number in each list, equal and unequal. */
-      { input: "5\n5", expectedOutput: "5", hidden: true },
-      { input: "5\n6", expectedOutput: "none", hidden: true },
+      { input: "1 1\n5\n5", expectedOutput: "5", hidden: true },
+      { input: "1 1\n5\n6", expectedOutput: "none", hidden: true },
       /* The match is the LAST number of one list, in both directions. */
-      { input: "1 2 3 4\n4", expectedOutput: "4", hidden: true },
-      { input: "4\n1 2 3 4", expectedOutput: "4", hidden: true },
+      { input: "4 1\n1 2 3 4\n4", expectedOutput: "4", hidden: true },
+      { input: "1 4\n4\n1 2 3 4", expectedOutput: "4", hidden: true },
       /* The match is the first number of both. */
-      { input: "1 5 9\n1 2 3", expectedOutput: "1", hidden: true },
-      { input: "-9 -4 0 3\n-4 0 7", expectedOutput: "-4 0", hidden: true },
+      { input: "3 3\n1 5 9\n1 2 3", expectedOutput: "1", hidden: true },
+      { input: "4 3\n-9 -4 0 3\n-4 0 7", expectedOutput: "-4 0", hidden: true },
       /* Interleaved and disjoint: every step compares, nothing ever matches. */
-      { input: "2 4 6 8 10\n1 3 5 7 9", expectedOutput: "none", hidden: true },
-      { input: "1 2 3 4 5\n3", expectedOutput: "3", hidden: true },
+      { input: "5 5\n2 4 6 8 10\n1 3 5 7 9", expectedOutput: "none", hidden: true },
+      { input: "5 1\n1 2 3 4 5\n3", expectedOutput: "3", hidden: true },
     ],
   },
   {
@@ -609,7 +503,7 @@ export const M5_PRACTICE: LessonBlock[] = [
      *
      * The wrong programs, and the case that kills each:
      *   prints m                       → case 3, where m = 5 and the answer is 9;
-     *   prints m + m // a              → case 3 again, 7 instead of 9;
+     *   prints m + m / a               → case 3 again, 7 instead of 9;
      *   `>` where `>=` was meant       → every case: it returns the (m+1)-th
      *                                    number, e.g. 8 instead of 7 on case 1;
      *   right = m (too small a bound)  → case 3, whose answer is past m;
@@ -623,24 +517,11 @@ export const M5_PRACTICE: LessonBlock[] = [
     skillRefs: ["bsearch.core", "func.define", "arith.integer_division"],
     sourceType: "product-authored",
     prompt: {
-      kk: "1, 2, 3, … деп қатарынан жазылған натурал сандардың ішінен a-ға бөлінетіндерінің бәрін сызып тастаймыз. Сызылмай қалғандарының қатарында m-ші тұрған сан қандай? Бір жолда бос орынмен бөлініп екі сан беріледі: a және m (2 ≤ a ≤ 1000000000, 1 ≤ m ≤ 1000000000000). Мысалы a = 3, m = 5 болса, сызылмай қалғандары 1, 2, 4, 5, 7, 8, … — олардың бесіншісі 7, сондықтан жауап 7.\n\nЖауап 1000000000000-нан да үлкен болуы мүмкін, сондықтан сандарды бірінен соң бірін санап шығу мүлде үлгермейді. «1-ден k-ға дейінгі сандардың ішінде сызылмай қалғаны m-нен кем емес пе?» деген тексеруді функция етіп жаз да, k-ны екіге бөліп ізде. 1-ден k-ға дейін a-ға бөлінетін сандардың саны — `k // a`. Жоғарғы шекара: a кемінде 2 болғандықтан, 1-ден 2m-ге дейінгі сандардың кемінде жартысы сызылмай қалады, сондықтан 2m әрқашан жетеді.",
-      ru: "Из натурального ряда 1, 2, 3, … вычёркиваем все числа, которые делятся на a. Какое число стоит m-м среди оставшихся? В одной строке через пробел даны два числа: a и m (2 ≤ a ≤ 1000000000, 1 ≤ m ≤ 1000000000000). Например, при a = 3 и m = 5 невычеркнутыми остаются 1, 2, 4, 5, 7, 8, … — пятое из них равно 7, поэтому ответ 7.\n\nОтвет может оказаться больше 1000000000000, поэтому перебирать числа подряд заведомо не успеешь. Запиши функцией проверку «среди чисел от 1 до k осталось не меньше m невычеркнутых?» и ищи k делением пополам. Количество чисел от 1 до k, которые делятся на a, равно `k // a`. Верхняя граница: раз a не меньше 2, среди чисел от 1 до 2m невычеркнутой остаётся хотя бы половина, поэтому 2m годится всегда.",
+      kk: "1, 2, 3, … деп қатарынан жазылған натурал сандардың ішінен a-ға бөлінетіндерінің бәрін сызып тастаймыз. Сызылмай қалғандарының қатарында m-ші тұрған сан қандай? Бір жолда бос орынмен бөлініп екі сан беріледі: a және m (2 ≤ a ≤ 1000000000, 1 ≤ m ≤ 1000000000000). Мысалы a = 3, m = 5 болса, сызылмай қалғандары 1, 2, 4, 5, 7, 8, … — олардың бесіншісі 7, сондықтан жауап 7.\n\nЖауап 1000000000000-нан да үлкен болуы мүмкін, сондықтан сандарды бірінен соң бірін санап шығу мүлде үлгермейді. «1-ден k-ға дейінгі сандардың ішінде сызылмай қалғаны m-нен кем емес пе?» деген тексеруді функция етіп жаз да, k-ны екіге бөліп ізде. 1-ден k-ға дейін a-ға бөлінетін сандардың саны — `k / a` (бүтін бөлу). Сандар `int`-ке сыймайды, сондықтан бәрін `long long` етіп ал. Жоғарғы шекара: a кемінде 2 болғандықтан, 1-ден 2m-ге дейінгі сандардың кемінде жартысы сызылмай қалады, сондықтан 2m әрқашан жетеді.",
+      ru: "Из натурального ряда 1, 2, 3, … вычёркиваем все числа, которые делятся на a. Какое число стоит m-м среди оставшихся? В одной строке через пробел даны два числа: a и m (2 ≤ a ≤ 1000000000, 1 ≤ m ≤ 1000000000000). Например, при a = 3 и m = 5 невычеркнутыми остаются 1, 2, 4, 5, 7, 8, … — пятое из них равно 7, поэтому ответ 7.\n\nОтвет может оказаться больше 1000000000000, поэтому перебирать числа подряд заведомо не успеешь. Запиши функцией проверку «среди чисел от 1 до k осталось не меньше m невычеркнутых?» и ищи k делением пополам. Количество чисел от 1 до k, которые делятся на a, равно `k / a` (целочисленное деление). Числа не помещаются в `int`, поэтому бери везде `long long`. Верхняя граница: раз a не меньше 2, среди чисел от 1 до 2m невычеркнутой остаётся хотя бы половина, поэтому 2m годится всегда.",
     },
     referenceSolution:
-      "a, m = map(int, input().split())\n" +
-      "\n" +
-      "def enough(k):\n" +
-      "    return k - k // a >= m\n" +
-      "\n" +
-      "left = 1\n" +
-      "right = 2 * m\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if enough(mid):\n" +
-      "        right = mid\n" +
-      "    else:\n" +
-      "        left = mid + 1\n" +
-      "print(left)",
+"#include <iostream>\nusing namespace std;\n\nbool enough(long long k, long long a, long long m) {\n    return k - k / a >= m;\n}\n\nint main() {\n    long long a, m;\n    cin >> a >> m;\n    long long left = 1;\n    long long right = 2 * m;\n    while (left < right) {\n        long long mid = left + (right - left) / 2;\n        if (enough(mid, a, m)) {\n            right = mid;\n        } else {\n            left = mid + 1;\n        }\n    }\n    cout << left;\n    return 0;\n}",
     cases: [
       { input: "3 5", expectedOutput: "7" },
       /* The smallest possible answer: the loop must survive left == right at 1. */
@@ -707,45 +588,32 @@ export const M5_PRACTICE: LessonBlock[] = [
     skillRefs: ["twopointers.core", "lists.index", "compare.operators"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Екі жол беріледі, әрқайсысында бос орынмен бөлінген бүтін сандар тұр (әр жолда кемінде бір, ең көбі 200000 сан). Екі жол да өспелі ретпен реттелген; бірдей сандар кездесуі мүмкін. Бірінші тізімнен бір сан, екінші тізімнен бір сан таңдап, олардың айырмасының модулін ең кіші ететін жұпты тап. Сол ең кіші айырманы шығар — жұптың өзін емес, тек санды. Екі тізімде де бар сан кездессе, жауап 0 болады. Мысалы, `1 5 9` және `4 12` үшін жауап 1, өйткені 5 пен 4-тің айырмасы 1, ал басқа жұптардың айырмасы одан үлкен.\n\nКеңес: екі көрсеткішті де тек алға жылжыт. Егер қазіргі екі санның кішісін бір қадам жылжытсаң, олардың арасы жақындауы мүмкін; үлкенін жылжытсаң, ешқашан жақындамайды.",
-      ru: "Даны две строки, в каждой — целые числа через пробел (не меньше одного и не больше 200000 чисел в строке). Обе строки отсортированы по возрастанию; одинаковые числа встречаться могут. Выбери одно число из первого списка и одно из второго так, чтобы модуль их разности был наименьшим. Выведи эту наименьшую разность — не саму пару, а только число. Если какое-то число есть в обоих списках, ответом будет 0. Например, для `1 5 9` и `4 12` ответ равен 1, потому что разность 5 и 4 равна 1, а у всех остальных пар она больше.\n\nСовет: двигай оба указателя только вперёд. Если сдвинуть меньшее из двух текущих чисел, они могут сблизиться; если сдвинуть большее — не сблизятся никогда.",
+      kk: "Бірінші жолда екі тізімнің ұзындығы n мен m беріледі (әрқайсысы кемінде 1, ең көбі 200000), екінші жолда n сан, үшінші жолда m сан (әрқайсысы модулі бойынша 10⁸-ден аспайды). Екі тізім де өспелі ретпен реттелген; бірдей сандар кездесуі мүмкін. Бірінші тізімнен бір сан, екінші тізімнен бір сан таңдап, олардың айырмасының модулін ең кіші ететін жұпты тап. Сол ең кіші айырманы шығар — жұптың өзін емес, тек санды. Екі тізімде де бар сан кездессе, жауап 0 болады. Мысалы, `3 2` / `1 5 9` / `4 12` үшін жауап 1, өйткені 5 пен 4-тің айырмасы 1, ал басқа жұптардың айырмасы одан үлкен.\n\nКеңес: екі көрсеткішті де тек алға жылжыт. Егер қазіргі екі санның кішісін бір қадам жылжытсаң, олардың арасы жақындауы мүмкін; үлкенін жылжытсаң, ешқашан жақындамайды.",
+      ru: "В первой строке даны длины списков n и m (каждая от 1 до 200000), во второй — n чисел, в третьей — m чисел (каждое по модулю не больше 10⁸). Оба списка отсортированы по возрастанию; одинаковые числа встречаться могут. Выбери одно число из первого списка и одно из второго так, чтобы модуль их разности был наименьшим. Выведи эту наименьшую разность — не саму пару, а только число. Если какое-то число есть в обоих списках, ответом будет 0. Например, для `3 2` / `1 5 9` / `4 12` ответ равен 1, потому что разность 5 и 4 равна 1, а у всех остальных пар она больше.\n\nСовет: двигай оба указателя только вперёд. Если сдвинуть меньшее из двух текущих чисел, они могут сблизиться; если сдвинуть большее — не сблизятся никогда.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "b = list(map(int, input().split()))\n" +
-      "i = 0\n" +
-      "j = 0\n" +
-      "best = abs(a[0] - b[0])\n" +
-      "while i < len(a) and j < len(b):\n" +
-      "    d = a[i] - b[j]\n" +
-      "    if abs(d) < best:\n" +
-      "        best = abs(d)\n" +
-      "    if a[i] < b[j]:\n" +
-      "        i += 1\n" +
-      "    else:\n" +
-      "        j += 1\n" +
-      "print(best)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n, m;\n    cin >> n >> m;\n    vector<int> a(n);\n    for (int k = 0; k < n; k++) {\n        cin >> a[k];\n    }\n    vector<int> b(m);\n    for (int k = 0; k < m; k++) {\n        cin >> b[k];\n    }\n    int i = 0;\n    int j = 0;\n    int best = a[0] - b[0];\n    if (best < 0) {\n        best = -best;\n    }\n    while (i < n && j < m) {\n        int d = a[i] - b[j];\n        if (d < 0) {\n            d = -d;\n        }\n        if (d < best) {\n            best = d;\n        }\n        if (a[i] < b[j]) {\n            i++;\n        } else {\n            j++;\n        }\n    }\n    cout << best;\n    return 0;\n}",
     cases: [
-      { input: "1 5 9\n4 12", expectedOutput: "1" },
-      { input: "2 4 6\n1 3 5", expectedOutput: "1" },
+      { input: "3 2\n1 5 9\n4 12", expectedOutput: "1" },
+      { input: "3 3\n2 4 6\n1 3 5", expectedOutput: "1" },
       /* Every number of one list is below every number of the other, both ways
          round: the answer is the join between them, not the first distance. */
-      { input: "1 2 3\n10 11", expectedOutput: "7", hidden: true },
-      { input: "10 11\n1 2 3", expectedOutput: "7", hidden: true },
+      { input: "3 2\n1 2 3\n10 11", expectedOutput: "7", hidden: true },
+      { input: "2 3\n10 11\n1 2 3", expectedOutput: "7", hidden: true },
       /* One number in each list. */
-      { input: "5\n9", expectedOutput: "4", hidden: true },
+      { input: "1 1\n5\n9", expectedOutput: "4", hidden: true },
       /* A shared number, and a shared number with repeats around it. */
-      { input: "1 2 3\n3 4 5", expectedOutput: "0", hidden: true },
-      { input: "2 2 2\n2", expectedOutput: "0", hidden: true },
+      { input: "3 3\n1 2 3\n3 4 5", expectedOutput: "0", hidden: true },
+      { input: "3 1\n2 2 2\n2", expectedOutput: "0", hidden: true },
       /* The closest pair is the LAST number of both lists. */
-      { input: "1 2 3 100\n4 5 99", expectedOutput: "1", hidden: true },
+      { input: "4 3\n1 2 3 100\n4 5 99", expectedOutput: "1", hidden: true },
       /* Negatives, and a gap that is wide on both sides of the answer. */
-      { input: "-9 -4\n-6 3", expectedOutput: "2", hidden: true },
-      { input: "1 100\n50 51", expectedOutput: "49", hidden: true },
-      { input: "-5 -1 0\n7 8 9", expectedOutput: "7", hidden: true },
+      { input: "2 2\n-9 -4\n-6 3", expectedOutput: "2", hidden: true },
+      { input: "2 2\n1 100\n50 51", expectedOutput: "49", hidden: true },
+      { input: "3 3\n-5 -1 0\n7 8 9", expectedOutput: "7", hidden: true },
       /* The closest pair is the last number of BOTH lists and nothing before it
          comes near: a walk that stops one step short answers 47. */
-      { input: "1 2 3 100\n50 99", expectedOutput: "1", hidden: true },
+      { input: "4 2\n1 2 3 100\n50 99", expectedOutput: "1", hidden: true },
     ],
   },
   {
@@ -793,19 +661,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано n (1 ≤ n ≤ 200000), во второй — n целых чисел, отсортированных по возрастанию (одинаковые числа встречаться могут), в третьей — число s. Выведи, сколько пар имеют сумму, не превышающую s. Пары считаются по позициям: два одинаковых числа на разных позициях образуют отдельную пару, а число с одной позиции нельзя соединить само с собой. Например, для списка `1 2 3 4` и s = 5 ответ равен 4 — это пары (1, 2), (1, 3), (1, 4) и (2, 3).\n\nСовет: если перебирать все пары по одной, для 200000 чисел их окажется больше 20 миллиардов. Список отсортирован, поэтому посчитать можно за один проход двумя указателями: если левое число вместе с правым укладывается в s, то со всеми числами между ними оно тем более укладывается.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "s = int(input())\n" +
-      "left = 0\n" +
-      "right = n - 1\n" +
-      "cnt = 0\n" +
-      "while left < right:\n" +
-      "    if a[left] + a[right] <= s:\n" +
-      "        cnt = cnt + (right - left)\n" +
-      "        left = left + 1\n" +
-      "    else:\n" +
-      "        right = right - 1\n" +
-      "print(cnt)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int s;\n    cin >> s;\n    int left = 0;\n    int right = n - 1;\n    long long cnt = 0;\n    while (left < right) {\n        if (a[left] + a[right] <= s) {\n            cnt = cnt + (right - left);\n            left = left + 1;\n        } else {\n            right = right - 1;\n        }\n    }\n    cout << cnt;\n    return 0;\n}",
     cases: [
       { input: "4\n1 2 3 4\n5", expectedOutput: "4" },
       { input: "3\n1 2 3\n4", expectedOutput: "2" },
@@ -841,7 +697,7 @@ export const M5_PRACTICE: LessonBlock[] = [
      * than one comparison.
      *
      * `m5.l3` introduced the shape with checks that are one line (`k * k >= n`)
-     * or one loop (`total += k // x`). This one needs the learner to write a
+     * or one loop (`total = total + k / x`). This one needs the learner to write a
      * pass whose result is a COUNT of pieces, and to notice that the lower
      * boundary is not 1 but the longest single plank — the piece that plank
      * sits in can never be lighter than the plank itself.
@@ -852,7 +708,7 @@ export const M5_PRACTICE: LessonBlock[] = [
      * argued. Nothing in the prompt claims a rule the checker cannot see.
      *
      * The wrong programs, and the case that kills each:
-     *   prints the total divided by k    → case 8, 103 // 2 = 51, where the
+     *   prints the total divided by k    → case 8, 103 / 2 = 51, where the
      *                                      answer is 100;
      *   starts the search below the
      *   largest plank and prints it      → case 8 as well;
@@ -880,29 +736,7 @@ export const M5_PRACTICE: LessonBlock[] = [
       ru: "В первой строке даны два числа: n и k (1 ≤ k ≤ n ≤ 100000). Во второй строке даны n целых положительных чисел — длины досок, стоящих в ряд (каждая от 1 до 1000000000). Менять доски местами и сортировать их нельзя. Нужно разрезать ряд ровно на k частей: каждая часть — это одна или несколько идущих подряд досок, и каждая доска попадает ровно в одну часть. Вес части — сумма длин досок в ней. Разрежь так, чтобы вес самой тяжёлой части был как можно меньше, и выведи вес этой самой тяжёлой части. Например, при n = 5, k = 2 и длинах `7 2 5 10 8` лучшее разрезание — `7 2 5` (вес 14) и `10 8` (вес 18), поэтому ответ 18.\n\nВычислить ответ напрямую трудно, зато на вопрос «можно ли разрезать так, чтобы самая тяжёлая часть не превышала c?» ответить легко: набирай доски слева направо, а перед тем как превысить c, начинай новую часть и считай части. Запиши эту проверку функцией и ищи c делением пополам. Не забудь про границы: наименьшее c — это самая длинная доска, ведь часть, в которой она стоит, легче неё быть не может; наибольшее — сумма всех длин. Эта сумма может доходить до 100000000000000, поэтому увеличивать c по одному заведомо не успеешь.",
     },
     referenceSolution:
-      "n, k = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "\n" +
-      "def enough(cap):\n" +
-      "    parts = 1\n" +
-      "    cur = 0\n" +
-      "    for x in a:\n" +
-      "        if cur + x <= cap:\n" +
-      "            cur = cur + x\n" +
-      "        else:\n" +
-      "            parts = parts + 1\n" +
-      "            cur = x\n" +
-      "    return parts <= k\n" +
-      "\n" +
-      "left = max(a)\n" +
-      "right = sum(a)\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if enough(mid):\n" +
-      "        right = mid\n" +
-      "    else:\n" +
-      "        left = mid + 1\n" +
-      "print(left)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nbool enough(long long cap, vector<long long>& a, int k) {\n    int parts = 1;\n    long long cur = 0;\n    for (long long x : a) {\n        if (cur + x <= cap) {\n            cur = cur + x;\n        } else {\n            parts = parts + 1;\n            cur = x;\n        }\n    }\n    return parts <= k;\n}\n\nint main() {\n    int n, k;\n    cin >> n >> k;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    long long left = 0;\n    long long right = 0;\n    for (int i = 0; i < n; i++) {\n        if (a[i] > left) {\n            left = a[i];\n        }\n        right = right + a[i];\n    }\n    while (left < right) {\n        long long mid = left + (right - left) / 2;\n        if (enough(mid, a, k)) {\n            right = mid;\n        } else {\n            left = mid + 1;\n        }\n    }\n    cout << left;\n    return 0;\n}",
     cases: [
       { input: "5 2\n7 2 5 10 8", expectedOutput: "18" },
       /* k == n: every plank is its own piece, so the answer is the longest one. */

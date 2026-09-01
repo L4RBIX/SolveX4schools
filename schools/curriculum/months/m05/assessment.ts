@@ -61,7 +61,7 @@ import type { LessonBlock } from "../../types";
  * ## The structural requirement, and which of the three honest options this is
  *
  * "Solve it with binary search" is a requirement output comparison cannot see:
- * a linear scan over the list with `abs()` answers b1 correctly and passes
+ * a linear scan over the list answers b1 correctly and passes
  * every case, and it always will — the cases are small, and inventing a
  * 100 000-element case to time it out would be a lie of a different shape (the
  * runner has no time limit the learner can see). Verified rather than assumed:
@@ -83,7 +83,7 @@ import type { LessonBlock } from "../../types";
  * none of them, and it is the one search problem whose whole difficulty lives
  * where January's assessment sentence points: after the loop ends. The boundary
  * lands on the first number ≥ x, and the answer is either that number or the
- * one before it — so the program has to survive `left == len(a)` (x above
+ * one before it — so the program has to survive `left == n` (x above
  * everything), `left == 0` (x below everything), a one-element list, an
  * all-equal list, and a tie. Those are not extra cases bolted on to reach a
  * count; they are the problem.
@@ -91,7 +91,7 @@ import type { LessonBlock } from "../../types";
  * The degenerate programs, and the case that kills each — every one of them
  * executed, not argued:
  *
- *   prints `a[left]` and nothing else       → crashes on «4 9 15 / 100»
+ *   prints `a[left]` and nothing else       → reads past the end on «4 9 15 / 100»
  *   the same, clamped to the last index     → «1 5 9 14 20 / 6» answers 9
  *   prints `a[left - 1]`                    → «4 9 15 / 1» answers 15
  *   ties broken toward the LARGER           → «10 20 / 15» answers 20
@@ -112,16 +112,17 @@ import type { LessonBlock } from "../../types";
  * Provenance follows September and October: the three `verify` blocks implement
  * the programme's five general verification methods and cite p.6; the written
  * `explain` implements January's own sentence and cites p.9. And nothing here
- * imports anything — least of all `bisect`, which would delete the month.
+ * reaches for `<algorithm>` — least of all `lower_bound`, which would delete
+ * the month.
  */
 export const M5_ASSESSMENT: LessonBlock[] = [
   {
     /*
      * «Бейтаныс есептер» (p.6), and the edge-case half of January's own
-     * sentence (p.9). Blank editor, no starter — the input shape is two lines
-     * and every task in `m5.l1`–`m5.l7` used exactly that shape, so a starter
-     * would only be removing the one part of the work that is not being
-     * measured either way.
+     * sentence (p.9). Blank editor, no starter — the input shape is a count and
+     * then the numbers, which is the shape every task in `m5.l1`–`m5.l7` reads,
+     * so a starter would only be removing the one part of the work that is not
+     * being measured either way.
      *
      * Thirteen cases, twelve hidden. The visible one is a middle case on
      * purpose: it is enough to check the input format and it kills the two
@@ -129,14 +130,15 @@ export const M5_ASSESSMENT: LessonBlock[] = [
      * exact-match search that gives up when `x` is absent — while telling the
      * learner nothing about where the boundaries end up.
      *
-     * The reference is the half-open form (`right = len(a)`, `while left <
-     * right`) taught in `m5.l2` and `m5.l6`, because that is the form whose
-     * exit value is a POSITION rather than a verdict, and this problem needs
-     * the position. Its tail is where the marks are: `left` is the first index
-     * with `a[left] >= x`, so the answer is `a[left]` or `a[left - 1]`, and
-     * both reads have to be guarded before they happen. `x - a[left - 1] <=
-     * abs(best - x)` breaks a tie toward the smaller number, which is what the
-     * prompt promises in both languages.
+     * The reference is the half-open form (`right = n`, `while (left < right)`)
+     * taught in `m5.l2` and `m5.l6`, because that is the form whose exit value
+     * is a POSITION rather than a verdict, and this problem needs the position.
+     * Its tail is where the marks are: `left` is the first index with
+     * `a[left] >= x`, so the answer is `a[left]` or `a[left - 1]`, and both
+     * reads have to be guarded before they happen. `x - a[left - 1] <= far`,
+     * with `far` the distance from `best` written out by hand rather than taken
+     * from `abs()` (the programme never teaches it), breaks a tie toward the
+     * smaller number, which is what the prompt promises in both languages.
      */
     id: "m5.as.b1",
     type: "verify",
@@ -145,33 +147,18 @@ export const M5_ASSESSMENT: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 6,
     prompt: {
-      kk: "Бірінші жолда бос орынмен бөлінген, өспелі ретпен реттелген бүтін сандар беріледі: кемінде біреу, ең көбі 100 000 сан, бірдей сандар кездесуі мүмкін. Екінші жолда бір бүтін сан `x` беріледі. Тізімнен `x`-ке ең жақын санды тап: `x` пен сол санның айырмасының модулі ең кіші болуы керек. Сол санның өзін шығар, орнын емес. Егер `x`-ке бірдей жақын екі сан табылса (бірі одан кіші, бірі үлкен), кішісін шығар. `x` тізімде кездесуі де, мүлде болмауы да мүмкін. Кеңес: тізім реттелген, сондықтан аралықтың жартысын тастай отырып ізде — бірақ баға тек шыққан жауап бойынша қойылады, ал әдісіңді 4-тапсырмада мұғалімге өзің ауызша түсіндіресің.",
-      ru: "В первой строке через пробел даны целые числа, отсортированные по возрастанию: хотя бы одно, не больше 100 000 чисел, одинаковые числа встречаться могут. Во второй строке дано одно целое число `x`. Найди в списке число, ближайшее к `x`: модуль разности между `x` и этим числом должен быть наименьшим. Выведи само это число, а не его позицию. Если одинаково близких чисел оказалось два (одно меньше `x`, другое больше), выведи меньшее. Число `x` может как встречаться в списке, так и отсутствовать в нём. Совет: список отсортирован, поэтому ищи, отбрасывая половину интервала, — но оценивается только полученный ответ, а свой метод ты сам объяснишь учителю вслух в задании 4.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100 000), екінші жолда бос орынмен бөлінген, өспелі ретпен реттелген n бүтін сан (бірдей сандар кездесуі мүмкін, әрқайсысы модулі бойынша 10⁸-ден аспайды). Үшінші жолда бір бүтін сан `x` беріледі (|x| ≤ 10⁸). Тізімнен `x`-ке ең жақын санды тап: `x` пен сол санның айырмасының модулі ең кіші болуы керек. Сол санның өзін шығар, орнын емес. Егер `x`-ке бірдей жақын екі сан табылса (бірі одан кіші, бірі үлкен), кішісін шығар. `x` тізімде кездесуі де, мүлде болмауы да мүмкін. Кеңес: тізім реттелген, сондықтан аралықтың жартысын тастай отырып ізде — бірақ баға тек шыққан жауап бойынша қойылады, ал әдісіңді 4-тапсырмада мұғалімге өзің ауызша түсіндіресің.",
+      ru: "В первой строке дано n (1 ≤ n ≤ 100 000), во второй — n целых чисел через пробел, отсортированных по возрастанию (одинаковые числа встречаться могут, каждое по модулю не больше 10⁸). В третьей строке дано одно целое число `x` (|x| ≤ 10⁸). Найди в списке число, ближайшее к `x`: модуль разности между `x` и этим числом должен быть наименьшим. Выведи само это число, а не его позицию. Если одинаково близких чисел оказалось два (одно меньше `x`, другое больше), выведи меньшее. Число `x` может как встречаться в списке, так и отсутствовать в нём. Совет: список отсортирован, поэтому ищи, отбрасывая половину интервала, — но оценивается только полученный ответ, а свой метод ты сам объяснишь учителю вслух в задании 4.",
     },
     referenceSolution:
-      "a = list(map(int, input().split()))\n" +
-      "x = int(input())\n" +
-      "left = 0\n" +
-      "right = len(a)\n" +
-      "while left < right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if a[mid] < x:\n" +
-      "        left = mid + 1\n" +
-      "    else:\n" +
-      "        right = mid\n" +
-      "best = a[0]\n" +
-      "if left < len(a):\n" +
-      "    best = a[left]\n" +
-      "if left > 0 and x - a[left - 1] <= abs(best - x):\n" +
-      "    best = a[left - 1]\n" +
-      "print(best)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    vector<int> a(n);\n    for (int i = 0; i < n; i++) {\n        cin >> a[i];\n    }\n    int x;\n    cin >> x;\n    int left = 0;\n    int right = n;\n    while (left < right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid;\n        }\n    }\n    int best = a[0];\n    if (left < n) {\n        best = a[left];\n    }\n    if (left > 0) {\n        int far = best - x;\n        if (far < 0) {\n            far = -far;\n        }\n        if (x - a[left - 1] <= far) {\n            best = a[left - 1];\n        }\n    }\n    cout << best;\n    return 0;\n}",
     cases: [
       /* Four guard cases against three wrong programs that scored 14/14.
       
          The prompt says that on a tie the SMALLER number wins, and the only
          non-degenerate tie in the fourteen was `10 20` / `15` — a two-element
-         list, where `mid = (0+1)//2 = 0` necessarily lands on the smaller
-         candidate first. So "keep the first equally-good candidate" and "keep
+         list, where `mid = 0 + (1 - 0) / 2 = 0` necessarily lands on the
+         smaller candidate first. So "keep the first equally-good candidate" and "keep
          the smaller" agreed there, and every program that breaks the tie
          INSIDE the search loop passed for free. A tie needs a list of three or
          more where `mid` reaches the larger candidate first.
@@ -181,44 +168,45 @@ export const M5_ASSESSMENT: LessonBlock[] = [
          asked a question it could get wrong; the one negative case answered
          correctly by luck. Nothing put x above every element of an
          all-negative list either, which is where a `best = 0` sentinel shows. */
-      { input: "1 5 9\n3", expectedOutput: "1", hidden: true },
-      { input: "1 5 9 9\n7", expectedOutput: "5", hidden: true },
-      { input: "-5 1\n-2", expectedOutput: "-5", hidden: true },
-      { input: "-9 -5 -1\n100", expectedOutput: "-1", hidden: true },
+      { input: "3\n1 5 9\n3", expectedOutput: "1", hidden: true },
+      { input: "4\n1 5 9 9\n7", expectedOutput: "5", hidden: true },
+      { input: "2\n-5 1\n-2", expectedOutput: "-5", hidden: true },
+      { input: "3\n-9 -5 -1\n100", expectedOutput: "-1", hidden: true },
 
       /* The only visible case. `x` sits between two numbers, nearer the right
          one — so «тек екі шетін салыстыру» answers 2 and an exact search that
          gives up on a miss answers -1. Both die in public, before a hidden case
          is ever reached. */
-      { input: "2 5 8 12 20\n11", expectedOutput: "12" },
+      { input: "5\n2 5 8 12 20\n11", expectedOutput: "12" },
       /* x below everything: the boundary never moves, left = 0, and a program
          that reaches for `a[left - 1]` reads the LAST element instead. */
-      { input: "4 9 15\n1", expectedOutput: "4", hidden: true },
-      /* x above everything: the boundary walks off the end, left = len(a).
-         `a[left]` is an IndexError and a scan that stops one short says 9. */
-      { input: "4 9 15\n100", expectedOutput: "15", hidden: true },
+      { input: "3\n4 9 15\n1", expectedOutput: "4", hidden: true },
+      /* x above everything: the boundary walks off the end, left = n.
+         `a[left]` is past the end of the vector and a scan that stops one short
+         says 9. */
+      { input: "3\n4 9 15\n100", expectedOutput: "15", hidden: true },
       /* x exactly ON the first element, and on the last. */
-      { input: "4 9 15\n4", expectedOutput: "4", hidden: true },
-      { input: "4 9 15\n15", expectedOutput: "15", hidden: true },
+      { input: "3\n4 9 15\n4", expectedOutput: "4", hidden: true },
+      { input: "3\n4 9 15\n15", expectedOutput: "15", hidden: true },
       /* One element, both ways: present, and far away. The loop body may run
          zero times and the answer still has to come out. */
-      { input: "7\n7", expectedOutput: "7", hidden: true },
-      { input: "7\n100", expectedOutput: "7", hidden: true },
+      { input: "1\n7\n7", expectedOutput: "7", hidden: true },
+      { input: "1\n7\n100", expectedOutput: "7", hidden: true },
       /* All equal — the halving finds nothing to distinguish, and both
          neighbours of the collapse point hold the same number. */
-      { input: "6 6 6 6\n2", expectedOutput: "6", hidden: true },
-      { input: "6 6 6 6\n6", expectedOutput: "6", hidden: true },
+      { input: "4\n6 6 6 6\n2", expectedOutput: "6", hidden: true },
+      { input: "4\n6 6 6 6\n6", expectedOutput: "6", hidden: true },
       /* The tie, and the whole reason the prompt states a rule for it:
          15 - 10 = 20 - 15, so the answer is the smaller number. */
-      { input: "10 20\n15", expectedOutput: "10", hidden: true },
+      { input: "2\n10 20\n15", expectedOutput: "10", hidden: true },
       /* x absent with near neighbours on BOTH sides — once nearer the left
          neighbour, once nearer the right. A program that always prints the
          first number ≥ x passes the second and fails the first. */
-      { input: "1 5 9 14 20\n6", expectedOutput: "5", hidden: true },
-      { input: "1 5 9 14 20\n8", expectedOutput: "9", hidden: true },
+      { input: "5\n1 5 9 14 20\n6", expectedOutput: "5", hidden: true },
+      { input: "5\n1 5 9 14 20\n8", expectedOutput: "9", hidden: true },
       /* Repeats around the answer, and negatives: -5 is nearer -3 than -8. */
-      { input: "3 3 7 7 9\n7", expectedOutput: "7", hidden: true },
-      { input: "-8 -3 2\n-5", expectedOutput: "-3", hidden: true },
+      { input: "5\n3 3 7 7 9\n7", expectedOutput: "7", hidden: true },
+      { input: "3\n-8 -3 2\n-5", expectedOutput: "-3", hidden: true },
     ],
   },
   {
@@ -251,22 +239,7 @@ export const M5_ASSESSMENT: LessonBlock[] = [
       ru: "Эту программу ты раньше не видел. Выполни её на бумаге, без компьютера. Каждый раз, когда выполняется тело цикла, выписывай значения `left`, `right` и `mid` на этом шаге, а рядом — чему равно `a[mid]`. Затем запиши две строки, которые выведет программа: в первой строке английское слово `yes` или `no`, во второй — два числа. В конце одним предложением ответь: какими остались `left` и `right` после остановки цикла и на каком месте стояло бы число 20, если бы оно было в списке?",
     },
     code:
-      "a = [3, 8, 12, 19, 25, 31, 40]\n" +
-      "x = 20\n" +
-      "left = 0\n" +
-      "right = len(a) - 1\n" +
-      'found = "no"\n' +
-      "while left <= right:\n" +
-      "    mid = (left + right) // 2\n" +
-      "    if a[mid] == x:\n" +
-      '        found = "yes"\n' +
-      "        break\n" +
-      "    if a[mid] < x:\n" +
-      "        left = mid + 1\n" +
-      "    else:\n" +
-      "        right = mid - 1\n" +
-      "print(found)\n" +
-      "print(left, right)",
+"#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> a = {3, 8, 12, 19, 25, 31, 40};\n    int x = 20;\n    int n = (int)a.size();\n    int left = 0;\n    int right = n - 1;\n    int found = 0;\n    while (left <= right) {\n        int mid = left + (right - left) / 2;\n        if (a[mid] == x) {\n            found = 1;\n            break;\n        }\n        if (a[mid] < x) {\n            left = mid + 1;\n        } else {\n            right = mid - 1;\n        }\n    }\n    if (found == 1) {\n        cout << \"yes\" << endl;\n    } else {\n        cout << \"no\" << endl;\n    }\n    cout << left << \" \" << right;\n    return 0;\n}",
     expectedPoints: [
       {
         kk: "Цикл денесі үш рет орындалады: (left = 0, right = 6, mid = 3, a[mid] = 19), сосын (left = 4, right = 6, mid = 5, a[mid] = 31), сосын (left = 4, right = 4, mid = 4, a[mid] = 25).",

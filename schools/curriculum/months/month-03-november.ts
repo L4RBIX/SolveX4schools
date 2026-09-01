@@ -38,10 +38,16 @@ import { M3_ASSESSMENT } from "./m03/assessment";
  * ## The prohibition this month carries
  *
  * «OOP-ке дейінгі процедуралық база толық қалыптасады» — the pre-OOP
- * procedural base is complete. No classes, no objects. And `global` appears
- * exactly once in the month, in `m3.l5`, as the failure the programme asks to
- * be analysed («неге global күтпеген нәтиже берді?») — never as a technique a
- * reference solution reaches for.
+ * procedural base is complete. No classes, no objects, no `&` and no pointers:
+ * every value this month travels in as a parameter and out through `return`.
+ *
+ * And global state appears exactly once in the month, in `m3.l5`, as the
+ * failure the programme asks to be analysed («неге global күтпеген нәтиже
+ * берді?») — never as a technique a reference solution reaches for. C++ makes
+ * that section matter more than Python did rather than less: there is no
+ * `global` keyword to type, so a function writing to a namespace-scope variable
+ * looks exactly like one writing to a local, and only the declaration site
+ * tells them apart.
  */
 
 const P = 8; // PDF page for all of November

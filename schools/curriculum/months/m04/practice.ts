@@ -36,19 +36,22 @@ import type { LessonBlock } from "../../types";
  *    median rule to the one m4.l4 taught and says so in capitals, and p6 asks
  *    for every most-frequent value instead of one.
  *
- * 3. **Sorting is the tool, `set` and `dict` are not available, and that is the
+ * 3. **Sorting is the tool, `set` and `map` are not available, and that is the
  *    point.** «Тізімдегі әртүрлі мәндер саны» and «ең жиі кездесетін сан» are
- *    one-liners with a set or a dict, which is exactly why the programme files
- *    them under sorting: after `a.sort()` equal values are adjacent, so both
+ *    one-liners with a set or a map, which is exactly why the programme files
+ *    them under sorting: after `sort` equal values are adjacent, so both
  *    questions become one walk over the runs. p5 and p6 are that walk. No
- *    import anywhere, in any block.
+ *    `bits/stdc++.h` anywhere, in any block — targeted includes only.
  *
- * 4. **This month's builtins arrive, and the arrival is announced once.**
- *    `sorted()`, `.sort()`, `reversed()`, `min()`, `max()` and `sum()` became
- *    available in December and were withheld before it on purpose: October's
- *    «тізімдегі максимум мен минимум» and November's max/min FUNCTION are the
- *    exercises those builtins would delete. p1 is the first block of the bank
- *    and says so in one sentence, in both languages; no later prompt repeats it.
+ * 4. **What C++ hands over this month is announced once.** `sort` from
+ *    `<algorithm>` arrived in m4.l3, and with it two mirror recipes: the
+ *    descending form `sort(a.rbegin(), a.rend())`, and the two-argument
+ *    `min(x, y)` / `max(x, y)`. There is no whole-list `sum` or `max` in this
+ *    course — those stay the loops October and November taught, and the reason
+ *    is in `docs/cpp17/CPP17_PEDAGOGY.md`: `*max_element(v.begin(), v.end())`
+ *    needs an iterator and a dereference, and Year 1 teaches neither. p1 is the
+ *    first block of the bank and says all of this in one sentence; no later
+ *    prompt repeats it.
  *
  * 5. **Output is numbers only.** Not one program here prints a word, so there is
  *    no token for a Russian-track learner to match glyphs against instead of
@@ -63,11 +66,22 @@ import type { LessonBlock } from "../../types";
  *    in one answer, and p10 (advanced) is the only block where the constraint
  *    itself decides the algorithm.
  *
- * The two defects an October review caught do not have a foothold here: there
- * is no support twin to transcribe, since no block below is withheld from
- * support, and there is no `reorder_code`, so no line can be placed by its
- * indentation. What replaces them as the thing to watch is duplication with the
- * lessons, and that is what decision 2 is for.
+ * ## Two things the C++ migration changed here
+ *
+ * **`long long` where the arithmetic needs it, `int` where it does not.** p3
+ * and p7 subtract two values that can each be 10⁹ in absolute value, so the
+ * result reaches 2 · 10⁹ and overflows a 32-bit `int`; p9 adds up to 200 000 of
+ * them, reaching 2 · 10¹⁴. Those three read into `vector<long long>` and their
+ * prompts say why. p1, p2, p4, p5, p6 and p8 never form a value outside `int`
+ * and stay on it — the type is a decision, not a habit.
+ *
+ * **p10's bound moved from n ≤ 2000 to n ≤ 5000.** The Python bound was chosen
+ * so that a third loop over each segment (about 1.3 · 10⁹ steps) missed a
+ * CPython budget; C++ finishes that in a couple of seconds, so the prompt's
+ * claim that the third loop «не уложится» would have been false. At n = 5000
+ * the pair loop is about 1.25 · 10⁷ steps — a tenth of a second — and the third
+ * loop is about 2 · 10¹⁰, which is minutes. The `s` bound moves with it, from
+ * 10⁶ to 5 · 10⁶, because 5000 values of up to 1000 sum to 5 · 10⁶.
  *
  * ## No diagnostic mappings
  *
@@ -87,8 +101,8 @@ export const M4_PRACTICE: LessonBlock[] = [
      * from?) rather than a recall, and the count arrives on its own line, which
      * is the input shape the rest of this bank uses.
      *
-     * This is also the one block that announces the month's new builtins. It is
-     * first for that reason.
+     * This is also the one block that announces what C++ hands over this month.
+     * It is first for that reason.
      */
     id: "m4.p1",
     type: "write_code",
@@ -96,27 +110,44 @@ export const M4_PRACTICE: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: 8,
     prompt: {
-      kk: "Бірінші жолда n саны беріледі — сандардың саны (1 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Сол сандарды КЕМУ ретімен, яғни үлкенінен кішісіне қарай, бір жолға бос орынмен бөліп шығар. Қайталанатын сандар қанша рет кездессе, сонша рет шығады. Мысалы n = 5, сандар `5 2 9 1 3` болса, жауап `9 5 3 2 1`. Осы айда `sorted()`, `.sort()`, `reversed()`, `min()`, `max()` және `sum()` ашылды: қазан мен қарашада бұл әрекеттерді циклмен өз қолыңмен жазғандықтан, олар әдейі кешіктірілген еді — енді дайын түрін қолдана бер.",
-      ru: "В первой строке дано число n — количество чисел (1 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи эти числа ПО УБЫВАНИЮ, то есть от большего к меньшему, в одну строку через пробел. Повторяющиеся числа выводятся столько раз, сколько раз встретились. Например, при n = 5 и числах `5 2 9 1 3` ответ `9 5 3 2 1`. В этом месяце открылись `sorted()`, `.sort()`, `reversed()`, `min()`, `max()` и `sum()`: их придерживали намеренно, потому что в октябре и ноябре ты писал всё это циклом вручную, — теперь можно пользоваться готовыми.",
+      kk: "Бірінші жолда n саны беріледі — сандардың саны (1 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Сол сандарды КЕМУ ретімен, яғни үлкенінен кішісіне қарай, бір жолға бос орынмен бөліп шығар. Қайталанатын сандар қанша рет кездессе, сонша рет шығады. Мысалы n = 5, сандар `5 2 9 1 3` болса, жауап `9 5 3 2 1`. Осы айда `#include <algorithm>` тақырыбымен бірге `sort(a.begin(), a.end())` ашылды, оның кему ретіндегі айнасы — `sort(a.rbegin(), a.rend())`, ал екі санның кішісі мен үлкенін `min(x, y)` және `max(x, y)` береді. Ал тізімнің қосындысы мен максимумын C++-та бұрынғыдай циклмен өзің жазасың — қазан мен қараша дәл соны үйретті.",
+      ru: "В первой строке дано число n — количество чисел (1 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи эти числа ПО УБЫВАНИЮ, то есть от большего к меньшему, в одну строку через пробел. Повторяющиеся числа выводятся столько раз, сколько раз встретились. Например, при n = 5 и числах `5 2 9 1 3` ответ `9 5 3 2 1`. В этом месяце вместе с заголовком `#include <algorithm>` открылась `sort(a.begin(), a.end())`, её зеркало для убывания — `sort(a.rbegin(), a.rend())`, а меньшее и большее из двух чисел дают `min(x, y)` и `max(x, y)`. А сумму и максимум всего списка в C++ ты по-прежнему пишешь циклом сам — именно этому учили октябрь и ноябрь.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      'print(" ".join(map(str, reversed(a))))',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.rbegin(), a.rend());\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cout << a[i];\n" +
+      "        if (i + 1 < n) {\n" +
+      "            cout << \" \";\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n5 2 9 1 3", expectedOutput: "9 5 3 2 1" },
       { input: "1\n42", expectedOutput: "42" },
-      /* Sorted as text, "100" would land before "9". Only `map(int, ...)`
-         survives this one. */
+      /* Three digits against two: a hand-written comparison that only looks at
+         the leading digit puts 100 in the wrong place here. */
       { input: "4\n10 9 2 100", expectedOutput: "100 10 9 2", hidden: true },
       /* Duplicates survive: a walk that skips equal neighbours prints three
          numbers where six were read. */
       { input: "6\n4 4 2 7 2 4", expectedOutput: "7 4 4 4 2 2", hidden: true },
       /* Already ascending — the case that kills "print what was read". */
       { input: "4\n1 2 3 4", expectedOutput: "4 3 2 1", hidden: true },
-      /* Already descending, the mirror: a program that sorts and forgets to
-         turn the list round passes the one above and fails this pair. */
+      /* Already descending, the mirror: a program that sorts ascending and
+         forgets to turn the list round passes the one above and fails this pair. */
       { input: "4\n4 3 2 1", expectedOutput: "4 3 2 1", hidden: true },
       { input: "5\n-3 10 0 -7 2", expectedOutput: "10 2 0 -3 -7", hidden: true },
       { input: "3\n6 6 6", expectedOutput: "6 6 6", hidden: true },
@@ -131,7 +162,7 @@ export const M4_PRACTICE: LessonBlock[] = [
     /*
      * PDF p.8, «көлемі бойынша үшінші мәнді табу», with the constant turned
      * into a parameter and the direction turned round. m4.l3.b5 fills in
-     * `a[len(a) - k]` for the k-th LARGEST and m4.l3.b7 takes the third
+     * `a[n - k]` for the k-th LARGEST and m4.l3.b7 takes the third
      * largest; here the count runs from the small end, so the index expression
      * the learner has seen is the wrong one and `a[k - 1]` has to be reasoned
      * out from where the ordering puts things.
@@ -150,17 +181,30 @@ export const M4_PRACTICE: LessonBlock[] = [
       ru: "В первой строке даны два числа: n и k (1 ≤ k ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи значение, которое окажется на k-м месте, если расставить числа по возрастанию. Счёт идёт с единицы: при k = 1 это самое маленькое число, при k = n — самое большое. Повторы считаются по отдельности, то есть ответ — число ровно на k-м месте отсортированного списка. Например, при n = 6, k = 3 и числах `5 2 9 1 3 8` отсортированный список `1 2 3 5 8 9`, ответ 3.",
     },
     referenceSolution:
-      "n, k = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(a[k - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, k;\n" +
+      "    cin >> n >> k;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    cout << a[k - 1];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Also the k-th-largest killer: a[n - k] here is 5, not 3. */
       { input: "6 3\n5 2 9 1 3 8", expectedOutput: "3" },
       /* k = 1 — the answer at the very first position of the sorted list. */
       { input: "5 1\n7 1 9 3 5", expectedOutput: "1" },
-      /* k = n — the very last, and the case that punishes `a[k]`, which is
-         out of range here and would crash rather than answer. */
+      /* k = n — the very last, and the case that punishes `a[k]`, which reads
+         one past the end of the vector: in C++ that is undefined behaviour, so
+         it may print anything at all rather than raising. */
       { input: "5 5\n7 1 9 3 5", expectedOutput: "9", hidden: true },
       { input: "1 1\n42", expectedOutput: "42", hidden: true },
       /* Repeats counted separately: reading the question as "k-th distinct"
@@ -183,22 +227,37 @@ export const M4_PRACTICE: LessonBlock[] = [
      * the task; the prompt gives an example of each direction winning and
      * stops there.
      *
-     * `min(...)` is one of this month's arrivals and this is the first block
-     * where it earns its place — two candidates, one line.
+     * `min(x, y)` is one of the two mirror recipes p1 announced, and this is the
+     * first block where it earns its place — two candidates, one line.
+     *
+     * `vector<long long>`: with values reaching 10⁹ in absolute value a spread
+     * reaches 2 · 10⁹, which an `int` cannot hold.
      */
     id: "m4.p3",
     type: "write_code",
     skillRefs: ["sort.basic", "lists.index", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда n саны беріледі (2 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Тізімнен дәл БІР санды алып тастау керек. Қалған n − 1 санның ең үлкені мен ең кішісінің айырмасы мүмкіндігінше кіші болатындай етіп алып таста да, сол айырманы шығар. n = 2 болғанда бір ғана сан қалады, айырма 0. Мысалы n = 5, сандар `1 4 5 6 20` болса, 20-ны алып тастаған тиімді: қалғандарының айырмасы 6 − 1 = 5, ал 1-ді алып тастасақ 20 − 4 = 16 болар еді, сондықтан жауап 5.",
-      ru: "В первой строке дано число n (2 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Нужно убрать ровно ОДНО число. Убери его так, чтобы разность между наибольшим и наименьшим из оставшихся n − 1 чисел получилась как можно меньше, и выведи эту разность. При n = 2 остаётся одно число, и разность равна 0. Например, при n = 5 и числах `1 4 5 6 20` выгоднее убрать 20: у оставшихся разность 6 − 1 = 5, а если убрать 1, получится 20 − 4 = 16, поэтому ответ 5.",
+      kk: "Бірінші жолда n саны беріледі (2 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Тізімнен дәл БІР санды алып тастау керек. Қалған n − 1 санның ең үлкені мен ең кішісінің айырмасы мүмкіндігінше кіші болатындай етіп алып таста да, сол айырманы шығар. n = 2 болғанда бір ғана сан қалады, айырма 0. Мысалы n = 5, сандар `1 4 5 6 20` болса, 20-ны алып тастаған тиімді: қалғандарының айырмасы 6 − 1 = 5, ал 1-ді алып тастасақ 20 − 4 = 16 болар еді, сондықтан жауап 5. Айырма 2000000000-ға дейін жетеді, ал `int` оны ұстай алмайды — тізімді `vector<long long>` етіп оқы. Екі үміткердің кішісін `min(x, y)` береді.",
+      ru: "В первой строке дано число n (2 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Нужно убрать ровно ОДНО число. Убери его так, чтобы разность между наибольшим и наименьшим из оставшихся n − 1 чисел получилась как можно меньше, и выведи эту разность. При n = 2 остаётся одно число, и разность равна 0. Например, при n = 5 и числах `1 4 5 6 20` выгоднее убрать 20: у оставшихся разность 6 − 1 = 5, а если убрать 1, получится 20 − 4 = 16, поэтому ответ 5. Разность доходит до 2000000000, а `int` её не удержит — читай список как `vector<long long>`. Меньшее из двух кандидатов даёт `min(x, y)`.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(min(a[n - 2] - a[0], a[n - 1] - a[1]))",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    cout << min(a[n - 2] - a[0], a[n - 1] - a[1]);\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Removing nothing at all answers 19 here, so this kills the reading of
          the task as plain «ең үлкен мен ең кішінің айырмасы». */
@@ -221,6 +280,8 @@ export const M4_PRACTICE: LessonBlock[] = [
          candidates is negative: forgetting to sort prints a negative spread. */
       { input: "4\n9 1 2 3", expectedOutput: "2", hidden: true },
       { input: "5\n-9 -1 -3 -7 -5", expectedOutput: "6", hidden: true },
+      /* The overflow case: an `int` list answers -294967296 here. */
+      { input: "3\n-1000000000 0 1000000000", expectedOutput: "1000000000", hidden: true },
     ],
   },
   {
@@ -229,10 +290,10 @@ export const M4_PRACTICE: LessonBlock[] = [
      * m4.l4 fixed. That is deliberate and it is announced in capitals in both
      * languages. m4.l4.b1 states «жұп болғанда екі ортаңғының кішісі», b4 makes
      * the learner choose the index and b7 has them write it, so a learner who
-     * reproduces the lesson's `(n - 1) // 2` from memory here is doing exactly
+     * reproduces the lesson's `(n - 1) / 2` from memory here is doing exactly
      * what the month's assessment sentence warns against: acting before
-     * reading the statement. Every even-length case below separates `n // 2`
-     * from `(n - 1) // 2`, so the memory answer fails and the read answer
+     * reading the statement. Every even-length case below separates `n / 2`
+     * from `(n - 1) / 2`, so the memory answer fails and the read answer
      * passes.
      *
      * A statement whose rule differs from the last one you saw is not a trick;
@@ -249,10 +310,22 @@ export const M4_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано число n (1 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи медиану. ВНИМАТЕЛЬНО прочитай правило, оно отличается от того, что было на уроке: если n нечётное, середина одна; если n ЧЁТНОЕ, берётся БОЛЬШЕЕ из двух средних. Например, при n = 4 и числах `8 2 5 1` отсортированный список `1 2 5 8`, два средних — 2 и 5, а ответ — большее из них, то есть 5. При n = 5 и числах `7 1 9 3 5` отсортированный список `1 3 5 7 9`, ответ 5.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(a[n // 2])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    cout << a[n / 2];\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Even n, and the lesson's rule answers 2 instead of 5. */
       { input: "4\n8 2 5 1", expectedOutput: "5" },
@@ -284,7 +357,7 @@ export const M4_PRACTICE: LessonBlock[] = [
      * it is what puts a boundary at BOTH ends of the list: the final run is
      * closed after the loop ends, or the last value is never judged at all.
      *
-     * Still no `set` and no `dict`: sorting is what puts equal values side by
+     * Still no `set` and no `map`: sorting is what puts equal values side by
      * side, and one pass then answers both halves.
      */
     id: "m4.p5",
@@ -297,23 +370,39 @@ export const M4_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано число n (1 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи в одну строку через пробел два числа: сначала сколько в списке РАЗЛИЧНЫХ значений, затем сколько из них встречаются ровно один раз. Например, при n = 5 и числах `5 2 5 2 7` различных значений три — это 2, 5 и 7, — а ровно один раз встречается только 7, поэтому ответ `3 1`. В отсортированном списке одинаковые числа стоят рядом, так что оба числа находятся за один проход.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "diff = 1\n" +
-      "once = 0\n" +
-      "run = 1\n" +
-      "for i in range(1, n):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        diff = diff + 1\n" +
-      "        if run == 1:\n" +
-      "            once = once + 1\n" +
-      "        run = 1\n" +
-      "if run == 1:\n" +
-      "    once = once + 1\n" +
-      "print(diff, once)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int diff = 1;\n" +
+      "    int once = 0;\n" +
+      "    int run = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            diff = diff + 1;\n" +
+      "            if (run == 1) {\n" +
+      "                once = once + 1;\n" +
+      "            }\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (run == 1) {\n" +
+      "        once = once + 1;\n" +
+      "    }\n" +
+      "    cout << diff << \" \" << once;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Without sorting every neighbour differs here and the answer becomes
          `5 5` — the whole family's standard killer. */
@@ -363,30 +452,55 @@ export const M4_PRACTICE: LessonBlock[] = [
       ru: "В первой строке дано число n (1 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Выведи значение, которое встречается чаще всех. Если таких значений несколько, выведи ВСЕ из них по возрастанию, в одну строку через пробел. Например, при n = 5 и числах `8 8 2 2 5` и 8, и 2 встречаются по два раза, а 5 — один раз, поэтому ответ `2 8`. Если все числа различны, каждое встречается по одному разу, значит самыми частыми считаются все.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "best = 1\n" +
-      "run = 1\n" +
-      "for i in range(1, n):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        run = 1\n" +
-      "    if run > best:\n" +
-      "        best = run\n" +
-      "res = []\n" +
-      "run = 1\n" +
-      "for i in range(1, n):\n" +
-      "    if a[i] == a[i - 1]:\n" +
-      "        run = run + 1\n" +
-      "    else:\n" +
-      "        if run == best:\n" +
-      "            res.append(str(a[i - 1]))\n" +
-      "        run = 1\n" +
-      "if run == best:\n" +
-      "    res.append(str(a[n - 1]))\n" +
-      'print(" ".join(res))',
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int best = 1;\n" +
+      "    int run = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "        if (run > best) {\n" +
+      "            best = run;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    vector<int> res;\n" +
+      "    run = 1;\n" +
+      "    for (int i = 1; i < n; i++) {\n" +
+      "        if (a[i] == a[i - 1]) {\n" +
+      "            run = run + 1;\n" +
+      "        } else {\n" +
+      "            if (run == best) {\n" +
+      "                res.push_back(a[i - 1]);\n" +
+      "            }\n" +
+      "            run = 1;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    if (run == best) {\n" +
+      "        res.push_back(a[n - 1]);\n" +
+      "    }\n" +
+      "    int m = res.size();\n" +
+      "    for (int i = 0; i < m; i++) {\n" +
+      "        cout << res[i];\n" +
+      "        if (i + 1 < m) {\n" +
+      "            cout << \" \";\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* Two winners, and printing only one of them fails immediately. */
       { input: "5\n8 8 2 2 5", expectedOutput: "2 8" },
@@ -421,29 +535,46 @@ export const M4_PRACTICE: LessonBlock[] = [
      * The tie goes to the smallest first number, and on a sorted list that is
      * one character: `<` keeps the earliest winner, `<=` keeps the last.
      * The prompt states the rule and two hidden cases enforce it.
+     *
+     * `vector<long long>`, for the same reason as p3: two values 10⁹ apart in
+     * opposite directions differ by 2 · 10⁹.
      */
     id: "m4.p7",
     type: "write_code",
     skillRefs: ["sort.basic", "lists.traverse", "compare.operators", "debug.boundary"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда n саны беріледі (2 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Мәні бойынша бір-біріне ең жақын екі санды тауып, оларды бір жолға бос орынмен бөліп шығар: алдымен кішісін, содан кейін үлкенін. Егер айырмасы бірдей ең жақын бірнеше жұп болса, кіші саны ең кіші болатын жұпты шығар. Сандар қайталануы мүмкін — ондай жұптың айырмасы 0 болады. Мысалы n = 5, сандар `15 4 9 22 7` болса, реттелген тізім `4 7 9 15 22`, ең кіші айырма 9 − 7 = 2, жауап `7 9`.",
-      ru: "В первой строке дано число n (2 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Найди два числа, ближайших друг к другу по значению, и выведи их в одну строку через пробел: сначала меньшее, потом большее. Если ближайших пар несколько и разность у них одинаковая, выведи ту, у которой меньшее число самое маленькое. Числа могут повторяться — у такой пары разность равна 0. Например, при n = 5 и числах `15 4 9 22 7` отсортированный список `4 7 9 15 22`, наименьшая разность 9 − 7 = 2, ответ `7 9`.",
+      kk: "Бірінші жолда n саны беріледі (2 ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Мәні бойынша бір-біріне ең жақын екі санды тауып, оларды бір жолға бос орынмен бөліп шығар: алдымен кішісін, содан кейін үлкенін. Егер айырмасы бірдей ең жақын бірнеше жұп болса, кіші саны ең кіші болатын жұпты шығар. Сандар қайталануы мүмкін — ондай жұптың айырмасы 0 болады. Мысалы n = 5, сандар `15 4 9 22 7` болса, реттелген тізім `4 7 9 15 22`, ең кіші айырма 9 − 7 = 2, жауап `7 9`. Айырмалар 2000000000-ға дейін жететіндіктен тізімді `vector<long long>` етіп оқы.",
+      ru: "В первой строке дано число n (2 ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. Найди два числа, ближайших друг к другу по значению, и выведи их в одну строку через пробел: сначала меньшее, потом большее. Если ближайших пар несколько и разность у них одинаковая, выведи ту, у которой меньшее число самое маленькое. Числа могут повторяться — у такой пары разность равна 0. Например, при n = 5 и числах `15 4 9 22 7` отсортированный список `4 7 9 15 22`, наименьшая разность 9 − 7 = 2, ответ `7 9`. Разности доходят до 2000000000, поэтому читай список как `vector<long long>`.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "best = a[1] - a[0]\n" +
-      "x = a[0]\n" +
-      "y = a[1]\n" +
-      "for i in range(1, n - 1):\n" +
-      "    d = a[i + 1] - a[i]\n" +
-      "    if d < best:\n" +
-      "        best = d\n" +
-      "        x = a[i]\n" +
-      "        y = a[i + 1]\n" +
-      "print(x, y)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    long long best = a[1] - a[0];\n" +
+      "    long long x = a[0];\n" +
+      "    long long y = a[1];\n" +
+      "    for (int i = 1; i < n - 1; i++) {\n" +
+      "        long long d = a[i + 1] - a[i];\n" +
+      "        if (d < best) {\n" +
+      "            best = d;\n" +
+      "            x = a[i];\n" +
+      "            y = a[i + 1];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << x << \" \" << y;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n15 4 9 22 7", expectedOutput: "7 9" },
       /* The winning pair is the very first one. A scan whose loop starts at
@@ -462,6 +593,8 @@ export const M4_PRACTICE: LessonBlock[] = [
       { input: "5\n1 10 20 30 31", expectedOutput: "30 31", hidden: true },
       { input: "4\n5 1 6 2", expectedOutput: "1 2", hidden: true },
       { input: "5\n-5 -1 -9 3 0", expectedOutput: "-1 0", hidden: true },
+      /* The overflow case: an `int` list computes a[1] - a[0] as -1294967296
+         and then never finds anything smaller. */
       { input: "3\n1000000000 -1000000000 0", expectedOutput: "-1000000000 0", hidden: true },
     ],
   },
@@ -479,9 +612,12 @@ export const M4_PRACTICE: LessonBlock[] = [
      * directly (`p[R] - p[L - 1]`) instead of m4.l5.b8's conversion to 0-based
      * `l` and `r`, so neither program can be copied into the other.
      *
+     * The table counts, not sums, so it stays `int`: at most 100 000 entries.
+     *
      * The prompt states the arithmetic the constraint forces: n and q both
-     * reach 100000, so re-walking a segment per query is about 10^10 steps.
-     * That number is the whole month in one sentence.
+     * reach 100000, so re-walking a segment per query is about 10^10 steps,
+     * a hundred seconds at C++ speed. That number is the whole month in one
+     * sentence.
      */
     id: "m4.p8",
     /* `exact`, because the prompt promises a layout — «жеке жолда» — and the
@@ -500,22 +636,38 @@ export const M4_PRACTICE: LessonBlock[] = [
     ],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Үшінші жолда сұраулар саны q (1 ≤ q ≤ 100000). Одан кейін q жол, әр жолда екі сан: L және R (1 ≤ L ≤ R ≤ n). Орындар 1-ден нөмірленеді, екі шеті де кіреді. Әр сұрау үшін L-ден R-ге дейінгі орындарда неше ЖҰП сан тұрғанын жеке жолға шығар. Теріс сандар да жұп бола алады: −4 жұп, −3 тақ. Мысалы n = 5, сандар `3 4 4 1 6`, ал сұрау `2 3` болса, жауап 2. Әр сұрауда бөлікті қайтадан аралауға болмайды: n де, q да 100000-ға дейін, ол шамамен он миллиард қадам, ондай шешім уақытқа үлгермейді. Алдымен «алғашқы i санның ішінде неше жұп бар» деген кестені бір рет толтыр, содан кейін әр жауапты бір азайтумен ал.",
-      ru: "В первой строке дано число n (1 ≤ n ≤ 100000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. В третьей строке количество запросов q (1 ≤ q ≤ 100000). Далее q строк, в каждой два числа: L и R (1 ≤ L ≤ R ≤ n). Позиции нумеруются с 1, оба конца включаются. Для каждого запроса выведи на отдельной строке, сколько ЧЁТНЫХ чисел стоит на позициях с L-й по R-ю. Отрицательные тоже бывают чётными: −4 чётное, −3 нечётное. Например, при n = 5, числах `3 4 4 1 6` и запросе `2 3` ответ 2. Проходить участок заново на каждый запрос нельзя: и n, и q доходят до 100000, это около десяти миллиардов шагов, такое решение по времени не проходит. Сначала один раз заполни таблицу «сколько чётных среди первых i чисел», а потом получай каждый ответ одним вычитанием.",
+      kk: "Бірінші жолда n саны беріледі (1 ≤ n ≤ 100000). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000000000-нан аспайды. Үшінші жолда сұраулар саны q (1 ≤ q ≤ 100000). Одан кейін q жол, әр жолда екі сан: L және R (1 ≤ L ≤ R ≤ n). Орындар 1-ден нөмірленеді, екі шеті де кіреді. Әр сұрау үшін L-ден R-ге дейінгі орындарда неше ЖҰП сан тұрғанын жеке жолға шығар. Теріс сандар да жұп бола алады: −4 жұп, −3 тақ. Ескерту: C++-та `-3 % 2` −1-ге тең (нөлге қарай қиылады), сондықтан «жұп па?» деген тексеруді `x % 2 == 0` деп жаз — `x % 2 == 1` теріс тақ сандарды жіберіп алады. Мысалы n = 5, сандар `3 4 4 1 6`, ал сұрау `2 3` болса, жауап 2. Әр сұрауда бөлікті қайтадан аралауға болмайды: n де, q да 100000-ға дейін, ол шамамен он миллиард қадам, яғни жүз секундтан аса. Алдымен «алғашқы i санның ішінде неше жұп бар» деген кестені бір рет толтыр, содан кейін әр жауапты бір азайтумен ал.",
+      ru: "В первой строке дано число n (1 ≤ n ≤ 100000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000000000. В третьей строке количество запросов q (1 ≤ q ≤ 100000). Далее q строк, в каждой два числа: L и R (1 ≤ L ≤ R ≤ n). Позиции нумеруются с 1, оба конца включаются. Для каждого запроса выведи на отдельной строке, сколько ЧЁТНЫХ чисел стоит на позициях с L-й по R-ю. Отрицательные тоже бывают чётными: −4 чётное, −3 нечётное. Внимание: в C++ `-3 % 2` равно −1 (деление отсекается к нулю), поэтому проверку на чётность пиши как `x % 2 == 0` — запись `x % 2 == 1` пропустит отрицательные нечётные. Например, при n = 5, числах `3 4 4 1 6` и запросе `2 3` ответ 2. Проходить участок заново на каждый запрос нельзя: и n, и q доходят до 100000, это около десяти миллиардов шагов, больше ста секунд.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    if a[i - 1] % 2 == 0:\n" +
-      "        p[i] = p[i - 1] + 1\n" +
-      "    else:\n" +
-      "        p[i] = p[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    L, R = map(int, input().split())\n" +
-      "    print(p[R] - p[L - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<int> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    vector<int> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        if (a[i - 1] % 2 == 0) {\n" +
+      "            p[i] = p[i - 1] + 1;\n" +
+      "        } else {\n" +
+      "            p[i] = p[i - 1];\n" +
+      "        }\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int L, R;\n" +
+      "        cin >> L >> R;\n" +
+      "        cout << p[R] - p[L - 1] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       /* The whole array, an inner segment, and both single ends. */
       { input: "5\n3 4 4 1 6\n4\n1 5\n2 3\n1 1\n5 5", expectedOutput: "3\n2\n0\n1" },
@@ -524,12 +676,11 @@ export const M4_PRACTICE: LessonBlock[] = [
          the third answers 1, and with `p[R + 1] - p[L]` the last one reads past
          the table. Neighbouring queries differ by exactly one position. */
       { input: "4\n2 1 2 1\n4\n1 1\n1 2\n2 2\n2 4", expectedOutput: "1\n1\n0\n1", hidden: true },
-      /* Negative even numbers, and the reason the prompt spells out that −4 is
-         even: in Python `-4 % 2` is 0 and `-3 % 2` is 1, so `x % 2 == 0` is
-         simply right here. A learner who carried over the C rule and expected
-         `-3 % 2` to be −1 would have written `x % 2 != 1`, which agrees on
-         these values — the case is here so the statement and the language do
-         not quietly disagree with each other. */
+      /* Negative even numbers, and the reason the prompt spells out the sign
+         rule: in C++ `-3 % 2` is −1, not 1, so a parity test written
+         `x % 2 == 1` calls −3 even and answers 4 here instead of 3. This is one
+         of the traps the language change introduces and it is checked, not
+         merely mentioned. */
       { input: "6\n-2 -3 0 5 -4 7\n3\n1 6\n1 3\n4 6", expectedOutput: "3\n2\n1", hidden: true },
       { input: "4\n2 4 6 8\n2\n1 4\n2 3", expectedOutput: "4\n2", hidden: true },
       /* No even number anywhere: the table stays flat and every answer is 0. */
@@ -548,6 +699,8 @@ export const M4_PRACTICE: LessonBlock[] = [
      * learner act on twice in one program. The dearest half is where the index
      * arithmetic bites: the k most expensive items start at position n − k, and
      * every off-by-one there is a wrong total rather than a crash.
+     *
+     * Both totals are `long long`: 200 000 prices of up to 10⁹ is 2 · 10¹⁴.
      */
     id: "m4.p9",
     bank: {
@@ -560,18 +713,38 @@ export const M4_PRACTICE: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Дүкенде n тауар бар, әрқайсысының бағасы белгілі, және дәл k тауар сатып алу керек. Бірінші жолда екі сан беріледі: n және k (1 ≤ k ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан — бағалар, әрқайсысы 1-ден 1000000000-ға дейін. Бір жолға бос орынмен бөліп екі санды шығар: алдымен дәл k тауар алудың ең арзан жалпы бағасын, содан кейін ең қымбат жалпы бағасын. Бағалары бірдей тауарлар бөлек тауар болып саналады. Мысалы n = 5, k = 2, бағалар `7 2 9 4 1` болса, ең арзаны 1 + 2 = 3, ең қымбаты 9 + 7 = 16, жауап `3 16`.",
-      ru: "В магазине n товаров, у каждого известна цена, и нужно купить ровно k товаров. В первой строке даны два числа: n и k (1 ≤ k ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел — цены, каждая от 1 до 1000000000. Выведи в одну строку через пробел два числа: сначала наименьшую возможную стоимость ровно k товаров, затем наибольшую. Товары с одинаковой ценой считаются разными товарами. Например, при n = 5, k = 2 и ценах `7 2 9 4 1` самая дешёвая покупка стоит 1 + 2 = 3, самая дорогая 9 + 7 = 16, ответ `3 16`.",
+      kk: "Дүкенде n тауар бар, әрқайсысының бағасы белгілі, және дәл k тауар сатып алу керек. Бірінші жолда екі сан беріледі: n және k (1 ≤ k ≤ n ≤ 200000). Екінші жолда бос орынмен бөлінген n бүтін сан — бағалар, әрқайсысы 1-ден 1000000000-ға дейін. Бір жолға бос орынмен бөліп екі санды шығар: алдымен дәл k тауар алудың ең арзан жалпы бағасын, содан кейін ең қымбат жалпы бағасын. Бағалары бірдей тауарлар бөлек тауар болып саналады. Мысалы n = 5, k = 2, бағалар `7 2 9 4 1` болса, ең арзаны 1 + 2 = 3, ең қымбаты 9 + 7 = 16, жауап `3 16`. Қосынды 2·10^14-ке жетеді, сондықтан жинақтауыштар `long long` болуы керек.",
+      ru: "В магазине n товаров, у каждого известна цена, и нужно купить ровно k товаров. В первой строке даны два числа: n и k (1 ≤ k ≤ n ≤ 200000). Во второй строке через пробел даны n целых чисел — цены, каждая от 1 до 1000000000. Выведи в одну строку через пробел два числа: сначала наименьшую возможную стоимость ровно k товаров, затем наибольшую. Товары с одинаковой ценой считаются разными товарами. Например, при n = 5, k = 2 и ценах `7 2 9 4 1` самая дешёвая покупка стоит 1 + 2 = 3, самая дорогая 9 + 7 = 16, ответ `3 16`. Сумма доходит до 2·10^14, поэтому накопители должны быть `long long`.",
     },
     referenceSolution:
-      "n, k = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "print(sum(a[0:k]), sum(a[n - k:n]))",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n, k;\n" +
+      "    cin >> n >> k;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    long long lo = 0;\n" +
+      "    for (int i = 0; i < k; i++) {\n" +
+      "        lo = lo + a[i];\n" +
+      "    }\n" +
+      "    long long hi = 0;\n" +
+      "    for (int i = n - k; i < n; i++) {\n" +
+      "        hi = hi + a[i];\n" +
+      "    }\n" +
+      "    cout << lo << \" \" << hi;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5 2\n7 2 9 4 1", expectedOutput: "3 16" },
-      /* k = n: both answers are the whole basket, and `a[n - k:n]` has to
-         start at position 0 rather than crash or come up one item short. */
+      /* k = n: both answers are the whole basket, and the dear walk has to
+         start at position 0 rather than read past the front or come up short. */
       { input: "4 4\n5 5 5 5", expectedOutput: "20 20" },
       { input: "1 1\n1000000000", expectedOutput: "1000000000 1000000000", hidden: true },
       /* k = 1: the two answers are the extremes themselves, sitting at the very
@@ -583,7 +756,8 @@ export const M4_PRACTICE: LessonBlock[] = [
       { input: "5 3\n5 4 3 2 1", expectedOutput: "6 12", hidden: true },
       { input: "5 3\n1 2 3 4 5", expectedOutput: "6 12", hidden: true },
       /* Duplicated top price: two separate items, so the dearest basket costs
-         two billion and not one. */
+         two billion and not one — and an `int` accumulator answers
+         -2294967296 here. */
       { input: "4 2\n1000000000 1000000000 1 1", expectedOutput: "2 2000000000", hidden: true },
       { input: "6 2\n3 1 4 1 5 9", expectedOutput: "2 14", hidden: true },
     ],
@@ -591,10 +765,11 @@ export const M4_PRACTICE: LessonBlock[] = [
   {
     /*
      * ADVANCED ONLY, and the one block in the bank where the constraint chooses
-     * the algorithm rather than merely describing it. n ≤ 2000 makes the
-     * roughly two million (l, r) pairs affordable and a third loop over each
-     * segment — four billion steps — not. That is the month's central sentence
-     * applied to a plan the learner has to price before writing.
+     * the algorithm rather than merely describing it. n ≤ 5000 makes the
+     * roughly 12.5 million (l, r) pairs affordable and a third loop over each
+     * segment — about 2 · 10¹⁰ steps — not. That is the month's central sentence
+     * applied to a plan the learner has to price before writing. (The bound was
+     * 2000 for CPython; see the head comment for why C++ needed it moved.)
      *
      * m4.l5.b9 counts the segments whose sum is exactly s. This asks for the
      * longest whose sum is at most s, which is a different answer to keep (a
@@ -614,35 +789,51 @@ export const M4_PRACTICE: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["advanced"],
     prompt: {
-      kk: "Бірінші жолда екі сан беріледі: n және s (1 ≤ n ≤ 2000, s модулі 1000000-нан аспайды). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000-нан аспайды. Қосындысы s-тен аспайтын (яғни ≤ s) бос емес тұтас бөліктің ең үлкен ұзындығын шығар. Ондай бөлік мүлде болмаса, 0 шығар. Сандар теріс те бола алады, сондықтан бөлікті ұзартқанда қосынды кемуі де мүмкін. Мысалы n = 6, s = 7, сандар `2 1 5 1 1 3` болса, жауап 3: мысалы `5 1 1` бөлігінің қосындысы дәл 7, ал ұзындығы 4 болатын бөліктердің бәрінің қосындысы 7-ден асады. n ≤ 2000 болғандықтан барлық (l, r) жұбын қарап шығуға болады — бұл шамамен екі миллион жұп, ол уақытқа сыяды. Ал әр жұп үшін бөліктің қосындысын қайта санауға болмайды: ол үшінші цикл болар еді және үлгермес еді. Префикс кестені пайдалан.",
-      ru: "В первой строке даны два числа: n и s (1 ≤ n ≤ 2000, s по модулю не больше 1000000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000. Выведи наибольшую длину непустого непрерывного участка, сумма которого не превышает s (то есть ≤ s). Если такого участка нет вовсе, выведи 0. Числа могут быть отрицательными, поэтому при удлинении участка сумма может и уменьшаться. Например, при n = 6, s = 7 и числах `2 1 5 1 1 3` ответ 3: скажем, у участка `5 1 1` сумма ровно 7, а у любого участка длины 4 сумма больше 7. Так как n ≤ 2000, перебрать все пары (l, r) можно — это около двух миллионов пар, и по времени это проходит. А вот пересчитывать сумму участка для каждой пары нельзя: это был бы третий цикл, и он бы не уложился. Используй префиксную таблицу.",
+      kk: "Бірінші жолда екі сан беріледі: n және s (1 ≤ n ≤ 5000, s модулі 5000000-нан аспайды). Екінші жолда бос орынмен бөлінген n бүтін сан, әрқайсысының модулі 1000-нан аспайды. Қосындысы s-тен аспайтын (яғни ≤ s) бос емес тұтас бөліктің ең үлкен ұзындығын шығар. Ондай бөлік мүлде болмаса, 0 шығар. Сандар теріс те бола алады, сондықтан бөлікті ұзартқанда қосынды кемуі де мүмкін. Мысалы n = 6, s = 7, сандар `2 1 5 1 1 3` болса, жауап 3: мысалы `5 1 1` бөлігінің қосындысы дәл 7, ал ұзындығы 4 болатын бөліктердің бәрінің қосындысы 7-ден асады. n ≤ 5000 болғандықтан барлық (l, r) жұбын қарап шығуға болады — бұл шамамен 12 500 000 жұп, ол секундтың оннан біріне сыяды. Ал әр жұп үшін бөліктің қосындысын қайта санауға болмайды: ол үшінші цикл болар еді, шамамен 2·10^10 қадам, яғни минуттар. Префикс кестені пайдалан.",
+      ru: "В первой строке даны два числа: n и s (1 ≤ n ≤ 5000, s по модулю не больше 5000000). Во второй строке через пробел даны n целых чисел, каждое по модулю не больше 1000. Выведи наибольшую длину непустого непрерывного участка, сумма которого не превышает s (то есть ≤ s). Если такого участка нет вовсе, выведи 0. Числа могут быть отрицательными, поэтому при удлинении участка сумма может и уменьшаться. Например, при n = 6, s = 7 и числах `2 1 5 1 1 3` ответ 3: скажем, у участка `5 1 1` сумма ровно 7, а у любого участка длины 4 сумма больше 7. Так как n ≤ 5000, перебрать все пары (l, r) можно — это около 12 500 000 пар, и они укладываются в десятую долю секунды. А вот пересчитывать сумму участка для каждой пары нельзя: это был бы третий цикл, около 2·10^10 шагов, то есть минуты. Используй префиксную таблицу.",
     },
     referenceSolution:
-      "n, s = map(int, input().split())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "best = 0\n" +
-      "for l in range(n):\n" +
-      "    for r in range(l, n):\n" +
-      "        if p[r + 1] - p[l] <= s:\n" +
-      "            if r - l + 1 > best:\n" +
-      "                best = r - l + 1\n" +
-      "print(best)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    long long s;\n" +
+      "    cin >> n >> s;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int best = 0;\n" +
+      "    for (int l = 0; l < n; l++) {\n" +
+      "        for (int r = l; r < n; r++) {\n" +
+      "            if (p[r + 1] - p[l] <= s) {\n" +
+      "                if (r - l + 1 > best) {\n" +
+      "                    best = r - l + 1;\n" +
+      "                }\n" +
+      "            }\n" +
+      "        }\n" +
+      "    }\n" +
+      "    cout << best;\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "6 7\n2 1 5 1 1 3", expectedOutput: "3" },
       /* The sum equals s exactly, on a list of one. Two mutants die here and
          nowhere else in this set: `<` instead of `<=` answers 0, and an inner
-         walk written `range(l + 1, n)` — one that only ever looks at segments
-         of two or more — also answers 0. */
+         walk that starts at l + 1 — one that only ever looks at segments of two
+         or more — also answers 0. */
       { input: "1 5\n5", expectedOutput: "1" },
       /* No segment qualifies, so 0 is the answer rather than a failure. */
       { input: "1 5\n6", expectedOutput: "0", hidden: true },
       { input: "4 -1\n1 2 3 4", expectedOutput: "0", hidden: true },
       /* The whole array qualifies, so the answer is n itself and the inner walk
-         has to reach the last position: written `range(l, n - 1)` it stops one
-         short and answers 4. */
+         has to reach the last position: stopping at n - 1 gives 4. */
       { input: "5 100\n1 2 3 4 5", expectedOutput: "5", hidden: true },
       /* The winning segment sits at the very beginning, then at the very end. */
       { input: "5 3\n1 1 1 9 9", expectedOutput: "3", hidden: true },

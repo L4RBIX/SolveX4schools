@@ -32,24 +32,30 @@ import type { LessonBlock } from "../../types";
  * code: two are about step counts and the third is about why reordering the
  * list does not change the answer.
  *
- * ## The clock that does not exist
+ * ## The per-second figure, re-calibrated
  *
- * `docs/curriculum/RUNTIME_INTEGRATION_REQUIREMENTS.md` §3: there is no time
- * limit in the content model and the judge reports pass/fail, not duration. So
- * every task here STATES its constraint — n and q up to 200 000, about ten
- * million steps a second, the same single number `m4.l1` established — and the
- * cases are small enough to run. A learner who submits the quadratic solution
- * passes the judge and has still chosen wrong, and `b2`, `b4` and `b9` are
- * where that choice is actually assessed. Nobody is marked wrong by a clock
- * that is not there.
+ * Every step count in this file was priced against CPython's «он миллион
+ * амал/секунд». The figure is now **100 000 000 a second**, the C++ one
+ * `m4.l1.b1` establishes, and it appears in `b2`, `b4` and `b9`. The verdicts
+ * are unchanged and the margins are still enormous: the slow plan is 4 · 10¹⁰
+ * steps, which is four hundred seconds rather than four thousand, and the fast
+ * one is about 4 · 10⁵, which is four thousandths of a second. Nothing in this
+ * lesson sits near a boundary.
+ *
+ * ## `long long`, not `int`
+ *
+ * Prices reach 10⁹ and n reaches 200 000, so a full total is 2 · 10¹⁴. Every
+ * table and every accumulator here is `long long`; an `int` version overflows
+ * silently and every answer after the overflow is wrong with no diagnostic. One
+ * hidden case in `b4` and one in `b6` are there specifically to kill it.
  *
  * ## One convention, inherited unchanged from m4.l5
  *
- * `p = [0] * (n + 1)`, `p[i] = p[i - 1] + a[i - 1]`, so `p[i]` is the sum of
- * the first i elements and `p[0] = 0`. Nothing here introduces a second
- * indexing scheme. What IS new is that the table is filled over the list AFTER
- * `a.sort()`, which turns `p[k]` from "the first k as typed" into "the k
- * smallest" — that single sentence is the lesson.
+ * `p(n + 1, 0)`, `p[i] = p[i - 1] + a[i - 1]`, so `p[i]` is the sum of the
+ * first i elements and `p[0] = 0`. Nothing here introduces a second indexing
+ * scheme. What IS new is that the table is filled over the list AFTER
+ * `sort(a.begin(), a.end())`, which turns `p[k]` from "the first k as typed"
+ * into "the k smallest" — that single sentence is the lesson.
  *
  * ## Transcription, and what each card is allowed to show
  *
@@ -66,13 +72,13 @@ import type { LessonBlock } from "../../types";
  * `b6` (k cheapest, total) and `b7` (drop the m lowest and the m highest) are
  * written from scratch, and no card on screen contains either program.
  *
- * ## Python
+ * ## C++ used
  *
- * Everything through November, plus this month's `sorted()` and `.sort()`.
- * `min`, `max` and `sum` arrived with them and are deliberately unused: the
- * whole subject is that the total of a range must come from a table filled
- * once, and `sum(a[0:k])` re-walks the range on every question, which is the
- * plan `b2` rejects. No `set`, no `dict`, no comprehension, no import.
+ * Everything through November, plus this month's `sort` from `<algorithm>`.
+ * There is no whole-list `sum` to reach for and that suits the subject: the
+ * total of a range must come from a table filled once, and a loop re-walking
+ * the range on every question is the plan `b2` rejects. No `set`, no `map`, no
+ * lambda, no `bits/stdc++.h`.
  *
  * The only word any program prints is `overlap`, in `b8`, and both prompts
  * name it — a Russian-track learner is never asked to recognise a Kazakh word
@@ -116,12 +122,12 @@ export const M4_L6: LessonBlock[] = [
         ru: "В неотсортированном списке «k наименьших цен» никак не связаны с позицией: 10 и 20 стоят в разных концах списка, и на каждый вопрос их пришлось бы искать заново. После сортировки ровно эти k цен занимают ПЕРВЫЕ k мест. Сортировка превращает вопрос «какие самые дешёвые» в вопрос «первые k позиций».",
       },
       {
-        kk: "Ал алғашқы k элементтің қосындысы — өткен сабақтағы префикс кестенің дәл өзі. Ереже сол күйінде қалады: `p[0] = 0`, ал `p[i] = p[i - 1] + a[i - 1]`, яғни `p[i]` — алғашқы i элементтің қосындысы. Бұл жерде ешқандай жаңа формула жоқ, тек кесте енді РЕТТЕЛГЕН тізім бойынша толтырылады.",
-        ru: "А сумма первых k элементов — это ровно та префиксная таблица из прошлого урока. Правило прежнее: `p[0] = 0`, а `p[i] = p[i - 1] + a[i - 1]`, то есть `p[i]` — сумма первых i элементов. Никакой новой формулы здесь нет, просто таблица теперь заполняется по ОТСОРТИРОВАННОМУ списку.",
+        kk: "Ал алғашқы k элементтің қосындысы — өткен сабақтағы префикс кестенің дәл өзі. Ереже сол күйінде қалады: `p[0] = 0`, ал `p[i] = p[i - 1] + a[i - 1]`, яғни `p[i]` — алғашқы i элементтің қосындысы. Бұл жерде ешқандай жаңа формула жоқ, тек кесте енді РЕТТЕЛГЕН тізім бойынша толтырылады. Кесте `long long` түрінде: бағалар миллиардқа, тауар саны екі жүз мыңға жетсе, қосынды 2·10^14 болады.",
+        ru: "А сумма первых k элементов — это ровно та префиксная таблица из прошлого урока. Правило прежнее: `p[0] = 0`, а `p[i] = p[i - 1] + a[i - 1]`, то есть `p[i]` — сумма первых i элементов. Никакой новой формулы здесь нет, просто таблица теперь заполняется по ОТСОРТИРОВАННОМУ списку. Таблица объявлена как `long long`: если цены доходят до миллиарда, а товаров до двухсот тысяч, сумма достигает 2·10^14.",
       },
       {
-        kk: "Реттелген тізім: 10, 20, 40, 50, 70. Кестені бір рет толтырамыз: p = [0, 10, 30, 70, 120, 190]. Ішінде алты сан бар, себебі бос бөліктің қосындысы да кестеде тұр.",
-        ru: "Отсортированный список: 10, 20, 40, 50, 70. Заполняем таблицу один раз: p = [0, 10, 30, 70, 120, 190]. В ней шесть чисел, потому что сумма пустого участка тоже лежит в таблице.",
+        kk: "Реттелген тізім: 10, 20, 40, 50, 70. Кестені бір рет толтырамыз: p = 0 10 30 70 120 190. Ішінде алты сан бар, себебі бос бөліктің қосындысы да кестеде тұр.",
+        ru: "Отсортированный список: 10, 20, 40, 50, 70. Заполняем таблицу один раз: p = 0 10 30 70 120 190. В ней шесть чисел, потому что сумма пустого участка тоже лежит в таблице.",
       },
       {
         kk: "Енді әр сұрақ бір қарауға айналды: k = 1 болса p[1] = 10, k = 3 болса p[3] = 70, k = 5 болса p[5] = 190. Реттеу де, кестені толтыру да сұрақтар басталғанға дейін бір-ақ рет жасалды және ешбір сұрақ сайын қайталанбайды.",
@@ -133,17 +139,29 @@ export const M4_L6: LessonBlock[] = [
       },
     ],
     code:
-      "a = [70, 20, 50, 10, 40]\n" +
-      "n = len(a)\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "print(p)\n" +
-      "print(p[1], p[3], p[5])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<long long> a = {70, 20, 50, 10, 40};\n" +
+      "    int n = a.size();\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    for (int i = 0; i <= n; i++) {\n" +
+      "        cout << p[i] << \" \";\n" +
+      "    }\n" +
+      "    cout << endl;\n" +
+      "    cout << p[1] << \" \" << p[3] << \" \" << p[5] << endl;\n" +
+      "    return 0;\n" +
+      "}",
     result: {
-      kk: "Экранға екі жол шығады: [0, 10, 30, 70, 120, 190], содан кейін 10 70 190. Яғни бір тауар — 10, үш тауар — 70, бес тауар — 190.",
-      ru: "На экран выйдут две строки: [0, 10, 30, 70, 120, 190], а затем 10 70 190. То есть один товар — 10, три товара — 70, пять товаров — 190.",
+      kk: "Экранға екі жол шығады: 0 10 30 70 120 190, содан кейін 10 70 190. Яғни бір тауар — 10, үш тауар — 70, бес тауар — 190.",
+      ru: "На экран выйдут две строки: 0 10 30 70 120 190, а затем 10 70 190. То есть один товар — 10, три товара — 70, пять товаров — 190.",
     },
   },
   {
@@ -166,8 +184,8 @@ export const M4_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Дүкенде n тауар бар, бағалары берілген (1 ≤ n ≤ 200 000). Одан кейін q сұрақ келеді (1 ≤ q ≤ 200 000), әр сұрақта бір k саны: «ең арзан k тауар барлығы қанша тұрады?» Компьютер бір секундта шамамен он миллион қарапайым қадам жасайды. Төмендегі төрт жоспардың қайсысы дұрыс жауап береді ЖӘНЕ уақытқа үлгереді? Екі шартты да тексер: жылдам болғанның бәрі бірдей дұрыс емес.",
-      ru: "В магазине n товаров с известными ценами (1 ≤ n ≤ 200 000). Затем приходит q вопросов (1 ≤ q ≤ 200 000), в каждом одно число k: «сколько всего стоят k самых дешёвых товаров?» Компьютер выполняет около десяти миллионов простых шагов в секунду. Какой из четырёх планов ниже даёт правильный ответ И укладывается во время? Проверь оба условия: не всякий быстрый план правильный.",
+      kk: "Дүкенде n тауар бар, бағалары берілген (1 ≤ n ≤ 200 000). Одан кейін q сұрақ келеді (1 ≤ q ≤ 200 000), әр сұрақта бір k саны: «ең арзан k тауар барлығы қанша тұрады?» Компьютер бір секундта шамамен жүз миллион қарапайым қадам жасайды. Төмендегі төрт жоспардың қайсысы дұрыс жауап береді ЖӘНЕ уақытқа үлгереді? Екі шартты да тексер: жылдам болғанның бәрі бірдей дұрыс емес.",
+      ru: "В магазине n товаров с известными ценами (1 ≤ n ≤ 200 000). Затем приходит q вопросов (1 ≤ q ≤ 200 000), в каждом одно число k: «сколько всего стоят k самых дешёвых товаров?» Компьютер выполняет около ста миллионов простых шагов в секунду. Какой из четырёх планов ниже даёт правильный ответ И укладывается во время? Проверь оба условия: не всякий быстрый план правильный.",
     },
     options: [
       {
@@ -213,7 +231,7 @@ export const M4_L6: LessonBlock[] = [
      * The cheapest possible check that the table was built over the RIGHT list,
      * and it is placed before any task needs it. Both mapped options are
      * single-cause: "50 100" can only come from summing `a`, and "10 10" only
-     * from believing `sorted(a)` reordered `a` itself.
+     * from believing the copy `b` is not a copy.
      *
      * "60 100" is left unmapped — reading p[2] as "the sum of the first three"
      * and counting the table from 1 both produce it.
@@ -227,14 +245,24 @@ export const M4_L6: LessonBlock[] = [
       ru: "На каждой строке проговаривай себе, по какому именно списку заполняется таблица. Что программа выведет на экран?",
     },
     code:
-      "a = [40, 10, 30, 20]\n" +
-      "n = len(a)\n" +
-      "b = sorted(a)\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + b[i - 1]\n" +
-      "print(p[2], p[4])\n" +
-      "print(a[0], b[0])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    vector<long long> a = {40, 10, 30, 20};\n" +
+      "    int n = a.size();\n" +
+      "    vector<long long> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + b[i - 1];\n" +
+      "    }\n" +
+      "    cout << p[2] << \" \" << p[4] << endl;\n" +
+      "    cout << a[0] << \" \" << b[0] << endl;\n" +
+      "    return 0;\n" +
+      "}",
     answer: "30 100\n40 10",
     options: ["30 100\n40 10", "50 100\n40 10", "30 100\n10 10", "60 100\n40 10"],
     diagnosticMapping: {
@@ -246,7 +274,7 @@ export const M4_L6: LessonBlock[] = [
       "30 100\n10 10": {
         failureClass: "sorted_mistaken_for_in_place",
         justification:
-          "Бірінші жол дұрыс, демек кесте реттелген тізім бойынша толтырылғаны түсінікті. Ал екінші жолда a[0] орнына 10 шығуының жалғыз себебі бар: `sorted(a)` `a` тізімінің өзін де қайта реттеді деп ойлау. Шын мәнінде `sorted` тек жаңа тізім жасайды, `a` бұрынғы күйінде — оның бірінші элементі 40 болып қалады.",
+          "Бірінші жол дұрыс, демек кесте реттелген тізім бойынша толтырылғаны түсінікті. Ал екінші жолда a[0] орнына 10 шығуының жалғыз себебі бар: `vector<long long> b = a;` жаңа тізім жасамайды, тек `a`-ға екінші ат береді деп ойлау. Шын мәнінде бұл толық көшірме, сондықтан `a` бұрынғы күйінде — оның бірінші элементі 40 болып қалады.",
       },
     },
   },
@@ -271,31 +299,63 @@ export const M4_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бұл бағдарлама дұрыс жауап береді, бірақ баяу. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін ұпай, үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әрқайсысында бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ЕҢ ЖОҒАРЫ k ұпайдың қосындысы жеке жолға шығады. Қазіргі нұсқада ішкі цикл әр сұрақ сайын k қадам жасайды, ал ең жаман жағдайда бұл 200 000 × 200 000 = 4·10^10 қадам — секундына он миллион қадам жасайтын компьютер үшін мүлде мүмкін емес. Ішкі циклді алып таста, оның орнына сұрақтар басталғанға дейін БІР рет толтырылатын префикс кестені қой. Шығатын жауаптар өзгермеуі керек.",
-      ru: "Эта программа отвечает правильно, но медленно. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых баллов, в третьей количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выводится сумма k НАИБОЛЬШИХ баллов, каждый ответ с новой строки. Сейчас внутренний цикл делает k шагов на каждый вопрос, а в худшем случае это 200 000 × 200 000 = 4·10^10 шагов — для компьютера, делающего десять миллионов шагов в секунду, это недостижимо. Убери внутренний цикл и поставь вместо него префиксную таблицу, заполняемую ОДИН раз до начала вопросов. Выводимые ответы измениться не должны.",
+      kk: "Бұл бағдарлама дұрыс жауап береді, бірақ баяу. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін ұпай (әрқайсысы 0-ден 1 000 000 000-ға дейін), үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әрқайсысында бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ЕҢ ЖОҒАРЫ k ұпайдың қосындысы жеке жолға шығады. Қазіргі нұсқада ішкі цикл әр сұрақ сайын k қадам жасайды, ал ең жаман жағдайда бұл 200 000 × 200 000 = 4·10^10 қадам — секундына жүз миллион қадам жасайтын компьютер үшін бұл төрт жүз секундтан аса, яғни мүмкін емес. Ішкі циклді алып таста, оның орнына сұрақтар басталғанға дейін БІР рет толтырылатын префикс кестені қой. Шығатын жауаптар өзгермеуі керек. Кесте `long long` болуы шарт: қосынды 2·10^14-ке жетеді.",
+      ru: "Эта программа отвечает правильно, но медленно. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых баллов (каждый от 0 до 1 000 000 000), в третьей количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выводится сумма k НАИБОЛЬШИХ баллов, каждый ответ с новой строки. Сейчас внутренний цикл делает k шагов на каждый вопрос, а в худшем случае это 200 000 × 200 000 = 4·10^10 шагов — для компьютера, делающего сто миллионов шагов в секунду, это больше четырёхсот секунд, то есть недостижимо. Убери внутренний цикл и поставь вместо него префиксную таблицу, заполняемую ОДИН раз до начала вопросов. Выводимые ответы измениться не должны. Таблица обязательно `long long`: сумма доходит до 2·10^14.",
     },
     code:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    s = 0\n" +
-      "    for i in range(n - k, n):\n" +
-      "        s = s + a[i]\n" +
-      "    print(s)",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        long long s = 0;\n" +
+      "        for (int i = n - k; i < n; i++) {\n" +
+      "            s = s + a[i];\n" +
+      "        }\n" +
+      "        cout << s << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    print(p[n] - p[n - k])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        cout << p[n] - p[n - k] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n70 20 50 10 40\n3\n1\n2\n5", expectedOutput: "70\n120\n190" },
       { input: "1\n8\n2\n0\n1", expectedOutput: "0\n8" },
@@ -307,6 +367,7 @@ export const M4_L6: LessonBlock[] = [
       /* Fully reversed input: kills a solution that dropped the sort along with
          the inner loop. */
       { input: "4\n4 3 2 1\n2\n2\n4", expectedOutput: "7\n10", hidden: true },
+      /* The overflow case: an `int` table answers -1294967296 here. */
       { input: "3\n1000000000 1000000000 1000000000\n1\n3", expectedOutput: "3000000000", hidden: true },
       /* Zeros around a single large value: a solution that took the k largest
          from the FRONT of the sorted list answers 0 and 0 here. */
@@ -318,7 +379,7 @@ export const M4_L6: LessonBlock[] = [
      * The lesson's own failure mode, made concrete: the program sorts into `b`,
      * then fills the table out of `a`. Nothing else is wrong, and the last line
      * — which reads `b` and is right — is named in the prompt as evidence that
-     * the ordering itself worked. That sentence is what makes line 6 the ONLY
+     * the ordering itself worked. That sentence is what makes line 17 the ONLY
      * defensible answer: without it, "the sort is on the wrong line" is a second
      * reading, and m4.l5.b7 set the precedent of naming the given lines rather
      * than letting a block have two right answers.
@@ -326,9 +387,14 @@ export const M4_L6: LessonBlock[] = [
      * The question is the AVERAGE of the k cheapest, which is asked in no task
      * in this lesson, so the repaired program is not an answer to b6 or b7.
      *
-     * No diagnosticMapping. Line 10 is reachable both from "the error is where
+     * k ≥ 1 is stated in the prompt. In Python a k of 0 raised
+     * ZeroDivisionError; in C++ integer division by zero is UNDEFINED
+     * BEHAVIOUR, which is not something to leave reachable in a program a
+     * fourteen-year-old is asked to run — see docs/cpp17/CPP17_PEDAGOGY.md.
+     *
+     * No diagnosticMapping. Line 24 is reachable both from "the error is where
      * the wrong number appeared" and from "the integer division is wrong", and
-     * line 3 only by ignoring a sentence in the prompt — neither is a single
+     * line 14 only by ignoring a sentence in the prompt — neither is a single
      * identifiable cause.
      */
     id: "m4.l6.b5",
@@ -336,35 +402,69 @@ export const M4_L6: LessonBlock[] = [
     skillRefs: ["precompute.prefix", "sort.basic", "lists.index"],
     sourceType: "product-authored",
     prompt: {
-      kk: "Бағдарлама әр сұрақ үшін ең арзан k тауардың ОРТАША бағасын бүтін бөлікпен шығаруы керек, ал ең соңғы жолда ең арзан және ең қымбат бағаны шығарады. Енгізу: `5`, содан кейін `70 20 50 10 40`, содан кейін `2`, `1` және `3`. Күтілетін жауап: `10`, `23`, `10 70`. Ал бағдарлама `70`, `46`, `10 70` шығарады. Соңғы жол дұрыс, демек реттеудің өзі жұмыс істеп тұр — қате одан төмен емес, жоғары жақта. Қате қай жолда?",
-      ru: "Программа должна для каждого вопроса выводить СРЕДНЮЮ цену k самых дешёвых товаров, с целой частью, а в самой последней строке — самую низкую и самую высокую цену. Ввод: `5`, затем `70 20 50 10 40`, затем `2`, `1` и `3`. Ожидаемый ответ: `10`, `23`, `10 70`. А программа выводит `70`, `46`, `10 70`. Последняя строка верна, значит, сама сортировка работает — ошибка не ниже неё, а выше. В какой строке ошибка?",
+      kk: "Бағдарлама әр сұрақ үшін ең арзан k тауардың ОРТАША бағасын бүтін бөлікпен шығаруы керек (әр сұрақта 1 ≤ k ≤ n), ал ең соңғы жолда ең арзан және ең қымбат бағаны шығарады. Енгізу: `5`, содан кейін `70 20 50 10 40`, содан кейін `2`, `1` және `3`. Күтілетін жауап: `10`, `23`, `10 70`. Ал бағдарлама `70`, `46`, `10 70` шығарады. Соңғы жол дұрыс, демек реттеудің өзі жұмыс істеп тұр — қате одан төмен емес, жоғары жақта. Қате қай жолда?",
+      ru: "Программа должна для каждого вопроса выводить СРЕДНЮЮ цену k самых дешёвых товаров, с целой частью (в каждом вопросе 1 ≤ k ≤ n), а в самой последней строке — самую низкую и самую высокую цену. Ввод: `5`, затем `70 20 50 10 40`, затем `2`, `1` и `3`. Ожидаемый ответ: `10`, `23`, `10 70`. А программа выводит `70`, `46`, `10 70`. Последняя строка верна, значит, сама сортировка работает — ошибка не ниже неё, а выше. В какой строке ошибка?",
     },
     code:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "b = sorted(a)\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    print(p[k] // k)\n" +
-      "print(b[0], b[n - 1])",
-    buggyLine: 6,
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    vector<long long> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        cout << p[k] / k << endl;\n" +
+      "    }\n" +
+      "    cout << b[0] << \" \" << b[n - 1] << endl;\n" +
+      "    return 0;\n" +
+      "}",
+    buggyLine: 17,
     symptomInput: "5\n70 20 50 10 40\n2\n1\n3",
     fixedCode:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "b = sorted(a)\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + b[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    print(p[k] // k)\n" +
-      "print(b[0], b[n - 1])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    vector<long long> b = a;\n" +
+      "    sort(b.begin(), b.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + b[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        cout << p[k] / k << endl;\n" +
+      "    }\n" +
+      "    cout << b[0] << \" \" << b[n - 1] << endl;\n" +
+      "    return 0;\n" +
+      "}",
   },
   {
     /*
@@ -388,20 +488,36 @@ export const M4_L6: LessonBlock[] = [
     sourceType: "curriculum-derived",
     pdfPage: P,
     prompt: {
-      kk: "Бірінші жолда n саны (1 ≤ n ≤ 200 000). Екінші жолда n бүтін баға, әрқайсысы 1-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000). Одан кейін q жол, әр жолда бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ең арзан k тауардың жалпы бағасын жеке жолға шығар; k = 0 болса, жауап 0. Әр сұрақ сайын тізімді қайта аралауға уақыт жетпейді — бұл ең жаман жағдайда 4·10^10 қадам. Бір рет реттеп, префикс кестені бір рет толтыр да, әр жауапты бір қараумен ал.",
-      ru: "В первой строке число n (1 ≤ n ≤ 200 000). Во второй строке n целых цен, каждая от 1 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000). Далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выведи общую стоимость k самых дешёвых товаров, каждый ответ с новой строки; при k = 0 ответ равен 0. Проходить список заново на каждый вопрос времени не хватит — в худшем случае это 4·10^10 шагов. Отсортируй один раз, один раз заполни префиксную таблицу и бери каждый ответ одним обращением.",
+      kk: "Бірінші жолда n саны (1 ≤ n ≤ 200 000). Екінші жолда n бүтін баға, әрқайсысы 1-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000). Одан кейін q жол, әр жолда бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ең арзан k тауардың жалпы бағасын жеке жолға шығар; k = 0 болса, жауап 0. Әр сұрақ сайын тізімді қайта аралауға уақыт жетпейді — бұл ең жаман жағдайда 4·10^10 қадам, төрт жүз секундтан аса. Бір рет реттеп, префикс кестені бір рет толтыр да, әр жауапты бір қараумен ал. Кесте `long long` болсын: қосынды 2·10^14-ке жетеді.",
+      ru: "В первой строке число n (1 ≤ n ≤ 200 000). Во второй строке n целых цен, каждая от 1 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000). Далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выведи общую стоимость k самых дешёвых товаров, каждый ответ с новой строки; при k = 0 ответ равен 0. Проходить список заново на каждый вопрос времени не хватит — в худшем случае это 4·10^10 шагов, больше четырёхсот секунд. Отсортируй один раз, один раз заполни префиксную таблицу и бери каждый ответ одним обращением. Таблицу делай из `long long`: сумма доходит до 2·10^14.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    print(p[k])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        cout << p[k] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n70 20 50 10 40\n3\n1\n3\n5", expectedOutput: "10\n70\n190" },
       { input: "1\n7\n2\n0\n1", expectedOutput: "0\n7" },
@@ -412,6 +528,7 @@ export const M4_L6: LessonBlock[] = [
       { input: "4\n1 2 3 4\n4\n1\n2\n3\n4", expectedOutput: "1\n3\n6\n10", hidden: true },
       /* Fully reversed: kills a solution that never sorted at all. */
       { input: "4\n4 3 2 1\n2\n2\n4", expectedOutput: "3\n10", hidden: true },
+      /* The overflow case: an `int` table answers -1294967296 here. */
       { input: "3\n1000000000 1000000000 1000000000\n1\n3", expectedOutput: "3000000000", hidden: true },
       /* Two elements, k = 0, 1, 2 in order: the cheapest is the SECOND number
          as typed, so a table built before the sort answers 0, 10, 12. */
@@ -445,20 +562,36 @@ export const M4_L6: LessonBlock[] = [
     pdfPage: P,
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Байқауда n қазылық қатысушыға ұпай қойды. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін ұпай, әрқайсысы 0-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әр жолда бір m саны (0 ≤ m, әрі 2·m < n). Ұйымдастырушылар әр сұрақта былай сұрайды: ең ТӨМЕН m ұпайды және ең ЖОҒАРЫ m ұпайды алып тастасақ, қалғандарының қосындысы қанша? Әр жауапты жеке жолға шығар. 2·m < n болғандықтан кемінде бір ұпай әрқашан қалады. Әр сұрақ сайын қайта санауға уақыт жетпейді: бір рет реттеп, префикс кестені бір рет толтыр.",
-      ru: "На конкурсе n судей выставили участнику баллы. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых баллов, каждый от 0 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число m (0 ≤ m и 2·m < n). В каждом вопросе организаторы спрашивают: если убрать m самых НИЗКИХ баллов и m самых ВЫСОКИХ, чему равна сумма оставшихся? Выведи каждый ответ с новой строки. Так как 2·m < n, хотя бы один балл всегда остаётся. Пересчитывать заново на каждый вопрос времени не хватит: отсортируй один раз и один раз заполни префиксную таблицу.",
+      kk: "Байқауда n қазылық қатысушыға ұпай қойды. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін ұпай, әрқайсысы 0-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әр жолда бір m саны (0 ≤ m, әрі 2·m < n). Ұйымдастырушылар әр сұрақта былай сұрайды: ең ТӨМЕН m ұпайды және ең ЖОҒАРЫ m ұпайды алып тастасақ, қалғандарының қосындысы қанша? Әр жауапты жеке жолға шығар. 2·m < n болғандықтан кемінде бір ұпай әрқашан қалады. Әр сұрақ сайын қайта санауға уақыт жетпейді: бір рет реттеп, префикс кестені бір рет толтыр. Кесте `long long` болсын.",
+      ru: "На конкурсе n судей выставили участнику баллы. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых баллов, каждый от 0 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число m (0 ≤ m и 2·m < n). В каждом вопросе организаторы спрашивают: если убрать m самых НИЗКИХ баллов и m самых ВЫСОКИХ, чему равна сумма оставшихся? Выведи каждый ответ с новой строки. Так как 2·m < n, хотя бы один балл всегда остаётся. Пересчитывать заново на каждый вопрос времени не хватит: отсортируй один раз и один раз заполни префиксную таблицу. Таблица — `long long`.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    m = int(input())\n" +
-      "    print(p[n - m] - p[m])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int m;\n" +
+      "        cin >> m;\n" +
+      "        cout << p[n - m] - p[m] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n70 20 50 10 40\n3\n0\n1\n2", expectedOutput: "190\n110\n40" },
       { input: "1\n9\n1\n0", expectedOutput: "9" },
@@ -493,7 +626,7 @@ export const M4_L6: LessonBlock[] = [
      *
      * Nothing visible on any card in this lesson is that program: b1 hard-codes
      * its list and has no query loop, b4's shown program has an inner loop and
-     * no table at all, and b5's has `b = sorted(a)` and prints an average.
+     * no table at all, and b5's has a copy `b` and prints an average.
      */
     id: "m4.l6.b7s",
     type: "modify_code",
@@ -501,31 +634,63 @@ export const M4_L6: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["support"],
     prompt: {
-      kk: "Бұл бағдарлама ең ТӨМЕН m ұпайды ғана алып тастайды да, қалғандарының қосындысын шығарады. Оны ең төмен m ұпаймен қатар ең ЖОҒАРЫ m ұпайды да алып тастайтындай өзгерт. Реттеу мен префикс кесте дайын, өзгертетін жер — соңғы жолдағы индекстер. Енгізу пішімі сол күйінде: бірінші жолда n, екінші жолда n ұпай, үшінші жолда сұрақтар саны q, одан кейін q жол, әрқайсысында бір m саны (0 ≤ m, әрі 2·m < n). Әр жауап жеке жолға шығады.",
-      ru: "Эта программа убирает только m самых НИЗКИХ баллов и выводит сумму оставшихся. Измени её так, чтобы вместе с m самыми низкими убирались и m самых ВЫСОКИХ. Сортировка и префиксная таблица уже готовы, менять надо индексы в последней строке. Формат ввода прежний: в первой строке n, во второй n баллов, в третьей количество вопросов q, далее q строк, в каждой одно число m (0 ≤ m и 2·m < n). Каждый ответ выводится с новой строки.",
+      kk: "Бұл бағдарлама ең ТӨМЕН m ұпайды ғана алып тастайды да, қалғандарының қосындысын шығарады. Оны ең төмен m ұпаймен қатар ең ЖОҒАРЫ m ұпайды да алып тастайтындай өзгерт. Реттеу мен префикс кесте дайын, өзгертетін жер — соңғы шығару жолындағы индекстер. Енгізу пішімі сол күйінде: бірінші жолда n, екінші жолда n ұпай, үшінші жолда сұрақтар саны q, одан кейін q жол, әрқайсысында бір m саны (0 ≤ m, әрі 2·m < n). Әр жауап жеке жолға шығады.",
+      ru: "Эта программа убирает только m самых НИЗКИХ баллов и выводит сумму оставшихся. Измени её так, чтобы вместе с m самыми низкими убирались и m самых ВЫСОКИХ. Сортировка и префиксная таблица уже готовы, менять надо индексы в строке вывода. Формат ввода прежний: в первой строке n, во второй n баллов, в третьей количество вопросов q, далее q строк, в каждой одно число m (0 ≤ m и 2·m < n). Каждый ответ выводится с новой строки.",
     },
     code:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    m = int(input())\n" +
-      "    print(p[n] - p[m])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int m;\n" +
+      "        cin >> m;\n" +
+      "        cout << p[n] - p[m] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    m = int(input())\n" +
-      "    print(p[n - m] - p[m])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int m;\n" +
+      "        cin >> m;\n" +
+      "        cout << p[n - m] - p[m] << endl;\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n70 20 50 10 40\n3\n0\n1\n2", expectedOutput: "190\n110\n40" },
       { input: "7\n3 1 4 1 5 9 2\n3\n0\n1\n3", expectedOutput: "25\n15\n3" },
@@ -561,23 +726,40 @@ export const M4_L6: LessonBlock[] = [
     sourceType: "product-authored",
     tracks: ["core", "advanced"],
     prompt: {
-      kk: "Дүкенде n тауар бар. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін баға, әрқайсысы 1-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әр жолда бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ең ҚЫМБАТ k тауардың жалпы бағасы ең АРЗАН k тауардың жалпы бағасынан қанша артық екенін жеке жолға шығар. Егер бұл екі топ қиылысатын болса, яғни 2·k > n болса, санның орнына ағылшынша `overlap` сөзін шығар. Назар сал: 2·k = n болғанда топтар әлі қиылыспайды — ол жағдайда әдеттегі санды шығару керек. Екі топтың да қосындысы бір ғана префикс кестеден алынады, кесте бір рет толтырылады.",
-      ru: "В магазине n товаров. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых цен, каждая от 1 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выведи с новой строки, насколько общая стоимость k самых ДОРОГИХ товаров больше общей стоимости k самых ДЕШЁВЫХ. Если эти две группы пересекаются, то есть 2·k > n, вместо числа выведи английское слово `overlap`. Обрати внимание: при 2·k = n группы ещё не пересекаются — там нужно вывести обычное число. Суммы обеих групп берутся из одной и той же префиксной таблицы, заполняемой один раз.",
+      kk: "Дүкенде n тауар бар. Бірінші жолда n (1 ≤ n ≤ 200 000), екінші жолда n бүтін баға, әрқайсысы 1-ден 1 000 000 000-ға дейін. Үшінші жолда сұрақтар саны q (1 ≤ q ≤ 200 000), одан кейін q жол, әр жолда бір k саны (0 ≤ k ≤ n). Әр сұрақ үшін ең ҚЫМБАТ k тауардың жалпы бағасы ең АРЗАН k тауардың жалпы бағасынан қанша артық екенін жеке жолға шығар. Егер бұл екі топ қиылысатын болса, яғни 2·k > n болса, санның орнына ағылшынша `overlap` сөзін шығар. Назар сал: 2·k = n болғанда топтар әлі қиылыспайды — ол жағдайда әдеттегі санды шығару керек. Екі топтың да қосындысы бір ғана префикс кестеден алынады, кесте бір рет толтырылады және `long long` болады.",
+      ru: "В магазине n товаров. В первой строке n (1 ≤ n ≤ 200 000), во второй n целых цен, каждая от 1 до 1 000 000 000. В третьей строке количество вопросов q (1 ≤ q ≤ 200 000), далее q строк, в каждой одно число k (0 ≤ k ≤ n). Для каждого вопроса выведи с новой строки, насколько общая стоимость k самых ДОРОГИХ товаров больше общей стоимости k самых ДЕШЁВЫХ. Если эти две группы пересекаются, то есть 2·k > n, вместо числа выведи английское слово `overlap`. Обрати внимание: при 2·k = n группы ещё не пересекаются — там нужно вывести обычное число. Суммы обеих групп берутся из одной и той же префиксной таблицы, заполняемой один раз, и таблица — `long long`.",
     },
     referenceSolution:
-      "n = int(input())\n" +
-      "a = list(map(int, input().split()))\n" +
-      "a.sort()\n" +
-      "p = [0] * (n + 1)\n" +
-      "for i in range(1, n + 1):\n" +
-      "    p[i] = p[i - 1] + a[i - 1]\n" +
-      "q = int(input())\n" +
-      "for j in range(q):\n" +
-      "    k = int(input())\n" +
-      "    if 2 * k > n:\n" +
-      '        print("overlap")\n' +
-      "    else:\n" +
-      "        print(p[n] - p[n - k] - p[k])",
+      "#include <iostream>\n" +
+      "#include <vector>\n" +
+      "#include <algorithm>\n" +
+      "using namespace std;\n" +
+      "\n" +
+      "int main() {\n" +
+      "    int n;\n" +
+      "    cin >> n;\n" +
+      "    vector<long long> a(n);\n" +
+      "    for (int i = 0; i < n; i++) {\n" +
+      "        cin >> a[i];\n" +
+      "    }\n" +
+      "    sort(a.begin(), a.end());\n" +
+      "    vector<long long> p(n + 1, 0);\n" +
+      "    for (int i = 1; i <= n; i++) {\n" +
+      "        p[i] = p[i - 1] + a[i - 1];\n" +
+      "    }\n" +
+      "    int q;\n" +
+      "    cin >> q;\n" +
+      "    for (int j = 0; j < q; j++) {\n" +
+      "        int k;\n" +
+      "        cin >> k;\n" +
+      "        if (2 * k > n) {\n" +
+      "            cout << \"overlap\" << endl;\n" +
+      "        } else {\n" +
+      "            cout << p[n] - p[n - k] - p[k] << endl;\n" +
+      "        }\n" +
+      "    }\n" +
+      "    return 0;\n" +
+      "}",
     cases: [
       { input: "5\n70 20 50 10 40\n3\n1\n2\n3", expectedOutput: "60\n90\noverlap" },
       { input: "4\n1 2 3 4\n3\n0\n2\n3", expectedOutput: "0\n4\noverlap" },
@@ -621,29 +803,29 @@ export const M4_L6: LessonBlock[] = [
     pdfPage: P,
     tracks: ["advanced"],
     prompt: {
-      kk: "Осы сабақта жазған шешіміңді жазбаша қорға. Үш сұраққа жауап бер. O(...) белгісін қолданудың қажеті жоқ — қадамдарды сөзбен айт және санын жаз. (1) Егер әр сұраққа жауапты циклмен қайта санасаң, n = 200 000 және q = 200 000 болғанда барлығы шамамен қанша қадам болар еді және неге бұл секундына он миллион қадам жасайтын компьютерге сыймайды? (2) Сенің шешіміңде реттеу мен кестені толтыру неше рет орындалады, ал бір сұраққа қанша қадам кетеді? Бәрін қосқанда шамамен қанша шығады? (3) Реттегеннен кейін p[k] неге дәл ең арзан k тауардың қосындысы болады — тізімнің ретін өзгерту жауапты неге бұзбайды?",
-      ru: "Письменно защити решение, которое ты написал на этом уроке. Ответь на три вопроса. Пользоваться значком O(...) не нужно — назови шаги словами и укажи их количество. (1) Если пересчитывать ответ циклом на каждый вопрос, сколько примерно шагов получится при n = 200 000 и q = 200 000 и почему это не помещается в компьютер, делающий десять миллионов шагов в секунду? (2) Сколько раз в твоём решении выполняется сортировка и сколько раз заполняется таблица, а сколько шагов уходит на один вопрос? Сколько получается всего? (3) Почему после сортировки p[k] — это ровно сумма k самых дешёвых товаров и почему перестановка списка не портит ответ?",
+      kk: "Осы сабақта жазған шешіміңді жазбаша қорға. Үш сұраққа жауап бер. O(...) белгісін қолданудың қажеті жоқ — қадамдарды сөзбен айт және санын жаз. (1) Егер әр сұраққа жауапты циклмен қайта санасаң, n = 200 000 және q = 200 000 болғанда барлығы шамамен қанша қадам болар еді және неге бұл секундына жүз миллион қадам жасайтын компьютерге сыймайды? (2) Сенің шешіміңде реттеу мен кестені толтыру неше рет орындалады, ал бір сұраққа қанша қадам кетеді? Бәрін қосқанда шамамен қанша шығады? (3) Реттегеннен кейін p[k] неге дәл ең арзан k тауардың қосындысы болады — тізімнің ретін өзгерту жауапты неге бұзбайды?",
+      ru: "Письменно защити решение, которое ты написал на этом уроке. Ответь на три вопроса. Пользоваться значком O(...) не нужно — назови шаги словами и укажи их количество. (1) Если пересчитывать ответ циклом на каждый вопрос, сколько примерно шагов получится при n = 200 000 и q = 200 000 и почему это не помещается в компьютер, делающий сто миллионов шагов в секунду? (2) Сколько раз в твоём решении выполняется сортировка и сколько раз заполняется таблица, а сколько шагов уходит на один вопрос? Сколько получается всего? (3) Почему после сортировки p[k] — это ровно сумма k самых дешёвых товаров и почему перестановка списка не портит ответ?",
     },
     expectedPoints: [
       {
-        kk: "Баяу жоспарда бір сұрақ k қадамға дейін жұмыс істейді, ал k n-ге тең болуы мүмкін. Сұрақ саны q болғандықтан қадамдар қосылмайды, көбейтіледі: 200 000 × 200 000 = 4·10^10. Он миллион қадам бір секунд болса, бұл шамамен төрт мың секунд, яғни бір сағаттан астам — ешқандай уақыт шектеуіне сыймайды.",
-        ru: "В медленном плане один вопрос работает до k шагов, а k может быть равно n. Так как вопросов q, шаги не складываются, а умножаются: 200 000 × 200 000 = 4·10^10. Если десять миллионов шагов — это секунда, то получается около четырёх тысяч секунд, больше часа, — ни в какое ограничение это не укладывается.",
+        kk: "Баяу жоспарда бір сұрақ k қадамға дейін жұмыс істейді, ал k n-ге тең болуы мүмкін. Сұрақ саны q болғандықтан қадамдар қосылмайды, көбейтіледі: 200 000 × 200 000 = 4·10^10. Жүз миллион қадам бір секунд болса, бұл шамамен төрт жүз секунд, яғни алты минуттан астам — ешқандай уақыт шектеуіне сыймайды.",
+        ru: "В медленном плане один вопрос работает до k шагов, а k может быть равно n. Так как вопросов q, шаги не складываются, а умножаются: 200 000 × 200 000 = 4·10^10. Если сто миллионов шагов — это секунда, то получается около четырёхсот секунд, больше шести минут, — ни в какое ограничение это не укладывается.",
       },
       {
         kk: "Жылдам жоспарда реттеу де, кестені толтыру да сұрақтар басталғанға дейін бір-ақ рет жасалады. Кестені толтыру — дәл n қадам. Реттеу одан біраз қымбат, бірақ ол да сұрақтар санына тәуелсіз және n = 200 000 үшін секундтың кішкене бөлігін алады.",
         ru: "В быстром плане и сортировка, и заполнение таблицы делаются ровно один раз, до начала вопросов. Заполнение таблицы — это ровно n шагов. Сортировка дороже, но она тоже не зависит от количества вопросов и при n = 200 000 занимает малую долю секунды.",
       },
       {
-        kk: "Кесте дайын болғаннан кейін бір сұраққа кететін жұмыс тұрақты: бір-екі оқу және бір азайту. k қаншалықты үлкен болса да, қадам саны өспейді. Демек барлық сұрақтарға кететін жұмыс шамамен q қадам, ал бүкіл бағдарлама n + q, яғни 400 000 шамасында — он миллионнан әлдеқайда аз, сондықтан үлгереді.",
-        ru: "Когда таблица готова, работа на один вопрос постоянна: одно-два обращения и одно вычитание. Насколько бы большим ни было k, число шагов не растёт. Значит, на все вопросы уходит примерно q шагов, а на всю программу — n + q, то есть около 400 000, что намного меньше десяти миллионов, поэтому решение укладывается.",
+        kk: "Кесте дайын болғаннан кейін бір сұраққа кететін жұмыс тұрақты: бір-екі оқу және бір азайту. k қаншалықты үлкен болса да, қадам саны өспейді. Демек барлық сұрақтарға кететін жұмыс шамамен q қадам, ал бүкіл бағдарлама n + q, яғни 400 000 шамасында — жүз миллионнан әлдеқайда аз, сондықтан үлгереді.",
+        ru: "Когда таблица готова, работа на один вопрос постоянна: одно-два обращения и одно вычитание. Насколько бы большим ни было k, число шагов не растёт. Значит, на все вопросы уходит примерно q шагов, а на всю программу — n + q, то есть около 400 000, что намного меньше ста миллионов, поэтому решение укладывается.",
       },
       {
         kk: "Дұрыстығы: реттеуден кейін тізім өсу ретімен тұрады, сондықтан алғашқы k орында дәл ең кіші k баға тұрады — олардың арасында да, сыртында да одан кіші баға жоқ. Ал p[k] анықтамасы бойынша алғашқы k элементтің қосындысы, демек ол дәл ең арзан k тауардың қосындысы.",
         ru: "Про правильность: после сортировки список идёт по возрастанию, поэтому на первых k местах стоят ровно k наименьших цен — меньшей цены нет ни среди них, ни за их пределами. А p[k] по определению есть сумма первых k элементов, значит, это и есть сумма k самых дешёвых товаров.",
       },
       {
-        kk: "Реттеу жауапты бұзбайды, өйткені сұрақта тауарлардың реті мүлде айтылмаған: сұралатыны — қосынды, ал қосынды қосылғыштардың ретіне тәуелді емес. Реттеу тек іздеуді жеңілдетеді, деректі өзгертпейді. Ал егер есепте тауарлардың бастапқы реті маңызды болса (мысалы, «тізімдегі бірінші k тауар»), онда реттеуге болмас еді — сондықтан кестені реттелген тізім бойынша толтыру да, толтырмау да есептің шартына қарай шешіледі.",
-        ru: "Сортировка не портит ответ, потому что в вопросе порядок товаров вообще не участвует: спрашивают сумму, а сумма не зависит от порядка слагаемых. Сортировка лишь упрощает поиск, но не меняет сами данные. А вот если бы в задаче был важен исходный порядок (например, «первые k товаров списка»), сортировать было бы нельзя — поэтому строить таблицу по отсортированному списку или нет, решает условие задачи.",
+        kk: "Реттеу жауапты бұзбайды, өйткені сұрақта тауарлардың реті мүлде айтылмаған: сұралатыны — қосынды, ал қосынды қосылғыштардың ретіне тәуелді емес. Реттеу тек іздеуді жеңілдетеді, деректі өзгертпейді. Ал егер есепте тауарлардың бастапқы реті маңызды болса (мысалы, «тізімдегі бірінші k тауар»), онда `sort` тізімді орнында бүлдіретіндіктен алдымен көшірме жасау керек болар еді — сондықтан кестені реттелген тізім бойынша толтыру да, толтырмау да есептің шартына қарай шешіледі.",
+        ru: "Сортировка не портит ответ, потому что в вопросе порядок товаров вообще не участвует: спрашивают сумму, а сумма не зависит от порядка слагаемых. Сортировка лишь упрощает поиск, но не меняет сами данные. А вот если бы в задаче был важен исходный порядок (например, «первые k товаров списка»), пришлось бы сначала сделать копию, потому что `sort` переставляет список на месте, — поэтому строить таблицу по отсортированному списку или нет, решает условие задачи.",
       },
     ],
   },

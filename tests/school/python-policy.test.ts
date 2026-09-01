@@ -70,12 +70,18 @@ describe("the pinned interpreter has one source of truth", () => {
     expect(src).not.toMatch(/version:\s*"3\.\*"/);
   });
 
-  it("is reachable through config without being an environment variable", async () => {
-    /* Deliberately not `env()`. An operator who can change the Python version
-       from a dashboard can make two months of a child's evidence incomparable
-       with no commit and no trace. */
-    const { config } = await import("../../schools/config");
-    expect(config.exec.python.version).toBe(PINNED_PYTHON_VERSION);
+  it("stays a build-time decision rather than an environment variable", async () => {
+    /* Deliberately not `env()`. An operator who can change the interpreter
+       version from a dashboard can make two months of a child's evidence
+       incomparable with no commit and no trace.
+
+       This used to read `config.exec.python.version`. That key is gone: the
+       course is C++17 now and `schools/config.ts` carries `exec.cpp` instead,
+       from `schools/execution/cpp-runtime.ts`. The pin itself is still asserted
+       here, straight from the policy module — but nothing in the product reads
+       it any more, which is the point this whole FILE is now making. See the
+       header note above about retirement. */
+    expect(PINNED_PYTHON_VERSION).toBe("3.12.0");
 
     const src = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("../../schools/config.ts", import.meta.url), "utf8"),

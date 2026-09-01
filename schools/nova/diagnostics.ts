@@ -163,6 +163,8 @@ export const COMPILER_DIAGNOSTICS: readonly Cpp17Diagnostic[] = [
       // Clang's, including its "did you mean 'std::cout'?" note.
       /use\s+of\s+undeclared\s+identifier\s+['‘"](cout|cin|endl|string|vector)['’"]/i,
       /did\s+you\s+mean\s+['‘"]std::/i,
+      /is\s+defined\s+in\s+header\s+['‘"]?</i,
+      /did\s+you\s+forget\s+to\s+['‘"]?#\s*include/i,
       /no\s+member\s+named\s+['‘"]\w+['’"]\s+in\s+namespace\s+['‘"]?std/i,
       // Both, when the header is the real problem.
       /['‘"]?iostream['’"]?:?\s*No\s+such\s+file/i,
@@ -205,11 +207,19 @@ export const COMPILER_DIAGNOSTICS: readonly Cpp17Diagnostic[] = [
       /no\s+match\s+for\s+['‘"]?operator[+\-*/%]/i,
       /invalid\s+conversion\s+from/i,
       /cannot\s+convert\s+['‘"].+['’"]\s+to\s+['‘"]/i,
+      /* `"5" + 5`, which is the trap this family exists for and is NOT what a
+         Python learner expects. It is not a type error at all — it is pointer
+         arithmetic on a string literal, so it builds and prints rubbish — and
+         Clang says so under its own warning name rather than under any of the
+         phrasings above. */
+      /-Wstring-plus-int/,
+      /adding\s+['‘"]?\w+['’"]?\s+to\s+a\s+string\s+does\s+not\s+append/i,
     ],
     meaning:
       "Two values of types that have no such operation between them. In September this is nearly " +
-      'always text meeting a number: "5" + 5 does not compile, and neither does a string read '+
-      "with cin >> being used in arithmetic. C++ will not convert for them the way Python did.",
+      "always text meeting a number. C++ will not convert for them the way Python did — and the " +
+      'worst case is `"5" + 5`, which is NOT an error: it is arithmetic on the address of the ' +
+      "text, so it builds, runs, and prints rubbish or nothing.",
     teach:
       "Ask what TYPE each side of the operator holds. Naming the two types out loud is usually " +
       "the whole hint; the vocabulary word is the type of a variable.",
@@ -266,8 +276,9 @@ export const COMPILER_DIAGNOSTICS: readonly Cpp17Diagnostic[] = [
   {
     kind: "missing_main",
     shapes: [
-      /undefined\s+(reference|symbol)\s*:?\s*['‘"]?_?main/i,
+      /undefined\s+(reference|symbol)\s*(to\s+)?:?\s*[`'‘"]?_?main\b/i,
       /entry\s+point\s+not\s+found/i,
+      /entry\s+symbol\s+not\s+defined/i,
       /['‘"]?main['’"]?\s+must\s+return\s+['‘"]?int/i,
     ],
     meaning:
