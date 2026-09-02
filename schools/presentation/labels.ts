@@ -1671,3 +1671,190 @@ export const SUBMIT_BUSY: Localized = {
   kk: "Тексерілуде",
   ru: "Идёт проверка",
 };
+
+/* ========================================================================== */
+/* NEW BLOCK — /league recomposition (unit: league page IA)                   */
+/*                                                                            */
+/* Appended at the END, in its own block, because `L` above is being edited   */
+/* by other work in the same wave and a merge conflict in the middle of a      */
+/* 1400-line object is a merge conflict nobody resolves correctly.            */
+/*                                                                            */
+/* Everything here is copy the recomposed page needs and the old two-column    */
+/* layout did not: the page now leads with the tier NAME and the RANK rather   */
+/* than with a countdown, labels every zone on the board instead of one, and   */
+/* has a locked state of its own. `L`'s thirty league strings are unchanged    */
+/* and still carry everything both layouts share.                             */
+/* ========================================================================== */
+
+/**
+ * The recomposed league page's own vocabulary.
+ *
+ * ## Register, inherited rather than re-argued
+ *
+ * Second person, present or future tense, no Russian past participles — the
+ * product holds no gender for anybody, so «ты поднялся» would misgender roughly
+ * half of every class. The league block inside `L` states the rule at length;
+ * these follow it. Nothing here is unkind either: relegation is «опускаешься
+ * лигой ниже», which says where a learner competes next week, not that they
+ * lost.
+ *
+ * ## `{...}` placeholders
+ *
+ * Substituted by the caller. `{tier}`/`{total}` are ladder positions,
+ * `{rank}`/`{n}` are board positions, `{name}` is a Latin tier name (see
+ * `tiers.ts` for why those are not translated), and `{xp}` is a real number
+ * read from the ledger. Word ORDER differs between the two languages — Kazakh
+ * puts the count first and the ordinal suffix on the numeral — which is why
+ * these are two authored sentences rather than one template with a swapped
+ * noun.
+ */
+export const LEAGUE_UI: Readonly<Record<
+  | "tierLine"
+  | "rankLine"
+  | "moveUpTo"
+  | "moveStay"
+  | "moveDown"
+  | "boardRankCol"
+  | "boardWhoCol"
+  | "boardXpCol"
+  | "topOfLadder"
+  | "tooSmallToMove"
+  | "roadTitle"
+  | "roadNext"
+  | "rulesShowAll"
+  | "rulesHideAll"
+  | "weekToggle"
+  | "lockedTitle"
+  | "lockedRemaining"
+  | "lockedGoLearn",
+  Localized
+>> = {
+  /* Under the tier name in the hero. The NAME is the display-size word above
+     it; this is the line that says what a name like `Circuit` actually is. */
+  tierLine: {
+    kk: "{total} лиганың {tier}-сі",
+    ru: "Лига {tier} из {total}",
+  },
+  /* The second-largest thing on the page, and it used to be the smallest. */
+  rankLine: {
+    kk: "{n} қатысушының ішінде {rank}-орын",
+    ru: "{rank} место из {n}",
+  },
+
+  /* Movement, as a sentence a learner can act on. The tier is NAMED only when
+     promotion is actually projected — «Поднимаешься в Vector» is a promise, and
+     the page must not make it to somebody in the middle of the table. */
+  moveUpTo: {
+    kk: "{name} лигасына көтерілесің",
+    ru: "Поднимаешься в {name}",
+  },
+  moveStay: {
+    kk: "{name} лигасында қаласың",
+    ru: "Остаёшься в {name}",
+  },
+  /* No tier name: a learner at tier 3 relegating goes to `Vector`, but naming
+     it here would put the word for a demotion next to a proper noun on the one
+     line that has to stay matter-of-fact. */
+  moveDown: {
+    kk: "Бір лига төмен жалғастырасың",
+    ru: "Опускаешься лигой ниже",
+  },
+
+  /* Column headers. The XP unit is printed here ONCE instead of on all ten
+     rows; every row still carries it for a screen reader. */
+  boardRankCol: { kk: "Орын", ru: "Место" },
+  boardWhoCol: { kk: "Оқушы", ru: "Ученик" },
+  /* Latin in both, like every other appearance of the unit in the product. */
+  boardXpCol: { kk: "XP", ru: "XP" },
+
+  /* At tier 10 `zonesFor` returns `promoteThrough: 0`, so there is no promotion
+     zone to draw. Saying why beats drawing an empty band. */
+  topOfLadder: {
+    kk: "Бұл — ең жоғарғы лига. Жоғары көтерілетін жер жоқ.",
+    ru: "Это высшая лига — выше подниматься некуда.",
+  },
+  /* `{n}` is `MIN_GROUP_FOR_MOVEMENT`, read from the engine at the call site.
+     A literal four here would be a second copy of a rule that lives in
+     `standings.ts`, and the two would disagree the first time it moved. */
+  tooSmallToMove: {
+    kk: "Бұл топта ауысу үшін қатысушы әзірге тым аз — ауысу {n} қатысушыдан басталады.",
+    ru: "В этой группе пока слишком мало участников для переходов — они начинаются с {n}.",
+  },
+
+  /* The ladder is a road now, not a footnote strip. */
+  roadTitle: { kk: "Лигалар жолы", ru: "Путь по лигам" },
+  roadNext: { kk: "келесі", ru: "следующая" },
+
+  /* The accordions. Real buttons, so these are what the button says. */
+  rulesShowAll: { kk: "Барлық ережелер", ru: "Все правила" },
+  rulesHideAll: { kk: "Жию", ru: "Свернуть" },
+  weekToggle: { kk: "Апта қалай өтеді", ru: "Как работает неделя" },
+
+  /* The locked state. A learner below the threshold can still reach `/league`
+     by typing the URL or from a stale tab, and an empty leaderboard is the one
+     thing that must never be what they find. */
+  lockedTitle: { kk: "Лигаларды аш", ru: "Открой лиги" },
+  lockedRemaining: {
+    kk: "Алғашқы апталық лигаға дейін тағы {xp} XP",
+    ru: "Ещё {xp} XP до первой недельной лиги",
+  },
+  /* The action, not an explanation: a learner below the threshold needs a
+     lesson, and the explanation is one text link further down. */
+  lockedGoLearn: { kk: "Сабақтарға өту", ru: "К урокам" },
+};
+
+/**
+ * How much of the week is left, in the coarsest honest unit.
+ *
+ * `4 дня 18 ч` / `18 ч` / `42 мин`, and NEVER seconds. §44 forbids manufactured
+ * countdown urgency, and a ticking timer on a product aimed at fourteen-year-
+ * olds is exactly that — it pressures them to work NOW rather than to work
+ * well, which is the incentive the whole XP model was shaped to avoid.
+ *
+ * The abbreviations are deliberate. The hero used to render «4 дня 18 часов» at
+ * 30px, which made the clock the largest text on the page and the rank the
+ * smallest — and at 375 it was also the string that overflowed the card. Short
+ * units let the countdown sit quietly in a corner at 13px, which is the size a
+ * secondary fact deserves.
+ *
+ * Written as a locale branch rather than as a `Localized`, matching
+ * `daysLeftLabel` and `tasksLabel` above: Russian inflects the noun after a
+ * numeral in three different ways and Kazakh does not inflect it at all, so
+ * there is no single pair of strings that both languages can be built from.
+ */
+export function leagueRemainingLabel(ms: number, locale: Locale): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days >= 1) {
+    const h = hours % 24;
+    const tail = h > 0 ? ` ${h} ${locale === "kk" ? "сағ" : "ч"}` : "";
+    return locale === "kk"
+      ? `${days} күн${tail}`
+      : `${days} ${plural(days, "день", "дня", "дней")}${tail}`;
+  }
+  if (hours >= 1) return locale === "kk" ? `${hours} сағ` : `${hours} ч`;
+  return `${minutes} мин`;
+}
+
+/**
+ * «18 участников», and correctly for every count.
+ *
+ * The hero used to render `{groupSize} {L.leagueGroupSize}` — a number beside a
+ * fixed «участников» — which is right for 5..20 and wrong everywhere else. It
+ * is not a rare edge: `groupSize` is the number of learners who have earned XP
+ * THIS week, so it is 1 on Monday morning for the first child in the class to
+ * open a lesson, and «1 участников» is the first thing the league says to them.
+ * Sizes 2..4 are the rest of Monday, and `MAX_GROUP_SIZE` is 34, so 21..24 and
+ * 31..34 are reachable at the other end.
+ *
+ * Kazakh does not inflect a noun after a numeral, so it is one form — the same
+ * asymmetry `leagueRemainingLabel` above documents, and the reason this is a
+ * function rather than a `Localized` pair.
+ */
+export function leagueGroupSizeLabel(n: number, locale: Locale): string {
+  return locale === "kk"
+    ? `${n} қатысушы`
+    : `${n} ${pluralRu(n, "участник", "участника", "участников")}`;
+}

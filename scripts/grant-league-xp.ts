@@ -151,12 +151,53 @@ async function main(): Promise<void> {
     [schoolId, username, CURRICULUM_VERSION],
   );
 
-  const row = found.rows[0];
+  let row = found.rows[0];
+
+  /*
+   * `--mint-subject` exists because a subject is created by the LOGIN path, and
+   * an account that has never signed in since the C++ cutover has none. The
+   * alternative was to reset the learner's password and sign in as them, which
+   * would silently invalidate the one-time code a teacher may have handed to a
+   * real child.
+   *
+   * It calls `resolveSubjectForUser` — the exact function login calls — rather
+   * than inserting a row, so the subject, its alias and its class scope are all
+   * created the way the product creates them, version-scoped included.
+   *
+   * Off by default: the refusal below is the right answer when someone is
+   * pointing this at the wrong account or the wrong curriculum, and silently
+   * creating identity is not a thing an XP script should do without being asked.
+   */
+  if (!row && has("mint-subject")) {
+    const enrolled = await sql.query<{ user_id: string; class_id: string }>(
+      `select a.user_id, e.class_id
+         from school_accounts a
+         join class_enrolments e
+           on e.user_id = a.user_id and e.withdrawn_at is null
+        where a.school_id = $1 and lower(a.username) = lower($2)`,
+      [schoolId, username],
+    );
+    const who = enrolled.rows[0];
+    if (!who) throw new Error(`${username} is not enrolled in a class at ${schoolId}`);
+
+    const { LearningStore } = await import("../schools/store/learning-store");
+    const store = new LearningStore(sql);
+    const subjectId = await store.resolveSubjectForUser(
+      who.user_id,
+      { schoolId, classId: who.class_id },
+      "public",
+      CURRICULUM_VERSION,
+    );
+    console.log(`  minted ${CURRICULUM_VERSION} subject ${subjectId} for ${username}`);
+    row = { user_id: who.user_id, subject_id: subjectId, class_id: who.class_id };
+  }
+
   if (!row) {
     throw new Error(
       `no ${CURRICULUM_VERSION} subject for ${username} at ${schoolId}. ` +
         `The learner must sign in once before they have one — a subject is minted ` +
-        `by the login path, and a page render deliberately cannot create it.`,
+        `by the login path, and a page render deliberately cannot create it. ` +
+        `Pass --mint-subject to create it here instead.`,
     );
   }
   if (!row.class_id) throw new Error(`${username} has no active class enrolment`);

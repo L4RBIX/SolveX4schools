@@ -11,7 +11,7 @@ import {
 import { LEAGUE_UNLOCK_XP } from "@schools/leagues/unlock";
 import { useLocale } from "@/components/sx/i18n";
 import { cn } from "@/lib/utils";
-import { TierBadge } from "./league-parts";
+import { TierEmblem } from "./tier-emblem";
 
 /**
  * The league card on the learner home.
@@ -151,11 +151,16 @@ function OpenCard({ active, loc }: { active: HomeLeagueActive; loc: Locale }) {
   return (
     <section className={CARD} aria-labelledby="home-league-title">
       <div className="flex items-center gap-3">
-        <TierBadge
+        {/* The emblem, not the old `01`-in-a-box badge. `tier-emblem.tsx`
+            carries the argument: ten hues cannot separate ten tiers, so
+            identity is shape first and the numeral second — and at 48px inside
+            a home card there is room for the shape and not for both. */}
+        <TierEmblem
           tier={active.tier}
           name={active.tierName}
           hue={active.tierHue}
-          size="md"
+          size={48}
+          state="current"
         />
         <div className="min-w-0">
           <p id="home-league-title" className="leading-6 font-bold">
