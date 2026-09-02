@@ -1,0 +1,22 @@
+{
+  // Operator scripts that import a `server-only` module.
+  //
+  // `schools/leagues/engine.ts` and its neighbours open with `import "server-only"`,
+  // which throws outside a React Server Component. Vitest already solves this by
+  // aliasing the package to `tests/stubs/server-only.ts` (see vitest.config.mts);
+  // this is the same alias for `npx tsx`, so an operator script can call the real
+  // engine instead of hand-writing SQL that drifts from it.
+  //
+  //   npx tsx --tsconfig tsconfig.scripts.json scripts/<name>.ts
+  //
+  // Deliberately a separate file: the stub must never reach the app build, where
+  // that import is a real guard against shipping server code to a browser.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@schools/*": ["./schools/*"],
+      "@solvex/*": ["./packages/*/src"],
+      "server-only": ["./tests/stubs/server-only.ts"]
+    }
+  }
+}
