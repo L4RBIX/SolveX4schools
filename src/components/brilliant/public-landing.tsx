@@ -185,17 +185,35 @@ export function PublicLanding() {
              only this card, which is the page's claim about what you are
              signing up for, shows our own product.
 
-             RELEASE BLOCKER, art not code: this recording predates the move to
-             C++17. Its frame shows `print((int(a) + int(b) - 1) % 7 + 1)` and
-             the caption «Бағдарламаң input() арқылы оқитын мәтін», so the one
-             card that claims to show OUR product shows a Python one. It needs
-             re-recording against a C++ lesson; nothing in this file can fix
-             it. */
+             RE-RECORDED against C++17 (2026-09-03), which closes the release
+             blocker that stood here: the previous take predated the migration
+             and its frame showed `print((int(a) + int(b) - 1) % 7 + 1)`. The
+             one card claiming to show OUR product was showing a Python one,
+             three lines under a headline that says «На C++17».
+
+             It is a real take, not a mock-up: Playwright drove a real learner
+             session through `m1.l8` on a real server, typed the block's own
+             reference solution, and the Run and the Check are the genuine
+             ones — the WASI Clang toolchain compiling in the browser to print
+             `4`, then Judge0 answering, then the card going green at 1/1.
+             Nothing is staged, so nothing here can drift from the product
+             without the product having changed first.
+
+             Recorded in RU. The clip is locale-independent in the layout but
+             its chrome is not; the previous take had the same limitation in
+             Kazakh. A KK cut is the honest follow-up. */
           clip={{
             webm: "/videos/solvex/lesson-coding.webm",
             poster: "/videos/solvex/lesson-coding.png",
-            width: 1360,
-            height: 888,
+            /* 900x588 keeps the incumbent 1.531 aspect exactly (1360/888), so
+               the hero's device frame is unchanged — but the take is cropped to
+               the lesson card instead of the whole 1360px viewport. At hero
+               scale the card was ~540px of a 1440px page and the code rendered
+               around 5px tall: present, and unreadable. Cropping makes the
+               content 1.51x larger in the same slot, which is the difference
+               between a screenshot of a product and a claim you can read. */
+            width: 900,
+            height: 588,
           }}
           heading={c.heroHeading}
           body={c.heroBody}
