@@ -362,7 +362,17 @@ export type FakeAction =
   /** Answer this poll with `Processing` regardless of how many have gone by. */
   | { kind: "pending" }
   /** Serve this terminal submission instead of the engine's. */
-  | { kind: "submission"; body: Partial<Judge0Terminal> };
+  | { kind: "submission"; body: Partial<Judge0Terminal> }
+  /**
+   * Answer normally, but only after `ms`.
+   *
+   * A judge that answers instantly cannot be queued behind, so a fake without
+   * latency can only ever measure correctness — never capacity. This is what
+   * lets a test ask "how many of a class of thirty are served inside the queue
+   * wait", which is the arithmetic that decided a fixed fraction of every class
+   * got `provider_timeout`.
+   */
+  | { kind: "delay"; ms: number };
 
 export interface FakeContext {
   method: string;
@@ -479,6 +489,17 @@ export async function startFakeJudge0(options: FakeJudge0Options = {}): Promise<
       if (action.kind === "hang") return; // never answers; the socket is torn down on close
       if (action.kind === "http") {
         return send(res, action.status, action.body ?? { error: DESCRIPTIONS[13] ?? "error" });
+      }
+      if (action.kind === "delay") {
+        /* Held, then answered by the engine exactly as `default` would be. The
+           timer is unref'd so a test that closes the fake mid-flight does not
+           keep the process alive waiting to answer a request nobody wants. */
+        const timer = setTimeout(
+          () => route({ url, method, body, res, action: { kind: "default" } }),
+          action.ms,
+        );
+        timer.unref?.();
+        return;
       }
 
       route({ url, method, body, res, action });

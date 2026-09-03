@@ -43,6 +43,20 @@ export interface ExecutionRequest {
   timeLimitMs: number;
   memoryLimitMb: number;
   signal?: AbortSignal;
+  /**
+   * Who is waiting on this, for FAIRNESS only.
+   *
+   * A provider that queues may hold at most N in-flight requests per key, so
+   * one learner's browser loop cannot take every slot and leave the class being
+   * told the judge is unavailable. It is never sent to a provider, never
+   * logged, and never influences a verdict — the subject id is an opaque
+   * identifier here and nothing more.
+   *
+   * Optional because a caller with no learner — a health probe, an operator
+   * script, the content-certification harness — has nothing to be fair about,
+   * and such a request is always admissible.
+   */
+  fairnessKey?: string;
 }
 
 /**

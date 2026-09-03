@@ -116,8 +116,23 @@ afterAll(() => {
   currentAnon = ANON_A;
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   currentAnon = ANON_A;
+  /* Empty the submit budget between cases.
+   *
+   * This file asks "how many times was this GRADED", and it deliberately posts
+   * far more than a learner ever would to answer it — twenty duplicates, five
+   * concurrent copies, a run of malformed keys. The route's per-learner budget
+   * (twelve burst, eight a minute) is a real production limit and is tested on
+   * its own in `submit-budget.test.ts`; leaving it armed here would make these
+   * assertions depend on how many requests earlier cases in the same file had
+   * already spent, which is a different question and a flaky way to ask it.
+   *
+   * Clearing the bucket rather than raising the budget, on purpose: a test that
+   * turned the limit off would go on passing if somebody deleted it. */
+  const { getStoreHandle } = await import("@schools/store");
+  const { sql } = await getStoreHandle();
+  await sql.query("delete from rate_limit_bucket", []);
 });
 
 async function postSubmit(body: Record<string, unknown>) {

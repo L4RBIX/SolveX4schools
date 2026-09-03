@@ -285,6 +285,26 @@ export const OPS_COUNTERS = [
   "submit.duplicate_timeouts",
 
   /**
+   * A Check refused by the per-learner budget.
+   *
+   * Zero for a class doing the work. A wrong answer, a fix and a re-check is
+   * three presses on one task; the bucket is twelve burst and eight a minute.
+   * A number here that keeps climbing for ONE subject is a loop or a stuck
+   * client, and it is the number that says so before the judge's bill does.
+   */
+  "submit.rate_limited",
+  /**
+   * A Check refused by the DEPLOYMENT budget, on a metered judge.
+   *
+   * Different from the line above in the way that matters: this one means the
+   * whole school hit its ceiling, so an ordinary learner doing ordinary work
+   * was told to wait because of load somewhere else. Any non-zero value is
+   * worth looking at, and a sustained one means the budget is sized below what
+   * the school actually does — `SUBMIT_PER_MINUTE_GLOBAL`.
+   */
+  "submit.rate_limited_global",
+
+  /**
    * An event the ingest route refused: an outcome name arriving unattested, a
    * foreign episode, or a malformed id.
    *

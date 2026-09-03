@@ -197,10 +197,21 @@ export async function runCases(
   sourceCode: string,
   cases: readonly { input: string; expectedOutput: string; hidden?: boolean }[],
   checker: OutputChecker = DEFAULT_CHECKER,
+  options: {
+    /**
+     * Whose Check this is, for the provider's fair queueing. See
+     * `ExecutionRequest.fairnessKey`: it never leaves this process, never
+     * reaches a judge and never touches a verdict — it only stops one learner
+     * holding every in-flight slot while the class is told the judge is
+     * unavailable.
+     */
+    fairnessKey?: string;
+  } = {},
 ): Promise<{ results: CaseResult[]; infrastructureFailed: boolean }> {
   const requests: ExecutionRequest[] = cases.map((c) => ({
     language: "cpp17",
     sourceCode,
+    fairnessKey: options.fairnessKey,
     /* Every case's input ends in a newline, because a line-oriented read wants
        a terminated line: `getline` on an unterminated final line still yields
        it at EOF, but a program that reads with `getline` in a loop and a case

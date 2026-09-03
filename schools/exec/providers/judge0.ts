@@ -240,10 +240,13 @@ class Judge0Failure extends Error {
 interface Waiter {
   wake: () => void;
   fail: (err: Error) => void;
+  /** Whose submission this is. `undefined` means "not attributable" — see below. */
+  key: string | undefined;
 }
 
 /**
- * A bound on how many submissions this process has in flight at once.
+ * A bound on how many submissions this process has in flight at once, and on
+ * how many of them belong to one learner.
  *
  * Eighteen students pressing Submit inside the same ten seconds, times however
  * many hidden cases a task declares, is the real load — seventy-odd requests
@@ -256,25 +259,95 @@ interface Waiter {
  * concurrency actually care about, and gating individual polls would let the
  * same eighteen submissions storm anyway.
  *
- * The default is deliberately LOW. The free tier's real limits are unknown
- * without a key, and the safe direction for an unknown ceiling is to stay well
- * under it: waiting is a slower Submit, exceeding is a class of learners told
- * nothing could be measured.
+ * The default is deliberately LOW. The plan's real concurrency is still
+ * unmeasured — the live run read `x-ratelimit-submissions-limit: 0` with a
+ * negative remaining, which is not a readable ceiling — and the safe direction
+ * for an unknown ceiling is to stay well under it: waiting is a slower Submit,
+ * exceeding is a class of learners told nothing could be measured.
+ *
+ * ## Fair queueing, and the defect that required it
+ *
+ * This was pure FIFO with no idea who was waiting. Two slots, a 30-second
+ * queue, and a browser loop posting fresh submission ids held both of them
+ * five to seven seconds at a time — so every classmate behind it timed out and
+ * was told the judge was unavailable. One learner could produce an outage that
+ * was, to everyone else, indistinguishable from the judge being down.
+ *
+ * `perKeyLimit` fixes it structurally rather than by making the queue longer.
+ * A waiter whose key already holds that many slots is SKIPPED when a slot frees
+ * — not failed, not moved to the back — and the next admissible waiter takes it
+ * instead. The monopolist keeps its place in line and gets the slot as soon as
+ * its own submission finishes, which is the outcome it was entitled to; nobody
+ * behind it waits on a queue position that was never going to be theirs.
+ *
+ * A waiter with no key is always admissible. That is deliberate: an
+ * unattributable request — a health probe, a script, a future caller that has
+ * no learner — must not be silently held back by a fairness rule about
+ * learners. It still counts against the global `limit`.
  */
 class RequestGate {
   private active = 0;
   private readonly waiting: Waiter[] = [];
+  /** In-flight slots per fairness key. Absent means zero. */
+  private readonly held = new Map<string, number>();
 
-  constructor(readonly limit: number) {}
+  constructor(
+    readonly limit: number,
+    readonly perKeyLimit: number = Number.POSITIVE_INFINITY,
+  ) {}
 
-  async acquire(waitMs: number, signal?: AbortSignal): Promise<() => void> {
-    if (this.active < this.limit) {
+  /**
+   * What ops health reports: how deep the queue is and how loaded the gate is.
+   *
+   * `held` is per fairness key and is what makes the per-learner bound
+   * *observable* rather than merely asserted. Ops health reports only the two
+   * counts — a map keyed by subject id is learner data and does not belong in a
+   * health payload — but a test can read it, which is the difference between a
+   * bound that is claimed and one that is measured.
+   */
+  snapshot(): {
+    limit: number;
+    perKeyLimit: number;
+    active: number;
+    waiting: number;
+    held: Record<string, number>;
+  } {
+    return {
+      limit: this.limit,
+      perKeyLimit: this.perKeyLimit,
+      active: this.active,
+      waiting: this.waiting.length,
+      held: Object.fromEntries(this.held),
+    };
+  }
+
+  private admissible(key: string | undefined): boolean {
+    if (key === undefined) return true;
+    return (this.held.get(key) ?? 0) < this.perKeyLimit;
+  }
+
+  private take(key: string | undefined): void {
+    if (key === undefined) return;
+    this.held.set(key, (this.held.get(key) ?? 0) + 1);
+  }
+
+  private give(key: string | undefined): void {
+    if (key === undefined) return;
+    const n = (this.held.get(key) ?? 1) - 1;
+    if (n <= 0) this.held.delete(key);
+    else this.held.set(key, n);
+  }
+
+  async acquire(waitMs: number, signal?: AbortSignal, key?: string): Promise<() => void> {
+    if (this.active < this.limit && this.admissible(key)) {
       this.active += 1;
-      return this.releaser();
+      this.take(key);
+      return this.releaser(key);
     }
 
     await new Promise<void>((resolve, reject) => {
       const waiter: Waiter = {
+        key,
         wake: () => {
           cleanup();
           resolve();
@@ -321,18 +394,31 @@ class RequestGate {
 
     /* Woken by a release, which handed its slot straight over rather than
        decrementing — so `active` is already correct and must not be raised
-       again here. */
-    return this.releaser();
+       again here. The per-key count WAS incremented by the releaser on our
+       behalf, for the same reason: the handover has to be atomic with respect
+       to the next release, or two waiters for one key could both be woken. */
+    return this.releaser(key);
   }
 
-  private releaser(): () => void {
+  private releaser(key: string | undefined): () => void {
     let released = false;
     return () => {
       if (released) return;
       released = true;
-      const next = this.waiting.shift();
-      if (next) next.wake();
-      else this.active -= 1;
+      this.give(key);
+      /* The first waiter this release can legitimately serve. Skipping rather
+         than reordering: a waiter that is passed over stays exactly where it is
+         and is reconsidered on the next release, so it loses no position — it
+         is only ever skipped while its own earlier submission is still using
+         the slot it would have taken. */
+      const i = this.waiting.findIndex((w) => this.admissible(w.key));
+      if (i >= 0) {
+        const [next] = this.waiting.splice(i, 1);
+        this.take(next.key);
+        next.wake();
+      } else {
+        this.active -= 1;
+      }
     };
   }
 }
@@ -349,10 +435,16 @@ class RequestGate {
 const GATE_KEY = Symbol.for("solvex.exec.judge0.gate");
 type GlobalWithGate = typeof globalThis & { [GATE_KEY]?: RequestGate };
 
-function processGate(limit: number): RequestGate {
+function processGate(limit: number, perKeyLimit?: number): RequestGate {
   const g = globalThis as GlobalWithGate;
-  g[GATE_KEY] ??= new RequestGate(limit);
+  g[GATE_KEY] ??= new RequestGate(limit, perKeyLimit ?? Number.POSITIVE_INFINITY);
   return g[GATE_KEY];
+}
+
+/** The live gate, for ops health. `null` before any provider has been built. */
+export function judge0GateSnapshot(): ReturnType<RequestGate["snapshot"]> | null {
+  const g = globalThis as GlobalWithGate;
+  return g[GATE_KEY]?.snapshot() ?? null;
 }
 
 /**
@@ -448,6 +540,12 @@ export interface Judge0Options {
   /** Operator override for the C++ language id. Skips discovery entirely. */
   languageId?: number;
   maxConcurrentRequests: number;
+  /**
+   * How many of those slots one learner may hold. `undefined` means no
+   * per-learner bound, which is what every caller that has no learner wants.
+   * See `RequestGate` for the monopolisation this closes.
+   */
+  maxConcurrentPerLearner?: number;
   /** First poll delay; it backs off from here. */
   pollIntervalMs: number;
   /** How long a submission may wait for a slot before we give up on the judge. */
@@ -521,7 +619,7 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
     /* Host only. `describe` is rendered by the health view and the dev lab, so
        it must be safe to put on a screen: no key, no query, no headers. */
     this.describe = `Judge0 CE via RapidAPI at ${options.host}`;
-    this.gate = processGate(options.maxConcurrentRequests);
+    this.gate = processGate(options.maxConcurrentRequests, options.maxConcurrentPerLearner);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -531,7 +629,11 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
   async run(request: ExecutionRequest): Promise<ExecutionResult> {
     const started = Date.now();
     try {
-      const release = await this.gate.acquire(this.options.queueWaitMs, request.signal);
+      const release = await this.gate.acquire(
+        this.options.queueWaitMs,
+        request.signal,
+        request.fairnessKey,
+      );
       try {
         /* The clock for the JUDGE starts once we hold a slot. Queue time is our
            own capacity problem and has its own bound above; folding it in here
@@ -1054,8 +1156,13 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
   private async runBatchEndpoint(requests: readonly ExecutionRequest[]): Promise<ExecutionResult[]> {
     const started = Date.now();
     const signal = requests.find((r) => r.signal)?.signal;
+    /* One batch is one learner's Check, so every request in it carries the same
+       fairness key. Taking the first rather than asserting they agree: a caller
+       that mixed learners into one batch has a bigger problem than fairness,
+       and `runCases` — the only caller — builds a batch from one submission. */
+    const fairnessKey = requests[0]?.fairnessKey;
     try {
-      const release = await this.gate.acquire(this.options.queueWaitMs, signal);
+      const release = await this.gate.acquire(this.options.queueWaitMs, signal, fairnessKey);
       try {
         /* Every case in the batch may need its own full time limit, and the
            judge may well run them one after another on a single worker, so the
@@ -1432,6 +1539,7 @@ export function judge0FromConfig(): Judge0RapidApiProvider {
     baseUrl: judge0.baseUrl,
     languageId: judge0.languageId,
     maxConcurrentRequests: judge0.maxConcurrentRequests,
+    maxConcurrentPerLearner: judge0.maxConcurrentPerLearner,
     pollIntervalMs: judge0.pollIntervalMs,
     queueWaitMs: judge0.queueWaitMs,
     overheadBudgetMs: judge0.overheadBudgetMs,

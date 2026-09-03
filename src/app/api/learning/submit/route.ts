@@ -14,6 +14,7 @@ import { signAttestation } from "@schools/learning/sign";
 import { BLOCK_ANSWER_KINDS, parseBlockAnswer } from "@schools/learning/checking";
 import { ownedEpisodeId } from "@schools/learning/episode-scope";
 import { claimSubmission, isSubmissionId } from "@schools/learning/submission";
+import { takeToken } from "@schools/lib/rate-limit";
 import { MAX_REQUEST_BYTES, checkPayloadSize, requestTooLarge } from "@schools/exec/limits";
 import { bump, opsLog } from "@schools/ops/counters";
 import { maybeSweep } from "@schools/reducer/trigger";
@@ -68,6 +69,22 @@ import type { AwardResult } from "@schools/leagues/engine";
  */
 
 export const runtime = "nodejs";
+
+/**
+ * Seconds this route may take, declared rather than inherited.
+ *
+ * It had none, and the platform default is not a number this route can live
+ * inside: the legitimate worst case is a queue wait plus a batch of cases that
+ * each burn their full five seconds of judge CPU. Below that ceiling the batch
+ * is BILLED and the learner gets a gateway timeout — money spent, no verdict,
+ * and a child told nothing happened.
+ *
+ * Sixty, and everything downstream is sized against it rather than guessed:
+ * `JUDGE0_QUEUE_WAIT_MS` defaults to 38 s and the judge's own budget is the
+ * per-case limit plus `overheadBudgetMs`, which leaves the reserve. If this
+ * number changes, that one has to change with it — see `schools/config.ts`.
+ */
+export const maxDuration = 60;
 
 interface SubmitBody {
   blockId?: string;
@@ -301,11 +318,36 @@ export async function POST(request: Request) {
    */
   const submissionId = isSubmissionId(body.submissionId) ? body.submissionId : null;
   if (!submissionId) {
-    /* No key, no deduplication — this behaves exactly as the route did before,
-       which is what a browser tab loaded before this deployed will do. It is
-       logged rather than refused because refusing it means a child mid-lesson
-       gets an error instead of a graded answer, and the counter is how we know
-       when the last such tab is gone. */
+    /*
+     * No key, no deduplication — and in production that is now a refusal.
+     *
+     * It used to be logged and graded, which meant the one path that skips the
+     * idempotency table also skipped every protection built on it: a loop
+     * omitting the field graded and billed the judge indefinitely with no row
+     * to collide against, and a genuine double-click on such a client counted
+     * twice against the reveal policy. Every client in this repository sends
+     * the field — all three call sites type it as required and the player mints
+     * it on the Check press — so the only caller this can refuse is a tab
+     * loaded before the field existed, or something hand-rolled.
+     *
+     * 400 with a machine-readable reason and copy the player can act on. The
+     * learner's text is untouched: nothing was claimed, nothing was graded,
+     * nothing was written, and a reload sends the same answer with a key.
+     *
+     * Outside production it is logged and graded, exactly as before, because
+     * the test suites and the dev harness post without one and refusing them
+     * would be a change to what this route MEANS rather than to what it costs.
+     */
+    if (config.environment === "production") {
+      opsLog("submit.unkeyed_refused", { block_id: blockId });
+      return NextResponse.json(
+        {
+          error: "submissionId required",
+          reason: "stale_client",
+        },
+        { status: 400 },
+      );
+    }
     opsLog("submit.unkeyed", { block_id: blockId });
   } else {
     const claim = await claimSubmission(store, {
@@ -350,6 +392,65 @@ export async function POST(request: Request) {
       });
       if (isNew) pending.cookies.set(anonCookie(anonId));
       return pending;
+    }
+  }
+
+  /*
+   * What this Check costs, charged HERE and not a line earlier.
+   *
+   * Everything above this point either refused the request for free or replayed
+   * a verdict that was already computed. Only from here does the request do
+   * work: grade it, and — for a code block — spend a slot on a metered judge.
+   * So this is where the budget is taken, and the consequence is the one that
+   * matters in a classroom: **a duplicate costs nothing.** A double-click, a
+   * reconnecting mobile network, a browser retrying a POST whose response was
+   * lost — all of them land on `duplicate` above and never reach this line.
+   * Charging before the claim would have made the network's flakiness the
+   * learner's problem, which is precisely backwards.
+   *
+   * Two buckets, because there are two different failures to prevent, and both
+   * live in the database rather than in this process — Vercel runs as many
+   * processes as it likes, so a per-instance counter bounds nothing.
+   *
+   *   `submit:<subject>`  one child cannot spend the class's judge.
+   *   `submit:provider`   one class cannot spend the school's month.
+   *
+   * The global bucket is charged only when the provider is metered. `local`
+   * and `none` cost nothing real, and billing a test run against a shared
+   * ceiling would make the suite's parallelism a rate-limit failure.
+   *
+   * On refusal the claim is RELEASED. Holding it would lock the learner out of
+   * that exact answer until the stale-claim takeover fired sixty seconds later
+   * — a rate limit is "not now", never "not this answer, ever". Released, the
+   * retry after `retryAfterSeconds` claims it cleanly.
+   */
+  const budget = config.submit;
+  const metered = config.exec.provider === "judge0_rapidapi" || config.exec.provider === "piston";
+  const releaseClaim = async () => {
+    if (submissionId) await store.releaseSubmission(subjectId, submissionId);
+  };
+
+  const perLearner = await takeToken(`submit:${subjectId}`, budget.perLearner);
+  if (!perLearner.ok) {
+    await releaseClaim();
+    opsLog("submit.rate_limited", { block_id: blockId, scope: "learner" });
+    bump("submit.rate_limited");
+    return NextResponse.json(
+      { error: "too many submissions", retryAfterSeconds: perLearner.retryAfterSeconds },
+      { status: 429, headers: { "retry-after": String(perLearner.retryAfterSeconds) } },
+    );
+  }
+
+  if (metered) {
+    const global = await takeToken("submit:provider", budget.global);
+    if (!global.ok) {
+      await releaseClaim();
+      opsLog("submit.rate_limited", { block_id: blockId, scope: "deployment" });
+      bump("submit.rate_limited_global");
+      return NextResponse.json(
+        { error: "too many submissions", retryAfterSeconds: global.retryAfterSeconds },
+        { status: 429, headers: { "retry-after": String(global.retryAfterSeconds) } },
+      );
     }
   }
 
@@ -443,6 +544,11 @@ export async function POST(request: Request) {
              float, so the argument goes in now rather than after the first
              numeric task exists. */
           codeBlock.checker,
+          /* Fair queueing, not identification. The judge never sees this — it
+             only stops one learner holding every in-flight slot while the rest
+             of the class is told the judge is unavailable. See
+             `ExecutionRequest.fairnessKey`. */
+          { fairnessKey: subjectId },
         );
         judgeUnavailable = infrastructureFailed;
         if (!infrastructureFailed && results.length > 0) {

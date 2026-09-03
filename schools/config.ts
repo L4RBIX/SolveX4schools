@@ -220,27 +220,91 @@ export const config = {
       /**
        * How many submissions this process may have in flight at once.
        *
-       * Low by design. Eighteen students times however many hidden cases is the
-       * real burst, the free tier's true limits are unknown without a key, and
-       * the safe direction for an unknown ceiling is well under it: waiting is a
-       * slower Check, exceeding is a class told nothing could be measured.
+       * ## Why it was 2, and why 2 was the wrong answer to the right question
        *
-       * Still 2, deliberately, and it now bounds something different. With
-       * `batchEnabled` on, a slot is one learner's whole Check rather than one
-       * test case, so 2 no longer costs a single learner four sequential waves
-       * — the batch collapsed those — and raising it would only widen the class
-       * burst. The plan's real rate limit is STILL unknown: the live run read
-       * `x-ratelimit-submissions-limit: 0` with a negative `remaining`, which
-       * is not a readable ceiling, and RapidAPI sends none of the nine headers
-       * `schools/ops/provider-quota.ts` knows how to read. Raising an unknown
-       * ceiling's usage to buy latency we already bought elsewhere is a bad
-       * trade, so this stays where it is.
+       * It was low because the plan's ceiling was unknown and the safe
+       * direction for an unknown ceiling is well under it. That reasoning is
+       * still sound; what it missed is that **being conservative about spend
+       * and being conservative about capacity are opposite settings of the same
+       * knob**, and this one was doing both jobs badly.
+       *
+       * The arithmetic it produced: served-inside-the-queue-wait is
+       * `limit × ⌊queueWait / batchTime⌋`. At 2, a 30-second wait and a
+       * measured 2.7 s batch, one instance serves 22 of a class of 30 and tells
+       * the other 8 that the judge was too busy — a fixed fraction of every
+       * class, produced by our own configuration rather than by the judge.
+       *
+       * ## What is actually known about the plan
+       *
+       * From the live run in `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`,
+       * against the subscribed key:
+       *
+       *   - `GET /config_info` reports `max_queue_size: 10000` and
+       *     `enable_batched_submissions: true`. Concurrency is not the resource
+       *     that is scarce here.
+       *   - **Zero HTTP 429s** across 41 requests and 8 billable submissions.
+       *   - `x-ratelimit-submissions-limit: 0` with `remaining: -2224` — which
+       *     is not a ceiling being approached. It is an overage-billed plan.
+       *     The scarce resource is MONEY, not permission.
+       *
+       * So the thing this knob was protecting is not shaped the way the comment
+       * assumed, and money is now bounded where money can actually be bounded:
+       * `config.submit.global`, a token bucket in the DATABASE, shared by every
+       * instance. A per-process in-flight count cannot bound spend on a
+       * platform that runs as many processes as it likes — it never could.
+       *
+       * ## So what does this bound now
+       *
+       * One instance's socket fan-out, and nothing more. Six in-flight batches
+       * is at most 120 submissions queued at a judge whose queue holds 10,000,
+       * and it serves a class of 30 in about 14 seconds at the measured batch
+       * time. `maxConcurrentPerLearner` below is what stops one learner taking
+       * all six.
+       *
+       * Raise it only with a measurement, and lower it the moment a 429 appears
+       * — `judge0.rate_limited` in the ops counters is the number that would
+       * say so, and it has never left zero.
        */
-      maxConcurrentRequests: intEnv("JUDGE0_MAX_CONCURRENT_REQUESTS", 2),
+      maxConcurrentRequests: intEnv("JUDGE0_MAX_CONCURRENT_REQUESTS", 6),
+      /**
+       * How many of those slots ONE learner may hold at once.
+       *
+       * The gate above was pure FIFO with no notion of who was queueing, so a
+       * browser loop posting submissions held both slots five to seven seconds
+       * at a time and every classmate behind it was told the judge was
+       * unavailable — an outage produced by one person, indistinguishable to
+       * everyone else from the judge being down.
+       *
+       * One, and the number is not a tuning knob so much as a statement: a
+       * learner has one Check in flight because a learner has one editor. The
+       * fair-queueing in `RequestGate` skips a waiter whose key is already at
+       * this cap and wakes the next admissible one instead, so a monopolist
+       * loses nothing they were entitled to and everybody behind them keeps
+       * their place.
+       *
+       * Raise it only if a legitimate path ever issues two concurrent batches
+       * for one learner — `runBatch` chunking a >20-case block is the one
+       * candidate, and no block in the curriculum reaches 20.
+       */
+      maxConcurrentPerLearner: intEnv("JUDGE0_MAX_CONCURRENT_PER_LEARNER", 1),
       /** First poll delay. Each poll is a billable request, so it backs off. */
       pollIntervalMs: intEnv("JUDGE0_POLL_INTERVAL_MS", 250),
-      /** How long a submission may wait for a slot before we give up on the judge. */
-      queueWaitMs: intEnv("JUDGE0_QUEUE_WAIT_MS", 30_000),
+      /**
+       * How long a submission may wait for a slot before we give up on the judge.
+       *
+       * Sized against the function's own ceiling rather than picked. The submit
+       * route declares `maxDuration = 60`; a batch that has been admitted needs
+       * the judge's own worst case plus our polling overhead — five seconds of
+       * CPU per case run in parallel by the batch endpoint, plus
+       * `overheadBudgetMs` — so roughly 20 s must stay in reserve. Everything
+       * left is queue.
+       *
+       * The old 30 s was neither: it gave up half a minute early inside a
+       * function that was still going to run, and turned a learner who WOULD
+       * have been served into "the judge was too busy". Waiting is a slower
+       * Check; giving up early is a wrong answer about the infrastructure.
+       */
+      queueWaitMs: intEnv("JUDGE0_QUEUE_WAIT_MS", 38_000),
       /**
        * How much longer than the learner's own time limit we wait for an answer.
        *
@@ -306,6 +370,58 @@ export const config = {
      * is no new variable for its table to document, which is the intended shape.
      */
     cpp: CPP_RUNTIME,
+  },
+
+  /**
+   * Submit — what one learner, and what the whole deployment, may spend.
+   *
+   * ## Why the route needed its own budget
+   *
+   * `/api/learning/submit` was the one expensive route with no limiter at all.
+   * `grep takeToken` found login, hint, explanation and exec/run; Submit — the
+   * route that calls a metered third-party judge — was not among them. A
+   * devtools loop posting fresh submission ids graded indefinitely, bounded
+   * only by the judge's own concurrency gate, which meant it was bounded by how
+   * many of everybody else's turns it could take.
+   *
+   * ## Two buckets, because there are two different failures
+   *
+   * `perLearner` answers "can one child spend the class's judge". It is
+   * charged only for work that is actually going to be done: a duplicate
+   * submission id replays a stored verdict and costs nothing, which is what
+   * makes a double-click, a flaky mobile network and a browser POST retry free.
+   *
+   * `global` answers "can one CLASS spend the school's month". It exists
+   * because the judge's concurrency gate lives in a Node process and Vercel
+   * runs as many of those as it likes — a per-process bound is not a bound on a
+   * metered API. This one is in the database, so every instance shares it, and
+   * it is charged only when the configured provider is metered. `local` and
+   * `none` cost nothing and are not billed for.
+   *
+   * ## Where the numbers come from
+   *
+   * A class of 30 pressing Check is the design load. `perLearner` at 12 burst /
+   * 8 a minute is well above deliberate work — a wrong answer, a fix, a
+   * re-check is three presses on one task — and well below a loop: a
+   * monopolist drops to one submission every 7.5 seconds and can no longer
+   * hold a judge slot continuously. `global` at 150 burst / 120 a minute lets
+   * all 30 learners check four times a minute, which is faster than a class
+   * ever moves, and still bounds a compromised or looping client to a number an
+   * operator can put against a plan's quota.
+   *
+   * They are `intEnv`, so a school with a different plan changes them without a
+   * deploy — and a typo takes the default rather than becoming `NaN`, which is
+   * how a limit silently becomes no limit.
+   */
+  submit: {
+    perLearner: {
+      capacity: intEnv("SUBMIT_BURST_PER_LEARNER", 12),
+      refillPerMinute: intEnv("SUBMIT_PER_MINUTE_PER_LEARNER", 8),
+    },
+    global: {
+      capacity: intEnv("SUBMIT_BURST_GLOBAL", 150),
+      refillPerMinute: intEnv("SUBMIT_PER_MINUTE_GLOBAL", 120),
+    },
   },
 
   /**

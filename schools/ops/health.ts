@@ -1,5 +1,6 @@
 import "server-only";
 import { config, executionProviderProblems, trustedProviderConfigured } from "@schools/config";
+import { judge0GateSnapshot } from "@schools/exec/providers/judge0";
 import { getStoreHandle } from "@schools/store";
 import type { Localized } from "@schools/curriculum/types";
 import {
@@ -421,6 +422,29 @@ async function executionCheck(probe: boolean): Promise<AdminHealth["execution"]>
     detail.languageIdPinned = judge.metered.pinnedLanguageId;
     detail.maxConcurrentRequests = judge.metered.maxConcurrentRequests;
     detail.batchEnabled = judge.metered.batchEnabled;
+    /*
+     * How loaded the gate is RIGHT NOW, on this instance.
+     *
+     * The number an operator wants during a lesson and could not previously
+     * get: `queueDepth` is how many Checks are waiting for a slot, and a
+     * sustained non-zero value is a class arriving faster than the plan's
+     * concurrency can serve — which reaches learners as "the judge was too busy
+     * to take this in time" and reaches nobody else at all.
+     *
+     * Per instance, and stated as such, because that is what it is: the gate
+     * lives in a Node process and the platform runs several. It is a load
+     * signal, not a total.
+     *
+     * `null` before any submission has been graded on this instance, which is
+     * the honest answer for a cold lambda and is distinct from a depth of zero.
+     * The per-key holdings the gate also tracks are deliberately NOT here: a
+     * map keyed by subject id is learner data, and a health payload is not
+     * where it belongs.
+     */
+    const gate = judge0GateSnapshot();
+    detail.gateActive = gate?.active ?? null;
+    detail.gateQueueDepth = gate?.waiting ?? null;
+    detail.maxConcurrentPerLearner = gate?.perKeyLimit ?? null;
     /* `null` throughout when nothing has ever seen a quota header — which is
        either "nothing has called the judge yet" or "this plan does not send
        them". Neither is "no quota left", and a zero here would read as the

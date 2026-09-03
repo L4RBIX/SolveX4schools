@@ -107,6 +107,22 @@ async function post(body: Record<string, unknown>) {
   return { res, body: (await res.json()) as Record<string, unknown> };
 }
 
+/* Empty the submit budget between cases.
+ *
+ * This file is about the REVEAL threshold, so it deliberately submits three
+ * wrong answers per episode across several episodes — well past the route's
+ * per-learner budget of twelve, which is a real production limit tested on its
+ * own in `submit-budget.test.ts`. Leaving it armed here would make these
+ * assertions depend on how many requests earlier cases had already spent.
+ *
+ * Clearing the bucket rather than raising the budget: a test that turned the
+ * limit off would go on passing if somebody deleted it. */
+beforeEach(async () => {
+  const { getStoreHandle } = await import("@schools/store");
+  const { sql } = await getStoreHandle();
+  await sql.query("delete from rate_limit_bucket", []);
+});
+
 const answer = (id: string) => ({ kind: "option" as const, id });
 
 async function names(episodeId: string): Promise<string[]> {
