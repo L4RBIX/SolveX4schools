@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
-import { isContestLesson } from "@schools/curriculum/inventory";
+/* `shape`, not `inventory`. `inventory.ts` reads `PROGRAM`, so this one-symbol
+   import used to pull the entire authored year — 1,735 hidden cases and 255
+   reference solutions — into the client chunk this component is in. */
+import { isContestLesson } from "@schools/curriculum/shape";
 import {
   publicCanCheck as canCheckAnswer,
   isPublicAttemptBlock as isAttemptBlock,

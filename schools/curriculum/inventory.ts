@@ -1,3 +1,19 @@
+/**
+ * `server-only`, and it is load-bearing rather than decorative.
+ *
+ * This module reads `PROGRAM`. Importing any symbol from it — even a pure
+ * one — makes the bundler follow that import to the whole authored year, and a
+ * client component that did exactly that shipped 2.35 MB of hidden cases,
+ * reference solutions and expected outputs to every learner. See `shape.ts`,
+ * which now holds the three pure functions a browser legitimately needed, and
+ * `scripts/check-client-bundle.mjs`, which fails the build if the answer key
+ * ever reappears in `.next/static`.
+ *
+ * This line is the structural half of that fix: a client import is now a build
+ * error, not a chunk nobody reads.
+ */
+import "server-only";
+
 import type {
   ContentInventory,
   Lesson,
@@ -7,6 +23,22 @@ import type {
 } from "./types";
 import { ATTEMPT_BLOCK_TYPES } from "./types";
 import { PROGRAM } from "./program";
+import { CONTEST_LESSON, monthCompletables } from "./shape";
+import type { Completable } from "./shape";
+
+/**
+ * Re-exported so every server caller and test that already imports these from
+ * `inventory` keeps working. The definitions live in `shape.ts` because they
+ * are pure and the browser needs two of them; this module is where the rest of
+ * the counting lives, and it is the natural place to look for them.
+ */
+export {
+  CONTEST_LESSON,
+  isContestLesson,
+  monthCompletables,
+  type Completable,
+  type MonthCompletableShape,
+} from "./shape";
 
 /**
  * Counting, kept separate from validation so the same numbers back the
@@ -97,35 +129,6 @@ export function allLessons(): { month: Month; lesson: Lesson }[] {
 }
 
 /**
- * Something a learner can finish: a lesson, or a month's own check.
- *
- * Deliberately NOT the `Lesson` object. The one caller is the completion route,
- * which needs to know that an id is real and how many blocks it has — and
- * handing it the authored lesson would put every `referenceSolution` one
- * careless `Response.json` away from a browser. `public.ts` exists because that
- * has already happened once.
- */
-export interface Completable {
-  id: string;
-  /** 1 = September … 9 = May. */
-  monthIndex: number;
-  /** Blocks in the authored object. The ceiling for any count a client reports. */
-  blockCount: number;
-  status: PublicationStatus;
-  /**
-   * Which of the two things this is.
-   *
-   * Both are completed through the same route and recorded in the same table
-   * under their own id, so the caller could only tell them apart by matching
-   * the id against a pattern — and `task_ref` already shows what an implicit
-   * string contract costs when the shape drifts. This is derived at the one
-   * place that actually knows, which is the lookup that just walked the
-   * curriculum to find it.
-   */
-  kind: "lesson" | "assessment";
-}
-
-/**
  * Look one up by the id the lesson player reports on completion.
  *
  * Covers assessments as well as lessons, because the monthly check is recorded
@@ -164,57 +167,13 @@ export function findCompletable(id: string): Completable | null {
   return null;
 }
 
-/**
- * Everything a learner has to finish for a month to count as done.
- *
- * ## Why this is here and not in three places
- *
- * The set was already computed inside `programmeToLearningPath` in
- * `schools/presentation/adapters.ts`, as a local `requiredIds`, and its comment
- * records what it cost to get right:
- *
- *   > The monthly check counts. It was outside the denominator, so a learner
- *   > who had finished all 72 lessons and not one of the nine checks was shown
- *   > 100% on /program.
- *
- * That is the definition, and it is now load-bearing in a second place: the
- * self-paced unlock policy decides whether the NEXT month opens, and a gate
- * that disagreed with the progress bar above it would be the same defect
- * again, in the direction where a learner is locked out rather than flattered.
- * So the presentation layer and the policy layer call this, and there is one
- * answer.
- *
- * ## What counts
- *
- * Authored lessons plus the monthly check. "Authored" is `status !== "draft"`
- * with at least one block — a draft lesson is not work a learner can be asked
- * for, and a month whose content is unwritten must not be a wall.
- *
- * ## What deliberately does NOT count
- *
- * Optional and bank tasks. They are blocks INSIDE these completables, and
- * `schools/policies/completion.ts` already excludes them from a completable's
- * own requirement via `isMandatory`. Nothing here needs to know about them, and
- * a second exclusion rule at this level is how the two would eventually
- * disagree.
+/*
+ * `monthCompletables` and `MonthCompletableShape` moved to `shape.ts` and are
+ * re-exported at the top of this file. They are pure functions of their
+ * argument, two client components needed them, and importing them from here
+ * dragged `PROGRAM` — every hidden case and reference solution — into the
+ * browser bundle. The definition and the reasoning went with them.
  */
-/**
- * The shape `monthCompletables` actually needs.
- *
- * Structural rather than `Month`, because the board renders `MonthOutline` —
- * the public projection, identical to `Month` except that its blocks are
- * reduced to `{id, type}`. This function only ever reads `blocks.length`, so
- * insisting on the full authored type would force the presentation layer to
- * keep its own copy of the definition, which is exactly what moving it here
- * was for.
- */
-export interface MonthCompletableShape {
-  index: number;
-  units: readonly {
-    lessons: readonly { id: string; status: PublicationStatus; blocks: readonly unknown[] }[];
-  }[];
-  assessment?: { id: string; status: PublicationStatus; blocks: readonly unknown[] } | null;
-}
 
 /**
  * The blocks that carry the month's own proof of independent thinking.
@@ -274,35 +233,7 @@ export function monthIndependenceBlocks(month: {
  * lesson player needs it in the browser: a contest problem gets a
  * come-back-later control that an ordinary required task does not.
  */
-export function isContestLesson(lessonId: string): boolean {
-  return /^m\d+\.c\d+$/.test(lessonId);
-}
 
-export function monthCompletables(month: MonthCompletableShape): Completable[] {
-  const out: Completable[] = [];
-  for (const unit of month.units) {
-    for (const lesson of unit.lessons) {
-      if (lesson.status === "draft" || lesson.blocks.length === 0) continue;
-      out.push({
-        id: lesson.id,
-        monthIndex: month.index,
-        blockCount: lesson.blocks.length,
-        status: lesson.status,
-        kind: "lesson",
-      });
-    }
-  }
-  if (month.assessment && month.assessment.status !== "draft") {
-    out.push({
-      id: month.assessment.id,
-      monthIndex: month.index,
-      blockCount: month.assessment.blocks.length,
-      status: month.assessment.status,
-      kind: "assessment",
-    });
-  }
-  return out;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Curriculum role — what a learner must do vs what is available to them       */
@@ -385,9 +316,6 @@ export function isRequired(block: LessonBlock): boolean {
 }
 
 export type TaskRole = "core" | "bank" | "assessment" | "contest";
-
-/** A contest lesson id, e.g. `m9.c1`. May's four practice contests. */
-const CONTEST_LESSON = /^m\d+\.c\d+$/;
 
 export interface RoleCounts {
   /** Every block, including the passive ones a learner reads. */

@@ -5,7 +5,11 @@ import type {
   UnitOutline as Unit,
 } from "@schools/curriculum/public";
 import { ATTEMPT_BLOCK_TYPES } from "@schools/curriculum/types";
-import { monthCompletables } from "@schools/curriculum/inventory";
+/* `shape`, not `inventory`, and for the same reason as the type-only import
+   below: this module is imported by client components, and `inventory.ts`
+   reads `PROGRAM`. One value import from there put the whole answer key in the
+   bundle that `school-home`, `year-roadmap` and `month-board` all load. */
+import { monthCompletables } from "@schools/curriculum/shape";
 /* TYPE ONLY, and it has to stay that way. `unlock.ts` is the progression
    policy; this module is imported by client components, and a value import
    would put the rule — and the temptation to run it in a browser over a

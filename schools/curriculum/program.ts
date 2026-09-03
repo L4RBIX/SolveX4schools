@@ -1,3 +1,18 @@
+/**
+ * `server-only`. The authored year — every hidden test case, every
+ * `referenceSolution`, every expected output — is behind this import, and it
+ * must never be reachable from a client component. It was: two pure helpers in
+ * `inventory.ts` were imported by the lesson player and the presentation
+ * adapters, and the bundler followed them here and emitted 2.35 MB of answer
+ * key on six learner pages.
+ *
+ * The pure half now lives in `curriculum/shape.ts`. This line makes the mistake
+ * a build error rather than a chunk. `scripts/check-client-bundle.mjs` is the
+ * belt to this file's braces: it reads the built output and fails if curriculum
+ * secrets are in it at all, whatever route they took.
+ */
+import "server-only";
+
 import type { Program } from "./types";
 import { MONTHS } from "./months";
 import { PROGRAMME_FACTS, PROGRAMME_SOURCE } from "./source-of-truth";

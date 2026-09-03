@@ -224,3 +224,20 @@ jobs:
           # secret that HAS a value — that is the leak this step exists to catch.
           BUNDLE_SCAN_ALLOW_MISSING: LEARNING_CRON_SECRET
         run: npm run check:bundle
+
+      # The answer key, and it is a different question from the one above.
+      #
+      # `check:bundle` looks for the VALUES of server-only credentials. This
+      # looks for what a fourteen-year-old actually wants: hidden test cases,
+      # reference solutions, fill-in answers. It found 2,351,507 bytes of them
+      # in one chunk on six learner routes — `/home`, `/lesson/*`, `/course/*`,
+      # `/assessment/*`, `/program` and `/review` — shipped by a single pure
+      # helper imported from a module that reads `PROGRAM`.
+      #
+      # It needs no secrets, so it cannot go quietly green the way its
+      # predecessor did: it collects the withheld strings from the curriculum
+      # itself, proves every detector on a positive control before scanning,
+      # refuses a missing or empty `.next/static`, and asserts that every chunk
+      # the build manifests name was one of the files it opened.
+      - name: Client bundle answer-key scan
+        run: npm run check:answers
