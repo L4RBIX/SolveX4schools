@@ -199,12 +199,20 @@ export function PublicLanding() {
              Nothing is staged, so nothing here can drift from the product
              without the product having changed first.
 
-             Recorded in RU. The clip is locale-independent in the layout but
-             its chrome is not; the previous take had the same limitation in
-             Kazakh. A KK cut is the honest follow-up. */
+             RECORDED IN BOTH LANGUAGES, and the clip follows the toggle. The
+             chrome inside the frame is real product UI, so a Russian take under
+             a Kazakh headline is the same mismatch the Python take was, only
+             quieter — a learner reading «Есеп шығару арқылы» above a «Запустить»
+             button is being shown someone else's screen. Both cuts are the same
+             take of the same block, differing only in the language the product
+             was speaking while it was filmed. */
           clip={{
-            webm: "/videos/solvex/lesson-coding.webm",
-            poster: "/videos/solvex/lesson-coding.png",
+            webm: loc === "kk"
+              ? "/videos/solvex/lesson-coding-kk.webm"
+              : "/videos/solvex/lesson-coding.webm",
+            poster: loc === "kk"
+              ? "/videos/solvex/lesson-coding-kk.png"
+              : "/videos/solvex/lesson-coding.png",
             /* 900x588 keeps the incumbent 1.531 aspect exactly (1360/888), so
                the hero's device frame is unchanged — but the take is cropped to
                the lesson card instead of the whole 1360px viewport. At hero
