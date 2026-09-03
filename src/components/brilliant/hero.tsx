@@ -74,27 +74,25 @@ function HeroClip({ clip }: { clip: HeroClipSource }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(start, []);
 
-  /* Changing `src` on a <source> child does NOT change what the element plays.
+  /* Changing `src` on a <source> child does NOT change what the element plays:
      React updates the attribute and the browser keeps decoding the media it
-     already selected; only `load()` re-runs resource selection. Measured, not
-     assumed: with the landing's locale toggle wired to the clip, switching to
-     Russian left the Kazakh video on screen under a Russian poster.
+     already selected. Measured — with the landing's locale toggle wired to the
+     clip, switching to Russian left the Kazakh video on screen.
 
-     `shown` starts at the mounted source so the first pass is a no-op — calling
-     `load()` on mount would tear down the fetch `preload="auto"` just started
-     and re-race it against the `play()` above. */
-  const shown = useRef(clip.webm);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || shown.current === clip.webm) return;
-    shown.current = clip.webm;
-    node.load();
-    start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clip.webm]);
+     `load()` is the documented cure and it is the wrong one here. It resets the
+     element mid-flight, so playback has to be restarted against media that has
+     no data yet, and on production — where the clip arrives over the network in
+     range requests rather than instantly off localhost — that lost the race:
+     the element came back paused, and sometimes on the previous source.
+
+     Keying the element sidesteps all of it. React drops the old <video> and
+     mounts a new one whose <source> is right from birth, so a locale switch
+     takes exactly the path a fresh page load takes — the one that already
+     works — poster included. */
 
   return (
     <video
+      key={clip.webm}
       ref={ref}
       width={clip.width}
       height={clip.height}
