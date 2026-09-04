@@ -370,7 +370,11 @@ export async function buildNovaContext(input: BuildContextInput): Promise<NovaCo
   const block = target.block;
 
   const [events, deliveredHintLevel, lastHintAt] = await Promise.all([
-    store.eventsForEpisode(episodeId),
+    /* Scoped to the block Nova is answering about. `readSettled` turns these
+       into "attempts on this task" and a verdict, both of which go into the
+       prompt as facts about the learner — and an episode carrying another
+       block's attempts used to make both of them describe a different task. */
+    store.eventsForEpisode(episodeId, block.id),
     store.lastGrantedLevel(episodeId),
     store.lastHintAt(episodeId),
   ]);

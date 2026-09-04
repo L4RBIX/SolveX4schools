@@ -40,6 +40,11 @@ export async function bundleFor(
       enrolled: members.length,
       monthIndex: MONTH_01_SEPTEMBER.index,
       monthTitle: MONTH_01_SEPTEMBER.title,
+      /* Derived vs chosen, and what the selector may offer. The harness
+         describes a September class — the state the live defect made
+         unreachable, because the product analysed it as May. */
+      monthSelected: false,
+      availableMonths: [{ index: MONTH_01_SEPTEMBER.index, title: MONTH_01_SEPTEMBER.title }],
       curriculum: {
         open: true,
         bypassedForDevelopment: false,

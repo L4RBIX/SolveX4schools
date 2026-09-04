@@ -5,7 +5,7 @@ import type { LearningStore } from "@schools/store/learning-store";
 import type { SqlExecutor } from "@schools/store/sql";
 import { isTeacherPeriod, type PeriodDescriptor, type TeacherPeriod } from "./contracts";
 import { resolvePeriod } from "./period";
-import { loadClassBundle, type ClassBundle } from "./context";
+import { loadClassBundle, requestedMonth, type ClassBundle } from "./context";
 
 /**
  * The opening five lines of every teacher route, written once.
@@ -68,7 +68,29 @@ export async function openTeacherRequest(
   const { sql, store } = await getStoreHandle();
   const now = Date.now();
   const period = resolvePeriod(periodOf(request), new Date(now));
-  const bundle = await loadClassBundle(sql, store, guard.value.schoolId, classId, now);
+  /*
+   * The month, resolved ONCE for the whole request and threaded from here.
+   *
+   * Every teacher endpoint goes through this function, so the month a screen
+   * describes is decided in one place. That is the point rather than a
+   * convenience: the defect this replaces was a single global "current month"
+   * that every screen computed the same wrong way, and the failure mode of
+   * fixing it per screen would be worse — an overview describing September
+   * beside a lesson table describing May, with nothing saying which is which.
+   *
+   * `requestedMonth` returns null for anything not servable, including a stale
+   * bookmark to a month since withdrawn, and the bundle then derives the
+   * class's own. A teacher is never shown a 400 for asking about a month.
+   */
+  const requested = await requestedMonth(monthOf(request));
+  const bundle = await loadClassBundle(
+    sql,
+    store,
+    guard.value.schoolId,
+    classId,
+    now,
+    requested,
+  );
 
   return {
     ok: true,
@@ -120,4 +142,20 @@ export function teacherJson(body: unknown): Response {
       "cache-control": "private, no-store",
     },
   });
+}
+
+/**
+ * The `?month=` a teacher asked for, as a raw string.
+ *
+ * Parsing and validation live in `requestedMonth`, beside the list of months
+ * the deployment actually serves — this only reads the query string, for the
+ * same reason `periodOf` does: one place knows how a teacher request is
+ * shaped.
+ */
+function monthOf(request: Request): string | null {
+  try {
+    return new URL(request.url).searchParams.get("month");
+  } catch {
+    return null;
+  }
 }

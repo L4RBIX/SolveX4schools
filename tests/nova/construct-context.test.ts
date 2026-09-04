@@ -27,8 +27,10 @@ import {
   arrivesAfter,
   cpp17PositionOf,
   cpp17PromptLines,
+  septemberArrivals,
   septemberTaughtBy,
 } from "@schools/nova/cpp17";
+import { frameBecomesTheirsAt, teachingOrder } from "@schools/curriculum/capability";
 
 /**
  * Which C++17 Nova is allowed to reach for.
@@ -111,65 +113,118 @@ describe("the course this gate is written for", () => {
 /* The September prerequisite graph                                           */
 /* ========================================================================== */
 
-describe("September's prerequisite table, as the pedagogy document states it", () => {
-  const taughtAt = (id: string) => SEPTEMBER_SEQUENCE.find((c) => c.id === id)?.taughtAt;
-  const requiredAt = (id: string) => SEPTEMBER_SEQUENCE.find((c) => c.id === id)?.requiredAt;
+describe("September's prerequisite graph, derived from the content", () => {
+  const arrival = (id: string) => septemberArrivals().find((a) => a.construct.id === id);
+  const taughtAt = (id: string) => arrival(id)?.firstShownAt;
+  const requiredAt = (id: string) => arrival(id)?.requiredAt;
 
-  it("puts every construct at the lesson the table puts it at", () => {
-    /* Transcribed from the table in `docs/cpp17/CPP17_PEDAGOGY.md`, item by
-       item. A test that only checked the set was non-empty would pass against
-       any list at all, which is exactly how a sequence gate starts lying. */
+  it("puts every construct at the position the CONTENT puts it at", () => {
+    /*
+     * These numbers were transcribed by hand from the table in
+     * `docs/cpp17/CPP17_PEDAGOGY.md`, and that table numbers lessons the way
+     * the DOCUMENT does — l1 is 1, l4 is 4. The course is not taught in that
+     * order: September's units were re-sequenced and the ids kept, so teaching
+     * order is l1, l11, l2, l10, l3, l4, l5, l12, l6, l7, l8, l9.
+     *
+     * `cpp17PositionOf` returns the TEACHING position and the table was read
+     * with document numbers, so on `m1.l4.b4` — the lesson that teaches `if`
+     * and `else`, at teaching position 6 — `taughtAt: 9` made Nova say the
+     * lesson's own topic was NOT TAUGHT YET, in the same prompt as a derived
+     * TAUGHT list containing it. Eight of twelve positions contradicted.
+     *
+     * So the numbers are derived now, and these are what the curriculum's own
+     * code actually shows. Seven of the fourteen moved. A change here is a
+     * change to the CONTENT, and that is the point: the number cannot drift
+     * from the month files any more, because it is read out of them.
+     */
     expect(taughtAt("out.cout")).toBe(1);
     expect(taughtAt("frame")).toBe(1);
-    expect(taughtAt("out.expression")).toBe(2);
-    expect(taughtAt("arith.basic")).toBe(2);
-    expect(taughtAt("var.int")).toBe(3);
-    expect(taughtAt("in.cin")).toBe(3);
+    expect(taughtAt("out.expression")).toBe(1);
+    expect(taughtAt("arith.basic")).toBe(1);
+    expect(taughtAt("var.int")).toBe(2);
+    expect(taughtAt("in.cin")).toBe(2);
     expect(taughtAt("arith.int_div")).toBe(4);
-    expect(taughtAt("var.double")).toBe(5);
-    expect(taughtAt("arith.mixed")).toBe(5);
-    expect(taughtAt("var.long_long")).toBe(6);
-    expect(taughtAt("cmp.operators")).toBe(8);
-    expect(taughtAt("cond.if_else")).toBe(9);
-    expect(taughtAt("cond.else_if")).toBe(10);
-    expect(taughtAt("logic.ops")).toBe(11);
+    expect(taughtAt("var.long_long")).toBe(4);
+    expect(taughtAt("cmp.operators")).toBe(6);
+    expect(taughtAt("cond.if_else")).toBe(6);
+    expect(taughtAt("cond.else_if")).toBe(7);
+    expect(taughtAt("logic.ops")).toBe(9);
+  });
+
+  it("claims nothing about a construct the content never puts on screen", () => {
+    /*
+     * `double` is taught in September's PROSE — the word appears eleven times —
+     * and in no `code` field anywhere in the nine months. The walk cannot see
+     * it, so neither list may claim it: not "taught", which would invite Nova
+     * to write it, and not "NOT TAUGHT YET" on the lesson that teaches it.
+     *
+     * This is a CONTENT gap, recorded here rather than papered over with a
+     * declared number, which is how it stayed invisible the first time.
+     */
+    expect(taughtAt("var.double")).toBeNull();
+    expect(taughtAt("arith.mixed")).toBeNull();
+    for (let lesson = 1; lesson <= 12; lesson += 1) {
+      const r = septemberTaughtBy(lesson);
+      for (const list of [r.write, r.given, r.notYet]) {
+        expect(list.map((c) => c.id)).not.toContain("var.double");
+      }
+    }
   });
 
   it("separates given from required, and only for the frame", () => {
     /* The distinction the whole month is built on, and the one thing a walk of
        the shown code cannot see: `#include <iostream>`, `int main()` and
-       `return 0;` are on screen from lesson one and are not the learner's to
-       write until lesson seven. Everything else is required the moment it is
-       taught. */
+       `return 0;` are on screen from the first lesson and are not the learner's
+       to write until the seventh. */
     expect(requiredAt("frame")).toBe(7);
-    for (const c of SEPTEMBER_SEQUENCE) {
-      expect(c.requiredAt, `${c.id} cannot be required before it is taught`).toBeGreaterThanOrEqual(
-        c.taughtAt,
-      );
-      if (c.id !== "frame") {
-        expect(c.requiredAt, `${c.id} is required the lesson it is taught`).toBe(c.taughtAt);
+    for (const a of septemberArrivals()) {
+      if (a.firstShownAt === null) continue;
+      expect(
+        a.requiredAt,
+        `${a.construct.id} cannot be required before it is shown`,
+      ).toBeGreaterThanOrEqual(a.firstShownAt);
+      if (a.construct.id !== "frame") {
+        expect(
+          a.requiredAt,
+          `${a.construct.id} is required once the whole of it has been shown`,
+        ).toBe(a.fullyShownAt);
       }
     }
   });
 
-  it("agrees with the scaffold stages about when main becomes theirs", () => {
-    /* Stage 5 is "from l7, they write the whole of main". The frame's
-       `requiredAt` is the same fact stated as a number, and the two must not be
-       free to drift — a stage list that said 7 beside a table that said 5 would
-       leave nothing to notice. */
-    const stage5 = SCAFFOLD_STAGES.find((s) => s.startsWith("5 —"));
-    expect(stage5).toBeDefined();
-    expect(stage5).toContain(`l${requiredAt("frame")}`);
-    expect(SCAFFOLD_STAGES).toHaveLength(5);
+  it("records that the content hands the frame over LATER than the first blank editor", () => {
+    /*
+     * The one number still declared, and the disagreement it is declared over.
+     *
+     * `frameBecomesTheirsAt()` derives a proxy from the content — the first
+     * task whose hidden solution needs a frame construct the learner has not
+     * been shown — and lands at teaching position 4, `m1.l10.b5`. The content
+     * announces the hand-over in `m1.l5`, position 7.
+     *
+     * That gap is a curriculum finding: `m1.l10.b5` opens a blank editor three
+     * lessons before the frame is handed over, and it wants the starter its
+     * siblings have. The declared value wins meanwhile, because the safe
+     * direction is not asking a week-one learner for `return 0;`.
+     *
+     * Pinned so that fixing the content makes this fail out loud rather than
+     * quietly making the comment above untrue.
+     */
+    const order = teachingOrder();
+    const derived = order[frameBecomesTheirsAt()];
+    expect(derived?.lessonId, "the first blank editor moved").toBe("m1.l10");
+    expect(requiredAt("frame")).toBe(7);
   });
 
   it("teaches division twice, on int and then on double", () => {
     /* Not a duplicate entry to be tidied away. `7 / 2` is `3` and `7.0 / 2` is
        `3.5`; they are different operations wearing the same symbol, and a
-       learner who meets that as a surprise has been failed by the sequence. */
+       learner who meets that as a surprise has been failed by the sequence.
+       The `double` half is the content gap above — the sequence declares it and
+       the code never shows it. */
     expect(taughtAt("arith.int_div")).toBe(4);
-    expect(taughtAt("var.double")).toBe(5);
-    expect(taughtAt("arith.int_div")!).toBeLessThan(taughtAt("var.double")!);
+    expect(SEPTEMBER_SEQUENCE.map((c) => c.id).indexOf("arith.int_div")).toBeLessThan(
+      SEPTEMBER_SEQUENCE.map((c) => c.id).indexOf("var.double"),
+    );
   });
 
   it("grows strictly as the month proceeds and never shrinks", () => {
@@ -200,11 +255,49 @@ describe("September's prerequisite table, as the pedagogy document states it", (
     expect(write.has("out.cout")).toBe(true);
   });
 
-  it("has every September construct available by the last lesson", () => {
+  it("has every construct the content SHOWS available by the last lesson", () => {
+    /* Everything the walk can see is theirs by the end of the month, nothing is
+       still withheld, and nothing is still on-screen-but-not-theirs.
+
+       The count is against what the content shows rather than against the whole
+       declared list, because two rows — `var.double` and `arith.mixed` — are
+       taught in prose and never in a code field. Asserting fourteen here would
+       be asserting the content gap away. */
+    const visible = septemberArrivals().filter((a) => a.firstShownAt !== null);
+    expect(visible.length, "the walk sees almost all of the month").toBeGreaterThanOrEqual(12);
+
     const last = septemberTaughtBy(12);
     expect(last.notYet).toEqual([]);
     expect(last.given).toEqual([]);
-    expect(last.write).toHaveLength(SEPTEMBER_SEQUENCE.length);
+    expect(last.write).toHaveLength(visible.length);
+  });
+
+  it("never says a construct is both taught and not taught", () => {
+    /*
+     * THE assertion this whole change exists for.
+     *
+     * On `m1.l4.b4` — «if и else», teaching position 6 — the rendered prompt
+     * carried "TAUGHT, use freely: … if, else, ==, >" and "NOT TAUGHT YET this
+     * month: … if and else; …" in the same message, plus "if the only fix needs
+     * something untaught, you have the wrong fix". Eight of September's twelve
+     * positions contradicted themselves that way.
+     *
+     * Checked at every position, on all three lists, because the two that used
+     * to disagree were built from different sources: one derived from the
+     * content, one transcribed by hand. They are now one walk.
+     */
+    for (let lesson = 1; lesson <= 12; lesson += 1) {
+      const { write, given, notYet } = septemberTaughtBy(lesson);
+      const w = new Set(write.map((c) => c.id));
+      const g = new Set(given.map((c) => c.id));
+      for (const c of notYet) {
+        expect(w.has(c.id), `lesson ${lesson}: ${c.id} is TAUGHT and NOT TAUGHT YET`).toBe(false);
+        expect(g.has(c.id), `lesson ${lesson}: ${c.id} is on screen and NOT TAUGHT YET`).toBe(false);
+      }
+      for (const c of write) {
+        expect(g.has(c.id), `lesson ${lesson}: ${c.id} is both theirs and not theirs`).toBe(false);
+      }
+    }
   });
 });
 
@@ -367,7 +460,40 @@ describe("the system prompt carries the constraint", () => {
     expect(traps).toContain("-7 / 2 is -3 and -7 % 2 is -1");
     expect(traps).toContain("long long");
     expect(traps).toContain("undefined behaviour");
-    expect(traps).toContain("there is no truthiness");
+  });
+
+  it("does not state a false fact about C++ in the list whose job is facts", () => {
+    /*
+     * Four of these were wrong, and each was compiled before it was rewritten.
+     * A list that exists to stop a tutor being confidently wrong cannot itself
+     * be confidently wrong — a wrong entry here is a wrong sentence delivered
+     * to a fourteen-year-old with the platform's authority behind it.
+     *
+     * Asserted as ABSENCE of the exact old phrasings, because that is what the
+     * defect was. Each `not.toContain` names something measured false:
+     */
+    const traps = SEMANTIC_TRAPS.join(" ");
+
+    /* `cin >> n` on text leaves n = 0 with failbit, not unchanged; on a
+       too-large number it leaves INT_MAX. Measured on GCC and Clang. */
+    expect(traps).not.toContain("leaves n unchanged");
+    expect(traps).toContain("sets n to 0");
+
+    /* `s + 5` does not compile; `s += 5` does, and appends the byte 5. */
+    expect(traps).not.toContain("with std::string it does not compile at all");
+    expect(traps).toContain("s += 5 appends the BYTE 5");
+
+    /* `if (x)` on an int is a contextual conversion to bool and is ordinary
+       C++. It is a house style rule and must be stated as one, or a tutor
+       "corrects" working code. */
+    expect(traps).not.toContain("there is no truthiness");
+    expect(traps).toContain("legal C++");
+
+    /* Signed overflow is undefined, not a defined wrap — at -O2 the compiler
+       may assume it does not happen. The advice is unchanged; the mechanism
+       was wrong, and the mechanism is what a tutor reasons from. */
+    expect(traps).not.toContain("overflows SILENTLY");
+    expect(traps).toContain("is UNDEFINED, not a wrap");
   });
 
   it("gives the vocabulary in the learner's own language, and the two differ", () => {

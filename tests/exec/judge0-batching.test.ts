@@ -322,11 +322,36 @@ describe("the Judge0 batch configuration", () => {
     expect((await judge0Config({ JUDGE0_MAX_BATCH_SIZE: "lots" })).maxBatchSize).toBe(20);
   });
 
-  it("leaves the concurrency gate where it was", async () => {
-    /* Deliberate, and the reason is in `schools/config.ts`: the plan's real
-       rate limit is still unreadable, and the batch already bought the latency
-       that raising this would have bought. If someone raises it later, this
-       test failing is the prompt to go and read the plan first. */
-    expect((await judge0Config({})).maxConcurrentRequests).toBe(2);
+  it("pins the concurrency gate, and the per-learner bound beside it", async () => {
+    /*
+     * This pinned 2, with a comment saying the plan's real rate limit was
+     * unreadable and the batch had already bought the latency that raising it
+     * would buy. The first half is still true; the second half was answering
+     * the wrong question.
+     *
+     * The number decides how many of a CLASS are served inside the queue wait:
+     * `limit × ⌊queueWait / batchTime⌋`. At 2, a 30-second wait and the measured
+     * 2.7 s batch, one instance serves 22 of 30 and tells the other 8 that the
+     * judge was unavailable — a fixed fraction of every class, produced by our
+     * own configuration.
+     *
+     * Six, and the justification is a measurement rather than a guess.
+     * `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`, against the subscribed
+     * key: `max_queue_size: 10000`, batched submissions enabled, zero HTTP 429s
+     * in 41 requests, and `x-ratelimit-submissions-limit: 0` with
+     * `remaining: -2224` — an overage-billed plan, not a ceiling being
+     * approached. The scarce resource is money, and money is bounded in
+     * `config.submit.global`, a token bucket in the database that every
+     * instance shares. A per-process in-flight count never could bound it.
+     *
+     * `maxConcurrentPerLearner` is pinned in the same breath because the two
+     * only make sense together: raising the gate without it hands all six slots
+     * to whoever loops fastest. If someone raises either, this failing is the
+     * prompt to go and read the plan — and `judge0.rate_limited` in the ops
+     * counters is the number that says whether it was too far.
+     */
+    const cfg = await judge0Config({});
+    expect(cfg.maxConcurrentRequests).toBe(6);
+    expect(cfg.maxConcurrentPerLearner).toBe(1);
   });
 });

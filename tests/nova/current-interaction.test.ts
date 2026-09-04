@@ -64,8 +64,22 @@ const grant = (granted: number, mayIncludeCode = false): GrantDecision => ({
 async function contextFor(
   episodeId: string,
   draft?: Parameters<typeof buildNovaContext>[0]["draft"],
+  /**
+   * The block Nova is answering about.
+   *
+   * It used to be `PRINT_2_2` unconditionally, including for the cases that
+   * played their episode on `CODE_BLOCK` — and those passed because
+   * `eventsForEpisode` returned the whole episode regardless of which task the
+   * rows were about. That is the defect `schools/learning/episode-scope.ts`
+   * closes: evidence from one block decided what Nova was told about another.
+   *
+   * With the read scoped to the block, a fixture that plays A and asks about B
+   * correctly sees nothing. Naming the block is how a test says which question
+   * it is asking.
+   */
+  blockId: string = PRINT_2_2,
 ) {
-  const target = findBlock(PRINT_2_2)!;
+  const target = findBlock(blockId)!;
   return buildNovaContext({
     store,
     subjectId,
@@ -298,7 +312,7 @@ describe("a learner debugging their own program", () => {
 
     /* The judged tally reaches the ledger through the same payload the submit
        route writes, so the summary is derived rather than asserted. */
-    const ctx = await contextFor(episodeId);
+    const ctx = await contextFor(episodeId, undefined, CODE_BLOCK);
     expect(ctx.interaction.settled.visibleTestSummary).toBe("0/3");
     expect(ctx.interaction.settled.verdict).toBe("incorrect");
   }, 60_000);

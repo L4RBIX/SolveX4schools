@@ -56,6 +56,17 @@ export const TL = {
   classLabel: { kk: "Сынып", ru: "Класс" },
   periodLabel: { kk: "Кезең", ru: "Период" },
   monthLabel: { kk: "Ай", ru: "Месяц" },
+  /**
+   * The default entry in the month selector.
+   *
+   * It says "my class's month" rather than naming one, because that is the
+   * difference the selector exists to make visible: the product derived this,
+   * from the class's own completions, and a teacher who picks a month is doing
+   * something else. Before this, every screen said May for a September class
+   * and nothing anywhere said why.
+   */
+  monthAuto: { kk: "Сыныптың айы", ru: "Месяц класса" },
+  monthPickerLabel: { kk: "Оқу айы", ru: "Учебный месяц" },
   periodWeek: { kk: "7 күн", ru: "7 дней" },
   periodMonth: { kk: "Ағымдағы ай", ru: "Текущий месяц" },
   periodProgramme: { kk: "Бүкіл курс", ru: "Весь курс" },

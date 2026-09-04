@@ -305,6 +305,17 @@ export const OPS_COUNTERS = [
   "submit.rate_limited_global",
 
   /**
+   * A password-change attempt refused by its own bucket.
+   *
+   * The current-password field is a password guess through a different door,
+   * and it was unmetered: fifteen wrong values returned fifteen 401s. A number
+   * here means somebody is guessing against a session — most likely one left
+   * open on a shared classroom machine, which is a conversation for a teacher
+   * rather than an error for a browser.
+   */
+  "auth.password_change_rate_limited",
+
+  /**
    * An event the ingest route refused: an outcome name arriving unattested, a
    * foreign episode, or a malformed id.
    *

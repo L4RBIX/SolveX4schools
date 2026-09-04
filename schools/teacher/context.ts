@@ -7,6 +7,7 @@ import { MONTH_BY_INDEX, MONTHS } from "@schools/curriculum/months";
 import { gateFor } from "@schools/curriculum/gate";
 import { DEFAULT_TRACK } from "@schools/learning/track";
 import { completionTarget } from "@schools/policies/lookup";
+import { monthCompletables } from "@schools/curriculum/inventory";
 import {
   evaluateCompletion,
   levelFromEvidence,
@@ -16,6 +17,7 @@ import {
 import type { ClassContext, Freshness } from "./contracts";
 import {
   classBlockEvidence,
+  classCompletions,
   classRoster,
   lastSweepAt,
   subjectIdsOf,
@@ -39,30 +41,120 @@ import {
 /**
  * The month a class is working through.
  *
- * ## Why this is derived and not configured
+ * ## What this used to answer, and why it was the wrong question
  *
- * `school_classes` has no month or pacing column, and `ProgressSnapshot.currentMonth`
- * lives in the learner's own localStorage — the file that owns it calls itself a
- * placeholder. So there is nothing to read.
+ * It returned the HIGHEST month that was authored and gated open — a fact about
+ * the DEPLOYMENT, computed once for everybody, with no reference to any class.
+ * The pilot runbook publishes all nine months in one act, so from the moment it
+ * runs, every teacher screen in the product described May.
  *
- * The brief is explicit that we must not invent a school calendar
- * ("Do not invent school calendar dates if not configured. Use curriculum
- * sequence."), so this uses the curriculum sequence and nothing else: the
- * HIGHEST month that is both authored and gated open. That is a fact about what
- * the product is serving, it moves when a reviewer publishes the next month,
- * and it needs no configuration anybody has to remember to set.
+ * Measured live against a seeded September class: `context.monthIndex: 9`,
+ * required work 0 of 168, eight May lessons all "nobody started", the review
+ * queue empty, and the assessment "not started" for 21 learners. September's
+ * actual work was not reachable from the teacher UI at all. The tests could not
+ * see it because the harness hard-codes September.
  *
- * Falls back to month 1 when nothing is open, so a screen loaded against an
- * unpublished deployment still names September rather than rendering a blank.
+ * ## What it answers now
+ *
+ * **The lowest month the class has not finished.**
+ *
+ * That is how a curriculum-paced classroom actually moves, it is derivable from
+ * state the product already keeps, and it needs no school calendar — which the
+ * brief explicitly forbids inventing. A month counts as finished for the CLASS
+ * when at least half the enrolled learners have a completion row for every one
+ * of its completables, which is `monthCompletables`, the same definition the
+ * unlock policy and the progress bar use.
+ *
+ * Half rather than all, and the reason is a classroom rather than a statistic:
+ * one learner who never finishes September must not hold the whole dashboard in
+ * September until May. Half rather than any, for the mirror reason: one learner
+ * racing ahead must not move everybody else's screen to a month the class has
+ * not met. It is the median learner, which is who a teacher is pacing to.
+ *
+ * Clamped at both ends. Never above the highest month the deployment actually
+ * serves — pointing a teacher at a month the gate has closed would give them a
+ * screen of zeros they cannot act on — and never below month 1.
+ *
+ * ## And a teacher can override it
+ *
+ * `loadClassBundle` takes an explicit month, so `?month=3` on any teacher route
+ * shows November. The derived value is the default, not a cage: a teacher
+ * revisiting October in December has a real reason to, and the alternative is
+ * the product deciding what they are allowed to look at.
  */
-export async function currentMonth(): Promise<Month> {
-  let best: Month | null = null;
+export async function classCurrentMonth(
+  sql: SqlExecutor,
+  subjectIds: readonly string[],
+): Promise<Month> {
+  const servable = await servableMonths();
+  if (servable.length === 0) return MONTH_BY_INDEX.get(1) ?? MONTHS[0];
+
+  /* No learners, or nobody who has done anything: the class is at the start of
+     what the deployment serves. A brand-new class in September gets September,
+     which is the whole point. */
+  if (subjectIds.length === 0) return servable[0];
+
+  const completions = await classCompletions(sql, subjectIds);
+  const bySubject = new Map<string, Set<string>>();
+  for (const row of completions) {
+    const set = bySubject.get(row.subjectId) ?? new Set<string>();
+    set.add(row.lessonId);
+    bySubject.set(row.subjectId, set);
+  }
+
+  /* Half the ENROLLED class, not half of those who have started. A class where
+     three of thirty have finished September has not finished September, and
+     counting only the three would say it had. */
+  const quorum = Math.ceil(subjectIds.length / 2);
+
+  for (const month of servable) {
+    const required = monthCompletables(month).map((c) => c.id);
+    /* A month with nothing required cannot be "not finished" — it would be a
+       wall the class could never get past. */
+    if (required.length === 0) continue;
+    let finished = 0;
+    for (const subjectId of subjectIds) {
+      const done = bySubject.get(subjectId);
+      if (done && required.every((id) => done.has(id))) finished += 1;
+    }
+    if (finished < quorum) return month;
+  }
+
+  /* Every servable month is finished by the median learner. The last one is
+     where the class is — there is nowhere further to point them. */
+  return servable[servable.length - 1];
+}
+
+/**
+ * The months this deployment actually serves, lowest first.
+ *
+ * Authored and gated open. Kept separate from the derivation above because the
+ * month SELECTOR needs the same list — a teacher may only be offered months the
+ * product would actually show them work in.
+ */
+export async function servableMonths(): Promise<Month[]> {
+  const out: Month[] = [];
   for (const month of MONTHS) {
     if (!hasAuthoredContent(month)) continue;
     const gate = await gateFor(month);
-    if (gate.open) best = month;
+    if (gate.open) out.push(month);
   }
-  return best ?? MONTH_BY_INDEX.get(1) ?? MONTHS[0];
+  return out;
+}
+
+/**
+ * A month a teacher explicitly asked for, or null if they may not have it.
+ *
+ * Null for anything that is not a servable month index, and the caller falls
+ * back to the derived one rather than erroring: a stale bookmark to a month
+ * that has since been withdrawn should show the class's real month, not a 400.
+ */
+export async function requestedMonth(raw: string | null): Promise<Month | null> {
+  if (raw === null) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > MONTHS.length) return null;
+  const servable = await servableMonths();
+  return servable.find((m) => m.index === n) ?? null;
 }
 
 function hasAuthoredContent(month: Month): boolean {
@@ -400,17 +492,39 @@ export async function loadClassBundle(
   schoolId: string,
   classId: string,
   now: number,
+  /**
+   * The month the teacher asked for, or null for "whichever one my class is in".
+   *
+   * Threaded from `openTeacherRequest`, which reads `?month=` — so every screen
+   * that goes through it moves together. That coherence is the point: an
+   * overview describing September beside a lesson table describing May is the
+   * defect this parameter exists to make impossible, not a smaller version of
+   * it.
+   */
+  requested: Month | null = null,
 ): Promise<ClassBundle> {
-  const [members, month] = await Promise.all([
-    classRoster(sql, schoolId, classId),
-    currentMonth(),
-  ]);
+  const members = await classRoster(sql, schoolId, classId);
   const subjectIds = subjectIdsOf(members);
-  const [freshness, context] = await Promise.all([
+  const month = requested ?? (await classCurrentMonth(sql, subjectIds));
+  const [freshness, context, servable] = await Promise.all([
     loadFreshness(sql, subjectIds, now),
     buildContext(store, schoolId, classId, month, members.length),
+    servableMonths(),
   ]);
-  return { members, subjectIds, month, context, freshness };
+  return {
+    members,
+    subjectIds,
+    month,
+    context: {
+      ...context,
+      /* What the selector may offer, and whether this one was chosen or
+         derived. A screen that cannot tell the two apart cannot say "your class
+         is here" versus "you are looking at November". */
+      monthSelected: requested !== null,
+      availableMonths: servable.map((m) => ({ index: m.index, title: m.title })),
+    },
+    freshness,
+  };
 }
 
 async function buildContext(
@@ -419,7 +533,7 @@ async function buildContext(
   classId: string,
   month: Month,
   enrolled: number,
-): Promise<ClassContext> {
+): Promise<Omit<ClassContext, "monthSelected" | "availableMonths">> {
   const gate = await gateFor(month);
   const className = await store.classNameFor(schoolId, classId);
   return {

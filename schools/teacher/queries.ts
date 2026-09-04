@@ -2,6 +2,7 @@ import "server-only";
 import type { SqlExecutor } from "@schools/store/sql";
 import type { LearnerState, SkillState } from "@solvex/learning-intelligence-core";
 import { CURRICULUM_VERSION } from "@schools/curriculum/source-of-truth";
+import { evidenceTrustSql } from "@schools/learning/evidence-trust";
 
 /**
  * Class-scoped reads for the teacher command centre.
@@ -559,9 +560,18 @@ export async function classBlockEvidence(
   if (subjectIds.length === 0 || blockIds.length === 0) return [];
 
   const r = await sql.query<Record<string, unknown>>(
+    /* The submission count is trust-filtered, and it is the same rule the
+       learning engine applies in `blockAttempts`. Ingest lets a browser author
+       `episode_opened` — it is the client's own telemetry for a lesson being
+       opened — and six such posts used to read here as "required work 1/8" and
+       a lesson "reached 6/6", for a learner with no submission and no verdict.
+       A teacher's numbers have to mean what the engine's mean, or the two are
+       describing different children. See `schools/learning/evidence-trust.ts`. */
     `select e.subject_id,
             split_part(e.payload->>'task_ref', ':', 2)                          as block_id,
-            count(*) filter (where e.event_name = 'episode_opened')::int        as submissions,
+            count(*) filter (
+              where e.event_name = 'episode_opened' and ${evidenceTrustSql("e")}
+            )::int                                                              as submissions,
             count(*) filter (where e.event_name = 'verdict_received')::int      as verdicts,
             coalesce(bool_or(
               e.event_name = 'verdict_received'
@@ -1174,3 +1184,4 @@ function iso(v: unknown): string {
   if (typeof v === "string") return new Date(v).toISOString();
   return new Date(0).toISOString();
 }
+

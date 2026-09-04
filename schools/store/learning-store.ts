@@ -12,6 +12,7 @@ import type {
 import type { LearningEventName, LearningPayload } from "@solvex/learning-contracts";
 import type { PostHelpStatus } from "@schools/learning/post-help";
 import { CURRICULUM_VERSION } from "@schools/curriculum/source-of-truth";
+import { evidenceTrustSql } from "@schools/learning/evidence-trust";
 import type { SqlExecutor } from "./sql";
 
 /**
@@ -694,7 +695,33 @@ export class LearningStore {
    * filter — in or out — never as a weight, because "half-believe a browser"
    * is how a forged row gets to matter a little.
    */
-  async eventsForEpisode(episodeId: string): Promise<TrustedEvent[]> {
+  /**
+   * One episode's stream, optionally narrowed to one block.
+   *
+   * ## Why `blockId` is here at all
+   *
+   * `schools/learning/episode-scope.ts` now refuses an episode that already
+   * holds another block's work, so a NEW episode is one block by construction
+   * and this filter changes nothing about it. It is here for the two things
+   * that construction cannot cover: rows written before that check existed, and
+   * the next write path somebody adds.
+   *
+   * What reads this decides whether a fourteen-year-old is handed an answer —
+   * `priorFailures` in the submit route counts wrong verdicts here, and three of
+   * them open the reveal. A filter at the point of USE is the one that survives
+   * a future writer, which is the same argument the `source_trust = 'judge'`
+   * predicate in `blockAttempts` makes for itself.
+   *
+   * Rows with NO `task_ref` are kept. Dropping them would be a second, silent
+   * behaviour change — the question this narrows is "which task", and an event
+   * that does not name one has not answered it.
+   */
+  async eventsForEpisode(episodeId: string, blockId?: string): Promise<TrustedEvent[]> {
+    const scoped =
+      blockId === undefined
+        ? ""
+        : ` and (payload ->> 'task_ref' is null
+                 or split_part(payload ->> 'task_ref', ':', 2) = $2)`;
     const r = await this.sql.query<{
       event_name: string;
       occurred_at: string;
@@ -709,9 +736,9 @@ export class LearningStore {
          events" — untrue: it had no way to tell. */
       `select event_name, occurred_at, received_at, seq, source_trust, payload
          from learning_events
-        where episode_id = $1
+        where episode_id = $1${scoped}
         order by received_at asc, seq asc`,
-      [episodeId],
+      blockId === undefined ? [episodeId] : [episodeId, blockId],
     );
     return r.rows.map(toTrustedEvent);
   }
@@ -1461,6 +1488,7 @@ export class LearningStore {
           where subject_id = $1
             and event_name = 'episode_opened'
             and episode_id is not null
+            and ${evidenceTrustSql()}
           group by episode_id
        )
        select o.task_ref                       as task_ref,
@@ -1578,9 +1606,21 @@ export class LearningStore {
          ingest now refuses verdicts outright; the predicate stays because rows
          forged before that fix may already exist in a pilot database, and
          because a filter at the point of USE is the one that survives someone
-         adding a third write path later. */
+         adding a third write path later.
+
+         The SUBMISSION count now carries the same reasoning, and it did not.
+         Ingest lets a browser author `episode_opened` — that is the client's
+         own telemetry for a lesson being opened — and this count had no trust
+         filter at all, so five POSTs to `/api/learning/events` were five
+         submissions and `/api/learning/complete` answered 200 with
+         `first: true` for a learner who had written nothing. Month unlock held,
+         because it wants a judge-signed verdict; the RECORDS did not, which is
+         the worse half, because nothing looked wrong. See
+         `schools/learning/evidence-trust.ts`. */
       `select split_part(payload ->> 'task_ref', ':', 2)                       as block_id,
-              count(*) filter (where event_name = 'episode_opened')::int       as submissions,
+              count(*) filter (
+                where event_name = 'episode_opened' and ${evidenceTrustSql()}
+              )::int                                                           as submissions,
               count(*) filter (where event_name = 'verdict_received')::int     as verdicts,
               coalesce(bool_or(
                 event_name = 'verdict_received'
@@ -1784,6 +1824,7 @@ export class LearningStore {
           where e.subject_id = $1
             and e.event_name = 'episode_opened'
             and e.episode_id is not null
+            and ${evidenceTrustSql("e")}
             and split_part(e.payload ->> 'task_ref', ':', 2) in (${holes})
        ),
        given as (

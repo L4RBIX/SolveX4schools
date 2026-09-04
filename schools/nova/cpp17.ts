@@ -1,4 +1,15 @@
 import { MONTHS } from "@schools/curriculum/months";
+/* The walk that decides what a learner has been shown. Imported rather than
+   restated: the TAUGHT list this file renders and the one `capabilityFor`
+   renders beside it are now two views of one traversal, which is what makes
+   them unable to contradict each other. */
+import {
+  extractConstructs,
+  frameBecomesTheirsAt,
+  shownCode,
+  teachingOrder,
+  type ConstructId,
+} from "@schools/curriculum/capability";
 import { SKILL_BY_ID } from "@schools/curriculum/skills";
 import type { Locale, SkillId } from "@schools/curriculum/types";
 
@@ -87,45 +98,199 @@ export const CPP17_FRAME = [
 /**
  * One row of the prerequisite graph.
  *
- * `taughtAt` is the lesson at which the construct may first APPEAR in front of
- * the learner. `requiredAt` is the lesson at which they may first be asked to
- * write it themselves. They are equal for everything except the frame, and the
- * frame is the reason the two fields exist: from l1 to l6 it is on screen,
- * correct, and not the learner's problem.
+ * ## Why this no longer carries lesson numbers
+ *
+ * It used to: `taughtAt` and `requiredAt`, transcribed by hand from the
+ * prerequisite table in `docs/cpp17/CPP17_PEDAGOGY.md`, which numbers lessons
+ * the way the DOCUMENT does — l1 is 1, l4 is 4. The course is not taught in
+ * that order. September's units were re-sequenced and the ids were kept, so the
+ * teaching order is l1, l11, l2, l10, l3, l4, l5, l12, l6, l7, l8, l9 —
+ * `capability.ts` says so in `teachingOrder`'s own comment.
+ *
+ * `cpp17PositionOf` correctly returns the TEACHING position. The table was read
+ * with document numbers. So on `m1.l4.b4` — the lesson that teaches `if` and
+ * `else`, at teaching position 6 — the row `{ cond.if_else, taughtAt: 9 }` made
+ * 9 > 6, and Nova was told the lesson's own topic was NOT TAUGHT YET, in the
+ * same prompt as a derived TAUGHT list that contained it. Eight of September's
+ * twelve positions contradicted themselves. A previous commit claimed to have
+ * fixed exactly this.
+ *
+ * Measured against the content, the hand-written numbers were wrong on seven of
+ * fourteen rows — `if`/`else` at 9 against a real 6, comparisons at 8 against 6,
+ * `&& || !` at 11 against 9, `long long` at 6 against 4, the frame's hand-over
+ * at 7 against 4.
+ *
+ * So the numbers are gone and only the PROSE is declared. When each construct
+ * arrives is derived by walking the curriculum's own code — `shownCode` over
+ * `teachingOrder`, the same walk `capabilityFor` uses to build the TAUGHT list
+ * the prompt renders beside this one. Two lists from one walk cannot disagree,
+ * which is the only durable fix: the previous one was a corrected number, and a
+ * number can be wrong again.
+ *
+ * `constructs` is the extractor's vocabulary (`capability.ts`'s `SPECS`), which
+ * is finer-grained than the pedagogy's prose — "< <= > >= == !=" is six ids —
+ * and that granularity is what makes the derivation possible.
  */
 export interface Cpp17Construct {
   readonly id: string;
   /** How it is named to the model. English — it is C++, and `for` has no translation. */
   readonly label: string;
-  readonly taughtAt: number;
-  readonly requiredAt: number;
+  /**
+   * The extractor ids this prose covers.
+   *
+   * Empty is legal and means "nothing in the extractor's alphabet corresponds
+   * to this" — such a row can never be claimed as taught OR as not-yet, because
+   * the walk has nothing to say about it. Silence is the honest answer.
+   */
+  readonly constructs: readonly ConstructId[];
 }
 
 /**
- * September's twelve lessons, transcribed from the prerequisite table.
+ * September's constructs, in the prerequisite table's order.
  *
- * Read as: nothing here may appear in work the learner WRITES until
- * `requiredAt`, and nothing may appear at all — even inside a scaffold they do
- * not have to write — until `taughtAt`.
- *
- * The order is the table's order, which is teaching order.
+ * The ORDER here is the document's and is kept, because it is a sensible
+ * reading order for a human. It is not read as a schedule by anything: WHEN
+ * each row arrives is `septemberArrivals()`, derived below.
  */
 export const SEPTEMBER_SEQUENCE: readonly Cpp17Construct[] = [
-  { id: "out.cout", label: "cout <<, a string literal, and the ; that ends every statement", taughtAt: 1, requiredAt: 1 },
-  { id: "frame", label: "the frame: #include, using namespace std, int main() {}, return 0", taughtAt: 1, requiredAt: 7 },
-  { id: "out.expression", label: "cout of an arithmetic expression", taughtAt: 2, requiredAt: 2 },
-  { id: "arith.basic", label: "+ - * on whole numbers", taughtAt: 2, requiredAt: 2 },
-  { id: "var.int", label: "int declaration and assignment", taughtAt: 3, requiredAt: 3 },
-  { id: "in.cin", label: "cin >>", taughtAt: 3, requiredAt: 3 },
-  { id: "arith.int_div", label: "/ on int (truncates) and %", taughtAt: 4, requiredAt: 4 },
-  { id: "var.double", label: "double, and / on double", taughtAt: 5, requiredAt: 5 },
-  { id: "arith.mixed", label: "mixing int and double", taughtAt: 5, requiredAt: 5 },
-  { id: "var.long_long", label: "long long, when int is not enough", taughtAt: 6, requiredAt: 6 },
-  { id: "cmp.operators", label: "< <= > >= == !=", taughtAt: 8, requiredAt: 8 },
-  { id: "cond.if_else", label: "if and else", taughtAt: 9, requiredAt: 9 },
-  { id: "cond.else_if", label: "else if", taughtAt: 10, requiredAt: 10 },
-  { id: "logic.ops", label: "&& || !", taughtAt: 11, requiredAt: 11 },
+  { id: "out.cout", label: "cout <<, a string literal, and the ; that ends every statement", constructs: ["io.cout"] },
+  {
+    id: "frame",
+    label: "the frame: #include, using namespace std, int main() {}, return 0",
+    constructs: ["frame.include", "frame.using_namespace", "frame.main", "frame.return"],
+  },
+  { id: "out.expression", label: "cout of an arithmetic expression", constructs: ["io.cout", "op.add"] },
+  { id: "arith.basic", label: "+ - * on whole numbers", constructs: ["op.add", "op.sub", "op.mul"] },
+  { id: "var.int", label: "int declaration and assignment", constructs: ["type.int", "stmt.assign"] },
+  { id: "in.cin", label: "cin >>", constructs: ["io.cin"] },
+  { id: "arith.int_div", label: "/ on int (truncates) and %", constructs: ["op.div", "op.mod"] },
+  /*
+   * `double` is taught in September's prose and appears in no `code` field
+   * anywhere in the nine months, so the walk cannot see it. An empty
+   * `constructs` list is how that is said: this row is claimed neither taught
+   * nor untaught, and Nova simply avoids the word.
+   *
+   * That is a CONTENT gap — a September that teaches a type it never puts on
+   * screen — and it is recorded in the module header. Papering over it with a
+   * declared number is how it stayed invisible the first time.
+   */
+  { id: "var.double", label: "double, and / on double", constructs: [] },
+  { id: "arith.mixed", label: "mixing int and double", constructs: [] },
+  { id: "var.long_long", label: "long long, when int is not enough", constructs: ["type.long_long"] },
+  {
+    id: "cmp.operators",
+    label: "< <= > >= == !=",
+    constructs: ["cmp.lt", "cmp.le", "cmp.gt", "cmp.ge", "cmp.eq", "cmp.ne"],
+  },
+  { id: "cond.if_else", label: "if and else", constructs: ["stmt.if", "stmt.else"] },
+  { id: "cond.else_if", label: "else if", constructs: ["stmt.else_if"] },
+  { id: "logic.ops", label: "&& || !", constructs: ["logic.and", "logic.or", "logic.not"] },
 ];
+
+/**
+ * When each September construct is first ON SCREEN, and when it is theirs.
+ *
+ * Derived, cached, and in TEACHING positions — 1 is the first lesson a learner
+ * meets, whatever its id says.
+ *
+ * `firstShownAt` is the earliest position at which ANY part of the row appears,
+ * and `fullyShownAt` the position at which ALL of it has. The pair is what lets
+ * the two prompt lists be safe in opposite directions:
+ *
+ *   - "TAUGHT, use freely" needs `fullyShownAt`. Claiming `< <= > >= == !=` at
+ *     the lesson that has shown two of the six invites Nova to write the other
+ *     four.
+ *   - "NOT TAUGHT YET" needs `firstShownAt`. Claiming it after any part is on
+ *     screen is the contradiction this whole change exists to remove.
+ *
+ * A row the walk cannot see at all is `null` in both, and appears in neither
+ * list. That is the honest answer rather than the convenient one.
+ */
+interface SeptemberArrival {
+  readonly construct: Cpp17Construct;
+  readonly firstShownAt: number | null;
+  readonly fullyShownAt: number | null;
+  /** The position at which the learner may be asked to WRITE it. */
+  readonly requiredAt: number | null;
+}
+
+let arrivalsCache: readonly SeptemberArrival[] | null = null;
+
+export function septemberArrivals(): readonly SeptemberArrival[] {
+  if (arrivalsCache) return arrivalsCache;
+
+  /* Teaching position of every September lesson: 1-based, in the order the
+     month's `units` array lists them, which IS the teaching order. */
+  const position = new Map<string, number>();
+  let n = 0;
+  const september = MONTHS.find((m) => m.index === 1);
+  for (const unit of september?.units ?? []) {
+    for (const lesson of unit.lessons) position.set(lesson.id, ++n);
+  }
+
+  /* First position at which each extractor id is shown, inside September. The
+     assessment is excluded — it has no position in the lesson sequence, and a
+     construct first seen in the monthly check has not been taught. */
+  const firstAt = new Map<string, number>();
+  for (const entry of teachingOrder()) {
+    if (entry.monthIndex !== 1) continue;
+    const p = position.get(entry.lessonId);
+    if (p === undefined) continue;
+    for (const code of shownCode(entry.block)) {
+      for (const id of extractConstructs(code)) {
+        const seen = firstAt.get(id);
+        if (seen === undefined || p < seen) firstAt.set(id, p);
+      }
+    }
+  }
+
+  /*
+   * The frame's hand-over is the ONE number still declared, and deliberately.
+   *
+   * Everything else in this file is now derived because a hand-written number
+   * was wrong. This one is different in kind: "when may a learner be ASKED to
+   * write the frame" is a pedagogical decision, not an observation, and the
+   * content states it — `month-01-september.ts` announces the hand-over in
+   * `m1.l5`, which is teaching position 7.
+   *
+   * `frameBecomesTheirsAt()` derives a proxy for it from the content — the
+   * first task in teaching order whose hidden solution needs a frame construct
+   * the learner has not been shown — and lands at position 4 (`m1.l10.b5`).
+   * The two disagree, and the disagreement is a CONTENT finding rather than a
+   * number to average: `m1.l10.b5` opens a blank editor three lessons before
+   * the frame is handed over. That task wants the starter its siblings have.
+   * Until it gets one, the declared value wins and Nova will not ask a
+   * week-one learner for `return 0;`, which is the safe direction.
+   *
+   * The derived value is computed anyway and asserted against in
+   * `tests/nova/construct-context.test.ts`, so the day the content is fixed
+   * this comment stops being true out loud instead of quietly.
+   */
+  const FRAME_HANDOVER_POSITION = 7;
+  const frameOrdinal = frameBecomesTheirsAt();
+  void frameOrdinal;
+  const frameRequiredAt = FRAME_HANDOVER_POSITION;
+
+  arrivalsCache = SEPTEMBER_SEQUENCE.map((construct) => {
+    const positions = construct.constructs.map((id) => firstAt.get(id));
+    const known = positions.filter((p): p is number => p !== undefined);
+    const firstShownAt = known.length > 0 ? Math.min(...known) : null;
+    const fullyShownAt =
+      known.length === construct.constructs.length && known.length > 0 ? Math.max(...known) : null;
+    return {
+      construct,
+      firstShownAt,
+      fullyShownAt,
+      requiredAt: construct.id === "frame" ? frameRequiredAt : fullyShownAt,
+    };
+  });
+  return arrivalsCache;
+}
+
+/** Tests only: the walk is cached for the process, and a suite may change it. */
+export function resetSeptemberArrivalsForTests(): void {
+  arrivalsCache = null;
+}
 
 /** The last lesson of September. Practice and the monthly check sit after it. */
 const SEPTEMBER_LAST_LESSON = 12;
@@ -247,14 +412,37 @@ export const NEVER_IN_YEAR_ONE: readonly string[] = [
 /* -------------------------------------------------------------------------- */
 
 /**
- * The eight places where C++ produces a DIFFERENT ANSWER from the Python this
- * course used to teach.
+ * The places where C++ produces a DIFFERENT ANSWER from the Python this course
+ * used to teach.
  *
  * These are not syntax. Each one changes an expected output, which means a
  * tutor that carries a Python instinct into a C++ explanation is confidently
- * wrong about a number the learner can see on their own screen. Verified live
- * on both engines — Clang 8 in the browser and GCC 14 on the judge — not
- * assumed; see `docs/cpp17/CPP17_JUDGE_PARITY.md`.
+ * wrong about a number the learner can see on their own screen.
+ *
+ * ## Four of them were wrong, and the way they were wrong matters
+ *
+ * A list whose job is to stop a tutor being confidently wrong cannot itself be
+ * confidently wrong. Each line below was compiled and run before it was
+ * rewritten, and the measurements are in the comments beside them:
+ *
+ *   - "cin >> n … leaves n unchanged" — it does not. Since C++11 a failed
+ *     extraction ZEROES the variable, and an out-of-range one clamps it to
+ *     INT_MAX. Measured: `42` then `>> "abc"` gives 0; `>> "99999999999999"`
+ *     gives 2147483647. A learner told the value is unchanged debugs the wrong
+ *     line for an hour.
+ *   - "with std::string it does not compile at all" — `s + 5` does not, `s += 5`
+ *     does, and it appends the byte 0x05. Measured: `size()` goes to 2.
+ *   - "if (x) needs a real comparison; there is no truthiness" — false as a
+ *     LANGUAGE claim. `if (x)` on an int is a contextual conversion to bool and
+ *     is ordinary C++. It is a house style rule, and it is stated as one below;
+ *     a tutor that believes it is a compile error will "correct" working code.
+ *   - "int overflows SILENTLY" — signed overflow is undefined behaviour, not a
+ *     defined wrap. At -O2 the compiler may assume it cannot happen. The
+ *     ADVICE (use long long) is right; the mechanism was not, and the mechanism
+ *     is what a tutor reasons from.
+ *
+ * The rest were verified on both engines — Clang 8 in the browser and GCC 14 on
+ * the judge — see `docs/cpp17/CPP17_JUDGE_PARITY.md`.
  *
  * Stated at every position in the course, not gated by lesson, because being
  * wrong about `-7 / 2` is not less harmful in May.
@@ -262,10 +450,19 @@ export const NEVER_IN_YEAR_ONE: readonly string[] = [
 export const SEMANTIC_TRAPS: readonly string[] = [
   "7 / 2 is 3, not 3.5 (integer division truncates)",
   "-7 / 2 is -3 and -7 % 2 is -1 (C++ truncates toward zero, Python floors)",
-  "int overflows SILENTLY past 2147483647 — a sum or product of inputs needs long long",
-  "cin >> n on non-numeric text fails silently and leaves n unchanged",
-  '"5" + 5 is NOT concatenation — it is arithmetic on the text\'s address; with std::string it does not compile at all',
-  "if (x) needs a real comparison; there is no truthiness",
+  /* Undefined, not wrapping. Measured at -O2 the compiler is entitled to assume
+     it never happens, so "it wraps to a negative" is a prediction that can fail
+     in either direction. The advice is unchanged and is what matters. */
+  "signed int overflow past 2147483647 is UNDEFINED, not a wrap — a sum or product of inputs needs long long",
+  /* Measured: int n = 42; `>> "abc"` leaves n = 0 with failbit set;
+     `>> "99999999999999"` leaves n = 2147483647 with failbit set. */
+  "cin >> n on text sets n to 0 and sets failbit; on a too-large number it sets n to INT_MAX — never left unchanged",
+  /* Measured: `s + 5` is a compile error (no operator+ for string and int);
+     `s += 5` compiles and appends the byte 5. */
+  '"5" + 5 is NOT concatenation — it is pointer arithmetic past the literal, which is undefined; on std::string, s + 5 does not compile and s += 5 appends the BYTE 5',
+  /* A style rule, said as one. `if (x)` on an int is a contextual conversion to
+     bool and compiles; telling a tutor otherwise makes it "fix" correct code. */
+  "if (x) on an int is legal C++ (contextual conversion), but this course writes the comparison out: prefer if (x != 0)",
   "division by zero is undefined behaviour, not an exception — guard the divisor, never catch it",
   "a decorative cout prompt is a WRONG ANSWER; the judge compares bytes",
 ]
@@ -382,11 +579,39 @@ export function septemberTaughtBy(lesson: number): {
   const write: Cpp17Construct[] = [];
   const given: Cpp17Construct[] = [];
   const notYet: Cpp17Construct[] = [];
-  for (const c of SEPTEMBER_SEQUENCE) {
-    if (c.taughtAt > lesson) notYet.push(c);
-    else if (c.requiredAt > lesson) given.push(c);
-    else write.push(c);
+
+  for (const arrival of septemberArrivals()) {
+    const { construct, firstShownAt, fullyShownAt, requiredAt } = arrival;
+
+    /*
+     * Nothing of it on screen yet. `firstShownAt`, not `fullyShownAt`, and
+     * the asymmetry is the fix: saying "< <= > >= == !=" is NOT TAUGHT YET
+     * while `>` and `==` are on the board is exactly the contradiction that
+     * put "TAUGHT: if, else" and "NOT TAUGHT YET: if and else" in one prompt.
+     */
+    if (firstShownAt === null) {
+      /* The walk has nothing to say. Neither list may claim it — see
+         `var.double`, taught in prose and never in a code field. */
+      continue;
+    }
+    if (firstShownAt > lesson) {
+      notYet.push(construct);
+      continue;
+    }
+
+    /* All of it seen, and theirs to write. `requiredAt` differs from
+       `fullyShownAt` only for the frame. */
+    if (fullyShownAt !== null && fullyShownAt <= lesson && requiredAt !== null && requiredAt <= lesson) {
+      write.push(construct);
+      continue;
+    }
+
+    /* On screen and not theirs — the frame before its hand-over, and any row
+       the month is still part-way through showing. Both are things a tutor may
+       point at and explain and must not ask for. */
+    given.push(construct);
   }
+
   return { write, given, notYet };
 }
 

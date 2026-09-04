@@ -24,6 +24,18 @@ process.env.LEARNING_DATA_DIR = "memory://";
 const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
 
+/**
+ * Source with its comments removed.
+ *
+ * These scans ask "does this module read a child's writing", and the answer is
+ * in the code. The modules argue at length in prose about what they touch and
+ * why — which is the reason they are auditable at all — and a scan that reads
+ * that prose as code fires on an explanation of why the thing is not done. That
+ * false positive is how a guard gets deleted.
+ */
+const stripComments = (src: string): string =>
+  src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
 type Handle = Awaited<ReturnType<typeof import("@schools/store").getStoreHandle>>;
 let sql: Handle["sql"];
 let store: Handle["store"];
@@ -110,10 +122,16 @@ describe("the read path cannot be pointed at another learner", () => {
       } catch {
         continue; // another workstream owns these; absence is not a failure
       }
-      expect(src, `${rel} must not select the artifact column`).not.toMatch(
+      /* Comments stripped, for the same reason the `review.ts` scan below
+         strips them and says so: these modules argue in prose about what they
+         do and do not read, and «what this used to answer, and why» is not a
+         SQL projection. A scan that cannot tell prose from code fires on a
+         sentence, and a scan that fires on sentences is one people delete. */
+      const code = stripComments(src);
+      expect(code, `${rel} must not select the artifact column`).not.toMatch(
         /\bs?\.?answer\b\s*(,|from|as)/,
       );
-      expect(src).not.toContain("readArtifact");
+      expect(code).not.toContain("readArtifact");
     }
 
     /* The one module that may, and the guarantees it carries. Its own gate is
@@ -124,9 +142,7 @@ describe("the read path cannot be pointed at another learner", () => {
     /* Comments stripped: the module argues at length about class ids and the
        `response` column precisely in order to explain why it touches neither,
        and a scan that cannot tell prose from code is one people delete. */
-    const code = review
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    const code = stripComments(review);
     /* Population from the roster, never a class id: two schools can both run a
        class called `grade-9a`. */
     expect(code).toContain("subjectIds");

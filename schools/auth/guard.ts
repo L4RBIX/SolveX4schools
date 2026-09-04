@@ -27,10 +27,73 @@ export function deny(status: number, reason: string): Response {
   return Response.json({ error: reason }, { status });
 }
 
+/**
+ * The refusal a first-login session gets from everything except the two routes
+ * it is allowed to use.
+ *
+ * ## Why this exists
+ *
+ * `must_change_password` is the whole of the one-time-credential model: a
+ * teacher hands out a printed code, the child signs in with it once, and the
+ * account is theirs from the moment they choose a password. Until then the
+ * credential is on a slip of paper that has been through a classroom.
+ *
+ * That model was enforced in **page guards only**. `src/app/teacher/*.tsx` and
+ * `page-guard.ts` redirect to `/account/password`; not one API route looked at
+ * the flag. Measured against a real deployment with a teacher's one-time
+ * session: `GET /api/teacher/class/9i/students` answered 200 with the roster of
+ * a class of children, and `GET /api/learning/state/me` answered 200 for a
+ * learner. Anyone holding the paper slip — or standing behind the teacher when
+ * it was read out — had the API.
+ *
+ * A redirect is navigation. It is not a control, and the thing behind it is
+ * named minors.
+ *
+ * ## The rule
+ *
+ * Every guard in this file refuses a session whose password change is still
+ * outstanding, with **403 `password_change_required`**. Two routes opt out by
+ * name, because they are the only two such a session can legitimately reach:
+ *
+ *   - `POST /api/auth/password` — the way out. It passes
+ *     `{ allowPasswordChange: true }` to `requireUser`.
+ *   - `POST /api/auth/logout` — reads `currentUser()` directly and never asks a
+ *     guard, so it is unaffected. Deliberate: signing out must work from any
+ *     state whatsoever.
+ *
+ * 403 rather than 401, and a distinct reason rather than `forbidden`: the
+ * caller IS authenticated, and a client that cannot tell "sign in again" from
+ * "finish signing in" sends the learner back to a login page that will hand
+ * them the same session.
+ */
+export const PASSWORD_CHANGE_REQUIRED = "password_change_required";
+
+export interface GuardOptions {
+  /**
+   * Let a session through that still owes a password change.
+   *
+   * Exactly one route sets it. If you are reaching for it, the question to
+   * answer first is why a person who has not finished signing in needs what is
+   * behind your route.
+   */
+  allowPasswordChange?: boolean;
+}
+
+function passwordChangeOutstanding(
+  user: SessionUser,
+  options: GuardOptions | undefined,
+): GuardResult<never> | null {
+  if (options?.allowPasswordChange) return null;
+  if (!user.mustChangePassword) return null;
+  return { ok: false, status: 403, reason: PASSWORD_CHANGE_REQUIRED };
+}
+
 /** Signed in, any role. */
-export async function requireUser(): Promise<GuardResult<SessionUser>> {
+export async function requireUser(options?: GuardOptions): Promise<GuardResult<SessionUser>> {
   const user = await currentUser();
   if (!user) return { ok: false, status: 401, reason: "not_authenticated" };
+  const outstanding = passwordChangeOutstanding(user, options);
+  if (outstanding) return outstanding;
   return { ok: true, value: user };
 }
 
@@ -44,6 +107,8 @@ export async function requireUser(): Promise<GuardResult<SessionUser>> {
 export async function requireRole(...roles: SchoolRole[]): Promise<GuardResult<SessionUser>> {
   const user = await currentUser();
   if (!user) return { ok: false, status: 401, reason: "not_authenticated" };
+  const outstanding = passwordChangeOutstanding(user, undefined);
+  if (outstanding) return outstanding;
   if (!roles.includes(user.role)) return { ok: false, status: 403, reason: "forbidden" };
   return { ok: true, value: user };
 }
@@ -64,6 +129,11 @@ export async function requireClassAccess(
 ): Promise<GuardResult<{ user: SessionUser; schoolId: string; classId: string }>> {
   const user = await currentUser();
   if (!user) return { ok: false, status: 401, reason: "not_authenticated" };
+  /* Before the role check and before the store: a teacher who has not finished
+     signing in must not be able to reach a roster, and must not be able to
+     learn whether a class id exists by the shape of the refusal either. */
+  const outstanding = passwordChangeOutstanding(user, undefined);
+  if (outstanding) return outstanding;
   if (user.role === "student") return { ok: false, status: 403, reason: "forbidden" };
 
   const store = await getStore();
@@ -115,6 +185,8 @@ export async function requireLearner(): Promise<
 > {
   const user = await currentUser();
   if (!user) return { ok: false, status: 401, reason: "not_authenticated" };
+  const outstanding = passwordChangeOutstanding(user, undefined);
+  if (outstanding) return outstanding;
 
   const store = await getStore();
   const classes = await store.classesForLearner(user.userId);

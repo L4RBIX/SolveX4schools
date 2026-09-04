@@ -95,9 +95,33 @@ export interface ClassContext {
   /** «9А» — the school's own name for it. Never the raw id on screen. */
   className: string;
   enrolled: number;
-  /** The curriculum month the class is working through. */
+  /**
+   * The curriculum month this screen is describing.
+   *
+   * Derived from the class's own progress — the lowest month at least half the
+   * enrolled learners have not finished — unless the teacher asked for another
+   * one with `?month=`. It used to be the highest month the DEPLOYMENT had
+   * published, computed once for everybody, which meant a September class was
+   * analysed as May the moment the runbook published all nine months.
+   */
   monthIndex: number;
   monthTitle: Localized;
+  /**
+   * True when the teacher chose this month, false when the product derived it.
+   *
+   * The two need different words on screen. "Your class is here" and "you are
+   * looking at November" are different statements, and a UI that cannot tell
+   * them apart will make one of them silently.
+   */
+  monthSelected: boolean;
+  /**
+   * The months the selector may offer: authored, and gated open.
+   *
+   * A teacher must not be able to select a month the product would then show
+   * them nothing for — a screen of zeros with no explanation is exactly the
+   * failure this whole change is about.
+   */
+  availableMonths: { index: number; title: Localized }[];
   /**
    * Whether that month is actually being served, and why not if not.
    *

@@ -4,6 +4,13 @@ import { config } from "@schools/config";
 import { verifyPassword } from "@schools/auth/password";
 import { sessionCookie, startSession } from "@schools/auth/session";
 import { takeToken } from "@schools/lib/rate-limit";
+import {
+  attemptKeyForAddress,
+  clientAddress,
+  failureKeyForAccount,
+  failureKeyForMissingAccount,
+  identifierTooLong,
+} from "@schools/auth/rate-keys";
 import { opsLog } from "@schools/ops/counters";
 
 /**
@@ -16,10 +23,34 @@ import { opsLog } from "@schools/ops/counters";
  * school's roster — and a roster of minors is exactly what should not be
  * enumerable from the internet.
  *
- * **It is rate limited per username, not per IP.** A school sits behind one NAT
- * gateway, so an IP bucket is a bucket for the whole class: one student
- * fat-fingering their password would lock out the other seventeen. Keying on
- * the username being attacked is what actually bounds guessing.
+ * **A correct password is never refused.** The limiter used to be charged on
+ * every attempt, before anything was verified, and keyed on the username. Since
+ * `scripts/provision-class.ts` mints `<class-slug>-NN` and `<class>-teacher`,
+ * every username in a school is guessable — so eight wrong guesses locked a
+ * child out, the right password was then refused too, and about nineteen
+ * requests every two minutes kept a whole class and its teacher out of the
+ * product from anywhere on the internet. Measured live.
+ *
+ * The order is now: verify, THEN count. The bucket counts failures, so a
+ * learner who types the password on the card is let in no matter how many
+ * strangers have been guessing at their name. The bucket is keyed on the
+ * resolved user id, so `9i-02` and `9İ-02` cannot be two buckets for one
+ * account — JavaScript's `toLowerCase` and SQL's `lower` disagree on that pair
+ * and the second spelling used to arrive unlocked.
+ *
+ * **The failure bucket is per account, never per IP.** A school sits behind one
+ * NAT gateway, so an IP bucket for FAILURES is a bucket for the whole class:
+ * one student fat-fingering their password would lock out the other seventeen.
+ * There is a second, much larger, per-address bucket that counts ATTEMPTS —
+ * because verify-first means a wrong guess now costs a full scrypt hash, and
+ * that CPU needs a ceiling. It is sized for a class, and it is only trusted on
+ * a platform that writes the header itself. See `schools/auth/rate-keys.ts`.
+ *
+ * **Nothing a stranger sends becomes a database key.** `username` and
+ * `schoolId` went into the bucket key unbounded; a 60,000-character school id
+ * produced a 60 KB row from an unauthenticated POST. Lengths are checked before
+ * anything is stored, and the school is the deployment's own rather than the
+ * body's.
  *
  * **It never blames a learner for an outage.** When the store is unreachable
  * this route compares nothing at all, and it says so: 503, `service_unavailable`,
@@ -54,12 +85,37 @@ export async function POST(request: Request) {
 
   const username = typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const schoolId = typeof body.schoolId === "string" && body.schoolId.trim()
-    ? body.schoolId.trim()
-    : config.pilot.schoolId;
+
+  /*
+   * The school is the DEPLOYMENT'S, not the body's.
+   *
+   * `schoolId` was read from the request and used for both the lookup and the
+   * bucket key, so `{"schoolId":"other-school"}` was accepted and got its own
+   * bucket. Nothing in the product ever sends the field — the sign-in form
+   * posts `{username, password}` — so the only caller it ever served was one
+   * hand-rolling a request.
+   *
+   * A multi-school deployment needs a real school selector on the login page
+   * and a decision about what a stranger may learn from choosing one. Until
+   * that exists, this is a server fact.
+   */
+  const schoolId = config.pilot.schoolId;
 
   if (!username || !password) {
     return NextResponse.json({ error: "invalid_credentials" }, { status: 400 });
+  }
+
+  /*
+   * Bounded before anything is looked up, hashed or stored.
+   *
+   * Same status and body as a wrong password, so this cannot be used to probe
+   * where the boundary is — and there is nothing to probe: no username this
+   * product issues is over sixty-four characters, and no password over two
+   * hundred, which is the ceiling `passwordProblem` already enforces on the way
+   * in. An over-long value is not a credential that could ever have been right.
+   */
+  if (identifierTooLong(username) || password.length > 200) {
+    return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
   }
 
   /*
@@ -107,15 +163,30 @@ export async function POST(request: Request) {
    * is fast for ALL names rather than fast for the interesting ones.
    */
   try {
-    const limit = await takeToken(`login:${schoolId}:${username.toLowerCase()}`, {
-      capacity: 8,
-      refillPerMinute: 4,
-    });
-    if (!limit.ok) {
-      return NextResponse.json(
-        { error: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds },
-        { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
-      );
+    /*
+     * The CPU ceiling, charged on every attempt whatever its outcome.
+     *
+     * This is the cost of "verify first": a wrong guess now runs scrypt at
+     * N=2^15 before it is refused, so something has to bound how much of that
+     * one source may ask for. It is deliberately large — sized for a class
+     * behind one NAT gateway, not for a person — and it is only consulted where
+     * the platform writes the header itself. Off such a platform
+     * `clientAddress` returns null and this bucket does not exist, because a
+     * key a stranger chooses is a key a stranger can exhaust on somebody else's
+     * behalf.
+     */
+    const address = clientAddress(request.headers, config.environment !== "development");
+    if (address) {
+      const attempts = await takeToken(attemptKeyForAddress(address), {
+        capacity: 60,
+        refillPerMinute: 30,
+      });
+      if (!attempts.ok) {
+        return NextResponse.json(
+          { error: "rate_limited", retryAfterSeconds: attempts.retryAfterSeconds },
+          { status: 429, headers: { "retry-after": String(attempts.retryAfterSeconds) } },
+        );
+      }
     }
 
     const store = await getStore();
@@ -128,7 +199,46 @@ export async function POST(request: Request) {
         : DUMMY,
     );
 
+    /*
+     * Counted only now, and only if it failed.
+     *
+     * This is the whole of the fix for the class-wide lockout. The bucket used
+     * to be charged before anything was compared, so a learner holding the
+     * password printed on their card was refused for as long as a stranger kept
+     * guessing at their username — and every username in a school is
+     * `<class-slug>-NN`. Verification happens above; the counter is here, on the
+     * failure path, and a correct password never reaches it.
+     *
+     * The bucket is NOT reset on success. A login that worked says nothing
+     * about whether the guessing has stopped, and clearing it would let an
+     * attacker who knows one password top up their allowance against the rest.
+     *
+     * Keyed on the user id when the account exists, so two spellings of one
+     * username cannot be two buckets — `9İ-02` used to arrive with a fresh
+     * allowance while `9i-02` was locked, because JavaScript's `toLowerCase`
+     * and SQL's `lower` disagree on that pair. Keyed on a fixed-length hash of
+     * the name when it does not exist, because probing names nobody has must
+     * not be free and an unbounded name must not become a row.
+     *
+     * A disabled account counts as a failure rather than being called out:
+     * "exists but switched off" is exactly the bit the 401 refuses to give up.
+     */
     if (!account || !ok || account.disabledAt) {
+      const failures = await takeToken(
+        account
+          ? failureKeyForAccount(account.userId)
+          : failureKeyForMissingAccount(schoolId, username),
+        { capacity: 8, refillPerMinute: 4 },
+      );
+      if (!failures.ok) {
+        /* 429 rather than 401 once the allowance is gone, and it leaks nothing
+           about whether the account exists: the count is entirely a function of
+           failures this caller produced themselves. */
+        return NextResponse.json(
+          { error: "rate_limited", retryAfterSeconds: failures.retryAfterSeconds },
+          { status: 429, headers: { "retry-after": String(failures.retryAfterSeconds) } },
+        );
+      }
       return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
     }
 

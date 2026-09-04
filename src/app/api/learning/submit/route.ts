@@ -300,11 +300,17 @@ export async function POST(request: Request) {
   }
 
   /* The episode is a second key into the ledger and it arrives in the request
-     body. `ownedEpisodeId` refuses one that already belongs to another learner
-     — see that function for what reading and writing a foreign episode would
-     do. A legitimate client is unaffected; the id it gets back is the one that
-     was used. */
-  const episodeId = await ownedEpisodeId(subjectId, body.episodeId);
+     body. `ownedEpisodeId` refuses one that already belongs to another learner,
+     and — passed this block — one that already holds work on a DIFFERENT block.
+
+     The second half is what closes the reveal: `priorFailures` below counts
+     wrong verdicts on this episode, and three of them open the answer. Without
+     the block bound, three failures on block A opened block B's answer key on
+     the learner's FIRST attempt at it. See `episode-scope.ts`.
+
+     A legitimate client is unaffected; the id it gets back is the one that was
+     used, and both routes already return `episodeId`. */
+  const episodeId = await ownedEpisodeId(subjectId, body.episodeId, blockId);
 
   /*
    * The claim, and it happens BEFORE grading.
@@ -590,7 +596,13 @@ export async function POST(request: Request) {
      the answer key. A browser can post `verdict_received` into its own episode,
      and without this line three `fetch()` calls opened the answer to a task
      nobody had attempted. */
-  const priorEvents = await store.eventsForEpisode(episodeId);
+  /* Narrowed to THIS block. `ownedEpisodeId` above already guarantees the
+     episode holds nothing else, so on new data this changes nothing; it is the
+     filter at the point of use, for rows written before that check existed and
+     for the next write path somebody adds. Three wrong verdicts here open the
+     answer key, so "which task were they wrong about" is not a question this
+     count may get wrong. */
+  const priorEvents = await store.eventsForEpisode(episodeId, blockId);
   const priorFailures = priorEvents.filter(
     (e) =>
       e.event_name === "verdict_received" &&

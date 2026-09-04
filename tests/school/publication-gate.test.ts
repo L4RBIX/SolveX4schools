@@ -44,6 +44,14 @@ beforeAll(async () => {
     displayName: "Айгүл Серікқызы",
     passwordHash: pw.hash,
     passwordSalt: pw.salt,
+    /* A person who has finished signing in.
+       `createAccount` defaults `must_change_password` to true, which is right
+       for a freshly provisioned child and wrong for a fixture that then drives
+       the product: every guard now refuses a first-login session with 403
+       `password_change_required`. The refusal itself is pinned in
+       `tests/school/auth-enforcement.test.ts`; here it would only mean the
+       fixture is not a user. */
+    mustChangePassword: false,
   });
   studentId = await store.createAccount({
     schoolId: "s",
@@ -52,6 +60,14 @@ beforeAll(async () => {
     displayName: "Оқушы",
     passwordHash: pw.hash,
     passwordSalt: pw.salt,
+    /* A person who has finished signing in.
+       `createAccount` defaults `must_change_password` to true, which is right
+       for a freshly provisioned child and wrong for a fixture that then drives
+       the product: every guard now refuses a first-login session with 403
+       `password_change_required`. The refusal itself is pinned in
+       `tests/school/auth-enforcement.test.ts`; here it would only mean the
+       fixture is not a user. */
+    mustChangePassword: false,
   });
 }, 120_000);
 

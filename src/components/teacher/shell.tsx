@@ -98,6 +98,22 @@ export interface TeacherViewValue {
   classId: string;
   className: string;
   period: TeacherPeriod;
+  /**
+   * The curriculum month the teacher asked for, or null for "my class's own".
+   *
+   * Null is the normal case and the right default: the server derives the
+   * lowest month at least half the class has not finished. This exists because
+   * a teacher revisiting October in December has a real reason to, and because
+   * the previous behaviour — one global month for the whole deployment — gave
+   * a September class a May dashboard with no way to say otherwise.
+   *
+   * In the URL beside `class` and `period`, and in `query`, so every panel
+   * moves together. A month that lived in one panel's state would produce the
+   * failure this replaces in miniature: an overview describing September beside
+   * a lesson table describing May.
+   */
+  month: number | null;
+  setMonth: (next: number | null) => void;
   setPeriod: (next: TeacherPeriod) => void;
   setClassId: (next: string) => void;
   /**
@@ -192,21 +208,38 @@ export function TeacherShell({
   const requestedPeriod = searchParams.get("period");
   const period: TeacherPeriod = isTeacherPeriod(requestedPeriod) ? requestedPeriod : "week";
 
-  /** Only the two the whole surface shares. Page-local params stay page-local. */
+  /* A month index, or null. Validated against the nine the curriculum has;
+     whether a given one is SERVABLE is the server's answer, and it falls back
+     to the class's own month rather than erroring on a stale bookmark. */
+  const requestedMonthParam = Number(searchParams.get("month"));
+  const month =
+    Number.isInteger(requestedMonthParam) && requestedMonthParam >= 1 && requestedMonthParam <= 9
+      ? requestedMonthParam
+      : null;
+
+  /** Only the three the whole surface shares. Page-local params stay page-local. */
   const query = useMemo(() => {
     const params = new URLSearchParams();
     if (classId) params.set("class", classId);
     params.set("period", period);
+    if (month !== null) params.set("month", String(month));
     return params.toString();
-  }, [classId, period]);
+  }, [classId, period, month]);
 
   /* Navigating keeps every other query parameter — the leaderboard's `lens`
      must survive a period change on the leaderboard page. */
   const navigate = useCallback(
-    (patch: { class?: string; period?: TeacherPeriod }) => {
+    (patch: { class?: string; period?: TeacherPeriod; month?: number | null }) => {
       const params = new URLSearchParams(searchParams.toString());
       if (patch.class !== undefined) params.set("class", patch.class);
       if (patch.period !== undefined) params.set("period", patch.period);
+      if (patch.month !== undefined) {
+        /* Removed rather than set to a sentinel: absent means "my class's own
+           month", which is a different statement from any particular month and
+           has to survive a bookmark. */
+        if (patch.month === null) params.delete("month");
+        else params.set("month", String(patch.month));
+      }
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [pathname, router, searchParams],
@@ -217,12 +250,14 @@ export function TeacherShell({
       classId,
       className,
       period,
+      month,
+      setMonth: (next) => navigate({ month: next }),
       setPeriod: (next) => navigate({ period: next }),
       setClassId: (next) => navigate({ class: next }),
       report,
       query,
     }),
-    [classId, className, period, navigate, report, query],
+    [classId, className, period, month, navigate, report, query],
   );
 
   const context = contextProp ?? reported.context ?? null;
@@ -435,19 +470,66 @@ function Segmented<T extends string>({
   );
 }
 
-/** Which curriculum month the class is working through. */
+/**
+ * Which curriculum month this screen is describing, and a way to change it.
+ *
+ * ## Why it became a control
+ *
+ * It was a read-only chip over a number that was wrong for every class: the
+ * highest month the DEPLOYMENT had published, which the pilot runbook sets to
+ * nine in one act. A September class was analysed as May — every lesson at
+ * zero, required work 0 of 168, the review queue empty — and there was nothing
+ * on screen to say so or to get out of it.
+ *
+ * The number is now derived from the class's own completions. This is the
+ * escape hatch: a teacher revisiting October in December has a real reason to,
+ * and the default stays "my class's month" so that leaving it alone is the
+ * right answer for everyone else.
+ *
+ * A native `<select>`, deliberately. It is one of the few controls a teacher
+ * will use on a phone in a corridor, it is keyboard-operable without any work
+ * on our part, and this surface has no design language for a custom listbox
+ * that would be worth the accessibility debt.
+ */
 function MonthChip({ context, loc }: { context: ClassContext; loc: Locale }) {
+  const { month, setMonth } = useTeacherView();
+  const options = context.availableMonths;
+
   return (
     <Chip tone="neutral">
-      <span className="tabular-nums">
-        {translate(TL.monthLabel, loc)} {context.monthIndex}
-      </span>
+      <label className="sr-only" htmlFor="teacher-month">
+        {translate(TL.monthPickerLabel, loc)}
+      </label>
+      <select
+        id="teacher-month"
+        value={month === null ? "" : String(month)}
+        onChange={(e) => setMonth(e.target.value === "" ? null : Number(e.target.value))}
+        className={cn(
+          "cursor-pointer bg-transparent tabular-nums outline-none",
+          MOTION.base,
+          "focus-visible:ring-2 focus-visible:ring-b-fg/40",
+        )}
+      >
+        {/* First, and selected when nothing was asked for. The label names the
+            CLASS rather than a month, because that is what it means. */}
+        <option value="">{translate(TL.monthAuto, loc)}</option>
+        {options.map((m) => (
+          <option key={m.index} value={m.index}>
+            {translate(TL.monthLabel, loc)} {m.index} · {translate(m.title, loc)}
+          </option>
+        ))}
+      </select>
       {/* A separator, not content — but it takes the muted token like
           everything else, so there is one grey scale on this surface. */}
       <span aria-hidden="true" className={INK.muted}>
         ·
       </span>
-      <span>{translate(context.monthTitle, loc)}</span>
+      {/* The month actually being described, whether it was chosen or derived.
+          Rendered beside the control rather than inside it so that "my class's
+          month" still tells a teacher WHICH month that is. */}
+      <span>
+        {context.monthIndex} · {translate(context.monthTitle, loc)}
+      </span>
     </Chip>
   );
 }

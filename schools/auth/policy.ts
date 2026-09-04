@@ -46,7 +46,26 @@ export interface LearningAccess {
  */
 export async function checkLearningAccess(): Promise<LearningAccess> {
   const user = await currentUser();
-  if (user) return { ok: true, status: 200, reason: "session" };
+  if (user) {
+    /*
+     * A first-login session is not a session that may accumulate evidence.
+     *
+     * Same rule as every guard in `schools/auth/guard.ts`, stated here because
+     * the learning routes come through this function rather than through those
+     * — thirteen of them, including submit, events, complete and the Nova hint
+     * ladder. Enforcing it in one place and not the other would have left the
+     * hole exactly where it was: a one-time credential from a slip of paper
+     * that has been round a classroom could write a child's ledger.
+     *
+     * The learner is still refused with 403 and a reason the player can act on,
+     * rather than 401, which would bounce them to a login page that hands back
+     * the same session.
+     */
+    if (user.mustChangePassword) {
+      return { ok: false, status: 403, reason: "password_change_required" };
+    }
+    return { ok: true, status: 200, reason: "session" };
+  }
   if (anonymousLearningAllowed()) return { ok: true, status: 200, reason: "anonymous_development" };
   return { ok: false, status: 401, reason: "not_authenticated" };
 }

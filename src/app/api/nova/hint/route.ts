@@ -514,7 +514,14 @@ export async function POST(request: Request) {
   let episodeId: string;
   let policy: Awaited<ReturnType<typeof enforceHintPolicy>>;
   try {
-    episodeId = await ownedEpisodeId(subjectId, body.episodeId);
+    /* The block is passed, so an episode carrying another block's work is
+       replaced rather than inherited. `enforceHintPolicy` derives the ceiling
+       from `lastGrantedLevel(episodeId)` and `interventions` rows carry an
+       episode and no block, so this is the only place the ladder CAN be scoped
+       to a task — and without it, a hint on a block never opened came back at
+       level 4 with code, because a different block under the same episode had
+       climbed the ladder. See `schools/learning/episode-scope.ts`. */
+    episodeId = await ownedEpisodeId(subjectId, body.episodeId, target.block.id);
     policy = await enforceHintPolicy({
       store,
       subjectId,

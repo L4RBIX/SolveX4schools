@@ -95,6 +95,14 @@ async function account(schoolId: string, role: "student" | "teacher", username: 
     displayName: username,
     passwordHash: stored.hash,
     passwordSalt: stored.salt,
+    /* A person who has finished signing in.
+       `createAccount` defaults `must_change_password` to true, which is right
+       for a freshly provisioned child and wrong for a fixture that then drives
+       the product: every guard now refuses a first-login session with 403
+       `password_change_required`. The refusal itself is pinned in
+       `tests/school/auth-enforcement.test.ts`; here it would only mean the
+       fixture is not a user. */
+    mustChangePassword: false,
   });
 }
 
