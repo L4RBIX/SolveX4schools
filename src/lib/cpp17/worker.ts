@@ -87,6 +87,15 @@ export type WorkerOutbound =
 class OutputSink {
   private compileChunks: string[] = [];
   private runChunks: string[] = [];
+  /**
+   * The program's own `cerr`, kept apart from its `cout`.
+   *
+   * It was not. `host_write` dropped the file descriptor, so both streams
+   * arrived here as one and the panel's two panes had one thing to put in them.
+   * A learner who cannot tell a printed answer from a diagnostic cannot debug,
+   * and Nova's `program_stderr` slot was permanently empty for the same reason.
+   */
+  private runErrChunks: string[] = [];
   private bytes = 0;
   private phase: "compile" | "run" = "compile";
   truncated = false;
@@ -97,17 +106,26 @@ class OutputSink {
     this.phase = "run";
   }
 
-  write(text: string): void {
+  /** `fd` is 1 for stdout and 2 for stderr; the runtime's own lines use 2. */
+  write(text: string, fd = 1): void {
     if (this.truncated) return;
     /* UTF-8 bytes, not code units. The cap is shared with the server
        (`LOCAL_LIMITS.maxOutputBytes`) and the server counts bytes, so a Kazakh
-       program must be cut at the same point in both places. */
+       program must be cut at the same point in both places.
+
+       ONE budget across both streams, deliberately: the ceiling is about what
+       this worker will hold and post, and a program flooding `cerr` costs the
+       same memory as one flooding `cout`. */
     this.bytes += new TextEncoder().encode(text).length;
     if (this.bytes > this.maxBytes) {
       this.truncated = true;
       throw new OutputLimitExceeded();
     }
-    (this.phase === "compile" ? this.compileChunks : this.runChunks).push(text);
+    if (this.phase === "compile") {
+      this.compileChunks.push(text);
+      return;
+    }
+    (fd === 2 ? this.runErrChunks : this.runChunks).push(text);
   }
 
   /** Compiler diagnostics, with the reference's own progress lines removed. */
@@ -117,6 +135,11 @@ class OutputSink {
 
   programOutput(): string {
     return stripProgress(this.runChunks.join(""));
+  }
+
+  /** What the program wrote to `cerr`, plus anything the runtime said. */
+  programErrorOutput(): string {
+    return stripProgress(this.runErrChunks.join(""));
   }
 }
 
@@ -316,7 +339,7 @@ async function init(baseUrl: string): Promise<void> {
         return r.arrayBuffer();
       }),
     compileStreaming: (f: string) => WebAssembly.compileStreaming(fetch(baseUrl + f)),
-    hostWrite: (s: string) => sink?.write(s),
+    hostWrite: (s: string, fd?: number) => sink?.write(s, fd ?? 1),
     clang: "clang.wasm",
     lld: "lld.wasm",
     memfs: "memfs.wasm",
@@ -408,18 +431,27 @@ async function run(msg: Extract<WorkerInbound, { kind: "run" }>): Promise<void> 
       const message = err instanceof Error ? err.message : String(err);
       filesystemTouched = watch.touched();
       watch.release();
-      if (sink.truncated) return done("output_limit_exceeded", sink.programOutput(), "");
+      if (sink.truncated) {
+        return done("output_limit_exceeded", sink.programOutput(), sink.programErrorOutput());
+      }
       /* `ProcExit` with a non-zero code is the program's own `return 1`, not a
          crash of ours. Everything else — a trap, an unhandled exception, a
          failed `vector::at` — is a runtime error the learner caused. */
-      if (/exited with code 0\b/.test(message)) return done("ok", sink.programOutput(), "");
-      return done("runtime_error", sink.programOutput(), message);
+      if (/exited with code 0\b/.test(message)) {
+        return done("ok", sink.programOutput(), sink.programErrorOutput());
+      }
+      /* The program's own `cerr` FIRST, then what the runtime said about the
+         crash. That order is the learner's: whatever their program managed to
+         report is the thing most likely to name the bug, and the trap's word
+         is what `runtimeFaultNote` turns into a sentence. */
+      const errText = sink.programErrorOutput();
+      return done("runtime_error", sink.programOutput(), errText ? `${errText}${message}` : message);
     }
     filesystemTouched = watch.touched();
     watch.release();
 
     void compilerText;
-    return done("ok", sink.programOutput(), "");
+    return done("ok", sink.programOutput(), sink.programErrorOutput());
   } finally {
     sink = null;
   }

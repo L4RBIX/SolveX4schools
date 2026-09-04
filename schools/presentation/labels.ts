@@ -639,6 +639,36 @@ export const L = {
    * first missing semicolon, which is sooner than a Python learner met a
    * traceback — so it matters more, not less.
    */
+  /**
+   * The four runtime faults a learner can actually meet, said in their language.
+   *
+   * A wasm trap arrives as the bare English word `unreachable` and says nothing
+   * — the same word for an out-of-range `at()`, a failed assertion, and an
+   * uncaught exception this toolchain cannot throw. These name the likely cause
+   * and leave the raw text visible below, because learning to read a real
+   * diagnostic is a real skill and `unreachable` is not one of them.
+   */
+  runFaultUnreachable: {
+    kk: "Бағдарлама орындалу кезінде тоқтап қалды. Жиі себебі — жоқ элементке қатынау: мысалы, бос vector-дың v.at(5) элементі. Индекс 0-ден size()-1-ге дейін болатынын тексер.",
+    ru: "Программа аварийно остановилась во время выполнения. Частая причина — обращение к несуществующему элементу: например, v.at(5) у пустого vector. Проверь, что индекс от 0 до size()-1.",
+  },
+  runFaultStackOverflow: {
+    kk: "Стек толып кетті — рекурсия тоқтамады. Рекурсияның шығу шарты бар ма, тексер.",
+    ru: "Переполнение стека — рекурсия не остановилась. Проверь, есть ли у неё условие выхода.",
+  },
+  runFaultUnsupported: {
+    kk: "Бұл мүмкіндікті браузердегі орындау ортасы қолдамайды. Тексеру (Check) серверде жүреді, онда жұмыс істеуі мүмкін.",
+    ru: "Эту возможность браузерная среда выполнения не поддерживает. Проверка (Check) выполняется на сервере, там она может работать.",
+  },
+  runFaultMemory: {
+    kk: "Жады жетпей қалды. Көбіне себебі — енгізілген саннан тым үлкен массив немесе vector.",
+    ru: "Не хватило памяти. Чаще всего причина — слишком большой массив или vector, размер которого взят из введённого числа.",
+  },
+  /** The caption for a RUNTIME fault, where the text is not a diagnostic. */
+  runStderrIsRuntime: {
+    kk: "Бұл — орындау ортасының хабары, компилятордікі емес.",
+    ru: "Это сообщение среды выполнения, а не компилятора.",
+  },
   runStderrIsCompiler: {
     kk: "Бұл — компилятордың өз сөзі, ағылшынша. Оны оқи білу — керек дағды.",
     ru: "Это собственные слова компилятора, по-английски. Уметь их читать — нужный навык.",

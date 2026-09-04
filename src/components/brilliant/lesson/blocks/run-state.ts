@@ -245,6 +245,72 @@ export function runStatusNote(status: LocalExecutionStatus): Localized | null {
 }
 
 /**
+ * What a crash MEANT, in the learner's own language.
+ *
+ * ## The screen this replaces
+ *
+ * A runtime fault arrived as the single English word `unreachable`, under a
+ * caption reading «Бұл — компилятордың өз сөзі» — "these are the compiler's own
+ * words, and reading them is a needed skill". Both halves were wrong. It is a
+ * WebAssembly trap, not a compiler diagnostic, and it carries no information at
+ * all: the same word for an out-of-range `vector::at`, an assertion, and an
+ * uncaught exception the toolchain cannot throw. There is nothing there to
+ * learn to read.
+ *
+ * ## What this does instead
+ *
+ * Names the likely cause, in Kazakh or Russian, and leaves the raw text below
+ * it. The raw text stays because the pedagogy is right in general — a learner
+ * who never sees a real diagnostic never learns to read one — and because a
+ * sentence that REPLACED it would be this file guessing on a learner's behalf.
+ * Null means "the runtime said something a person can read"; the caption then
+ * says so honestly instead of calling it the compiler.
+ *
+ * Every pattern below was produced by compiling and running a real program
+ * through the shipped toolchain, not by reading the source of the runtime.
+ */
+export function runtimeFaultNote(status: LocalExecutionStatus, stderr: string): Localized | null {
+  if (status !== "runtime_error") return null;
+  const text = stderr.toLowerCase();
+
+  /* `v.at(5)` on an empty vector, an out-of-range `std::string::at`, and a
+     failed assertion all abort, and libc++ built without exceptions turns the
+     abort into a wasm trap. Measured: the whole message is the word. */
+  if (text.includes("unreachable")) return L.runFaultUnreachable;
+
+  /* A recursion that never stopped. The wasm stack is 1 MiB and the host's own
+     call depth is the other ceiling; both surface as this. */
+  if (text.includes("call stack") || text.includes("stack overflow") || text.includes("rangeerror")) {
+    return L.runFaultStackOverflow;
+  }
+
+  /* Something the browser runtime does not provide. The clock and `poll_oneoff`
+     used to land here and no longer do; this stays for whatever is next, so the
+     next unimplemented call is a sentence rather than a mystery. */
+  if (text.includes("not implemented")) return L.runFaultUnsupported;
+
+  /* Ran out of memory rather than crashed: a vector sized from a wrong input,
+     usually. */
+  if (text.includes("out of memory") || text.includes("memory access out of bounds")) {
+    return L.runFaultMemory;
+  }
+
+  return null;
+}
+
+/**
+ * Whether the text in the error pane is really the compiler talking.
+ *
+ * True for a build failure, false for a runtime fault. The caption used to be
+ * unconditional, so a wasm trap was introduced to a fourteen-year-old as the
+ * compiler's own words — which is both untrue and unhelpful, because a trap is
+ * not a diagnostic and cannot be read as one.
+ */
+export function stderrIsCompilerOutput(status: LocalExecutionStatus): boolean {
+  return status === "syntax_error";
+}
+
+/**
  * The trust sentences, in the order they are rendered.
  *
  * Derived from the surface and the capability rather than from the block type,

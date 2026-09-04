@@ -64,6 +64,11 @@ class ProcExit extends Error {
   }
 };
 
+/* One encoder for the whole module. `TextEncoder` is in every browser this
+   product supports and in Node; the runtime already assumes `WebAssembly` and
+   `fetch`, so this adds no requirement. */
+const ENCODER = new TextEncoder();
+
 class NotImplemented extends Error {
   constructor(modname, fieldname) {
     super(`${modname}.${fieldname} not implemented.`);
@@ -152,7 +157,22 @@ class MemFS {
   constructor(options) {
     const compileStreaming = options.compileStreaming;
     this.hostWrite = options.hostWrite;
+    /* UTF-8 BYTES, not JavaScript characters.
+     *
+     * `stdinStr` used to be consumed with `substr` and written through
+     * `Memory.write`, which does `str.split('').map(c => c.charCodeAt(0))` —
+     * UTF-16 code units truncated to their low byte by `Uint8Array.set`. So
+     * «Сәлем әлем» arrived at a learner's `getline` as `!\ufffd;5< \ufffd;5<`,
+     * measured on the shipped toolchain and identical in Chromium. The length
+     * accounting was wrong too: `stdinStr.length` counts UTF-16 units and the
+     * program is asking for BYTES.
+     *
+     * Both are the same fix. The string is encoded once, on the way in, and
+     * everything below counts and copies bytes. Test-case inputs are ASCII
+     * today; a learner typing their own name is not, and neither is a Kazakh
+     * or Russian task that reads a word. */
     this.stdinStr = options.stdinStr || "";
+    this.stdinBytes = ENCODER.encode(this.stdinStr);
     this.stdinStrPos = 0;
     this.memfsFilename = options.memfsFilename;
 
@@ -178,6 +198,7 @@ class MemFS {
 
   setStdinStr(str) {
     this.stdinStr = str;
+    this.stdinBytes = ENCODER.encode(str);
     this.stdinStrPos = 0;
   }
 
@@ -233,7 +254,14 @@ class MemFS {
       size += len;
     }
     this.hostMem_.write32(nwritten_out, size);
-    this.hostWrite(str);
+    /* The FD is passed on, so the host can keep the two streams apart.
+     *
+     * It was dropped, and `cerr` therefore landed in the same buffer as `cout`.
+     * A learner who cannot see which stream a line came from cannot tell a
+     * printed answer from a diagnostic, and half of debugging is knowing which
+     * one you are looking at — the panel has had two panes the whole time and
+     * only ever had one stream to put in them. */
+    this.hostWrite(str, fd);
     return ESUCCESS;
   }
 
@@ -246,11 +274,13 @@ class MemFS {
       iovs += 4;
       const len = this.hostMem_.read32(iovs);
       iovs += 4;
-      const lenToWrite = Math.min(len, (this.stdinStr.length - this.stdinStrPos));
+      const lenToWrite = Math.min(len, (this.stdinBytes.length - this.stdinStrPos));
       if(lenToWrite === 0){
         break;
       }
-      this.hostMem_.write(buf, this.stdinStr.substr(this.stdinStrPos, lenToWrite));
+      /* A byte slice, so a multi-byte character is copied whole and the
+         position advances in the unit the program asked in. */
+      this.hostMem_.write(buf, this.stdinBytes.subarray(this.stdinStrPos, this.stdinStrPos + lenToWrite));
       size += lenToWrite;
       this.stdinStrPos += lenToWrite;
       if(lenToWrite !== len){
@@ -297,6 +327,9 @@ class App {
     this.allowRequestAnimationFrame = true;
     this.handles = new Map();
     this.nextHandle = 0;
+    /* The monotonic clock's anchor, for hosts with no `performance.now()`.
+       Read once per program so a run's own elapsed time starts at zero. */
+    this.epochMs_ = Date.now();
 
     const env = getImportObject(this, [
       'canvas_arc',
@@ -385,13 +418,32 @@ class App {
         writeStack = false;
       }
 
-      // Write error message.
-      let msg = `\x1b[91mError: ${exn.message}`;
-      if (writeStack) {
-        msg = msg + `\n${exn.stack}`;
-      }
-      msg += '\x1b[0m\n';
-      this.memfs.hostWrite(msg);
+      /*
+       * The message, and NEVER the stack.
+       *
+       * `hostWrite` is the learner's output pane. This wrote `exn.stack` into
+       * it, so a program that hit an unimplemented WASI call — `srand(time(0))`
+       * did, until the clock above was implemented — filled a fourteen-year-
+       * old's screen with about a kilobyte of JavaScript frames naming this
+       * file's path on the machine that served it. Nova received the same text
+       * as "the program's output" and reasoned about it.
+       *
+       * A stack trace is diagnostics about OUR runtime. It has never once
+       * helped somebody debug their own C++, it is the wrong language, and on a
+       * server-rendered path it is a filesystem layout nobody asked for. It is
+       * dropped here rather than filtered downstream because downstream is
+       * every consumer of `hostWrite` — the pane, the ops log, the tutor's
+       * context — and one of them will always be added later.
+       *
+       * `writeStack` is kept and now selects nothing, so the ProcExit branch
+       * above still reads the way it did. The error itself is re-thrown
+       * unchanged: `worker.ts` turns it into a status and a diagnostic the
+       * learner can act on. See `learnerDiagnostic` there.
+       */
+      void writeStack;
+      /* fd 2. This is the RUNTIME talking, not the program, and it was going
+         into the learner's stdout pane beside their own output. */
+      this.memfs.hostWrite(`\x1b[91mError: ${exn.message}\x1b[0m\n`, 2);
 
       // Propagate error.
       throw exn;
@@ -458,12 +510,86 @@ class App {
     }
   }
 
+  /**
+   * The clock, implemented rather than thrown.
+   *
+   * It threw, and the crash was one of the first things a curious learner
+   * found: `srand(time(0))` is what every tutorial on the internet opens with,
+   * and `chrono::steady_clock::now()` is what a learner reaches for the moment
+   * they wonder how fast their program is. Measured on the shipped toolchain,
+   * both produced `wasi_unstable.clock_time_get not implemented.` — as a
+   * RUNTIME ERROR, with a JavaScript stack trace in the output pane.
+   *
+   * WASI wants nanoseconds since the epoch for `realtime`, and nanoseconds
+   * since an arbitrary fixed point for `monotonic`. `Date.now()` is
+   * millisecond-resolution, which is a coarser clock than a native one and is
+   * the honest thing to give: the value is real, and nothing here pretends to a
+   * precision it does not have.
+   *
+   * Monotonic is anchored at module construction and read from
+   * `performance.now()` where it exists, so a program timing itself cannot see
+   * time go backwards across a system clock adjustment.
+   *
+   * `write64` takes two 32-bit halves, so the nanosecond count is split rather
+   * than passed as a `BigInt` — this memory view is `Uint32Array`.
+   */
   clock_time_get(clock_id, precision, time_out) {
-    throw new NotImplemented('wasi_unstable', 'clock_time_get');
+    const CLOCK_MONOTONIC = 1;
+    const ms =
+      clock_id === CLOCK_MONOTONIC
+        ? (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now() - this.epochMs_)
+        : Date.now();
+    const ns = Math.round(ms * 1e6);
+    /* 2^32 as a divisor rather than a shift: `>>>` is 32-bit and this value is
+       far past that — the nanosecond count of a real date is about 2^60. */
+    const lo = ns >>> 0;
+    const hi = Math.floor(ns / 4294967296) >>> 0;
+    this.mem.write64(time_out, lo, hi);
+    return ESUCCESS;
   }
 
+  /**
+   * `poll_oneoff`, answered rather than thrown — and deliberately without
+   * sleeping.
+   *
+   * The only thing in year one that reaches this is
+   * `std::this_thread::sleep_for`, and it threw the same crash as the clock.
+   * Every subscription is reported as ALREADY elapsed, which makes a sleep
+   * return immediately.
+   *
+   * That is a real divergence from the judge and it is the right one of the
+   * three options. Throwing is a crash for writing ordinary C++. Busy-waiting
+   * would spin a school laptop's CPU for the whole of a learner's sleep, on a
+   * thread that cannot yield, to reproduce a delay nothing in the curriculum
+   * needs. Returning immediately costs a program that measures its own sleep
+   * the wrong answer, and buys every other program the ability to run.
+   *
+   * The divergence is recorded in `docs/cpp17/CPP17_JUDGE_PARITY.md` beside the
+   * others, because a Run that differs from a Submit is exactly the class of
+   * surprise that documentation exists for.
+   *
+   * The event struct is 32 bytes: `userdata` (8), `error` (2), `type` (1), then
+   * padding and the read/write payload. Only the first three are written; the
+   * rest is zeroed by the caller's own allocation and is meaningless for a
+   * clock event.
+   */
   poll_oneoff(in_ptr, out_ptr, nsubscriptions, nevents_out) {
-    throw new NotImplemented('wasi_unstable', 'poll_oneoff');
+    const SUBSCRIPTION_SIZE = 48;
+    const EVENT_SIZE = 32;
+    const EVENTTYPE_CLOCK = 0;
+    for (let i = 0; i < nsubscriptions; ++i) {
+      const sub = in_ptr + i * SUBSCRIPTION_SIZE;
+      const evt = out_ptr + i * EVENT_SIZE;
+      /* `userdata` is opaque and must come back exactly as it went in — it is
+         how libc matches an event to the subscription that asked for it. */
+      this.mem.write32(evt, this.mem.read32(sub));
+      this.mem.write32(evt + 4, this.mem.read32(sub + 4));
+      /* error = 0, type = clock. Written as one 32-bit store because the two
+         fields are adjacent and the third byte is padding. */
+      this.mem.write32(evt + 8, EVENTTYPE_CLOCK << 16);
+    }
+    this.mem.write32(nevents_out, nsubscriptions);
+    return ESUCCESS;
   }
 
   canvas_destroyHandle(handle) {
@@ -778,7 +904,53 @@ class API {
   }
 
   async link(obj, wasm) {
-    const stackSize = 1024 * 1024;
+    /*
+     * Eight mebibytes, and the number is a measurement rather than a preference.
+     *
+     * It was one. At 1 MiB a recursion whose frame holds a small array blows
+     * the wasm stack, and the way it surfaces is the problem: the stack sits at
+     * the bottom of linear memory, so overrunning it is reported as
+     * `memory access out of bounds` — which reads as "your array index was
+     * wrong" and sends a learner to look at the wrong line.
+     *
+     * Measured on the shipped toolchain, recursion 100 000 deep with a
+     * 128-byte frame:
+     *
+     *    1 MiB  → memory access out of bounds
+     *    8 MiB  → Maximum call stack size exceeded
+     *   16 MiB  → Maximum call stack size exceeded
+     *   64 MiB  → Maximum call stack size exceeded
+     *
+     * So past 8 MiB the binding constraint is the HOST engine's own call-stack
+     * limit, which no linker flag can move. Judge0 allows 64 MB and matching it
+     * would therefore buy no extra depth — only 56 MB of address space on every
+     * learner's machine for nothing. What 8 MiB does buy is real: a frame with
+     * a `int a[100000]` local no longer overflows on entry, and when the depth
+     * limit is finally hit the message says "call stack" instead of pointing at
+     * an array index.
+     *
+     * The residual is stated: a recursion deeper than the host allows still
+     * fails here and may pass on the judge. That is the Run-is-stricter
+     * direction, and `runtimeFaultNote` turns it into "your recursion did not
+     * stop", which is the right thing to check first either way.
+     */
+    const stackSize = 8 * 1024 * 1024;
+    /*
+     * The same ceiling the judge enforces: 256 MB.
+     *
+     * There was none. Measured on the shipped toolchain, a
+     * `std::vector<int>(200000000)` — 800 MB — allocated and ran to completion
+     * in the browser, and the same program is a memory-limit failure on Judge0,
+     * which sets `memory_limit: 262144` KB. So a learner whose program is too
+     * big saw it work on Run and fail on Check, with nothing anywhere
+     * explaining the difference. A Run that disagrees with the judge is worse
+     * than a Run that refuses: it teaches the wrong thing about their program.
+     *
+     * `--max-memory` bounds the linear memory the module may grow to. It does
+     * not reserve it — the initial memory is unchanged — so this costs nothing
+     * for the programs that stay inside it, which is all of year one.
+     */
+    const maxMemory = 256 * 1024 * 1024;
 
     const libdir = 'lib/wasm32-wasi';
     const crt1 = `${libdir}/crt1.o`;
@@ -787,7 +959,8 @@ class API {
     return await this.run(
         lld, 'wasm-ld', '--no-threads',
         '--export-dynamic',
-        '-z', `stack-size=${stackSize}`, `-L${libdir}`,
+        '-z', `stack-size=${stackSize}`,
+        `--max-memory=${maxMemory}`, `-L${libdir}`,
         '-L/lib/clang/8.0.1/lib/wasi',
         crt1, obj, '-lc',
         '-lc++', '-lc++abi', '-lclang_rt.builtins-wasm32', '-o', wasm)

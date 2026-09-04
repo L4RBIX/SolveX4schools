@@ -17,7 +17,9 @@ import {
   runEventPayload,
   isNewRunEffort,
   runStatusNote,
+  runtimeFaultNote,
   runTrustLines,
+  stderrIsCompilerOutput,
   seedStdin,
   shouldRecordRun,
 } from "./run-state";
@@ -173,6 +175,9 @@ export function RunPanel({
      diagnostic names a line and a cause, and putting «қате бар» above it
      replaces information with reassurance. */
   const statusNote = result ? runStatusNote(result.status) : null;
+  /* The runtime fault's meaning, when the raw text has none. See
+     `runtimeFaultNote`: `unreachable` is a wasm trap, not a diagnostic. */
+  const faultNote = result ? runtimeFaultNote(result.status, result.stderr) : null;
 
   async function press() {
     if (button.action === "retry") {
@@ -311,9 +316,28 @@ export function RunPanel({
 
             {result.stderr.length > 0 ? (
               <>
+                {/* What the fault MEANT, above the raw text rather than instead
+                    of it. A wasm trap arrives as the single English word
+                    `unreachable` and carries no information — the same word for
+                    an out-of-range `at()`, a failed assertion and an uncaught
+                    exception — so a learner staring at it has nothing to read.
+                    The raw text stays below because reading a real diagnostic
+                    is a real skill; `unreachable` is not one. */}
+                {faultNote ? (
+                  <p className="text-[15px] leading-6 text-b-fg/80">{t(faultNote, locale)}</p>
+                ) : null}
                 <OutputPane label={t(L.runStderr, locale)} text={result.stderr} tone="err" />
+                {/* And the caption tells the truth about whose words these are.
+                    It used to say "the compiler's own words" for everything,
+                    including a runtime trap, which is not a diagnostic and
+                    cannot be read as one. */}
                 <p className="text-[13px] leading-5 text-b-fg/40">
-                  {t(L.runStderrIsCompiler, locale)}
+                  {t(
+                    stderrIsCompilerOutput(result.status)
+                      ? L.runStderrIsCompiler
+                      : L.runStderrIsRuntime,
+                    locale,
+                  )}
                 </p>
               </>
             ) : null}
