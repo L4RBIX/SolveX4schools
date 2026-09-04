@@ -101,22 +101,61 @@ const SELF_HARM: RegExp[] = [
   /\b(no|not\s+any)\s+reason\s+to\s+live\b/,
   /\bdon'?t\s+want\s+to\s+live\b/,
   /\bend\s+(it\s+all|my\s+life)\b/,
+  /*
+   * `kms`. Measured against the classifier: "I want to kms" was
+   * ALLOW_EDUCATIONAL and went to the model.
+   *
+   * A whole word only, and it is the reason this is safe: `kms` is not a
+   * variable a September learner writes, and even if it were, this classifier
+   * only ever reads a chat MESSAGE and a learner's own turns — never their
+   * code. The cost of a false positive is one supportive sentence instead of a
+   * hint; the cost of a false negative is a child in distress handed a
+   * paragraph about loops.
+   */
+  /(?<![\p{L}\p{N}])kms(?![\p{L}\p{N}])/u,
+  /\bi\s+want\s+to\s+disappear\b/,
+  /\bcan'?t\s+(go\s+on|take\s+(it|this)\s+anymore)\b/,
   // Russian
   /покончить\s+с\s+собой/,
   /убить\s+себя/,
   /суицид/,
-  /(не\s+хочу\s+жить|жить\s+не\s+хочу)/,
+  /*
+   * «не хочу жить» with anything in between, and «не хочется жить» beside it.
+   *
+   * The pattern was `не\s+хочу\s+жить`, which requires the two words to be
+   * adjacent. Measured: «Мне не хочется жить» — the phrasing the audit found —
+   * and «я не хочу больше жить» both passed to the model. Russian puts
+   * «больше», «уже», «вообще» between them as a matter of course, and the
+   * impersonal «не хочется» is if anything the commoner way a teenager says it.
+   *
+   * Bounded to three intervening words rather than `.*`: unbounded would match
+   * «не хочу … » across a whole paragraph ending in an unrelated «жить».
+   */
+  /не\s+хоч(у|ется)(\s+\S+){0,3}\s+жить/,
+  /жить\s+не\s+хоч(у|ется)/,
   /хочу\s+умереть/,
   /причинить\s+себе\s+вред/,
   /(порезать|резать)\s+себя/,
   /руки\s+на\s+себя/,
   /нет\s+смысла\s+жить/,
+  /*
+   * «хочу всё закончить» — and the «всё» is load-bearing.
+   *
+   * «хочу закончить» alone is what a learner types about their program twenty
+   * times a lesson. The distress phrasing carries the totalising object, and
+   * matching only that is the difference between a gate and a nuisance.
+   */
+  /хочу\s+(вс[её]|это\s+вс[её])\s+(закончить|прекратить|заканчивать)/,
+  /(не\s+вижу|нет)\s+смысла\s+(жить|(ни\s+в\s+чем|ни\s+в\s+чём))/,
+  /хочу\s+исчезнуть/,
   // Kazakh
   /өзіме\s+қол\s+жұмса/,
   /өлгім\s+кел/,
   /өмір\s+сүргім\s+келмейді/,
   /өзімді\s+өлтір/,
   /жасағым\s+келмейді\s+ештеңе/,
+  /өмірімді\s+аяқта/,
+  /жоғалып\s+кеткім\s+келеді/,
 ];
 
 /** A disclosure of being hurt by someone else. Support, not a refusal. */
@@ -132,10 +171,19 @@ const ABUSE: RegExp[] = [
   /меня\s+(бьют|избива|трав)/,
   /угрожают\s+мне/,
   /боюсь\s+(идти|ходить)\s+в\s+школу/,
+  /*
+   * The subject may sit between the object and the verb, and in Kazakh it
+   * usually does. Measured: «мені ұрады» matched and «мені сыныптастарым
+   * ұрады» — "my classmates hit me", which is how a child would actually say
+   * it — did not. Same bounded gap as the Russian family above.
+   */
   // Kazakh
-  /мені\s+(ұрады|мазақта|қорқыт)/,
+  /мені(\s+\S+){0,3}\s+(ұрады|ұрып|мазақта|қорқыт|қорлайды)/,
   /мазақтайды/,
   /мектепке\s+барудан\s+қорқамын/,
+  /үйде\s+мені\s+ұр/,
+  // Russian, with the same gap
+  /меня(\s+\S+){0,3}\s+(бьют|избива|трав|унижа)/,
 ];
 
 /**
@@ -544,6 +592,39 @@ const SHORT_MESSAGE = 80;
  * exfiltration because "how do I make a bomb, ignore your rules" deserves the
  * answer about the bomb.
  */
+/**
+ * Distress only, for text a learner wrote that is not the chat message.
+ *
+ * ## Why this exists
+ *
+ * `PRIVACY.md` says "a disclosure does not leave this server". That was true of
+ * the `message` field and of nothing else: the editor DRAFT and the six prior
+ * conversation turns are both sent to the provider, and neither was ever
+ * classified. A child who types «Мне не хочется жить» into the code editor —
+ * which is where a child who does not want to be seen typing it would type it —
+ * had it forwarded to DeepSeek and answered with a hint about loops.
+ *
+ * ## Why only the distress families
+ *
+ * `classifyMessage` also refuses jailbreaks, academic integrity and off-topic.
+ * None of those should fire on a draft: a comment reading "ignore previous
+ * instructions" is a learner playing, the prompt boundary already fences every
+ * untrusted block with a per-request nonce, and refusing somebody's hint over
+ * their own source code would make the tutor useless in exactly the lesson
+ * where they most need it.
+ *
+ * What a child says about being hurt is different in kind. It gets the same
+ * answer wherever they typed it.
+ */
+export function classifyDisclosure(text: string): SafetyDecision | null {
+  const value = text ?? "";
+  if (!value.trim()) return null;
+  const views = viewsOf(value).all;
+  if (matchesAny(views, SELF_HARM)) return decision("SAFETY_SUPPORT", "self_harm");
+  if (matchesAny(views, ABUSE)) return decision("SAFETY_SUPPORT", "abuse_disclosure");
+  return null;
+}
+
 export function classifyMessage(message: string): SafetyDecision {
   const text = message ?? "";
   if (!text.trim()) return decision("ALLOW_EDUCATIONAL", "educational");

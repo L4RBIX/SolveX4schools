@@ -7,7 +7,7 @@ import { buildNovaMessages, type HistoryTurn } from "@schools/nova/prompt";
 import { executionContextFor } from "@schools/nova/execution-context";
 import { getNovaProvider, NovaProviderError } from "@schools/nova";
 import type { NovaFinishReason } from "@schools/nova/provider";
-import { classifyMessage, type SafetyReason } from "@schools/nova/safety";
+import { classifyDisclosure, classifyMessage, type SafetyReason } from "@schools/nova/safety";
 import { safetyResponse, validatorFallback } from "@schools/nova/safety-copy";
 import { guardedStream } from "@schools/nova/guard";
 import { inspectCode, type ValidationContext } from "@schools/nova/validate";
@@ -376,6 +376,73 @@ export async function POST(request: Request) {
         .map((t) => ({ role: t.role, text: t.text.slice(0, MAX_MESSAGE) }))
     : [];
 
+  /*
+   * The safety gate, BEFORE the rate limiter and before anything durable.
+   *
+   * It used to sit after the bucket, and the consequence is the whole reason
+   * this moved: a child who had spent their twenty hints that hour and then
+   * typed «мені ұрады» got a 429. The product's answer to a disclosure of being
+   * hurt was "you have asked too many questions today".
+   *
+   * Nothing here touches the store or the provider. It is a regex over text the
+   * request already carried, so running it first costs a few microseconds and
+   * cannot be a way in: the reply is deterministic, local, and writes nothing.
+   * A budget is a fact about a school's spending; it has no business standing
+   * between a child and a phone number.
+   *
+   * `mayCallModel` is false for distress, harm, integrity and exfiltration. All
+   * four return here with a deterministic answer and NO ledger write of any
+   * kind — no intervention row, no `assistance_requested`, no episode. What a
+   * child says about their life must not become a fact about their
+   * understanding of loops. `tests/nova/safety.test.ts` asserts the silence.
+   *
+   * ## And it reads more than the chat box
+   *
+   * `PRIVACY.md` says "a disclosure does not leave this server". That was true
+   * of `message` and of nothing else: the editor DRAFT and the six prior turns
+   * are both sent to the provider and neither was classified. A child who types
+   * it into the editor — which is where a child who does not want to be seen
+   * typing it would type it — had it forwarded and answered with a hint.
+   *
+   * `classifyDisclosure` is the distress families only. A jailbreak in a draft
+   * is a learner playing and the prompt boundary already fences it; being hurt
+   * is not, and gets the same answer wherever it was written.
+   *
+   * The counter records the family and nothing else: no message, no subject, no
+   * excerpt. It exists so a school can be told "the crisis path fired twice
+   * this term" without anyone being able to read what was typed.
+   */
+  const draftText = typeof body.draft === "string" ? body.draft : "";
+  const safety =
+    classifyDisclosure(message) ??
+    classifyDisclosure(draftText) ??
+    /* The learner's OWN turns. An assistant turn is the model's words coming
+       back, and a crisis response to Nova quoting itself would be a loop. */
+    history.reduce<ReturnType<typeof classifyDisclosure>>(
+      (found, turn) => found ?? (turn.role === "user" ? classifyDisclosure(turn.text) : null),
+      null,
+    ) ??
+    classifyMessage(message);
+  if (!safety.mayCallModel) {
+    const counter = SAFETY_COUNTER[safety.reason as keyof typeof SAFETY_COUNTER];
+    if (counter) bump(counter);
+    return sse((c) =>
+      deterministic(c, safetyResponse(safety.reason, locale), {
+        granted: 0,
+        requested: 0,
+        capped: false,
+        reason: "granted_as_requested",
+        explanation: null,
+        action: null,
+        provider: "policy",
+        degraded: false,
+        /* The panel hides the hint-level chrome. It is NOT told which family
+           fired — that is the product's business, not the browser's. */
+        safety: true,
+      }),
+    );
+  }
+
   /* Keyed on the learner, never on the client IP. One school behind one NAT
      gateway is one address, so an IP bucket would let the most active student
      throttle the whole classroom — which reads to eighteen children as the
@@ -395,40 +462,6 @@ export async function POST(request: Request) {
     return Response.json(
       { error: "rate_limited", retryAfterSeconds: limit.retryAfterSeconds },
       { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
-    );
-  }
-
-  /*
-   * The safety gate, before anything durable happens.
-   *
-   * `mayCallModel` is false for distress, harm, integrity and exfiltration. All
-   * four return here with a deterministic answer and NO ledger write of any
-   * kind — no intervention row, no `assistance_requested`, no episode. What a
-   * child says about their life must not become a fact about their
-   * understanding of loops. `tests/nova/safety.test.ts` asserts the silence.
-   *
-   * The counter records the family and nothing else: no message, no subject, no
-   * excerpt. It exists so a school can be told "the crisis path fired twice
-   * this term" without anyone being able to read what was typed.
-   */
-  const safety = classifyMessage(message);
-  if (!safety.mayCallModel) {
-    const counter = SAFETY_COUNTER[safety.reason as keyof typeof SAFETY_COUNTER];
-    if (counter) bump(counter);
-    return sse((c) =>
-      deterministic(c, safetyResponse(safety.reason, locale), {
-        granted: 0,
-        requested: 0,
-        capped: false,
-        reason: "granted_as_requested",
-        explanation: null,
-        action: null,
-        provider: "policy",
-        degraded: false,
-        /* The panel hides the hint-level chrome. It is NOT told which family
-           fired — that is the product's business, not the browser's. */
-        safety: true,
-      }),
     );
   }
 
