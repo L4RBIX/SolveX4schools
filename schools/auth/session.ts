@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { getStore } from "@schools/store";
+import { config } from "@schools/config";
 import type { SessionUser } from "./types";
 
 /**
@@ -87,13 +88,55 @@ export async function endCurrentSession(): Promise<void> {
 export async function currentUser(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
-  if (!token) return null;
+
+  if (token) {
+    const store = await getStore();
+    const session = await store.sessionByTokenHash(hashToken(token));
+    if (session) {
+      const account = await store.findAccountById(session.userId);
+      if (account && !account.disabledAt) {
+        return {
+          userId: account.userId,
+          schoolId: account.schoolId,
+          role: account.role,
+          displayName: account.displayName,
+          username: account.username,
+          mustChangePassword: account.mustChangePassword,
+        };
+      }
+    }
+  }
+
+  return autologin();
+}
+
+/**
+ * The no-sign-in deployment, resolved here and nowhere else.
+ *
+ * `config.demoAutologinUsername` is normally unset, and then this returns null
+ * and `currentUser` behaves exactly as it always did — a session or nobody.
+ *
+ * When it IS set, an unauthenticated request becomes that account. Doing it at
+ * this one function is the point: every guard in `auth/guard.ts`, the page gate,
+ * the learner subject resolution and the teacher class check all read identity
+ * from here, so they keep working on a real enrolled account instead of being
+ * individually taught to accept a caller who is nobody. Nothing downstream
+ * knows the difference, which is why nothing downstream had to change.
+ *
+ * A disabled account still resolves to null: disabling stays immediate, and a
+ * demo switch must not be a way around it.
+ *
+ * `mustChangePassword` is forced false. The flag exists to push a first-login
+ * credential off a shared account, and there is no login here to push it
+ * through — left true it would bounce every visitor to /account/password
+ * forever.
+ */
+async function autologin(): Promise<SessionUser | null> {
+  const username = config.demoAutologinUsername?.trim();
+  if (!username) return null;
 
   const store = await getStore();
-  const session = await store.sessionByTokenHash(hashToken(token));
-  if (!session) return null;
-
-  const account = await store.findAccountById(session.userId);
+  const account = await store.findAccountByUsername(config.pilot.schoolId, username);
   if (!account || account.disabledAt) return null;
 
   return {
@@ -102,7 +145,7 @@ export async function currentUser(): Promise<SessionUser | null> {
     role: account.role,
     displayName: account.displayName,
     username: account.username,
-    mustChangePassword: account.mustChangePassword,
+    mustChangePassword: false,
   };
 }
 

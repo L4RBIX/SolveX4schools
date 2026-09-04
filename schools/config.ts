@@ -155,6 +155,28 @@ export const config = {
     classId: env("CLASS_ID") ?? "grade-9a",
   },
 
+  /**
+   * A deployment that has deliberately no sign-in.
+   *
+   * When set, every request with no session is treated as this account, and
+   * nothing anywhere asks for a password. It exists so a demo URL can be
+   * opened and walked without provisioning a viewer, and it is the ONLY
+   * supported way to do that: the alternative people reach for is loosening
+   * `requireLearner` or `requireClassAccess`, which replaces one identity with
+   * none and leaves every guard downstream reasoning about a caller that does
+   * not exist.
+   *
+   * This is not a weaker login. It is NO login: whoever opens the URL is that
+   * account, with that account's role, class and work. Set it only on a
+   * deployment whose data nobody minds a stranger reading, and unset it before
+   * a real learner exists. Unsetting is the whole rollback — no code ships to
+   * turn it off.
+   *
+   * Unset (the default, including every environment that never mentions it)
+   * changes nothing: `currentUser()` returns null exactly as before.
+   */
+  demoAutologinUsername: env("DEMO_AUTOLOGIN_USERNAME"),
+
   exec: {
     /**
      * `local` runs a subprocess; `piston` calls a self-hosted judge;
