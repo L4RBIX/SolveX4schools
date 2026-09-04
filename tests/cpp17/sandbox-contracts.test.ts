@@ -580,12 +580,24 @@ describe("the worker fetches its 57 MB from our own origin and nowhere else", ()
   const source = readFileSync(path.join(REPO, "src", "lib", "cpp17", "worker.ts"), "utf8");
 
   it("builds every asset URL from the base URL it was given", () => {
-    /* Two call sites, both `baseUrl + f`. A CDN here would mean a third party
-       serving the compiler that runs a child's code. */
-    expect([...source.matchAll(/fetch\(([^)]*)\)/g)].map((m) => m[1].trim())).toEqual([
-      "baseUrl + f",
-      "baseUrl + f",
-    ]);
+    /* One call site now — `counted()`, which wraps the fetch to count decoded
+       bytes for the download progress the panel shows — and it builds its URL
+       through `cpp17AssetUrl(baseUrl, name)`. The claim is unchanged and is the
+       one that matters: a CDN here would mean a third party serving the
+       compiler that runs a child's code.
+
+       `cpp17AssetUrl` is asserted separately in
+       `tests/cpp17/first-run-preload.test.ts`: it appends the pinned commit as
+       `?v=`, which is what makes a year of `immutable` caching honest, and it
+       cannot introduce a host because it takes the base URL as a prefix. */
+    const calls = [...source.matchAll(/fetch\(([^)]*)\)/g)].map((m) => m[1].trim());
+    expect(calls.length, "one fetch, and it must be findable").toBe(1);
+    for (const call of calls) {
+      expect(call, "every fetch must build its URL from baseUrl").toContain("baseUrl");
+      expect(call, "and never from a literal host").not.toMatch(/https?:/);
+    }
+    /* And nothing anywhere in the worker names another origin. */
+    expect(source).not.toMatch(/https?:\/\/(?!.*(?:@license|LLVM|apache))/i);
   });
 
   it("defaults to a same-origin, relative path", () => {

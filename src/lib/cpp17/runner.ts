@@ -57,13 +57,44 @@ export interface RunnerStatus {
   initMs: number | null;
   /** Why the runtime failed to start. Never a statement about learner code. */
   error: string | null;
+  /**
+   * Toolchain bytes downloaded so far, and how many there are.
+   *
+   * Real decoded bytes counted at the stream against the real total from
+   * `assets.ts` — never a percentage derived from `content-length`, which is
+   * the compressed length and would count to about 300%.
+   *
+   * `loadedBytes` is 0 and `totalBytes` is null until a worker starts loading.
+   * Null is a distinct state from 0 and the panel needs both: "nothing has
+   * started" and "started, nothing has arrived yet" are different sentences to
+   * a learner staring at a school connection.
+   */
+  loadedBytes: number;
+  totalBytes: number | null;
 }
 
 export const IDLE_STATUS: RunnerStatus = Object.freeze({
   phase: "idle" as const,
   initMs: null,
   error: null,
+  loadedBytes: 0,
+  totalBytes: null,
 });
+
+/**
+ * How long the toolchain may take to arrive before the runner gives up.
+ *
+ * Generous, because it is 57 MB and a school connection is a school
+ * connection: at 2 Mbit/s that is about four minutes, and a learner who waits
+ * it out gets a working compiler. But not unbounded — `ensureWorker` had no
+ * ceiling at all, so a connection that stalled left `warm()` pending forever
+ * and the panel showing «C++ дайындалып жатыр…» with nothing behind it and no
+ * way to retry.
+ *
+ * Distinct from `COMPILE_BUDGET_MS`: that one bounds a BUILD, and the whole
+ * point of the preload is that a download is no longer billed to it.
+ */
+export const INIT_BUDGET_MS = 300_000;
 
 /** The slice of `Worker` used here, so a test fake needs four members. */
 export interface RunnerWorker {
@@ -161,21 +192,61 @@ export class Cpp17Runner {
     if (this.worker && this.state.phase !== "failed") return this.booting ?? Promise.resolve();
     if (this.booting) return this.booting;
 
-    this.setState({ phase: "loading", error: null });
+    this.setState({ phase: "loading", error: null, loadedBytes: 0, totalBytes: null });
     const worker = this.spawn();
     this.worker = worker;
 
     this.booting = new Promise<void>((resolve, reject) => {
+      /*
+       * A ceiling on the download, which had none.
+       *
+       * The worker now fetches the whole 57 MB before it reports ready — that
+       * is the preload fix — so this promise is open for as long as the
+       * connection takes. Without a ceiling a stalled connection left `warm()`
+       * pending forever and the panel showing «C++ дайындалып жатыр…» with
+       * nothing behind it and no way to retry.
+       *
+       * On expiry the worker is terminated and the state is `failed`, which is
+       * what puts the panel's retry affordance on screen. The next press starts
+       * a fresh worker — and every byte that DID arrive is in the HTTP cache,
+       * so a retry resumes in effect rather than starting over.
+       */
+      const timer = setTimeout(() => {
+        const error = `toolchain download did not finish in ${Math.round(INIT_BUDGET_MS / 1000)}s`;
+        worker.terminate();
+        if (this.worker === worker) this.worker = null;
+        this.setState({ phase: "failed", error });
+        reject(new Error(error));
+      }, INIT_BUDGET_MS);
+
+      const settleBoot = (fn: () => void) => {
+        clearTimeout(timer);
+        fn();
+      };
+
       worker.onmessage = (event: MessageEvent) => {
         const msg = event.data as WorkerOutbound;
+        if (msg.kind === "progress") {
+          /* Only while this worker is the one loading. A late message from a
+             worker that has been superseded must not move a bar that now
+             belongs to its replacement. */
+          if (this.worker === worker) {
+            this.setState({ loadedBytes: msg.loadedBytes, totalBytes: msg.totalBytes });
+          }
+          return;
+        }
         if (msg.kind === "ready") {
-          this.setState({ phase: "ready", initMs: msg.initMs, error: null });
-          resolve();
+          settleBoot(() => {
+            this.setState({ phase: "ready", initMs: msg.initMs, error: null });
+            resolve();
+          });
           return;
         }
         if (msg.kind === "failed") {
-          this.setState({ phase: "failed", error: msg.error });
-          reject(new Error(msg.error));
+          settleBoot(() => {
+            this.setState({ phase: "failed", error: msg.error });
+            reject(new Error(msg.error));
+          });
           return;
         }
         if (msg.kind === "running") this.beginExecution(msg.id);
@@ -183,8 +254,10 @@ export class Cpp17Runner {
       };
       worker.onerror = (event: ErrorEvent) => {
         const error = event.message || "worker error";
-        this.setState({ phase: "failed", error });
-        reject(new Error(error));
+        settleBoot(() => {
+          this.setState({ phase: "failed", error });
+          reject(new Error(error));
+        });
       };
       worker.postMessage({ kind: "init", baseUrl: this.options.baseUrl ?? DEFAULT_CPP17_BASE_URL });
     }).finally(() => {

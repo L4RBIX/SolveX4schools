@@ -487,3 +487,36 @@ export function runEventPayload(input: RunEventInput): LearningPayload {
     case_count: 1,
   };
 }
+
+/**
+ * How much of the toolchain has arrived, in megabytes, for a learner to read.
+ *
+ * ## Why this exists
+ *
+ * The button said «C++ дайындалып жатыр…» — "C++ is getting ready" — and said
+ * it identically whether nothing had started, 3 MB had arrived, or the
+ * connection had been dead for two minutes. On a school link that is a disabled
+ * button and no information for four minutes, which reads as a broken product.
+ *
+ * ## Why megabytes and not a percentage
+ *
+ * Because the percentage would be a lie unless the total is exact, and the only
+ * runtime source for a total is `content-length` — the BROTLI length, against a
+ * decoded stream, which counts to about 300%. The totals in
+ * `src/lib/cpp17/assets.ts` are exact decoded byte counts checked against the
+ * downloader's own table, so the fraction here is real. It is rendered as
+ * "12 / 57 МБ" rather than "21%" anyway: a size tells a learner on a slow
+ * connection something a percentage does not, which is how much is left.
+ *
+ * Null when there is nothing honest to say yet.
+ */
+export function runDownloadNote(status: {
+  phase: RunPhase;
+  loadedBytes: number;
+  totalBytes: number | null;
+}): Localized | null {
+  if (status.phase !== "loading") return null;
+  if (status.totalBytes === null || status.totalBytes <= 0) return null;
+  const mb = (n: number) => (n / 1_048_576).toFixed(0);
+  return L.runDownloading(mb(status.loadedBytes), mb(status.totalBytes));
+}

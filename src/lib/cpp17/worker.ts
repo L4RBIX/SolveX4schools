@@ -25,6 +25,7 @@
 
 import { API } from "./vendor/wasm-clang-shared.js";
 import { BITS_STDCPP_PATH, bitsStdcppSource } from "./bits-stdcpp";
+import { cpp17AssetUrl, CPP17_TOTAL_BYTES } from "./assets";
 import {
   LOCAL_LIMITS,
   type LocalExecutionStatus,
@@ -49,6 +50,16 @@ export type WorkerInbound =
 export type WorkerOutbound =
   | { kind: "ready"; initMs: number }
   | { kind: "failed"; error: string }
+  /**
+   * Bytes of the toolchain that have arrived, while it is arriving.
+   *
+   * Real decoded bytes against the real total from `assets.ts`, never a
+   * percentage computed from `content-length` — that header carries the BROTLI
+   * length while `fetch` hands us the decoded stream, and a bar built from the
+   * two counts past 300%. A learner on a school connection is entitled to know
+   * whether anything is happening; they are not entitled to a made-up number.
+   */
+  | { kind: "progress"; loadedBytes: number; totalBytes: number }
   /**
    * Compilation and linking are done; the learner's program is about to run.
    *
@@ -317,6 +328,13 @@ export interface WasmClangApi {
   compile(o: { input: string; contents: string; obj: string }): Promise<unknown>;
   link(obj: string, wasm: string): Promise<unknown>;
   run(mod: WebAssembly.Module, ...args: string[]): Promise<unknown>;
+  /**
+   * Fetch, compile and cache one module by name.
+   *
+   * The reference calls this lazily from `compile` and `link`. `init` calls it
+   * eagerly, which is the whole of the preload fix — see there.
+   */
+  getModule(name: string): Promise<WebAssembly.Module>;
 }
 
 let api: WasmClangApi | null = null;
@@ -326,25 +344,89 @@ function post(message: WorkerOutbound): void {
   (self as unknown as { postMessage(m: WorkerOutbound): void }).postMessage(message);
 }
 
+/**
+ * Bring the whole toolchain up, and say how far along it is.
+ *
+ * ## The defect
+ *
+ * This awaited `api.ready`, which is `memfs.wasm` and `sysroot.tar` — 9 MB of
+ * the 57. `clang.wasm` and `lld.wasm` are 50 MB more, and the reference fetches
+ * them lazily from inside `compile()` and `link()`. So the "preparing C++"
+ * preload finished having downloaded a sixth of the compiler, and the other
+ * five sixths were downloaded INSIDE the first Run — inside
+ * `COMPILE_BUDGET_MS`, the thirty seconds that exist to bound a COMPILE.
+ *
+ * Below roughly 4.5 Mbit/s that budget expires mid-download. The runner then
+ * destroys the worker, which throws away every byte that had arrived, and
+ * starts a replacement that begins again from zero — so the learner sees
+ * «Компилятор C++ не запустился» on every press, forever, and pressing again
+ * makes it worse rather than better. A class of thirty on a 20 Mbit/s school
+ * connection is about 224 seconds for the first compile.
+ *
+ * ## The fix
+ *
+ * Everything is resident before `ready` is posted. A download is not a build
+ * and must not be billed to a build's clock; the runner's build budget now
+ * starts when the build does.
+ *
+ * The cost is stated: the first lesson open fetches 57 MB rather than 9. It was
+ * always going to fetch 57 — the question was only whether it did so under a
+ * timer that kills it. `next.config.ts` serves these `immutable` and the URL
+ * carries the pinned commit, so it happens once per learner per pin.
+ */
 async function init(baseUrl: string): Promise<void> {
   const started = Date.now();
+
+  /*
+   * Bytes, counted as they are decoded.
+   *
+   * `WebAssembly.compileStreaming` wants a `Response`, so the body is piped
+   * through a counter and handed on — the stream is not buffered, so streaming
+   * compilation still overlaps the download exactly as it did.
+   */
+  let loadedBytes = 0;
+  const report = () => post({ kind: "progress", loadedBytes, totalBytes: CPP17_TOTAL_BYTES });
+
+  const counted = async (name: string): Promise<Response> => {
+    const res = await fetch(cpp17AssetUrl(baseUrl, name));
+    if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
+    if (!res.body) return res;
+    const reader = res.body.getReader();
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        loadedBytes += value.byteLength;
+        report();
+        controller.enqueue(value);
+      },
+      cancel(reason) {
+        void reader.cancel(reason);
+      },
+    });
+    /* The content type is carried over deliberately: `compileStreaming` refuses
+       anything that is not `application/wasm`, and a hand-built Response with
+       no headers would fail there rather than here. */
+    return new Response(stream, { status: res.status, headers: res.headers });
+  };
+
   const Ctor = API as unknown as new (o: Record<string, unknown>) => WasmClangApi;
   api = new Ctor({
     /* Everything is fetched from our own origin under `baseUrl`. No CDN, no
        third-party host: these are 57 MB of compiler that runs the learner's
        code, and where they come from is part of the security posture. */
-    readBuffer: (f: string) =>
-      fetch(baseUrl + f).then((r) => {
-        if (!r.ok) throw new Error(`${f}: HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }),
-    compileStreaming: (f: string) => WebAssembly.compileStreaming(fetch(baseUrl + f)),
+    readBuffer: (f: string) => counted(f).then((r) => r.arrayBuffer()),
+    compileStreaming: (f: string) => WebAssembly.compileStreaming(counted(f)),
     hostWrite: (s: string, fd?: number) => sink?.write(s, fd ?? 1),
     clang: "clang.wasm",
     lld: "lld.wasm",
     memfs: "memfs.wasm",
     sysroot: "sysroot.tar",
   });
+  report();
   await api.ready;
   /* Set once, after construction, so every compile in this worker's life is
      C++17 and no call site can forget. */
@@ -357,6 +439,19 @@ async function init(baseUrl: string): Promise<void> {
      a broken browser. The sysroot already has an `/include/bits/` directory, so
      this lands on the existing include path with no extra flag. */
   api.memfs.addFile(BITS_STDCPP_PATH, bitsStdcppSource());
+
+  /*
+   * The compiler and the linker, resident before anyone is told this is ready.
+   *
+   * Sequential rather than parallel, and that is not an oversight. They are
+   * 31 MB and 19 MB; fetching both at once on a shared school connection halves
+   * each one's throughput and delays the moment either is usable, while the
+   * progress the learner watches becomes two bars racing. Sequential also means
+   * a failure names which asset failed.
+   */
+  await api.getModule("clang.wasm");
+  await api.getModule("lld.wasm");
+
   post({ kind: "ready", initMs: Date.now() - started });
 }
 

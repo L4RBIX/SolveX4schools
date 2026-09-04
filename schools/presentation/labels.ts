@@ -648,6 +648,18 @@ export const L = {
    * and leave the raw text visible below, because learning to read a real
    * diagnostic is a real skill and `unreachable` is not one of them.
    */
+  /**
+   * The download, in megabytes a learner can watch move.
+   *
+   * A size and not a percentage. The only runtime source for a total is
+   * `content-length`, which is the compressed length against a decoded stream,
+   * so a percentage built from it counts past 300% — and a bar that lies is
+   * worse than no bar. See `runDownloadNote`.
+   */
+  runDownloading: (loaded: string, total: string) => ({
+    kk: `C++ компиляторы жүктелуде: ${loaded} / ${total} МБ`,
+    ru: `Загружается компилятор C++: ${loaded} / ${total} МБ`,
+  }),
   runFaultUnreachable: {
     kk: "Бағдарлама орындалу кезінде тоқтап қалды. Жиі себебі — жоқ элементке қатынау: мысалы, бос vector-дың v.at(5) элементі. Индекс 0-ден size()-1-ге дейін болатынын тексер.",
     ru: "Программа аварийно остановилась во время выполнения. Частая причина — обращение к несуществующему элементу: например, v.at(5) у пустого vector. Проверь, что индекс от 0 до size()-1.",

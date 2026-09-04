@@ -16,6 +16,7 @@ import {
   runButtonState,
   runEventPayload,
   isNewRunEffort,
+  runDownloadNote,
   runStatusNote,
   runtimeFaultNote,
   runTrustLines,
@@ -153,6 +154,15 @@ export function RunPanel({
     [surface, trustedProviderConfigured],
   );
 
+  /* What the learner is waiting for, in bytes they can watch move. The button
+     is disabled either way; the difference is whether they are told anything
+     is happening. See `runDownloadNote`. */
+  const downloadNote = runDownloadNote({
+    phase: python.phase,
+    loadedBytes: python.loadedBytes,
+    totalBytes: python.totalBytes,
+  });
+
   const button = runButtonState({
     phase: python.phase,
     isRunning: python.isBusy,
@@ -269,7 +279,15 @@ export function RunPanel({
             {t(button.label, locale)}
           </span>
         </Button3D>
-        {button.note ? (
+        {/* The download, in megabytes, while it is happening. It takes the
+            note's place rather than sitting beside it: during loading
+            `runButtonState` has no note, and a learner on a school connection
+            needs the number more than they need a second sentence. */}
+        {downloadNote ? (
+          <p className="min-w-0 flex-1 text-[14px] leading-5 tabular-nums text-b-fg/60">
+            {t(downloadNote, locale)}
+          </p>
+        ) : button.note ? (
           <p className="min-w-0 flex-1 text-[14px] leading-5 text-b-fg/60">
             {t(button.note, locale)}
           </p>

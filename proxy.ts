@@ -63,6 +63,12 @@ function isUuid(v: string): boolean {
 
 export const config = {
   /* Everything except static assets. The cookie must exist before the first
-     API call, and the first API call can come from any page. */
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|assets/).*)"],
+     API call, and the first API call can come from any page.
+
+     `cpp17/` is excluded for a reason of its own: it is 57 MB of pinned
+     compiler across four requests, and running an identity middleware on each
+     of them adds a function invocation to a static file that is served
+     `immutable` and needs no cookie. The worker fetches them with no
+     credentials and nothing downstream reads a session for them. */
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|assets/|cpp17/).*)"],
 };

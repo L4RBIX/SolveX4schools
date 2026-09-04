@@ -62,6 +62,15 @@ export interface UseCpp17 {
   error: string | null;
   /** How long the worker took to come up, once it has. */
   initMs: number | null;
+  /**
+   * Toolchain bytes downloaded, and the exact total.
+   *
+   * Real decoded bytes, so the panel can say "12 / 57 МБ" rather than showing
+   * a disabled button and one unchanging sentence for four minutes on a school
+   * connection. `totalBytes` is null until a worker has started loading.
+   */
+  loadedBytes: number;
+  totalBytes: number | null;
   /** Start the download without running anything. Resolves false if it failed. */
   ensureReady: () => Promise<boolean>;
   /** Compile and run. Resolves to a result; never rejects. */
@@ -131,6 +140,8 @@ export function useCpp17(options: UseCpp17Options = {}): UseCpp17 {
     isBusy: status.phase === "compiling" || status.phase === "running",
     error: status.error,
     initMs: status.initMs,
+    loadedBytes: status.loadedBytes,
+    totalBytes: status.totalBytes,
     ensureReady,
     run,
     result,
