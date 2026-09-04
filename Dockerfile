@@ -18,10 +18,13 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 
 # Install project dependencies with frozen lockfile for reproducible builds
-RUN --mount=type=cache,id=npm,target=/root/.npm \
-  --mount=type=cache,id=yarn,target=/usr/local/share/.cache/yarn \
-  --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-  if [ -f package-lock.json ]; then \
+#
+# No BuildKit cache mounts. Railway's frontend rejects an id-less mount, then
+# rejects a plain id too: it requires every cache id to carry its own
+# per-service cacheKey prefix. Satisfying that means welding a Railway service
+# id into this file, which then builds nowhere else. The mounts only ever
+# saved download time on a cold layer, so they are gone instead.
+RUN if [ -f package-lock.json ]; then \
   npm ci --no-audit --no-fund; \
   elif [ -f yarn.lock ]; then \
   corepack enable yarn && yarn install --frozen-lockfile --production=false; \
