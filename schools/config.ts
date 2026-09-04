@@ -72,8 +72,24 @@ export const config = {
   cronSecret: env("LEARNING_CRON_SECRET"),
 
   sweep: {
-    /** In-process interval. `false` disables it for serverless deployments. */
-    inProcess: env("LEARNING_SWEEP_IN_PROCESS") !== "false",
+    /**
+     * In-process interval, and it defaults OFF on a serverless host.
+     *
+     * `!== "false"` meant on unless somebody remembered to turn it off, and
+     * nobody had: on Vercel a lambda is created for a request and frozen after
+     * it, so a twenty-second interval fires zero times while every warm
+     * instance carries its own copy of a job meant to run once. The default
+     * that fits the platform is the platform's own answer — `VERCEL` is set in
+     * every build and at runtime — and an operator can still say either word
+     * explicitly.
+     *
+     * Nothing depends on it. The sweep is request-driven through `after()`, so
+     * without an interval the projections lag rather than being wrong, and
+     * `/api/cron` is the scheduled backstop.
+     */
+    inProcess:
+      env("LEARNING_SWEEP_IN_PROCESS") === "true" ||
+      (env("LEARNING_SWEEP_IN_PROCESS") !== "false" && !env("VERCEL")),
     intervalMs: Number(env("LEARNING_SWEEP_INTERVAL_MS") ?? 20_000),
   },
 

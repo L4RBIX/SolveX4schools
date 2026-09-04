@@ -5,6 +5,7 @@ import { bump } from "@schools/ops/counters";
 import { FIRST_TIER } from "./tiers";
 import { MAX_GROUP_SIZE } from "./standings";
 import { XP_POLICY_VERSION, type XpAchievement } from "./xp-policy";
+import { settleGroupWithin } from "./settle";
 
 /**
  * Awarding XP, and admitting a learner to a weekly group.
@@ -203,6 +204,32 @@ async function ensureMembership(t: SqlExecutor, ctx: AwardContext): Promise<Memb
     };
   }
 
+  /*
+   * Every week this learner has finished, settled BEFORE their tier is read.
+   *
+   * `currentTier` reads `league_profiles`, and that row only moves when a week
+   * settles. Settlement runs when somebody opens /league — nothing else
+   * triggers it, and the hourly interval dies on a serverless host. So the
+   * first award of a new week, arriving before anyone has looked at the board,
+   * admitted the learner at the tier they held before the week they had just
+   * won.
+   *
+   * Reproduced on PGlite: a learner wins W37 at tier 2, submits at 05:10 Almaty
+   * on the Monday, joins W38 at tier 2 — and the settlement that runs later
+   * writes 3 into a profile that has already been read. The promotion was real,
+   * it was recorded in `league_settlements`, and it had no effect on the week
+   * it was for. A learner who is told they went up and then plays the next week
+   * against the same people has been told something untrue.
+   *
+   * Settling here rather than trusting a schedule is the point: the moment the
+   * tier is READ is the only moment at which it must be right, and it is the
+   * one moment the product can be sure it is executing.
+   *
+   * Inside the caller's transaction. A nested `sql.tx` could commit a promotion
+   * while the award that triggered it rolls back.
+   */
+  await settleFinishedWeeks(t, ctx);
+
   const tier = await currentTier(t, ctx.subjectId);
   const groupId = await openOrJoinGroup(t, ctx, tier);
 
@@ -241,6 +268,35 @@ async function ensureMembership(t: SqlExecutor, ctx: AwardContext): Promise<Memb
  * performance and no placement week: a tier is a record of weeks competed, and
  * a learner who has competed in none has nothing to place them on.
  */
+/**
+ * Settle any group this learner belonged to in a week that has now closed.
+ *
+ * Bounded and cheap: a learner is in one group per week, and a group is settled
+ * once — `settled_at` is set inside the same transaction, so the second learner
+ * to arrive finds nothing to do. The `limit` is a runaway guard for a learner
+ * returning after a long absence rather than an expected case.
+ *
+ * `week_id < $2` compares ISO week ids as strings, which sort correctly because
+ * `weekIdOf` pads the week number and puts the year first — the same comparison
+ * `settleDueWeeks` makes, for the same reason.
+ */
+async function settleFinishedWeeks(t: SqlExecutor, ctx: AwardContext): Promise<void> {
+  const due = await t.query<{ group_id: string; tier: number; week_id: string }>(
+    `select g.group_id, g.tier, g.week_id
+       from league_memberships m
+       join league_groups g on g.group_id = m.group_id
+      where m.subject_id = $1
+        and m.week_id < $2
+        and g.settled_at is null
+      order by g.week_id
+      limit 8`,
+    [ctx.subjectId, ctx.weekId],
+  );
+  for (const g of due.rows) {
+    await settleGroupWithin(t, g.group_id, Number(g.tier), g.week_id);
+  }
+}
+
 async function currentTier(t: SqlExecutor, subjectId: string): Promise<number> {
   await t.query(
     `insert into league_profiles (subject_id, tier) values ($1, $2)

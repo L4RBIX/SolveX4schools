@@ -751,7 +751,22 @@ export async function POST(request: Request) {
     environment: config.environment,
     cohort: "public",
     route,
-    payload: sanitizePayload({ intervention_id: interventionId, ...payload }),
+    /* `task_ref` on every assistance row.
+     *
+     * These were keyed by episode alone, and the league's "solved without help"
+     * bonus read them that way — so a fresh episode id forgot that help had
+     * arrived, and a learner who reloaded the page was credited as unaided.
+     * The block is what the question is about; carrying it makes the answer a
+     * direct read rather than a join through `episode_opened`.
+     *
+     * `sanitizePayload` allows `task_ref` — it is in the contract's own
+     * vocabulary — and drops anything outside it, so this cannot smuggle a
+     * field past the allowlist. */
+    payload: sanitizePayload({
+      intervention_id: interventionId,
+      task_ref: `sx-${taskKind}:${target.block.id}`,
+      ...payload,
+    }),
   });
 
   /**

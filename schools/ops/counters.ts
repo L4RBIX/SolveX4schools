@@ -316,6 +316,17 @@ export const OPS_COUNTERS = [
   "auth.password_change_rate_limited",
 
   /**
+   * The scheduled route ran, or refused somebody.
+   *
+   * `cron.ran` should be exactly once a day, and its absence is the signal that
+   * matters: nothing else in the product notices that a schedule stopped.
+   * `cron.refused` should be zero — a request with no secret or the wrong one
+   * is either a misconfigured schedule or somebody who found the URL.
+   */
+  "cron.ran",
+  "cron.refused",
+
+  /**
    * An event the ingest route refused: an outcome name arriving unattested, a
    * foreign episode, or a malformed id.
    *

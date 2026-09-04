@@ -70,32 +70,72 @@ import { weekIdForAward } from "./week";
  */
 async function wasUnaided(
   t: SqlExecutor,
-  input: { subjectId: string; episodeId: string; priorFailures: number },
+  input: { subjectId: string; blockId: string; episodeId: string; priorFailures: number },
 ): Promise<boolean> {
   /* The answer was already open to them before this submission. Not "a reveal
      was returned with this response" — a learner who has seen it once has seen
      it, and a later correct answer on the same block is not unaided. */
   if (input.priorFailures >= ATTEMPTS_BEFORE_REVEAL) return false;
 
-  const r = await t.query<{ level: number | null }>(
-    /* `assistance_delivered` is written server-side by the hint route only once
-       tokens actually reached the learner, so it is proof help ARRIVED rather
-       than that it was asked for. Asking and then solving unaided before the
-       answer came back is genuinely unaided, and this predicate says so.
-
-       Scoped to the episode, because that is the unit assistance is scoped to. */
-    `select max((payload->>'level')::int) as level
-       from learning_events
-      where subject_id = $1 and episode_id = $2
-        and event_name = 'assistance_delivered'`,
-    [input.subjectId, input.episodeId],
+  /*
+   * Scoped to the BLOCK, across every episode — not to one episode.
+   *
+   * It was scoped to the episode, with a comment saying "that is the unit
+   * assistance is scoped to". True of the ladder, and the wrong unit for this
+   * question. `priorFailures` is per episode too, so both halves of "did they
+   * do this on their own" reset together the moment a new episode id appears —
+   * and a new episode id appears whenever the player mints one, which a reload
+   * does.
+   *
+   * Measured: reveal the answer under E1, then submit the same block under E2,
+   * and the solve is credited 15 XP instead of 10. Farmable on purpose, and
+   * awarded wrongly to an honest learner who simply refreshed the page — which
+   * is the half that matters more, because it corrupts the independence signal
+   * the whole league is meant to reward.
+   *
+   * "On their own" is a property of a learner and a task. It cannot be a
+   * property of a browser session.
+   *
+   * Two ways in, because `assistance_delivered` did not carry `task_ref` until
+   * now: directly by task, and through the episodes this block was opened in.
+   * The second covers rows written before the field was added.
+   *
+   * `source_trust <> 'browser'` throughout: a browser may post
+   * `assistance_delivered` into its own episode, and without the filter the
+   * cheapest way to look aided is to say you were.
+   */
+  const r = await t.query<{ level: number | null; revealed: boolean | null }>(
+    `with episodes as (
+       select distinct episode_id
+         from learning_events
+        where subject_id = $1
+          and event_name = 'episode_opened'
+          and source_trust <> 'browser'
+          and episode_id is not null
+          and split_part(payload ->> 'task_ref', ':', 2) = $2
+     )
+     select max((e.payload ->> 'level')::int)
+              filter (where e.event_name = 'assistance_delivered')          as level,
+            bool_or(e.event_name = 'solution_revealed')                     as revealed
+       from learning_events e
+      where e.subject_id = $1
+        and e.source_trust <> 'browser'
+        and e.event_name in ('assistance_delivered', 'solution_revealed')
+        and (
+          split_part(e.payload ->> 'task_ref', ':', 2) = $2
+          or e.episode_id in (select episode_id from episodes)
+        )`,
+    [input.subjectId, input.blockId],
   );
 
   const level = r.rows[0]?.level;
   const maxAssistance = level === null || level === undefined ? -1 : Number(level);
+  const revealed = r.rows[0]?.revealed === true;
 
-  /* The core's own function, with `solutionRevealed` already handled above. */
-  return independenceWeight(maxAssistance, false) >= 1;
+  /* The core's own function. `solutionRevealed` is now a real argument rather
+     than a constant false: the reveal is recorded in the ledger for the block,
+     and this is the read that makes a fresh episode unable to forget it. */
+  return independenceWeight(maxAssistance, revealed) >= 1;
 }
 
 export interface SolveCreditInput {
@@ -152,6 +192,7 @@ export async function creditSolve(
 
   const unaided = await wasUnaided(t, {
     subjectId: input.subjectId,
+    blockId: input.blockId,
     episodeId: input.episodeId,
     priorFailures: input.priorFailures,
   });

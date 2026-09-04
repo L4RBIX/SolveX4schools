@@ -125,7 +125,40 @@ async function settleOneGroup(
   tier: number,
   weekId: string,
 ): Promise<{ promoted: number; stayed: number; relegated: number }> {
-  return sql.tx(async (t) => {
+  return sql.tx(async (t) => settleGroupWithin(t, groupId, tier, weekId));
+}
+
+/**
+ * Settle one group inside a transaction the CALLER owns.
+ *
+ * ## Why this is separate from `settleOneGroup`
+ *
+ * `ensureMembership` needs it. A learner's tier for a new week is read from
+ * `league_profiles`, and that row only moves when the previous week settles —
+ * so the first award of a new week, arriving before anyone has opened /league,
+ * admitted the learner at the tier they held BEFORE the week they had just
+ * won. Reproduced on PGlite: a learner who wins W37 at tier 2 and submits at
+ * 05:10 Almaty on the Monday joins W38 at tier 2, and the later settlement
+ * writes 3 into the profile it has already been read from. The promotion was
+ * real, recorded, and had no effect on the week it was for.
+ *
+ * The fix is to settle the week that has closed before reading the tier, and
+ * that has to happen inside the award's own transaction — a nested `sql.tx`
+ * would be a second transaction that could commit while the award rolls back,
+ * or roll back while the award commits. So the body takes an executor.
+ *
+ * Everything about it is unchanged and still idempotent: every write is
+ * `on conflict do nothing`, the profile moves only for a settlement row that
+ * was genuinely new, and `settleGroup` is pure. Two learners in the same group
+ * arriving at once therefore settle it once between them.
+ */
+export async function settleGroupWithin(
+  t: SqlExecutor,
+  groupId: string,
+  tier: number,
+  weekId: string,
+): Promise<{ promoted: number; stayed: number; relegated: number }> {
+  {
     const members = await t.query<{ subject_id: string; xp: number }>(
       /* The group's members and what each of them earned in THAT week.
          A left join with coalesce rather than an inner join: a member with no
@@ -198,7 +231,7 @@ async function settleOneGroup(
     );
 
     return counts;
-  });
+  }
 }
 
 /**
