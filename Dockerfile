@@ -18,9 +18,9 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 
 # Install project dependencies with frozen lockfile for reproducible builds
-RUN --mount=type=cache,target=/root/.npm \
-  --mount=type=cache,target=/usr/local/share/.cache/yarn \
-  --mount=type=cache,target=/root/.local/share/pnpm/store \
+RUN --mount=type=cache,id=npm,target=/root/.npm \
+  --mount=type=cache,id=yarn,target=/usr/local/share/.cache/yarn \
+  --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
   if [ -f package-lock.json ]; then \
   npm ci --no-audit --no-fund; \
   elif [ -f yarn.lock ]; then \
@@ -99,6 +99,11 @@ RUN chown node:node .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# Applied on boot by schools/store/migrate.ts, which resolves them from the
+# working directory. Next traces imports, and a .sql file read at runtime is
+# not an import — without this line the app boots and every route 500s.
+COPY --from=builder --chown=node:node /app/database ./database
 
 # If you want to persist the fetch cache generated during the build so that
 # cached responses are available immediately on startup, uncomment this line:
