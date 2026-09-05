@@ -615,6 +615,70 @@ export function assertProductionConfig(): string[] {
   if (config.nova.provider === "deepseek" && !config.nova.apiKey) {
     problems.push("NOVA_PROVIDER=deepseek but DEEPSEEK_API_KEY is not set.");
   }
+  problems.push(...databaseTlsProblems(config.databaseUrl));
   problems.push(...executionProviderProblems(config.environment, config.exec));
   return problems;
+}
+
+/**
+ * The learner data on the wire, and whether anything is protecting it.
+ *
+ * ## What the driver does and does not do
+ *
+ * `PostgresExecutor` passes the connection string to `pg` and sets no `ssl`
+ * option, deliberately — a hardcoded `rejectUnauthorized: false` is how a
+ * "temporary" insecure flag becomes permanent. The consequence is that TLS is
+ * entirely a property of the URL, and `pg-connection-string` defaults an
+ * absent `sslmode` to **no TLS at all**.
+ *
+ * So a production `DATABASE_URL` with no `sslmode` sends every learner's
+ * source code, every verdict and every password hash across the network in
+ * plaintext, and nothing anywhere says so. It boots clean.
+ *
+ * ## Why this refuses at boot rather than warning
+ *
+ * The failure is invisible by construction: an unencrypted connection works
+ * perfectly. There is no moment later at which somebody finds out. A boot
+ * failure with the fix in the message is the only signal that arrives before
+ * the data does.
+ *
+ * `sslmode=no-verify` is called out separately because it is the dangerous
+ * middle: it encrypts and does not authenticate, so it stops a passive
+ * listener and not an active one, and it reads like a security setting.
+ *
+ * Exported and pure so `tests/school/production-config.test.ts` can put the
+ * whole matrix through it without a database.
+ */
+export function databaseTlsProblems(databaseUrl: string | undefined): string[] {
+  if (!databaseUrl) return [];
+
+  /* A unix socket has no network to protect. `host=/var/run/...` and a
+     `postgres:///db?host=...` form both reach the server without a wire. */
+  if (/[?&]host=%2F|[?&]host=\//.test(databaseUrl) || databaseUrl.startsWith("postgres:///")) {
+    return [];
+  }
+
+  const mode = /[?&]sslmode=([a-z-]+)/i.exec(databaseUrl)?.[1]?.toLowerCase();
+
+  if (mode === undefined) {
+    return [
+      "DATABASE_URL has no sslmode. `pg` defaults to NO TLS, so every learner's " +
+        "source code, verdict and password hash would cross the network in " +
+        "plaintext — and it would work perfectly, so nothing would ever say so. " +
+        "Append `?sslmode=verify-full` (preferred) or `?sslmode=require`.",
+    ];
+  }
+  if (mode === "disable" || mode === "allow" || mode === "prefer") {
+    return [
+      `DATABASE_URL sets sslmode=${mode}, which permits an unencrypted ` +
+        "connection to a database of children's work. Use `verify-full`.",
+    ];
+  }
+  if (mode === "no-verify") {
+    /* Not a boot failure: it DOES encrypt, and a managed provider with a
+       private CA is a real reason to be here. But it authenticates nothing, so
+       it must be a decision somebody made rather than a default nobody saw. */
+    return [];
+  }
+  return [];
 }

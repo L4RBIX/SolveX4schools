@@ -443,26 +443,111 @@ describe("find_bug tasks have a real, reproducible defect", () => {
   }
 });
 
+/**
+ * What each declared breaking input actually does to the program.
+ *
+ * ## Why this table exists
+ *
+ * The gate here was `expect(got.ok === false || got.out.length >= 0).toBe(true)`
+ * — `out.length >= 0` is true of every string, so the assertion was true of
+ * every possible outcome. Fourteen blocks and forty-one inputs were "verified"
+ * by a condition that cannot fail. The only way it ever went red was by TIMING
+ * OUT, on the two blocks whose breaking input is an infinite loop and where
+ * timing out is the correct answer.
+ *
+ * ## Why a table rather than a rule
+ *
+ * A `test_case` block's code is buggy by construction and the block has no
+ * reference solution — there is nothing to compare an output against, so
+ * "produces the wrong answer" is the author's claim and no rule can check it.
+ * What CAN be checked is that the behaviour they described is still the
+ * behaviour: the observed outcome of every declared input, frozen.
+ *
+ * That makes the gate real in the direction that matters. Edit the code, edit
+ * an input, or change the compiler, and a break that stops happening — a
+ * timeout that becomes a clean run, a crash that becomes an answer — fails
+ * here by name. Which is the failure the audit found: a task whose "breaking"
+ * input no longer breaks anything, marked correct forever.
+ *
+ * `hangs` is asserted as a timeout, which is what an infinite loop IS. Those
+ * two blocks also get a short per-execution limit: waiting ten seconds to
+ * observe a loop that never ends is ten seconds of nothing, and doing it five
+ * times inside one test is what made this file flaky under load.
+ */
+const BREAKING_BEHAVIOUR: Record<string, ("ok" | "runtime_error" | "timeout" | "output_limit")[]> = {
+  /* `cin >> b` on `x` fails; since C++11 it ZEROES b, so 3 + 0 prints 3 and
+     nothing says the input was rejected. */
+  "m1.l2.b4": ["ok"],
+  /* An even/odd test that answers "no" for a number that is even. */
+  "m1.l7.b2": ["ok"],
+  /* `while (n != 1)` with integer division: 0 and every negative never reach 1. */
+  "m2.l3.b5": ["timeout", "timeout"],
+  /* The same shape one lesson later, over an array. */
+  "m2.l9.b6": ["timeout", "timeout", "timeout"],
+  "m3.l7.b5": ["ok", "ok", "ok"],
+  "m4.l2.b5": ["ok", "ok", "ok"],
+  "m5.l2.b8": ["ok", "ok"],
+  "m5.l6.b7": ["ok", "ok", "ok"],
+  "m6.l2.b7": ["ok"],
+  "m7.l5.b9": ["ok", "ok", "ok"],
+  "m8.l2.b3": ["ok", "ok", "ok"],
+  "m8.l2.b5": ["ok", "ok", "ok"],
+  "m8.as.b3": ["ok", "ok", "ok", "ok", "ok"],
+  "m9.l2.b6": ["ok", "ok", "ok", "ok"],
+};
+
+/** Blocks whose break IS non-termination. Ten seconds proves nothing more. */
+const HANG_TIMEOUT_MS = 1_500;
+
 describe("test_case tasks name an input that genuinely breaks the program", () => {
   const cases = EVERY_BLOCK.filter((b) => b.block.type === "test_case");
 
+  it("has an expectation for every test_case block in the programme", () => {
+    /* The floor. Without it, adding a block would silently escape the table and
+       the suite would go green having checked one fewer thing than it says. */
+    const ids = cases.map((c) => c.block.id).sort();
+    expect(ids.length, "the walk must find the blocks").toBeGreaterThan(10);
+    expect(ids, "a test_case block with no recorded behaviour").toEqual(
+      Object.keys(BREAKING_BEHAVIOUR).sort(),
+    );
+  });
+
   for (const { where, block } of cases) {
     if (block.type !== "test_case") continue;
+    const expected = BREAKING_BEHAVIOUR[block.id];
+    const hangs = expected?.includes("timeout") === true;
+
     it.runIf(haveCompiler)(
       `${block.id} (${where})`,
       () => {
         expect(block.breakingInputs.length).toBeGreaterThan(0);
-        for (const input of block.breakingInputs) {
-          const got = run(block.code, input);
-          /* Broken means it crashes OR produces something the prompt calls wrong.
-             A crash is checkable here; a wrong-but-running answer is the author's
-             claim and is covered by review, so this asserts the weaker, provable
-             half rather than pretending to check the stronger one. */
-          expect(
-            got.ok === false || got.out.length >= 0,
-            `${block.id}: ${JSON.stringify(input)} did not break the program`,
-          ).toBe(true);
+        expect(expected, `${block.id} has no recorded behaviour`).toBeDefined();
+        expect(
+          expected!.length,
+          `${block.id} declares ${block.breakingInputs.length} inputs and records ${expected!.length}`,
+        ).toBe(block.breakingInputs.length);
+
+        const built = build(block.code, block.id);
+        if (!built.ok) {
+          /* The block's own snippet must compile. It is the program the learner
+             is asked to break, so a snippet that does not build is a task that
+             cannot be attempted — and the old gate could not tell. */
+          expect(`${block.id} does not compile:\n${built.diagnostics}`).toBe("");
+          return;
         }
+
+        block.breakingInputs.forEach((input, i) => {
+          const stdin = input.endsWith("\n") ? input : `${input}\n`;
+          const r = runCase(built.binary, stdin, hangs ? HANG_TIMEOUT_MS : undefined);
+          expect(
+            r.status,
+            `${block.id}: ${JSON.stringify(input)} ${
+              expected![i] === "timeout"
+                ? "no longer hangs — the break this task teaches has been fixed away"
+                : `behaves differently now (recorded ${expected![i]}, observed ${r.status})`
+            }`,
+          ).toBe(expected![i]);
+        });
       },
       SPAWN_TIMEOUT_MS,
     );

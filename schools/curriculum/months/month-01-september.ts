@@ -1316,11 +1316,25 @@ const l8Blocks: LessonBlock[] = [
     },
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b, x, y;\n    cin >> a >> b >> x >> y;\n    if ((a <= x && b <= y) || (a <= y && b <= x)) {\n        cout << "yes";\n    } else {\n        cout << "no";\n    }\n    return 0;\n}',
+    /*
+     * A case where the AREAS fit and the wardrobe does not.
+     *
+     * `if (a * b <= x * y)` passed all four of the cases below — 10≤18 yes,
+     * 10≤18 yes, 49≤48 no, 9≤9 yes — so the graded task accepted a solution
+     * that never considers orientation at all. The very next block, `m1.l8.b3`,
+     * asks the learner to explain why BOTH orientations have to be checked;
+     * this one was marking them correct for not checking either.
+     *
+     * `2 8 4 4`: area 16 ≤ 16, so the heuristic says yes. Neither orientation
+     * fits — 8 > 4 both ways — so the answer is no. Nothing that ignores
+     * orientation can pass it, and the reference solution does.
+     */
     cases: [
       { input: "2 5 3 6", expectedOutput: "yes" },
       { input: "5 2 3 6", expectedOutput: "yes" },
       { input: "7 7 6 8", expectedOutput: "no", hidden: true },
       { input: "3 3 3 3", expectedOutput: "yes", hidden: true },
+      { input: "2 8 4 4", expectedOutput: "no", hidden: true },
     ],
   },
   {
@@ -1832,10 +1846,25 @@ const practiceSpecs: PracticeSpec[] = [
     skills: ["cond.if_elif_else", "compare.operators"],
     solution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b, c;\n    cin >> a >> b >> c;\n    if (a == b) {\n        cout << c;\n    } else if (a == c) {\n        cout << b;\n    } else {\n        cout << a;\n    }\n    return 0;\n}',
+    /*
+     * The odd one out has to stop being 7.
+     *
+     * All three cases expected `7`, so `int main(){ std::cout << 7; }` passed
+     * every one of them — a program that reads nothing, compares nothing, and
+     * demonstrates neither skill this task credits (`cond.if_elif_else`,
+     * `compare.operators`). Measured: 3/3.
+     *
+     * Two more, and each kills a different wrong idea. `9 9 4` breaks the
+     * constant and also breaks "print the third number", which the first three
+     * cases could not tell from the real solution. `4 9 9` breaks "print the
+     * largest", which passes all of 5 5 7, 5 7 5 and 7 5 5.
+     */
     cases: [
       { input: "5 5 7", expectedOutput: "7" },
       { input: "5 7 5", expectedOutput: "7", hidden: true },
       { input: "7 5 5", expectedOutput: "7", hidden: true },
+      { input: "9 9 4", expectedOutput: "4", hidden: true },
+      { input: "4 9 9", expectedOutput: "4", hidden: true },
     ],
     tracks: ["core", "advanced"],
   },

@@ -57,6 +57,55 @@ export async function migrate(
     )
   `);
 
+  /*
+   * One migrator at a time, across every process.
+   *
+   * Migrations run on BOOT, so a rolling deploy starts several replicas at
+   * once and each of them reads `schema_migrations` before any of them has
+   * written to it. Both pass the "already done" check for the same file, both
+   * run it, and the loser fails on a unique index or a primary key — a 500 for
+   * whoever's request woke that instance, and a retry that happens to work.
+   * Nothing was corrupted; a class was told the product was broken.
+   *
+   * `pg_advisory_lock` is a session-level lock rather than a transaction one,
+   * because the loop below runs each migration in its own transaction and a
+   * transaction-scoped lock would be released after the first file. It is
+   * released in the `finally` — and if a process dies holding it, Postgres
+   * frees it when the session ends, which is the property a lease table does
+   * not have for free.
+   *
+   * The key is an arbitrary constant, chosen once. Advisory locks share one
+   * namespace per database, so it is written down here rather than derived
+   * from anything that could collide with a future one.
+   *
+   * PGlite has no advisory locks and needs none: it is one process by
+   * construction and its own single-writer lock is the same guarantee. A
+   * failure here is therefore ignored rather than fatal — a migrator that
+   * refused to run because it could not take a lock it does not need would be
+   * a worse outcome than the race it is preventing.
+   */
+  const LOCK_KEY = 4_190_216_017;
+  let locked = false;
+  try {
+    await sql.query("select pg_advisory_lock($1)", [LOCK_KEY]);
+    locked = true;
+  } catch {
+    /* No advisory locks here. See above. */
+  }
+
+  try {
+    return await applyPending(sql);
+  } finally {
+    if (locked) {
+      await sql.query("select pg_advisory_unlock($1)", [LOCK_KEY]).catch(() => {});
+    }
+  }
+}
+
+/** The chain itself, with the lock already held. */
+async function applyPending(
+  sql: SqlExecutor,
+): Promise<{ applied: string[]; skipped: string[] }> {
   const done = new Set(
     (await sql.query<{ filename: string }>("select filename from schema_migrations")).rows.map(
       (r) => r.filename,

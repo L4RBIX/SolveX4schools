@@ -138,6 +138,18 @@ export interface SchoolLessonProps {
      */
     why?: string | null;
     /**
+     * Per-visible-case feedback, when the judge ran a code block.
+     *
+     * The server sends visible cases only — a hidden case's input and expected
+     * output are the answer key, and they stay a count. See the submit route.
+     */
+    visibleCases?: {
+      input: string;
+      expected: string;
+      actual: string;
+      passed: boolean;
+    }[] | null;
+    /**
      * Whether this attempt reached the ledger.
      *
      * `false` means the answer WAS graded on the server and was NOT recorded.
@@ -285,6 +297,24 @@ interface BlockState {
   reveal?: BlockReveal;
   /** The author's explanation of this specific wrong answer, if there is one. */
   why?: string;
+  /**
+   * What each VISIBLE case did, on a code block the judge ran.
+   *
+   * A wrong code verdict said «Әзірге дұрыс емес» and nothing else — no input,
+   * no expected output, and not even the learner's own output — on a screen
+   * whose editor had just been greyed out. A fourteen-year-old who printed
+   * `55` for `7 * 8` had nothing to compare and nothing to do. This is the
+   * hinge the loop was missing.
+   *
+   * Hidden cases are never here. Their pairing of input to output IS the
+   * measurement; visible ones are already on the page.
+   */
+  visibleCases?: {
+    input: string;
+    expected: string;
+    actual: string;
+    passed: boolean;
+  }[];
   /**
    * What the card must say about this block's own condition, beyond its verdict.
    *
@@ -789,6 +819,7 @@ export function SchoolLesson({
             pending: false,
             reveal: persisted ? server.reveal : undefined,
             why: persisted ? (server.why ?? undefined) : undefined,
+            visibleCases: persisted ? (server.visibleCases ?? undefined) : undefined,
             note: !persisted
               ? "not_saved"
               : server.unmeasuredReason === "judge_unavailable"
@@ -1134,6 +1165,11 @@ export function SchoolLesson({
                       answer={(states[b.id] ?? FRESH).answer}
                       reveal={(states[b.id] ?? FRESH).reveal}
                       note={(states[b.id] ?? FRESH).note}
+                      /* What the judge saw on each visible case, so a wrong
+                         verdict shows the learner their own output beside the
+                         expected one instead of one sentence. Server-sent;
+                         hidden cases are never in it. */
+                      caseResults={(states[b.id] ?? FRESH).visibleCases}
                       /* Restored from the server, with no answer to show. The
                          card says so rather than leaving a verdict-coloured
                          border around an empty editor. */

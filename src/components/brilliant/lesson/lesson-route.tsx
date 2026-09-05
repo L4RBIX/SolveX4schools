@@ -192,6 +192,13 @@ export function LessonRoute({
           /* Passed straight through. The player decides what to show; the
              server decides what is true. */
           saved?: boolean;
+          /* Visible cases only — the server withholds every hidden pairing. */
+          visibleCases?: {
+            input: string;
+            expected: string;
+            actual: string;
+            passed: boolean;
+          }[] | null;
           unmeasuredReason?: "judge_unavailable" | "not_machine_graded" | "no_trusted_judge" | null;
         };
       } catch {

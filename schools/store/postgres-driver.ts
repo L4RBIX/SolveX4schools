@@ -98,6 +98,35 @@ export class PostgresExecutor implements SqlExecutor {
          URL; otherwise leave TLS to the connection string rather than silently
          disabling verification here, which is how a "temporary" insecure flag
          becomes permanent. */
+
+      /*
+       * A ceiling on any single statement.
+       *
+       * There was none. `/api/health` runs four unbounded scans of
+       * `learning_events` for an anonymous caller, the events route accepts a
+       * hundred rows per POST with no cap on POSTs, and the pool is ten
+       * connections — so one pathological query could hold a connection for as
+       * long as it liked while a class waited for one.
+       *
+       * Thirty seconds, which is far above every measured statement in the
+       * product (the slowest, the teacher overview, is 39 ms) and far below the
+       * point at which a learner has given up. A statement that hits it fails
+       * with a Postgres error the route turns into `unmeasured`, which is the
+       * honest outcome for a database that could not answer.
+       *
+       * Set on the pool rather than per query so a statement added later
+       * inherits it — the opposite of the pattern where every new call site is
+       * a new chance to forget.
+       */
+      statement_timeout: 30_000,
+      /*
+       * Who is connected, in the database's own view.
+       *
+       * `pg_stat_activity.application_name` is how an operator tells this
+       * app's connections from a migration script's or a psql session's while
+       * something is wrong. It costs nothing and it is unavailable afterwards.
+       */
+      application_name: "solvex4schools",
     });
 
     /* A pool emits `error` for a connection that dies while idle. Unhandled, it

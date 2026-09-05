@@ -134,11 +134,24 @@ export function compileReference(source: string, label = "ref"): CompiledReferen
 }
 
 /** Run a built reference against one case's stdin. */
-export function runCase(binary: string, stdin: string): CaseRun {
+export function runCase(binary: string, stdin: string, timeoutMs?: number): CaseRun {
   const res = spawnSync(binary, [], {
     input: stdin,
     encoding: "utf8",
-    timeout: HARNESS_LIMITS.timeoutMs,
+    /*
+     * `timeoutMs` overrides the harness ceiling, and there is one caller.
+     *
+     * `content-execution` verifies that two blocks' declared breaking inputs
+     * make the program loop forever. Ten seconds proves nothing that one and a
+     * half does, and five of them inside one test is what made that file time
+     * out under a saturated machine and report a curriculum failure that was
+     * nothing of the kind.
+     *
+     * It is an override rather than a lowered default because everywhere else
+     * the ceiling is the QUESTION — "is this reference solution fast enough" —
+     * and shortening it there would fail a correct program on a busy laptop.
+     */
+    timeout: timeoutMs ?? HARNESS_LIMITS.timeoutMs,
     maxBuffer: HARNESS_LIMITS.maxOutputBytes,
   });
 

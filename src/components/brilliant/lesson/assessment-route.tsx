@@ -144,6 +144,12 @@ export function AssessmentRoute({
              matter more, not less: an assessment block that quietly settled
              without being stored is a monthly result that never happened. */
           saved?: boolean;
+          visibleCases?: {
+            input: string;
+            expected: string;
+            actual: string;
+            passed: boolean;
+          }[] | null;
           unmeasuredReason?: "judge_unavailable" | "not_machine_graded" | "no_trusted_judge" | null;
         };
       } catch {

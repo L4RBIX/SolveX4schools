@@ -100,6 +100,18 @@ export interface BlockViewProps<T extends PublicBlock = PublicBlock> {
   /** Why nothing was measured or nothing was kept. Never derived on the client. */
   note?: BlockNote;
   /**
+   * What each VISIBLE case did when the judge ran this learner's program.
+   *
+   * A wrong code verdict used to be «Әзірге дұрыс емес» and nothing else — no
+   * input, no expected output, and not even the learner's own output — on a
+   * screen whose editor had just been greyed out. A fourteen-year-old who
+   * printed `55` for `7 * 8` had nothing to compare and nothing to do.
+   *
+   * From the server, never derived here, and visible cases only: a hidden
+   * case's pairing of input to output IS the measurement, and it stays a count.
+   */
+  caseResults?: { input: string; expected: string; actual: string; passed: boolean }[];
+  /**
    * This block settled in an earlier session and was read back from the server.
    *
    * The verdict, the reveal and the justification all survive a refresh. The
@@ -813,6 +825,7 @@ function VerifyView({
   lessonId,
   monthIndex,
   active,
+  caseResults,
   trustedProviderConfigured = true,
   onRun,
   onRunResult,
@@ -883,6 +896,7 @@ function VerifyView({
         visible={block.visibleCases}
         hidden={block.hiddenCaseCount}
         locale={locale}
+        results={caseResults}
       />
 
       {/* The monthly check runs real cases through the same judge a practice
@@ -903,30 +917,60 @@ function CaseTable({
   visible,
   hidden,
   locale,
+  results,
 }: {
   visible: { input: string; expectedOutput: string }[];
   hidden: number;
   locale: Locale;
+  /**
+   * What the learner's own program printed, once it has been run.
+   *
+   * Matched to the visible cases by INPUT rather than by index: the server
+   * caps how many it returns, and an index match would put one case's output
+   * beside another's expectation — which is worse than showing nothing.
+   */
+  results?: { input: string; expected: string; actual: string; passed: boolean }[];
 }) {
   if (!visible.length && hidden === 0) return null;
+  const byInput = new Map((results ?? []).map((r) => [r.input.trim(), r]));
+  const anyResult = byInput.size > 0;
+
   return (
     <div className="w-full rounded-[12px] border-2 border-b-fg/10 bg-b-fg/[0.03] p-4">
       {visible.length ? (
         <>
-          <p className="mb-3 text-[14px] leading-5 text-b-fg/60">{t(L.examples, locale)}</p>
+          <p className="mb-3 text-[14px] leading-5 text-b-fg/60">
+            {t(anyResult ? L.examplesWithYours : L.examples, locale)}
+          </p>
           <div className="flex flex-col gap-2">
-            {visible.map((c, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 font-b-mono text-[15px]"
-              >
-                <span className="overflow-x-auto whitespace-pre text-b-fg/70">{c.input}</span>
-                <span aria-hidden="true" className="text-b-fg/30">→</span>
-                <span className="overflow-x-auto whitespace-pre text-b-green-2">
-                  {c.expectedOutput}
-                </span>
-              </div>
-            ))}
+            {visible.map((c, i) => {
+              const got = byInput.get(c.input.trim());
+              return (
+                <div key={i} className="flex flex-col gap-1">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 font-b-mono text-[15px]">
+                    <span className="overflow-x-auto whitespace-pre text-b-fg/70">{c.input}</span>
+                    <span aria-hidden="true" className="text-b-fg/30">→</span>
+                    <span className="overflow-x-auto whitespace-pre text-b-green-2">
+                      {c.expectedOutput}
+                    </span>
+                  </div>
+                  {/* The learner's own output, only where it DIFFERS. Repeating
+                      a correct answer under itself is noise; the whole value of
+                      this row is the comparison on the case that failed. */}
+                  {got && !got.passed ? (
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 font-b-mono text-[15px]">
+                      <span className="text-[13px] leading-5 text-b-fg/40">
+                        {t(L.yourOutput, locale)}
+                      </span>
+                      <span aria-hidden="true" className="text-b-fg/30">→</span>
+                      <span className="overflow-x-auto whitespace-pre text-b-warn-edge">
+                        {got.actual.trim().length > 0 ? got.actual : t(L.yourOutputEmpty, locale)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </>
       ) : null}
@@ -979,6 +1023,7 @@ function CodeTaskView({
   trustedProviderConfigured = true,
   onRun,
   onRunResult,
+  caseResults,
 }: BlockViewProps) {
   if (
     block.type !== "write_code" &&
@@ -991,6 +1036,26 @@ function CodeTaskView({
   const starter = block.starter ?? block.code ?? "";
   const source = answer.kind === "text" ? answer.value : starter;
 
+  /*
+   * A wrong verdict does not take the editor away.
+   *
+   * `locked(verdict)` is `verdict !== "unchecked"`, which greyed the editor and
+   * disabled Run the moment a Check came back wrong — so the one screen where a
+   * learner most needs to change something and try it was the one screen where
+   * they could not. The measured session: printed `55` for `7 * 8`, told «Әзірге
+   * дұрыс емес… «Көмек» түймесін бас», editor grey.
+   *
+   * A CORRECT verdict still locks. That work is settled, the answer is in the
+   * ledger, and editing it afterwards would produce a screen that disagrees
+   * with the record. `unmeasured` locks too: nothing was measured, so nothing
+   * has been decided, and the block behaves as it did.
+   *
+   * Only this block type. A quiz that unlocked on a wrong answer would let a
+   * learner walk the options, and the reveal policy — three attempts, then the
+   * answer — is what models that instead.
+   */
+  const editorLocked = locked(verdict) && verdict !== "wrong" && verdict !== "partial";
+
   return (
     <>
       <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
@@ -998,7 +1063,7 @@ function CodeTaskView({
       <AnswerArea
         value={source}
         onChange={(v) => onAnswer({ kind: "text", value: v })}
-        verdict={verdict}
+        verdict={editorLocked ? verdict : "unchecked"}
         rows={Math.max(6, source.split("\n").length + 2)}
         mono
       />
@@ -1015,7 +1080,7 @@ function CodeTaskView({
         source={source}
         visibleCases={block.visibleCases}
         locale={locale}
-        locked={locked(verdict)}
+        locked={editorLocked}
         active={active === true}
         trustedProviderConfigured={trustedProviderConfigured}
         onRun={onRun}
@@ -1026,6 +1091,7 @@ function CodeTaskView({
         visible={block.visibleCases}
         hidden={block.hiddenCaseCount}
         locale={locale}
+        results={caseResults}
       />
 
       {/* Honest about the sandbox rather than faking a pass — and specific about

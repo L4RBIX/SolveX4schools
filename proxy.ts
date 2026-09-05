@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { checkSameSite, requestHost } from "@schools/auth/same-site";
 
 /**
  * Identity, established once per browser before any route runs.
@@ -30,6 +31,39 @@ const COOKIE = "sx_anon";
 const MAX_AGE = 400 * 24 * 60 * 60;
 
 export function proxy(request: NextRequest) {
+  /*
+   * Cross-site writes, refused in one place.
+   *
+   * The product relied on `SameSite=Lax` alone. Lax is a real defence and it is
+   * one browser's policy applied by one browser, with no server-side statement
+   * behind it — measured against production, `PUT /api/preferences` with
+   * `Origin: https://evil.example` answered 200. Nothing was written for
+   * anybody, because no session came with it; what it showed is that the server
+   * had no opinion.
+   *
+   * Here rather than in each route, for the reason the teacher guard is one
+   * helper: twenty-nine route handlers is twenty-nine chances for the thirtieth
+   * to be missing it. The middleware already runs on everything but static
+   * assets.
+   *
+   * Only `/api/*`, and only the verbs that change something. A page navigation
+   * from another site is a link, and refusing links is not a security control.
+   * A request carrying neither `Sec-Fetch-Site` nor `Origin` is allowed —
+   * `curl`, a runbook, an uptime probe and Vercel Cron all send neither, and a
+   * browser always sends at least one. See `checkSameSite`.
+   */
+  const method = request.method.toUpperCase();
+  const mutating = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+  if (mutating && request.nextUrl.pathname.startsWith("/api/")) {
+    const verdict = checkSameSite(request.headers, requestHost(request.headers));
+    if (!verdict.ok) {
+      /* 403 with no detail. Which of the two signals refused it is our
+         business, and a caller that cannot construct a same-site request does
+         not become able to by being told which header was wrong. */
+      return NextResponse.json({ error: "cross_site_request" }, { status: 403 });
+    }
+  }
+
   const existing = request.cookies.get(COOKIE)?.value;
   if (existing && isUuid(existing)) return NextResponse.next();
 

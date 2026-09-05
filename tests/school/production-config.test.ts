@@ -95,7 +95,15 @@ describe("assertProductionConfig calls it", () => {
     vi.resetModules();
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("LEARNING_ATTESTATION_SECRET", "x".repeat(64));
-    vi.stubEnv("DATABASE_URL", "postgres://example.invalid/not-a-real-database");
+    /* `?sslmode=verify-full`, because the fixture's whole claim is that the
+       judge is the ONLY fault. A production URL with no sslmode is now a boot
+       failure of its own — `pg` defaults to no TLS — so leaving it off here
+       would make these two cases report a second problem and stop being about
+       the judge. See `databaseTlsProblems`. */
+    vi.stubEnv(
+      "DATABASE_URL",
+      "postgres://example.invalid/not-a-real-database?sslmode=verify-full",
+    );
     vi.stubEnv("NOVA_PROVIDER", "echo");
     for (const [k, v] of Object.entries(vars)) vi.stubEnv(k, v);
     const { assertProductionConfig } = await import("../../schools/config");
@@ -114,5 +122,59 @@ describe("assertProductionConfig calls it", () => {
       PISTON_URL: "http://127.0.0.1:2000",
     });
     expect(problems).toEqual([]);
+  });
+});
+
+describe("the database connection is encrypted, or the app does not start", () => {
+  /*
+   * `PostgresExecutor` sets no `ssl` option, deliberately — a hardcoded
+   * `rejectUnauthorized: false` is how a temporary insecure flag becomes
+   * permanent. So TLS is entirely a property of the URL, and
+   * `pg-connection-string` defaults an absent `sslmode` to NO TLS.
+   *
+   * A production `DATABASE_URL` with no sslmode therefore sends every learner's
+   * source code, every verdict and every password hash across the network in
+   * plaintext — and works perfectly, so nothing ever says so. That is why this
+   * is a boot failure and not a warning: there is no later moment at which
+   * somebody finds out.
+   *
+   * Pure, so the whole matrix runs without a module reload or a database.
+   */
+  it.each([
+    ["postgres://u:p@db.example.com/app", "no sslmode at all"],
+    ["postgres://u:p@db.example.com/app?sslmode=disable", "explicitly off"],
+    ["postgres://u:p@db.example.com/app?sslmode=allow", "off unless the server insists"],
+    ["postgres://u:p@db.example.com/app?sslmode=prefer", "off if the server does not offer it"],
+  ])("refuses %s — %s", async (url) => {
+    const { databaseTlsProblems } = await import("../../schools/config");
+    const problems = databaseTlsProblems(url);
+    expect(problems.length, `${url} was accepted`).toBe(1);
+    expect(problems[0]).toMatch(/sslmode/);
+  });
+
+  it.each([
+    ["postgres://u:p@db.example.com/app?sslmode=verify-full", "verified"],
+    ["postgres://u:p@db.example.com/app?sslmode=require", "encrypted"],
+    ["postgres://u:p@db.example.com/app?sslmode=verify-ca", "verified against a CA"],
+    [
+      "postgres://u:p@db.example.com/app?sslmode=no-verify",
+      "encrypted but unauthenticated — a real managed-provider case, and a decision",
+    ],
+  ])("accepts %s — %s", async (url) => {
+    const { databaseTlsProblems } = await import("../../schools/config");
+    expect(databaseTlsProblems(url)).toEqual([]);
+  });
+
+  it("says nothing about a unix socket, which has no wire", async () => {
+    const { databaseTlsProblems } = await import("../../schools/config");
+    expect(databaseTlsProblems("postgres:///app?host=/var/run/postgresql")).toEqual([]);
+    expect(databaseTlsProblems("postgres://u@/app?host=%2Fvar%2Frun%2Fpostgresql")).toEqual([]);
+  });
+
+  it("says nothing when there is no DATABASE_URL", async () => {
+    /* Development on PGlite. The check is about a network connection that
+       exists, not about insisting one does. */
+    const { databaseTlsProblems } = await import("../../schools/config");
+    expect(databaseTlsProblems(undefined)).toEqual([]);
   });
 });

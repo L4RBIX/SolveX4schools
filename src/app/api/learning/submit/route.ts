@@ -86,6 +86,17 @@ export const runtime = "nodejs";
  */
 export const maxDuration = 60;
 
+/**
+ * How much per-case feedback a wrong verdict carries.
+ *
+ * Four cases and 400 characters each. The ceiling is about the RESPONSE — a
+ * block with eighteen visible cases would otherwise put its whole fixture in
+ * every reply — and about the screen: a learner comparing more than about four
+ * examples is reading a table rather than debugging.
+ */
+const MAX_VISIBLE_CASE_FEEDBACK = 4;
+const MAX_CASE_TEXT = 400;
+
 interface SubmitBody {
   blockId?: string;
   episodeId?: string;
@@ -471,6 +482,10 @@ export async function POST(request: Request) {
      broken" are different things to say to a fourteen-year-old, and only one
      of them is true. */
   let caseSummary: { passed: number; total: number } | null = null;
+  /** Per-visible-case feedback. Never a hidden case — see where it is built. */
+  let visibleCases:
+    | { input: string; expected: string; actual: string; passed: boolean; status: string }[]
+    | null = null;
   /* WHY the verdict is `unknown`, when it is.
    *
    * `unknown` already meant two completely different things and the learner was
@@ -560,6 +575,36 @@ export async function POST(request: Request) {
         if (!infrastructureFailed && results.length > 0) {
           const passed = results.filter((r) => r.passed).length;
           caseSummary = { passed, total: results.length };
+          /*
+           * The VISIBLE cases, with what their program actually printed.
+           *
+           * A wrong code verdict said «Әзірге дұрыс емес» and nothing else —
+           * no input, no expected output, and not even the learner's own
+           * output. A fourteen-year-old who printed `55` for `7 * 8` was told
+           * they were wrong and shown nothing to compare, on a screen whose
+           * editor had just been greyed out. There is no way to debug from
+           * that, and the loop the whole lesson is built on has no hinge.
+           *
+           * `hidden !== true` is the whole of the safety argument: a visible
+           * case's input and expected output are already in the page props —
+           * `public.ts` sends them, the block renders them — so returning them
+           * beside the run adds nothing a learner could not already read. A
+           * hidden case's pairing is the measurement, and it stays a count.
+           *
+           * `actual` is their own program's output, which is theirs. Truncated
+           * because a runaway loop prints megabytes and the first line is where
+           * the answer is.
+           */
+          visibleCases = results
+            .filter((r) => !r.hidden)
+            .slice(0, MAX_VISIBLE_CASE_FEEDBACK)
+            .map((r) => ({
+              input: r.input.slice(0, MAX_CASE_TEXT),
+              expected: r.expected.slice(0, MAX_CASE_TEXT),
+              actual: r.actual.slice(0, MAX_CASE_TEXT),
+              passed: r.passed,
+              status: r.status,
+            }));
           const graded = checkCodeResult(passed, results.length);
           outcome = {
             ...outcome,
@@ -949,6 +994,10 @@ export async function POST(request: Request) {
     why: why ?? null,
     episodeId,
     cases: caseSummary,
+    /* What each VISIBLE case did, so a wrong verdict is something a learner can
+       act on rather than a sentence. Hidden cases are in `cases` as a count and
+       nowhere else. Null when nothing ran. */
+    visibleCases,
     /* Whether this attempt reached the ledger. False means the answer was
        graded and NOT recorded, and the client must not present it as settled. */
     saved: true,

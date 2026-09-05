@@ -396,6 +396,25 @@ export const L = {
   writeAnswer: { kk: "Жауабыңды жаз", ru: "Напиши ответ" },
   yourTest: { kk: "Сенің тексеру мысалың", ru: "Твой тест" },
   examples: { kk: "Мысалдар", ru: "Примеры" },
+  /**
+   * The same table, once the learner's own program has run against it.
+   *
+   * A different heading because it is a different thing to look at: the
+   * examples were a specification, and this is a comparison.
+   */
+  examplesWithYours: {
+    kk: "Мысалдар және сенің бағдарламаңның нәтижесі",
+    ru: "Примеры и результат твоей программы",
+  },
+  yourOutput: { kk: "сенде шықты", ru: "у тебя получилось" },
+  /**
+   * A program that printed nothing.
+   *
+   * An empty cell reads as "the platform did not tell me", and printing
+   * nothing is a specific and common bug — a missing `cout`, or a `cin` that
+   * consumed the whole line. It is worth a word.
+   */
+  yourOutputEmpty: { kk: "(ештеңе шықпады)", ru: "(ничего не вывелось)" },
   hiddenTests: (n: number): Localized => ({
     kk: `Тағы ${n} жасырын тексеру бар — үлгіні көшіру жеткіліксіз`,
     ru: `Ещё ${n} ${pluralRu(n, "скрытый тест", "скрытых теста", "скрытых тестов")} — скопировать пример недостаточно`,
