@@ -233,6 +233,43 @@ class Judge0Failure extends Error {
   }
 }
 
+/**
+ * The judge's own shell, removed from what a learner reads.
+ *
+ * ## Measured, live, on 2026-09-05
+ *
+ * `int main(){ int a = 17, b = 0; std::cout << a / b; }` came back with
+ *
+ *     run.sh: line 1:     3 Floating point exception(core dumped) ./a.out
+ *
+ * on `stderr`. This suite used to assert that field was EMPTY — it was, and
+ * Judge0's sandbox has since started capturing the shell's own job-control
+ * message. The verdict is right either way; the text is not ours and it is not
+ * addressed to a fourteen-year-old. `run.sh`, `./a.out`, a PID and
+ * "(core dumped)" are facts about a vendor's container, and the product's rule
+ * for the browser runtime — no host paths, no implementation detail — cannot
+ * stop being the rule because the sentence arrived over HTTP instead.
+ *
+ * What survives is the CAUSE: `Floating point exception`, which is the thing a
+ * learner can act on and the thing a teacher would say out loud. Anything the
+ * program itself wrote to `cerr` is untouched — it is on its own lines, and
+ * only lines with the shell's shape are rewritten.
+ */
+export function sanitizeJudgeStderr(stderr: string): string {
+  return stderr
+    .split("\n")
+    .map((line) => {
+      /* `run.sh: line 1:     3 Floating point exception(core dumped) ./a.out` */
+      const shell = /^\s*run\.sh:\s*line\s+\d+:\s*\d*\s*(.+?)\s*(?:\(core dumped\))?\s*(?:\.\/\S+)?\s*$/.exec(
+        line,
+      );
+      if (shell) return shell[1]!.trim();
+      return line;
+    })
+    .join("\n")
+    .replace(/\s+$/u, "");
+}
+
 /* -------------------------------------------------------------------------- */
 /* The process-wide concurrency gate                                          */
 /* -------------------------------------------------------------------------- */
@@ -1042,7 +1079,9 @@ export class Judge0RapidApiProvider implements CodeExecutionProvider {
 
     const base = {
       stdout: out.stdout,
-      stderr: out.stderr,
+      /* The judge's shell is not the learner's error. See
+         `sanitizeJudgeStderr` — measured live, not assumed. */
+      stderr: sanitizeJudgeStderr(out.stderr),
       exitCode: typeof submission.exit_code === "number" ? submission.exit_code : null,
       /* The round trip, as every other provider reports it — deliberately NOT
          Judge0's `time`, which is the learner's CPU seconds. A field that means

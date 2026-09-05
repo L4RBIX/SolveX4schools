@@ -387,3 +387,41 @@ describe("the status a metered judge needed", () => {
     expect(isLearnerEvidence("time_limit_exceeded")).toBe(true);
   });
 });
+
+describe("the judge's shell is not the learner's error", () => {
+  /**
+   * Measured live on 2026-09-05: integer division by zero came back with
+   *
+   *     run.sh: line 1:     3 Floating point exception(core dumped) ./a.out
+   *
+   * on stderr, where the conformance suite had asserted an empty field for as
+   * long as it existed. The verdict was right; the sentence is a vendor's
+   * container talking, and the product's rule — no host paths, no
+   * implementation detail in front of a fourteen-year-old — does not stop
+   * applying because the text arrived over HTTP instead of from a wasm trap.
+   */
+  it("keeps the cause and drops the container", async () => {
+    const { sanitizeJudgeStderr } = await import("@schools/exec/providers/judge0");
+    expect(
+      sanitizeJudgeStderr("run.sh: line 1:     3 Floating point exception(core dumped) ./a.out"),
+    ).toBe("Floating point exception");
+    expect(sanitizeJudgeStderr("run.sh: line 1:  7 Segmentation fault (core dumped) ./a.out")).toBe(
+      "Segmentation fault",
+    );
+  });
+
+  it("leaves what the program itself printed alone", async () => {
+    const { sanitizeJudgeStderr } = await import("@schools/exec/providers/judge0");
+    /* A learner's own `cerr` is the one thing on this channel that IS addressed
+       to them, and it is frequently the only clue they have. */
+    expect(sanitizeJudgeStderr("terminate called after throwing an instance of 'std::out_of_range'"))
+      .toContain("std::out_of_range");
+    expect(sanitizeJudgeStderr("my own message\nrun.sh: line 1: 3 Aborted (core dumped) ./a.out"))
+      .toBe("my own message\nAborted");
+  });
+
+  it("is empty for an empty stream", async () => {
+    const { sanitizeJudgeStderr } = await import("@schools/exec/providers/judge0");
+    expect(sanitizeJudgeStderr("")).toBe("");
+  });
+});

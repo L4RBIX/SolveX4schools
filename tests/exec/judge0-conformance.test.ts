@@ -144,18 +144,31 @@ function conformanceMatrix(judge: () => Judge0RapidApiProvider) {
       expect(threw.stderr).toContain("std::out_of_range");
       expect(isLearnerEvidence(threw.status)).toBe(true);
 
-      /* Integer division by zero is a SIGNAL. The process dies without printing
-         anything, and the only description is in Judge0's own `message` field,
-         which this provider deliberately does not forward. So the verdict is
-         right and the explanation is empty.
-         That is a real regression against CPython's `ZeroDivisionError`
-         traceback and it is asserted rather than glossed: if someone later
-         decides to surface `message` for signal statuses, this line fails and
-         they are made to think about what a vendor's internal text may say in
-         front of a classroom. */
+      /*
+       * Integer division by zero is a SIGNAL, and what the judge says about it
+       * changed under us.
+       *
+       * This asserted `stderr === ""`, with a note explaining that the only
+       * description lived in Judge0's own `message` field and was deliberately
+       * not forwarded. Measured live on 2026-09-05, the field now carries the
+       * sandbox's shell talking:
+       *
+       *     run.sh: line 1:     3 Floating point exception(core dumped) ./a.out
+       *
+       * The verdict is still right. The text is not ours, names a container's
+       * script and binary, and is not addressed to a fourteen-year-old — the
+       * same rule the browser runtime already obeys. `sanitizeJudgeStderr`
+       * keeps the CAUSE and drops the shell, and this asserts both halves: the
+       * learner is told what happened, and is told nothing about `run.sh`.
+       */
       const divided = await run(PROGRAMS.divZero);
       expect(divided.status).toBe("runtime_error");
-      expect(divided.stderr).toBe("");
+      expect(divided.stderr, "the judge's own shell reached a learner").not.toContain("run.sh");
+      expect(divided.stderr).not.toContain("./a.out");
+      expect(divided.stderr).not.toContain("core dumped");
+      if (divided.stderr !== "") {
+        expect(divided.stderr.toLowerCase()).toContain("floating point exception");
+      }
       expect(isLearnerEvidence(divided.status)).toBe(true);
     },
     LIVE_TIMEOUT_MS,
