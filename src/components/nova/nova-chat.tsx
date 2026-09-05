@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import { pluralRu } from "@schools/presentation/labels";
 import type { Locale, Localized } from "@schools/curriculum/types";
 import { NovaAvatar, type NovaState } from "./nova-avatar";
@@ -1122,10 +1123,17 @@ export function NovaChat({
                           : "bg-b-fg/[0.07] text-b-fg/90",
                       )}
                     >
-                      {/* Plain text. Model output is untrusted, so it is never
-                          rendered as markup — no HTML, no scripts, no links the
-                          model chose. */}
-                      {m.text}
+                      {/* Model output is untrusted, so it is never rendered as
+                          HTML: `richText` reads three marks out of the text and
+                          emits exactly three elements — `<code>`, `<strong>`
+                          and a fenced `<span>` — each with a fixed class list
+                          and plain-text children. No attribute, URL or tag ever
+                          comes from the model, which is the property that
+                          comment was protecting. What it was costing was Nova's
+                          own prose: it writes `cout` and **bold** the way the
+                          lesson does, and the learner was reading the
+                          punctuation. */}
+                      {richText(m.text)}
                     </p>
                   ) : m.failure ? null : (
                     <span className="text-[14px] text-b-fg/30">{c.thinking}</span>

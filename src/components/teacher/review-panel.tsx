@@ -19,6 +19,7 @@ import {
 } from "@schools/presentation/teacher-outcome";
 import { useLocale } from "@/components/sx/i18n";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import { INK, LINE, MOTION, RADIUS, SURFACE, TYPE } from "./tokens";
 import { toneChip, toneText } from "./format";
 import { Chip, EmptyState, Hint, QuotedResponse, SidePanel } from "./ui";
@@ -283,7 +284,7 @@ export function ReviewPanel({
               <div className="flex flex-col gap-1.5">
                 <p className={cn(TYPE.meta, INK.muted)}>{t(REVIEW.promptTitle)}</p>
                 <p className={cn("max-w-[68ch]", TYPE.body, INK.secondary)}>
-                  {t(response.prompt)}
+                  {richText(t(response.prompt))}
                 </p>
               </div>
 
@@ -323,7 +324,7 @@ export function ReviewPanel({
                 <Hint label={t(EXTRA.markingCriteria)}>
                   <ul className="flex list-disc flex-col gap-1.5 pl-4">
                     {response.expectedPoints.map((point, index) => (
-                      <li key={index}>{t(point)}</li>
+                      <li key={index}>{richText(t(point))}</li>
                     ))}
                   </ul>
                   <p className={cn("mt-2", TYPE.meta, INK.muted)}>{t(EXTRA.expectedPointsNote)}</p>

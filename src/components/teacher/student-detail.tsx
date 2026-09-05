@@ -25,6 +25,7 @@ import { EXTRA, taskNumber } from "@schools/teacher/labels-extra/student";
 import { REVIEW } from "@schools/teacher/labels-extra/assessments";
 import { useLocale } from "@/components/sx/i18n";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import { useTeacherView } from "./shell";
 import { ReviewPanel } from "./review-panel";
 import { GAP, INK, LINE, MOTION, NUM, RADIUS, TYPE } from "./tokens";
@@ -912,7 +913,7 @@ function AssessmentSection({
                           <span aria-hidden="true" className={INK.muted}>
                             ·
                           </span>
-                          {t(point)}
+                          {richText(t(point))}
                         </li>
                       ))}
                     </ul>

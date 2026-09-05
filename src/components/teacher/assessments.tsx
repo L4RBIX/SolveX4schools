@@ -30,6 +30,7 @@ import {
 } from "@schools/presentation/teacher-outcome";
 import { useLocale } from "@/components/sx/i18n";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import { GAP, INK, LINE, MOTION, NUM, SURFACE, TYPE } from "./tokens";
 import { useTeacherView } from "./shell";
 import {
@@ -1002,7 +1003,7 @@ function BlockKey({
                         <span aria-hidden="true" className={INK.muted}>
                           ·
                         </span>
-                        <span>{t(point)}</span>
+                        <span>{richText(t(point))}</span>
                       </li>
                     ))}
                   </ul>

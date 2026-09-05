@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Locale, Localized } from "@schools/curriculum/types";
 import { L, t } from "@schools/presentation/labels";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 
 /**
  * The error dictionary section on `/you` — «Жеке қателер журналы» (PDF).
@@ -195,7 +196,7 @@ function EntryCard({
           one thing this surface may not contain. */}
       {entry.justifications.map((text) => (
         <p key={text} className="text-[15px] leading-6 text-b-fg/85">
-          {text}
+          {richText(text)}
         </p>
       ))}
 

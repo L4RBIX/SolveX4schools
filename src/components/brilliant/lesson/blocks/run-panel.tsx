@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicCase } from "@schools/curriculum/public";
 import { isLearnerOutcome } from "@schools/execution/trust";
@@ -381,7 +382,7 @@ export function RunPanel({
                       </p>
                     ) : null}
                     {friendly ? (
-                      <p className="text-[15px] leading-6 text-b-fg/80">{t(friendly, locale)}</p>
+                      <p className="text-[15px] leading-6 text-b-fg/80">{richText(t(friendly, locale))}</p>
                     ) : null}
                   </div>
                 ) : null}

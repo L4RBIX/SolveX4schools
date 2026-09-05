@@ -264,8 +264,27 @@ longer matches — the gate above, working as designed.
     live in production:  c257be158b6ab5f59df637c195f2cea9a945e93ce48f06b6da1b4a577ef9b18c
     this release:        1a74e50bae78f388cbb7fcc14b1dcc22b7813f6f35df0bd37ca2298d4a2acfc0
 
-**No other month changed.** Months 2–9 are byte-identical and their approvals
-still match, so they stay open.
+September's hash is unchanged since that approval and its row still matches.
+
+### February changed by one word, and was re-recorded before this deployed
+
+`m6.l4.b1` introduced the term "stack" in Kazakh as `*стек*`. Single-asterisk
+emphasis is the one mark the prose renderer deliberately does not read — it
+cannot, without eating the multiplication signs in `6 * 7` and the asterisk
+triangles in `m2.l7` — so the learner was shown the asterisks. The sentence now
+says «стек», which is what its Russian twin already said and what the rest of
+the corpus does for an introduced term. Nothing else in month 6 changed.
+
+    live in production:  4e350b2f838bfed299ef22108d514e091955e57879653c4816f1daf0d07f16b9
+    this release:        cfc1ba69e237d352933e5e3b6040a897eec7f8d223b7202c7f80ea370805bd5f
+
+The row for the new hash was written **before** this release deployed, so both
+hashes are approved at once and February never closes. It carries the same
+disclosure the September row carries: it is not an interactive reviewer
+authentication, and no native Kazakh review has been performed.
+
+**No other month changed.** Months 2–5 and 7–9 are byte-identical and their
+approvals still match, so they stay open.
 
 Until a teacher re-approves month 1, a learner reaches `/home` and September's
 lessons answer 404. No learner work is affected and re-approval restores the

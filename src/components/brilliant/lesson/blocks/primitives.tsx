@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import type { ReactNode } from "react";
 import type { LessonVerdict } from "../lesson-verdict";
 
@@ -70,36 +71,21 @@ export function LessonProse({
   );
 }
 
-/**
- * `backticks` promoted to inline code, for any container.
- *
- * Extracted from `LessonParagraph`, which used to own it privately. That was
- * fine while paragraphs were the only prose that named a construct, and stopped
- * being fine when the worked-example steps started saying things like
- * `` `cout << "Сәлем!";` `` — those render through a `<span>`, not a `<p>`, so
- * they printed the backticks as characters. The parsing belongs to the text,
- * not to the element it happens to sit in.
- */
-export function inlineCode(text: string): ReactNode[] {
-  return text.split(/(`[^`]+`)/g).map((part, i) =>
-    part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
-      <code
-        key={i}
-        className="rounded-[4px] bg-b-fg/10 px-1.5 py-0.5 font-b-mono text-[15px] text-b-green-2"
-      >
-        {part.slice(1, -1)}
-      </code>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
-}
+/* The inline-markup parser lives in `@/lib/rich-text`, not here.
+
+   It was `inlineCode`, private to `LessonParagraph`, and every time a new
+   container showed prose the marks leaked through as characters: first the
+   worked-example steps printed their own backticks, then every block prompt in
+   the course printed both its backticks AND its asterisks. Parsing belongs to
+   the text, not to the element it happens to sit in, and it belongs somewhere
+   the tutor bubble and the error dictionary can reach without importing a
+   lesson-block module. */
 
 /**
  * One numbered step of a worked example.
  *
  * A component rather than JSX inlined at the call site so that the thing it
- * must not stop doing — running its text through `inlineCode` — is reachable
+ * must not stop doing — running its text through `richText` — is reachable
  * from a test. It was inlined, it silently rendered raw text, and nothing
  * failed.
  */
@@ -109,16 +95,16 @@ export function WorkedExampleStep({ n, text }: { n: number; text: string }) {
       <span className="mt-[2px] flex size-6 shrink-0 items-center justify-center rounded-full bg-b-fg/10 text-[13px] font-medium tabular-nums text-b-fg/70">
         {n}
       </span>
-      <span className="text-[16px] leading-6 text-b-fg/85">{inlineCode(text)}</span>
+      <span className="text-[16px] leading-6 text-b-fg/85">{richText(text)}</span>
     </li>
   );
 }
 
-/** A lesson paragraph, with `backticks` promoted to inline code. */
+/** A lesson paragraph, with its `code` and **bold** rendered as such. */
 export function LessonParagraph({ text }: { text: string }) {
   return (
     <p className="mb-[22.4px] text-[16px] leading-[25.6px] last:mb-0">
-      {inlineCode(text)}
+      {richText(text)}
     </p>
   );
 }
@@ -149,9 +135,19 @@ export function LessonParagraph({ text }: { text: string }) {
  * Where the layout IS the answer, the authoritative copy is the case table under
  * the editor, which already renders in `font-b-mono whitespace-pre`. The prompt
  * says what the shape is; the table shows it.
+ *
+ * ## Why it takes `text` and not `children`
+ *
+ * Because it has to parse what it is given, and a `ReactNode` cannot be parsed.
+ * Every one of the thirteen call sites passed a curriculum string, and the
+ * string went into a `<p>` untouched — so all 944 backticked constructs in the
+ * course's `write_code` prompts, and every asterisk-marked phrase in the
+ * contest statements, were shown to learners as punctuation. Naming the prop
+ * `text` is what makes that impossible to reintroduce: there is no way to hand
+ * this element prose it will not read.
  */
-export function BlockPrompt({ children }: { children: ReactNode }) {
-  return <p className="w-full whitespace-pre-wrap text-[16px] leading-6">{children}</p>;
+export function BlockPrompt({ text }: { text: string }) {
+  return <p className="w-full whitespace-pre-wrap text-[16px] leading-6">{richText(text)}</p>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -387,8 +383,13 @@ export function OptionList({
                 <span className="size-2 rounded-full bg-b-fg" />
               ) : null}
             </span>
+            {/* `mono` means the option IS code or program output, so its text
+                is literal: a backtick in it is a backtick the learner must
+                type. Prose options are the other case — a multiple choice
+                naming `int` or `cout` is written with the same marks as the
+                paragraph above it, and printed them until now. */}
             <span className={cn("min-w-0 flex-1 break-words", option.mono && "font-b-mono")}>
-              {option.label}
+              {option.mono ? option.label : richText(option.label)}
             </span>
           </button>
         );

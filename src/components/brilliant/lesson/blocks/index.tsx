@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { proseSegments, richText } from "@/lib/rich-text";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock } from "@schools/curriculum/public";
 import type { BlockAnswer } from "@schools/learning/checking";
@@ -281,12 +282,23 @@ function ConceptView({ block, locale, art }: BlockViewProps) {
         </div>
       ) : null}
       <LessonProse title={t(block.title, locale)}>
-        {t(block.body, locale)
-          .split("\n")
-          .filter(Boolean)
-          .map((para, i) => (
-            <LessonParagraph key={i} text={para} />
-          ))}
+        {/* Cut on the fences first, THEN on newlines. A body's newlines are
+            paragraph breaks everywhere except inside a fenced sample, where
+            they are the content — `m2.l5.b1` shows a four-line program that
+            way, and splitting first turned it into four paragraphs with a line
+            of backticks above and below. */}
+        {proseSegments(t(block.body, locale)).flatMap((seg, i) =>
+          seg.fence
+            ? [
+                <p key={`f${i}`} className="mb-[22.4px] last:mb-0">
+                  {richText(seg.text)}
+                </p>,
+              ]
+            : seg.text
+                .split("\n")
+                .filter(Boolean)
+                .map((para, j) => <LessonParagraph key={`p${i}.${j}`} text={para} />),
+        )}
       </LessonProse>
       {block.code ? <CodePanel code={block.code} /> : null}
     </>
@@ -303,7 +315,7 @@ function PredictionView({ block, locale, verdict, answer, onAnswer, reveal }: Bl
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <CodePanel code={block.code} verdict={verdict} />
 
       {hasOptions ? (
@@ -335,7 +347,7 @@ function MultipleChoiceView({ block, locale, verdict, answer, onAnswer, reveal }
   if (block.type !== "multiple_choice") return null;
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       {block.code ? <CodePanel code={block.code} verdict={verdict} /> : null}
       <OptionList
         options={block.options.map((o) => ({ id: o.id, label: t(o.label, locale) }))}
@@ -370,7 +382,7 @@ function FindBugView({ block, locale, verdict, answer, onAnswer, reveal }: Block
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
 
       <div
         className={cn(
@@ -450,7 +462,7 @@ function FillBlankView({ block, locale, verdict, answer, onAnswer, reveal }: Blo
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
 
       <div
         className={cn(
@@ -544,7 +556,7 @@ function ReorderView({ block, locale, verdict, answer, onAnswer }: BlockViewProp
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <ol className="flex w-full flex-col gap-2">
         {order.map((id, i) => {
           const line = byId.get(id);
@@ -625,7 +637,7 @@ function TraceView({ block, locale, verdict, answer, onAnswer, reveal }: BlockVi
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <CodePanel code={block.code} verdict={verdict} />
 
       <div
@@ -702,7 +714,7 @@ function TestCaseView({ block, locale, verdict, answer, onAnswer, reveal }: Bloc
   if (block.type !== "test_case") return null;
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <CodePanel code={block.code} verdict={verdict} />
       <AnswerField
         label={t(L.yourTest, locale)}
@@ -731,7 +743,7 @@ function ExplainView({ block, locale, verdict, answer, onAnswer, reveal }: Block
   const points = reveal?.points;
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <AnswerArea
         value={answer.kind === "text" ? answer.value : ""}
         onChange={(v) => onAnswer({ kind: "text", value: v })}
@@ -750,7 +762,7 @@ function ExplainView({ block, locale, verdict, answer, onAnswer, reveal }: Block
             {points.map((point, i) => (
               <li key={i} className="flex gap-2 text-[15px] leading-6 text-b-fg/80">
                 <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-b-fg/40" />
-                {t(point, locale)}
+                {richText(t(point, locale))}
               </li>
             ))}
           </ul>
@@ -767,7 +779,7 @@ function ReflectionView({ block, locale, verdict, answer, onAnswer }: BlockViewP
   if (block.type !== "reflection") return null;
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       <AnswerArea
         value={answer.kind === "text" ? answer.value : ""}
         onChange={(v) => onAnswer({ kind: "text", value: v })}
@@ -842,7 +854,7 @@ function VerifyView({
       <span className="w-fit self-start rounded-full border border-b-fg/15 bg-b-fg/[0.04] px-3 py-1 text-[13px] leading-5 font-medium tracking-wide text-b-fg/80 uppercase">
         {t(VERIFY_LABEL[block.mode], locale)}
       </span>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
 
       {/* The program under repair or inspection. Absent for a plain unseen
           problem, which is why it is conditional rather than required. */}
@@ -1017,7 +1029,7 @@ function MarkingPoints({
         {points.map((point, i) => (
           <li key={i} className="flex gap-2 text-[15px] leading-6 text-b-fg/80">
             <span aria-hidden="true" className="mt-[10px] size-1 shrink-0 rounded-full bg-b-fg/40" />
-            {t(point, locale)}
+            {richText(t(point, locale))}
           </li>
         ))}
       </ul>
@@ -1151,7 +1163,7 @@ function CodeTaskView({
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
 
       {/*
         * A real editor, not a textarea.
@@ -1231,7 +1243,7 @@ function SimulationView({ block, locale }: BlockViewProps) {
 
   return (
     <>
-      <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
+      <BlockPrompt text={t(block.prompt, locale)} />
       {program ? (
         <StepExecution program={program} locale={locale} />
       ) : (
@@ -1276,8 +1288,17 @@ function WorkedExampleView({ block, locale }: BlockViewProps) {
 
       <div className="w-full rounded-[12px] border-2 border-b-ok-edge bg-b-ok-fill px-4 py-3">
         <p className="mb-1 text-[14px] leading-5 text-b-fg/60">{t(L.result, locale)}</p>
-        <p className="font-b-mono text-[15px] leading-6 whitespace-pre text-b-fg">
-          {t(block.result, locale)}
+        {/* `pre-wrap`, not `pre`. Six of the forty results are byte-exact
+            output — `"Сәлем!\n2012\n42"` — and need their newlines and their
+            leading spaces. The other thirty-four are a sentence about the
+            output («На экран выйдут три строки: even, odd, even.»), and under
+            `pre` a sentence does not wrap: it ran off the right edge of the
+            green panel, which has no scroller. `pre-wrap` keeps both.
+
+            And the sentence is prose, so it is written like prose — nine of
+            them name the printed value in backticks. */}
+        <p className="font-b-mono text-[15px] leading-6 whitespace-pre-wrap text-b-fg">
+          {richText(t(block.result, locale))}
         </p>
       </div>
     </>
@@ -1343,7 +1364,7 @@ function renderBlock(props: BlockViewProps) {
       return <SimulationView {...props} />;
     case "arena_problem":
       return (
-        <BlockPrompt>{t(block.prompt, props.locale)}</BlockPrompt>
+        <BlockPrompt text={t(block.prompt, props.locale)} />
       );
     default: {
       // Load-bearing. Without it a new block type ships as a blank card.

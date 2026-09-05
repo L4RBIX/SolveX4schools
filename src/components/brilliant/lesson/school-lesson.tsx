@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import { richText } from "@/lib/rich-text";
 import type { Locale, Localized } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
 /* `shape`, not `inventory`. `inventory.ts` reads `PROGRAM`, so this one-symbol
@@ -1382,7 +1383,7 @@ export function SchoolLesson({
                       : "border-b-warn bg-b-warn",
                   )}
                 >
-                  {bubble}
+                  {richText(bubble)}
                 </div>
               </div>
             ) : null}
