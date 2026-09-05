@@ -73,8 +73,10 @@ export interface CourseDeckProps {
    * never reached in the product — every locked card is fed Kazakh or Russian.
    */
   lockedLabels?: {
-    /** One short line under the rows: why nothing here opens. */
+    /** The heading of the lock block: this month is not open yet. */
     reason: string;
+    /** The rule underneath it, as the backend enforces it. Optional. */
+    body?: string;
     /** The CTA that replaces "Start". It goes to `/course/N`, and it says so. */
     cta: string;
     /** Read out on a row that is not a link. Never colour or opacity alone. */
@@ -86,6 +88,8 @@ export interface CourseDeckProps {
 
 const DEFAULT_LOCKED_LABELS = {
   reason: "This month is not open yet",
+  /** The rule itself. Optional, because the baseline deck has no policy. */
+  body: "",
   cta: "See what opens it",
   row: "Locked",
 };
@@ -162,43 +166,69 @@ export function CourseDeck({
     >
       <h2 className="h-[30px] w-full text-[20px] leading-[25px] font-bold">{heading}</h2>
 
-      <div className="h-[540px] max-h-[540px] min-h-[274px] w-full">
-        <div className="relative h-full w-full">
-          {courses.map((c, i) => {
-            const depth = (i - index + courses.length) % courses.length;
-            if (depth > 4) return null;
-            const d = DEPTHS[depth];
-            return (
+      {/*
+        The stack is as tall as the card in front of it, and not one pixel more.
+
+        It used to be `h-[540px] max-h-[540px]` with every card `absolute
+        inset-0` and `overflow-clip`. A card's content is not a constant: it is
+        a title that wraps differently in Kazakh and Russian, a 150px
+        illustration, a lesson list whose length is the month's, a lock
+        explanation on eight of the nine months, and a 48px button. Measured at
+        390px on September, that came to 34px more than the box — so the card
+        cut its own primary button in half, which is what the screenshots show.
+
+        Now the FRONT card is in normal flow and gives the container its height;
+        the four decorative cards behind it are absolute and inherit that
+        height, which is what keeps the receding stack aligned. `min-h` keeps a
+        short month from looking like a collapsed card, and nothing has a
+        maximum: the card grows with the month.
+      */}
+      <div className="relative w-full min-h-[274px]">
+        {courses.map((c, i) => {
+          const depth = (i - index + courses.length) % courses.length;
+          if (depth > 4) return null;
+          const d = DEPTHS[depth];
+          const front = depth === 0;
+          return (
+            <div
+              key={c.id}
+              aria-hidden={!front}
+              style={{
+                ...cardTheme(c.id)?.vars,
+                transform: `translate(${d.x * 100}%, ${d.y * 100}%) scale(${d.s})`,
+                transformOrigin: "top left",
+                zIndex: 5 - depth,
+              }}
+              className={cn(
+                "transition-transform duration-500 ease-b-spring",
+                /* The front card is the one in flow. The rest are behind it,
+                   stretched to its box — `inset-0` against a content-sized
+                   parent, which is why the parent may not have a height of its
+                   own any more. */
+                front ? "relative" : "absolute inset-0 overflow-hidden",
+              )}
+            >
               <div
-                key={c.id}
-                aria-hidden={depth !== 0}
-                style={{
-                  ...cardTheme(c.id)?.vars,
-                  transform: `translate(${d.x * 100}%, ${d.y * 100}%) scale(${d.s})`,
-                  transformOrigin: "top left",
-                  zIndex: 5 - depth,
-                }}
-                className="absolute inset-0 overflow-hidden transition-transform duration-500 ease-b-spring"
+                className={cn(
+                  "rounded-2xl border-2 bg-b-elevated pt-5",
+                  /* Only the decorative cards clip. The front card must never:
+                     it is the one holding a button a learner has to press. */
+                  front ? "h-auto" : "h-full overflow-clip",
+                  depth < 2 ? "border-b-edge" : "border-b-fg/5",
+                )}
               >
-                <div
-                  className={cn(
-                    "h-full overflow-clip rounded-2xl border-2 bg-b-elevated pt-5",
-                    depth < 2 ? "border-b-edge" : "border-b-fg/5",
-                  )}
-                >
-                  {depth === 0 && (
-                    <DeckCardBody
-                      course={c}
-                      startLabel={startLabel}
-                      lockedLabels={locked}
-                      markerColor={markerColor}
-                    />
-                  )}
-                </div>
+                {front && (
+                  <DeckCardBody
+                    course={c}
+                    startLabel={startLabel}
+                    lockedLabels={locked}
+                    markerColor={markerColor}
+                  />
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* thumbnail switcher — 84x60 tiles, 16px gap. The reference's active
@@ -211,7 +241,12 @@ export function CourseDeck({
           leaves the first tile unreachable, so the row starts flush left and
           only centres itself when the set genuinely fits (`justify-center` via
           `mx-auto` on the inner track instead of on the scroller). */}
-      <div className="my-5 h-[60px] w-full overflow-x-auto overscroll-x-contain px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        data-deck-rail
+        /* `mt-8`, not `my-5`. The rail is a different object from the card and
+           has to read as one; at 20px it sat against the card's border and the
+           two looked like one clipped thing. */
+        className="mt-8 mb-2 h-[60px] w-full overflow-x-auto overscroll-x-contain px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mx-auto flex h-[60px] w-max gap-4">
         {courses.map((c, i) => {
           const ct = cardTheme(c.id);
@@ -293,8 +328,12 @@ function DeckCardBody({
   markerColor?: string;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-between gap-4 p-5">
-      <div className="flex w-full flex-1 flex-col items-center justify-between gap-2">
+    /* No `h-full`, no `justify-between`. Both existed to distribute a fixed
+       540px among children that do not add up to 540 on every month — and when
+       they added up to more, the card clipped them. The column is now as tall
+       as what is in it. */
+    <div className="flex flex-col items-center gap-4 p-5">
+      <div className="flex w-full flex-col items-center gap-3">
         <Link href={course.href} aria-label={`${course.title} level 1`} className="block w-full">
           <div className="flex flex-col items-center gap-2">
             <div className="flex h-5 items-center justify-center" />
@@ -316,7 +355,11 @@ function DeckCardBody({
           alt=""
           width={150}
           height={150}
-          className="max-h-[150px] w-[150px] flex-1 object-contain"
+          /* `flex-1` made the illustration the thing that absorbed a fixed
+             card's leftover height. There is no leftover height to absorb any
+             more, and on a phone it was the child being squeezed while the
+             button below it was the one being cut. */
+          className="h-[150px] max-h-[150px] w-[150px] shrink-0 object-contain"
         />
 
         {/* The card height is fixed and the original clipped anything past ~3
@@ -324,6 +367,10 @@ function DeckCardBody({
             inside its own box rather than silently hiding two thirds of
             September. `overscroll-contain` keeps the scroll from escaping to
             the page behind the card. */}
+        {/* The list is the ONE thing here that is allowed to scroll: a month
+            has up to fourteen lessons and a card is not a page. Everything
+            else — the title, the lock explanation, the button — is laid out at
+            its natural height above and below it. */}
         <div className="w-full max-h-[220px] overflow-y-auto overscroll-contain">
           {course.lessons.map((l) => (
             <LessonRow
@@ -333,22 +380,32 @@ function DeckCardBody({
               markerColor={markerColor}
             />
           ))}
-          {/*
-            One short line, once per card, rather than a sentence on every row.
-
-            `opacity-50` on a row means "not the lesson you are on" and has
-            meant that since the deck was cloned — the first row of a locked
-            month was fully opaque, so the card carried no signal at all that
-            none of it opened. This says it in words, which is the only channel
-            that survives both colour blindness and a screen reader.
-          */}
-          {course.locked ? (
-            <p className="pt-1 pb-1 text-[13px] leading-[18px] text-b-fg/60">
-              {lockedLabels.reason}
-            </p>
-          ) : null}
         </div>
       </div>
+
+      {/*
+        Why the month is closed, OUTSIDE the scroller.
+
+        This was one line at the bottom of the scrolling lesson list, which
+        means a learner had to scroll past every closed row to find out why the
+        rows were closed — and on a phone the card clipped it before they got
+        there. It is the whole reason a locked card exists, so it sits in the
+        card's own flow, above the button, at a size a person reads.
+
+        The words are the product's canonical pair (`monthLockedTitle` and
+        `monthLockedBody`) and this invents no rule of its own: the second line
+        is the unlock policy as the backend actually enforces it.
+      */}
+      {course.locked ? (
+        <div className="flex w-full flex-col gap-1 rounded-[12px] border-2 border-b-lock-edge bg-b-lock-fill px-4 py-3 text-left">
+          <p className="text-[15px] leading-[20px] font-semibold text-b-fg/90">
+            {lockedLabels.reason}
+          </p>
+          {lockedLabels.body ? (
+            <p className="text-[13px] leading-[18px] text-b-fg/60">{lockedLabels.body}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       {/*
         The CTA resolves to the month's own board on a locked card.

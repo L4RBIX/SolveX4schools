@@ -464,6 +464,35 @@ export const config = {
       .filter((s) => s.length > 0),
   },
 
+  /**
+   * Accounts that may open every month, for QA.
+   *
+   * ## What this is
+   *
+   * A comma-separated list of `school_accounts.user_id` values that bypass the
+   * month ACCESS lock and nothing else. It exists because testing the year
+   * needs an account that can reach May without nine months of real work, and
+   * the alternatives are all worse: seeding completions invents a record of
+   * learning that never happened, forging accepted verdicts fakes judge
+   * evidence, and flipping `monthUnlockedFor` to `true` opens the year for the
+   * whole school.
+   *
+   * ## What it deliberately does NOT do
+   *
+   * It does not write anything. No completion row, no XP, no submission, no
+   * event, no verdict. A QA account's teacher analytics show exactly what that
+   * account actually did — which is why a teacher looking at one sees an empty
+   * record rather than a fictional finished year.
+   *
+   * Empty in every environment that does not set it, which is every
+   * environment by default. A learner not named here is measured by the
+   * ordinary unlock policy, unchanged.
+   */
+  qaFullCurriculumUsers: (env("FULL_CURRICULUM_QA_USERS") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0),
+
   ops: {
     /**
      * Bearer token for the ADMIN health view.

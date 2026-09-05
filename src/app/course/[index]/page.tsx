@@ -38,19 +38,18 @@ export default async function CoursePage({
   const month = MONTH_BY_INDEX.get(Number(index));
   if (!month) notFound();
 
-  /* The board is where the route through this month is chosen, so it has to be
-     told which one is already in force. Reading the cookie here rather than in
-     the client component keeps one definition of "the learner's track" — the
-     same `resolveTrack` the lesson and assessment pages use to decide which
-     blocks to send — instead of a second, browser-side guess that could drift
-     out of step with the payload the learner actually receives. */
-  const track = await resolveTrack(month.index);
-
   /* An unapproved month is not a 404 here, unlike its lessons.
      The board is the learner's map of the year, and a month they cannot open
      yet is a real and useful thing to see — what is NOT acceptable is a board
      full of nodes that each 404 when tapped. So the month renders as closed,
      with a reason, rather than as absent or as a set of dead links. */
+  /* The track still decides WHICH BLOCKS this month's outline carries —
+     `monthOutline(month, track)` below, and the same `resolveTrack` the lesson
+     and assessment pages use. What was removed is the CONTROL that let a
+     learner change it from this page, not the mechanism: a support-track
+     learner must still be handed the support-track month. */
+  const track = await resolveTrack(month.index);
+
   const gate = await gateFor(month);
   if (!gate.open) return <MonthNotOpen month={monthOutline(month)} reason="unpublished" />;
 
@@ -113,7 +112,6 @@ export default async function CoursePage({
   return (
     <MonthBoard
       month={monthOutline(month, track)}
-      track={track}
       completed={completed}
       leagues={leagueNavVisible(user)}
     />

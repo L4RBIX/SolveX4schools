@@ -9,6 +9,7 @@ import {
 } from "@schools/policies/unlock";
 import { resolveIdentity } from "@schools/learning/identity";
 import { getStore } from "@schools/store";
+import { config } from "@schools/config";
 
 /**
  * May this learner enter this month?
@@ -64,8 +65,59 @@ export async function unlockEvidenceFor(subjectId: string): Promise<UnlockEviden
   return { completed: new Set(completions.map((c) => c.lessonId)), solved };
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* QA full-curriculum access                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Is this subject one of the named QA accounts?
+ *
+ * ## Why the check lives here and not at the call sites
+ *
+ * Four surfaces ask whether a month may be opened — the month board, the
+ * assessment page, the submit route and the completion route — and every one
+ * of them funnels through `monthUnlockedFor`. Putting the override anywhere
+ * else would mean four copies of it, and the fourth would be the one somebody
+ * forgets, which is how the publication gate came to be enforced on one
+ * surface and not the others.
+ *
+ * ## Why it costs nothing for a normal learner
+ *
+ * An empty allowlist returns before touching the database, and the allowlist
+ * is empty in every environment that has not deliberately set it. A learner
+ * who IS named costs one indexed read on the subjects table's primary key.
+ *
+ * The list holds ACCOUNT ids rather than subject ids on purpose: a subject is
+ * minted per curriculum version, so a subject-id allowlist would silently stop
+ * matching the day a QA account was moved to a new curriculum, and the failure
+ * would look like the override having been removed.
+ */
+async function isQaFullAccessSubject(subjectId: string): Promise<boolean> {
+  const allow = config.qaFullCurriculumUsers;
+  if (allow.length === 0) return false;
+  const store = await getStore();
+  const userId = await store.userIdForSubject(subjectId);
+  return userId !== null && allow.includes(userId);
+}
+
 export async function unlockStateForSubject(subjectId: string): Promise<UnlockState> {
-  return unlockStateFor(PROGRAM.months, await unlockEvidenceFor(subjectId));
+  const state = unlockStateFor(PROGRAM.months, await unlockEvidenceFor(subjectId));
+  if (!(await isQaFullAccessSubject(subjectId))) return state;
+
+  /*
+   * A QA account sees every month as open, and every other field untouched.
+   *
+   * `unlocked` is the ACCESS answer and it is the only one overridden here.
+   * `complete`, `remaining`, `demonstrated` and `independenceBlocks` keep
+   * saying what the ledger says — so the home deck opens the year while a
+   * teacher's view of that account still shows nothing was finished, which is
+   * the truth and is the point of doing it this way.
+   */
+  return {
+    unlockedThrough: PROGRAM.months.length,
+    months: state.months.map((m) => ({ ...m, unlocked: true })),
+  };
 }
 
 /**
@@ -78,6 +130,9 @@ export async function unlockStateForSubject(subjectId: string): Promise<UnlockSt
  */
 export async function monthUnlockedFor(subjectId: string, monthIndex: number): Promise<boolean> {
   if (monthIndex === 1) return true;
+  /* The QA override, and the only place it is applied. It answers the ACCESS
+     question and writes nothing; see `isQaFullAccessSubject`. */
+  if (await isQaFullAccessSubject(subjectId)) return true;
   return isMonthUnlocked(monthIndex, PROGRAM.months, await unlockEvidenceFor(subjectId));
 }
 

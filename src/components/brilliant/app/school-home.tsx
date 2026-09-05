@@ -182,6 +182,10 @@ export function SchoolHome({
           startLabel={t(L.start, loc)}
           lockedLabels={{
             reason: t(L.monthLockedTitle, loc),
+            /* The rule, in the product's own canonical words — the same pair
+               the month board shows. The deck used to say only "closed" and
+               made a learner open another page to find out why. */
+            body: t(L.monthLockedBody, loc),
             cta: t(L.deckLockedCta, loc),
             row: t(L.deckLockedRow, loc),
           }}

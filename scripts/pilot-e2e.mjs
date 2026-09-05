@@ -181,6 +181,111 @@ async function main() {
   }
 
   /* ------------------------------------------------------------------ */
+  section("The month deck, at every width and in both languages");
+
+  /*
+   * The card used to be a fixed 540px box with `overflow-clip`, holding
+   * content whose height is the month's: a title that wraps to three lines in
+   * Kazakh, a 150px illustration, a lesson list as long as the month, a lock
+   * explanation on eight of the nine months, and a 48px button. Measured in
+   * Chromium at 390px, September wanted 34px more than the box — so the
+   * primary button was cut in half.
+   *
+   * Every assertion below is a measurement of the rendered page, because that
+   * is the only place this bug exists.
+   */
+  const deckMetrics = () =>
+    page.evaluate(() => {
+      const doc = document.documentElement;
+      const rect = (el) => {
+        const b = el?.getBoundingClientRect();
+        return b ? { top: Math.round(b.top), bottom: Math.round(b.bottom), h: Math.round(b.height) } : null;
+      };
+      const cta = [...document.querySelectorAll("a,button")].find((b) =>
+        /Бастау|Начать|Не ашатынын|Что откроет/.test(b.textContent ?? ""),
+      );
+      const rail = document.querySelector("[data-deck-rail]");
+      const lock = [...document.querySelectorAll("p")].find((p) =>
+        /әлі жабық|ещё закрыт/i.test(p.textContent ?? ""),
+      );
+      return {
+        hOverflow: doc.scrollWidth > doc.clientWidth + 1,
+        cta: cta ? { text: (cta.textContent ?? "").trim().slice(0, 18), ...rect(cta) } : null,
+        card: rect(cta?.closest(".rounded-2xl")),
+        rail: rect(rail),
+        lock: lock ? rect(lock) : null,
+        trackSwitch: [...document.querySelectorAll("*")].some(
+          (e) => e.children.length === 0 && /Осы айдағы бағытың|Твой маршрут в этом месяце/.test(e.textContent ?? ""),
+        ),
+      };
+    });
+
+  const selectDeckMonth = async (n) => {
+    await page.evaluate((i) => {
+      const rail = document.querySelector("[data-deck-rail]");
+      [...(rail?.querySelectorAll("button") ?? [])][i]?.click();
+    }, n - 1);
+    await page.waitForTimeout(700);
+  };
+
+  for (const width of [1440, 1280, 1024, 768, 430, 390, 375]) {
+    await page.setViewportSize({ width, height: 950 });
+    /* `domcontentloaded` and then the rail, not `networkidle`: a lesson visited
+       earlier in this run leaves the 57 MB C++ toolchain streaming in the
+       background, and the network is never idle again. */
+    await page.goto(`${BASE}/home`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("[data-deck-rail]", { timeout: 20_000 });
+    await page.waitForTimeout(500);
+    const dialog = await page.$('[role="dialog"]');
+    if (dialog) {
+      const b = await dialog.$("button");
+      if (b) { await b.click(); await page.waitForTimeout(400); }
+    }
+    await page.evaluate(() => {
+      const h = [...document.querySelectorAll("h2")].find((x) => /Жалғастыр|Продолж|Кері/i.test(x.textContent ?? ""));
+      h?.scrollIntoView({ block: "start" });
+    });
+    await page.waitForTimeout(400);
+
+    for (const [label, month] of [["open month", 1], ["locked month", 2]]) {
+      if (month !== 1) await selectDeckMonth(month);
+      const m = await deckMetrics();
+      check(`${width}px · ${label} · no horizontal page overflow`, !m.hOverflow);
+      check(
+        `${width}px · ${label} · the button is inside its card`,
+        Boolean(m.cta && m.card && m.cta.bottom <= m.card.bottom),
+        m.cta && m.card ? `button ends at ${m.cta.bottom}, card at ${m.card.bottom}` : "no button found",
+      );
+      check(`${width}px · ${label} · the button has its full height`, (m.cta?.h ?? 0) >= 40, `${m.cta?.h}px`);
+      check(
+        `${width}px · ${label} · the rail is below the card, not under it`,
+        Boolean(m.rail && m.card && m.rail.top >= m.card.bottom && m.rail.h > 0),
+        m.rail && m.card ? `rail top ${m.rail.top}, card bottom ${m.card.bottom}` : "no rail",
+      );
+      check(`${width}px · ${label} · no month-direction selector`, !m.trackSwitch);
+      if (month !== 1) {
+        check(`${width}px · ${label} · the lock explanation is readable`, (m.lock?.h ?? 0) > 0, `${m.lock?.h ?? 0}px`);
+      }
+    }
+  }
+
+  /* Kazakh and Russian wrap differently and the card is now sized by its
+     content, so the language is a real input to this layout. */
+  for (const locale of ["RU", "KK"]) {
+    await page.setViewportSize({ width: 390, height: 950 });
+    await page.goto(`${BASE}/home`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("[data-deck-rail]", { timeout: 20_000 });
+    await page.waitForTimeout(500);
+    const btn = await page.$(`button:has-text("${locale}")`);
+    if (btn) { await btn.click(); await page.waitForTimeout(700); }
+    await selectDeckMonth(2);
+    const m = await deckMetrics();
+    check(`390px · ${locale} · locked card is whole`, Boolean(m.cta && m.card && m.cta.bottom <= m.card.bottom));
+    check(`390px · ${locale} · lock explanation is visible`, (m.lock?.h ?? 0) > 0);
+    check(`390px · ${locale} · no horizontal overflow`, !m.hOverflow);
+  }
+
+  /* ------------------------------------------------------------------ */
   section("The code editor");
 
   /*

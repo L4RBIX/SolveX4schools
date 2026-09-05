@@ -11,6 +11,19 @@ import { isTrackLevel, trackCookie } from "@schools/learning/track";
  * one, so every learner sat on the `core` default and the differentiation the
  * programme sells existed only on paper.
  *
+ * ## The learner-facing control was removed; this was not
+ *
+ * «Осы айдағы бағытың» — the three-level switch on the month board — is gone
+ * from the product on the owner's instruction, and this route is now its only
+ * caller's ghost: nothing in the UI POSTs here any more. It stays because the
+ * CAPABILITY is not the button. `resolveTrack` still decides which blocks a
+ * lesson payload carries, `blocksForTrack` still honours `tracks: ["support"]`
+ * in the curriculum, and deleting this would leave the product with no way for
+ * a learner ever to be on a route other than `core` — which would quietly
+ * change what a support-track learner is handed. If the switch never comes
+ * back, this becomes an operator/API surface and should be documented as one
+ * rather than deleted by reflex.
+ *
  * ## Why this is a write and nothing else
  *
  * The route sets a cookie and returns. It deliberately does NOT filter, grade

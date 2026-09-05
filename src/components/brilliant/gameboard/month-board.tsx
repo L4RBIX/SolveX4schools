@@ -1,6 +1,6 @@
 "use client";
 
-import type { Locale, TrackLevel } from "@schools/curriculum/types";
+import type { Locale } from "@schools/curriculum/types";
 import type { MonthOutline } from "@schools/curriculum/public";
 import { monthToGameboard } from "@schools/presentation/adapters";
 import { L, lessonsLabel, t, tasksLabel } from "@schools/presentation/labels";
@@ -11,7 +11,6 @@ import { AppHeader } from "../app/app-header";
 import { accountMenu } from "../app/account-menu";
 import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "../app/school-chrome";
 import { CourseGameboard } from "./course-gameboard";
-import { TrackSwitch } from "./track-switch";
 
 /**
  * A month, rendered on the cloned course gameboard.
@@ -23,22 +22,27 @@ import { TrackSwitch } from "./track-switch";
  * the monthly assessment became the `review` node that closes the last level,
  * which is exactly what a `review` node already meant.
  *
- * The one addition is the track switch above the first level. It sits here
- * rather than in the lesson player because a route is a property of the MONTH
- * — the programme is explicit that a learner can be advanced in loops and
- * support in binary search — and because the choice has to be visible before
- * the first lesson opens, not buried inside one. `track` arrives as a prop:
- * the cookie is read by `resolveTrack` on the server, so this component never
- * has to guess what the payload it is about to receive was filtered by.
+ * ## The month-direction switch is gone
+ *
+ * This board used to carry «Осы айдағы бағытың» — Қолдау / Негізгі /
+ * Тереңдетілген — under the course card, with a second copy above the board on
+ * narrow screens. It has been removed from the product on the owner's
+ * instruction, and removed properly: no hidden element holding its height, no
+ * mobile twin left behind, and no state written by a control nobody can see.
+ *
+ * What is NOT removed is the track underneath it. `resolveTrack` still decides
+ * which blocks a lesson payload carries, the curriculum still authors
+ * `tracks: ["support"]` on the tasks that have it, and every learner is on the
+ * `core` default unless something server-side says otherwise. Deleting that
+ * would change what a learner is given; deleting the control only changes who
+ * chooses it.
  */
 export function MonthBoard({
   month,
-  track,
   completed,
   leagues = false,
 }: {
   month: MonthOutline;
-  track: TrackLevel;
   /**
    * Lessons the SERVER records as finished.
    *
@@ -103,19 +107,13 @@ export function MonthBoard({
            assertion honest rather than decorative. */
         theme={theme}
         monthLabel={t(theme.name, loc)}
-        /* The reference puts nothing above its first level header, so the
-           track switch lives in the left column beside the course card, where
-           course-level meta belongs. Below `lg` that column is hidden, so the
-           same control is rendered above the board instead — one instance is
-           visible at any width. */
-        asideExtra={
-          <TrackSwitch monthIndex={month.index} track={track} locale={loc} />
-        }
-        beforeBoard={
-          <div className="w-full lg:hidden">
-            <TrackSwitch monthIndex={month.index} track={track} locale={loc} />
-          </div>
-        }
+        /* Nothing under the course card any more.
+           The month-direction switch lived here — «Осы айдағы бағытың», three
+           levels and two sentences of explanation — and it is gone from the
+           product: the left column now ends where the month's own description
+           and counts end. `CourseGameboard` keeps `asideExtra` and
+           `beforeBoard`, which the reverse-engineering baseline uses; this
+           surface simply passes neither. */
       />
     </div>
   );

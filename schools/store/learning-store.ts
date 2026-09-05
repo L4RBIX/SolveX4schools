@@ -1581,6 +1581,23 @@ export class LearningStore {
    * per skill. Nothing here divides by it. The only questions asked of it are
    * "any?" and "any accepted?", both of which survive the multiplicity.
    */
+  /**
+   * Which account owns this subject, or null.
+   *
+   * One indexed read on the subjects table's primary key. Added for the QA
+   * full-access allowlist, which is keyed by ACCOUNT id — a subject is minted
+   * per curriculum version, so an allowlist of subject ids would stop matching
+   * the day an account moved to a new curriculum and the failure would look
+   * like the override having been deleted.
+   */
+  async userIdForSubject(subjectId: string): Promise<string | null> {
+    const r = await this.sql.query<{ user_id: string | null }>(
+      "select user_id from learning_subjects where subject_id = $1",
+      [subjectId],
+    );
+    return r.rows[0]?.user_id ?? null;
+  }
+
   async blockAttempts(
     subjectId: string,
     blockIds: readonly string[],
