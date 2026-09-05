@@ -178,7 +178,23 @@ describe("the two construct lists in one prompt", () => {
     const blockId = "m1.l4.b4";
     const position = cpp17PositionOf(blockId);
     expect(position?.month).toBe(1);
-    expect(position?.lesson, "m1.l4 is the sixth lesson taught, not the fourth").toBe(6);
+
+    /*
+     * Derived, not pinned to a number.
+     *
+     * This line used to read `toBe(6)`, with a note explaining that `m1.l4` is
+     * the sixth lesson and not the fourth. That was the correct fact and the
+     * wrong assertion: the whole point of this file is that no one transcribes
+     * a lesson number by hand, and a hard-coded 6 is a transcription with a
+     * shorter life. Inserting the beginner lessons at the front of September
+     * moved it to 8 and this test failed for a change that was entirely
+     * correct.
+     */
+    const september = MONTHS.find((m) => m.index === 1)!;
+    const taughtOrder = september.units.flatMap((u) => u.lessons).map((l) => l.id);
+    const expected = taughtOrder.indexOf("m1.l4") + 1;
+    expect(expected, "m1.l4 must still be taught this month").toBeGreaterThan(0);
+    expect(position?.lesson, `m1.l4 is lesson ${expected} in teaching order`).toBe(expected);
 
     const lines = cpp17PromptLines(position, "ru", { derivedInventoryPresent: true });
     const notYetLine = lines.find((l) => l.includes("NOT TAUGHT YET"));

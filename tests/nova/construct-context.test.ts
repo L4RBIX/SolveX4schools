@@ -30,7 +30,11 @@ import {
   septemberArrivals,
   septemberTaughtBy,
 } from "@schools/nova/cpp17";
-import { frameBecomesTheirsAt, teachingOrder } from "@schools/curriculum/capability";
+import {
+  frameBecomesTheirsAt,
+  frameHandoverLesson,
+  teachingOrder,
+} from "@schools/curriculum/capability";
 
 /**
  * Which C++17 Nova is allowed to reach for.
@@ -92,6 +96,15 @@ const promptAt = (blockId: string | undefined, level = 4, locale: "kk" | "ru" = 
 /* The programme's own statement of what year one is                          */
 /* ========================================================================== */
 
+/** Where a September lesson sits in TEACHING order, read from the month. */
+function lessonPosition(lessonId: string): number {
+  const september = MONTHS.find((m) => m.index === 1)!;
+  const ids = september.units.flatMap((u) => u.lessons).map((l) => l.id);
+  const i = ids.indexOf(lessonId);
+  expect(i, `${lessonId} must be taught in September`).toBeGreaterThanOrEqual(0);
+  return i + 1;
+}
+
 describe("the course this gate is written for", () => {
   it("is C++17 and excludes OOP, as the source of truth says", () => {
     /* Read rather than assumed. If year one ever stops being C++17 this file is
@@ -137,18 +150,28 @@ describe("September's prerequisite graph, derived from the content", () => {
      * change to the CONTENT, and that is the point: the number cannot drift
      * from the month files any more, because it is read out of them.
      */
-    expect(taughtAt("out.cout")).toBe(1);
-    expect(taughtAt("frame")).toBe(1);
-    expect(taughtAt("out.expression")).toBe(1);
-    expect(taughtAt("arith.basic")).toBe(1);
-    expect(taughtAt("var.int")).toBe(2);
-    expect(taughtAt("in.cin")).toBe(2);
-    expect(taughtAt("arith.int_div")).toBe(4);
-    expect(taughtAt("var.long_long")).toBe(4);
-    expect(taughtAt("cmp.operators")).toBe(6);
-    expect(taughtAt("cond.if_else")).toBe(6);
-    expect(taughtAt("cond.else_if")).toBe(7);
-    expect(taughtAt("logic.ops")).toBe(9);
+    /*
+     * Written as LESSONS, not as numbers.
+     *
+     * The list below used to be twelve integers, and inserting September's two
+     * beginner lessons at the front moved every one of them — failing this file
+     * for a change that was entirely correct, which is a fixture pretending to
+     * be a rule. What the rule actually says is "this construct is first shown
+     * on THIS lesson", so that is what it says.
+     */
+    expect(taughtAt("out.cout")).toBe(lessonPosition("m1.l0"));
+    expect(taughtAt("frame")).toBe(lessonPosition("m1.l0"));
+    expect(taughtAt("out.expression")).toBe(lessonPosition("m1.l0"));
+    expect(taughtAt("arith.basic")).toBe(lessonPosition("m1.l1"));
+    /* The variables lesson: `int age = 14;` on screen before anything reads. */
+    expect(taughtAt("var.int")).toBe(lessonPosition("m1.l13"));
+    expect(taughtAt("in.cin")).toBe(lessonPosition("m1.l11"));
+    expect(taughtAt("arith.int_div")).toBe(lessonPosition("m1.l10"));
+    expect(taughtAt("var.long_long")).toBe(lessonPosition("m1.l10"));
+    expect(taughtAt("cmp.operators")).toBe(lessonPosition("m1.l4"));
+    expect(taughtAt("cond.if_else")).toBe(lessonPosition("m1.l4"));
+    expect(taughtAt("cond.else_if")).toBe(lessonPosition("m1.l5"));
+    expect(taughtAt("logic.ops")).toBe(lessonPosition("m1.l6"));
   });
 
   it("claims nothing about a construct the content never puts on screen", () => {
@@ -176,7 +199,7 @@ describe("September's prerequisite graph, derived from the content", () => {
        the shown code cannot see: `#include <iostream>`, `int main()` and
        `return 0;` are on screen from the first lesson and are not the learner's
        to write until the seventh. */
-    expect(requiredAt("frame")).toBe(7);
+    expect(requiredAt("frame")).toBe(lessonPosition("m1.l7"));
     for (const a of septemberArrivals()) {
       if (a.firstShownAt === null) continue;
       expect(
@@ -192,27 +215,35 @@ describe("September's prerequisite graph, derived from the content", () => {
     }
   });
 
-  it("records that the content hands the frame over LATER than the first blank editor", () => {
+  it("no longer opens a blank editor before the frame is handed over", () => {
     /*
-     * The one number still declared, and the disagreement it is declared over.
+     * This test used to pin a DISAGREEMENT.
      *
      * `frameBecomesTheirsAt()` derives a proxy from the content — the first
      * task whose hidden solution needs a frame construct the learner has not
-     * been shown — and lands at teaching position 4, `m1.l10.b5`. The content
-     * announces the hand-over in `m1.l5`, position 7.
+     * been shown — and it landed on `m1.l10.b5`, three lessons before the
+     * hand-over the pedagogy document described. The number Nova used was
+     * transcribed from that document, and the gap between the two was recorded
+     * here as a curriculum finding: `m1.l10.b5` wanted the starter its siblings
+     * had.
      *
-     * That gap is a curriculum finding: `m1.l10.b5` opens a blank editor three
-     * lessons before the frame is handed over, and it wants the starter its
-     * siblings have. The declared value wins meanwhile, because the safe
-     * direction is not asking a week-one learner for `return 0;`.
-     *
-     * Pinned so that fixing the content makes this fail out loud rather than
-     * quietly making the comment above untrue.
+     * It has one. Every core code task before `m1.l7` now ships the frame, the
+     * lesson announces the hand-over in its own words, and the number Nova uses
+     * is read from the content instead of declared. So this test asserts the
+     * finding is CLOSED, in both directions.
      */
+    const handover = frameHandoverLesson();
+    expect(handover, "the hand-over is the graduation lesson").toBe(lessonPosition("m1.l7"));
+    expect(requiredAt("frame")).toBe(handover);
+
+    /* And no task before it opens an empty editor. The derived proxy is a
+       block ordinal over the whole programme, so it is compared as one: the
+       first task that needs an unshown frame construct must not be earlier than
+       the first block of the graduation lesson. */
     const order = teachingOrder();
-    const derived = order[frameBecomesTheirsAt()];
-    expect(derived?.lessonId, "the first blank editor moved").toBe("m1.l10");
-    expect(requiredAt("frame")).toBe(7);
+    const firstOfHandover = order.findIndex((e) => e.lessonId === "m1.l7");
+    expect(firstOfHandover, "m1.l7 must be in the teaching order").toBeGreaterThan(0);
+    expect(frameBecomesTheirsAt()).toBeGreaterThanOrEqual(firstOfHandover);
   });
 
   it("teaches division twice, on int and then on double", () => {
@@ -221,7 +252,7 @@ describe("September's prerequisite graph, derived from the content", () => {
        learner who meets that as a surprise has been failed by the sequence.
        The `double` half is the content gap above — the sequence declares it and
        the code never shows it. */
-    expect(taughtAt("arith.int_div")).toBe(4);
+    expect(taughtAt("arith.int_div")).toBe(lessonPosition("m1.l10"));
     expect(SEPTEMBER_SEQUENCE.map((c) => c.id).indexOf("arith.int_div")).toBeLessThan(
       SEPTEMBER_SEQUENCE.map((c) => c.id).indexOf("var.double"),
     );
@@ -320,10 +351,19 @@ describe("reading a position out of a block id", () => {
            `cond.if_else` came back NOT TAUGHT YET during the lesson that
            introduces it, and the tutor would withhold its own subject.
 
-       Outside September ids and order coincide, and m4 pins that. */
-    expect(cpp17PositionOf("m1.l7.b4")).toEqual({ month: 1, lesson: 10, kind: "lesson" });
-    expect(cpp17PositionOf("m1.l11.b1")).toEqual({ month: 1, lesson: 2, kind: "lesson" });
-    expect(cpp17PositionOf("m1.l4.b1")).toEqual({ month: 1, lesson: 6, kind: "lesson" });
+       Outside September ids and order coincide, and m4 pins that.
+
+       The expected numbers are read from the month rather than written here:
+       September gained two beginner lessons at the front and every one of them
+       moved, which would have failed this file for a change that was entirely
+       correct. What it checks is that the position is the ORDER and not the
+       digits in the id, and that is what it now says. */
+    expect(cpp17PositionOf("m1.l7.b4")).toEqual({ month: 1, lesson: lessonPosition("m1.l7"), kind: "lesson" });
+    expect(cpp17PositionOf("m1.l11.b1")).toEqual({ month: 1, lesson: lessonPosition("m1.l11"), kind: "lesson" });
+    expect(cpp17PositionOf("m1.l4.b1")).toEqual({ month: 1, lesson: lessonPosition("m1.l4"), kind: "lesson" });
+    /* And the two that the id would get wrong are still wrong the same way. */
+    expect(lessonPosition("m1.l11")).not.toBe(11);
+    expect(lessonPosition("m1.l4")).not.toBe(4);
     expect(cpp17PositionOf("m4.l1.b8")).toEqual({ month: 4, lesson: 1, kind: "lesson" });
   });
 
@@ -331,8 +371,9 @@ describe("reading a position out of a block id", () => {
     /* A September practice task follows the twelve lessons, so it may
        legitimately use anything September taught. Treating it as lesson zero
        would have Nova refuse to mention `if` on a task about `if`. */
-    expect(cpp17PositionOf("m1.p8")).toEqual({ month: 1, lesson: 12, kind: "practice" });
-    expect(cpp17PositionOf("m1.as.b1")).toEqual({ month: 1, lesson: 12, kind: "assessment" });
+    const lastLesson = MONTHS.find((m) => m.index === 1)!.units.flatMap((u) => u.lessons).length;
+    expect(cpp17PositionOf("m1.p8")).toEqual({ month: 1, lesson: lastLesson, kind: "practice" });
+    expect(cpp17PositionOf("m1.as.b1")).toEqual({ month: 1, lesson: lastLesson, kind: "assessment" });
   });
 
   it("returns null for anything it does not recognise, and null is not permission", () => {
@@ -407,13 +448,17 @@ describe("the system prompt carries the constraint", () => {
   });
 
   it("names what this lesson has not reached, and what is on screen but not theirs", () => {
-    /* `m1.l3` is «Целочисленное деление и остаток», the FIFTH lesson taught,
-       not the third — see the position test above. They have met cout,
-       arithmetic, int and cin; they have NOT met comparison, if, else if or the
-       boolean operators, and the frame is on screen without being theirs to
-       write. */
+    /* `m1.l3` is «Целочисленное деление и остаток», taught well after its id
+       suggests — see the position test above. They have met cout, arithmetic,
+       int and cin; they have NOT met comparison, if, else if or the boolean
+       operators, and the frame is on screen without being theirs to write.
+
+       Both numbers are read from the month: the position and the length of
+       September both moved when the beginner lessons were added, and a literal
+       here would have made this assert the old month. */
     const prompt = promptAt("m1.l3.b1");
-    expect(prompt).toContain("September, lesson 5 of 12");
+    const septemberLength = MONTHS.find((m) => m.index === 1)!.units.flatMap((u) => u.lessons).length;
+    expect(prompt).toContain(`September, lesson ${lessonPosition("m1.l3")} of ${septemberLength}`);
     expect(prompt).toMatch(/TAUGHT:.*cin >>/);
     expect(prompt).toContain("NOT TAUGHT YET this month");
     expect(prompt).toMatch(/NOT TAUGHT YET this month:.*if and else/);

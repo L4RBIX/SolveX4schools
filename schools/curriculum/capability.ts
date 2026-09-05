@@ -1441,6 +1441,46 @@ export function frameBecomesTheirsAt(): number {
   return frameOrdinalCache;
 }
 
+
+/**
+ * The September lesson from which the learner writes the frame themselves.
+ *
+ * ## Why this replaced a constant
+ *
+ * `schools/nova/cpp17.ts` carried `FRAME_HANDOVER_POSITION = 7` — a number
+ * transcribed from the pedagogy document — beside a derivation that disagreed
+ * with it. The disagreement was real and it was a CONTENT defect: `m1.l10.b5`
+ * opened a blank editor three lessons before the hand-over the document
+ * described, and half of September's later tasks did the same.
+ *
+ * The content now says it plainly: every core code task before the graduation
+ * lesson ships the frame in its `starter`, and none after it does. So the
+ * position can be READ instead of declared, and the two can no longer drift.
+ *
+ * Support-track tasks are excluded. They keep their scaffolding on purpose —
+ * that is what the track is — and letting one of them move this number would
+ * mean a learner on the core track is judged by a decision made for somebody
+ * else.
+ *
+ * @returns the 1-based teaching position within September, or the position
+ *   after its last lesson when every task is scaffolded (nothing is ever
+ *   "required to write the frame", which is the safe direction).
+ */
+export function frameHandoverLesson(): number {
+  const september = MONTHS.find((m) => m.index === 1);
+  if (!september) return Number.POSITIVE_INFINITY;
+  const lessons = september.units.flatMap((u) => u.lessons);
+  for (const [i, lesson] of lessons.entries()) {
+    for (const block of lesson.blocks) {
+      const b = block as { type: string; starter?: string; tracks?: readonly string[] };
+      if (b.type !== "write_code" && b.type !== "challenge") continue;
+      if ((b.tracks ?? []).includes("support")) continue;
+      if (!(b.starter ?? "").includes("int main")) return i + 1;
+    }
+  }
+  return lessons.length + 1;
+}
+
 /* -------------------------------------------------------------------------- */
 /* What arrives later — the declaration that is left, and its validator       */
 /* -------------------------------------------------------------------------- */

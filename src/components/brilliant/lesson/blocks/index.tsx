@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock } from "@schools/curriculum/public";
@@ -9,6 +9,7 @@ import type { BlockAnswer } from "@schools/learning/checking";
 import { L, t } from "@schools/presentation/labels";
 import type { LearningPayload } from "@solvex/learning-contracts";
 import type { LessonVerdict } from "../lesson-verdict";
+import { CodeArea } from "./code-area";
 import {
   AnswerArea,
   AnswerField,
@@ -21,6 +22,7 @@ import {
   RevealNote,
 } from "./primitives";
 import { RunPanel } from "./run-panel";
+import { parseDiagnostics } from "./run-state";
 import { StepExecution, buildStepProgram } from "./step-execution";
 
 /**
@@ -892,6 +894,23 @@ function VerifyView({
         </>
       )}
 
+      {/*
+        * Every visible case passed and the verdict is still wrong.
+        *
+        * Without this sentence the learner sees green rows beside a red result
+        * and the only conclusion available to them is that the checker is
+        * broken. It names no hidden input, no hidden output and no count that
+        * would let one be reconstructed — it says which KIND of case tends to
+        * be the one that breaks, which is the actual skill.
+        */}
+      {(verdict === "wrong" || verdict === "partial") &&
+      (block.hiddenCaseCount ?? 0) > 0 &&
+      caseResults &&
+      caseResults.length > 0 &&
+      caseResults.every((r) => r.passed) ? (
+        <p className="text-[15px] leading-6 text-b-fg/80">{t(L.hiddenCaseFailed, locale)}</p>
+      ) : null}
+
       <CaseTable
         visible={block.visibleCases}
         hidden={block.hiddenCaseCount}
@@ -1025,6 +1044,38 @@ function CodeTaskView({
   onRunResult,
   caseResults,
 }: BlockViewProps) {
+  /*
+   * The compiler's last words about THIS program.
+   *
+   * Held here rather than in the Run panel because two surfaces need it: the
+   * console shows the text, and the editor draws the line. Reset on every run
+   * — a red line under a program that now compiles is a lie the learner cannot
+   * dismiss — and only a build failure sets it, so a runtime trap never paints
+   * the gutter.
+   */
+  const [compilerText, setCompilerText] = useState("");
+  const handleRunResult = useCallback(
+    (result: { status: string; stdout: string; stderr: string; truncated: boolean }) => {
+      setCompilerText(result.status === "syntax_error" ? result.stderr : "");
+      onRunResult?.(result);
+    },
+    [onRunResult],
+  );
+
+  /*
+   * The lines the compiler complained about, kept here rather than inside the
+   * Run panel: the panel owns the console, the editor owns the gutter, and the
+   * diagnostic belongs to both. Cleared on every run — a stale red line under
+   * a program that now compiles is a lie the learner cannot dismiss.
+   */
+  const diagnostics = useMemo(
+    () =>
+      parseDiagnostics(compilerText)
+        .filter((d) => d.severity === "error")
+        .map((d) => ({ line: d.line, message: d.raw })),
+    [compilerText],
+  );
+
   if (
     block.type !== "write_code" &&
     block.type !== "modify_code" &&
@@ -1060,12 +1111,23 @@ function CodeTaskView({
     <>
       <BlockPrompt>{t(block.prompt, locale)}</BlockPrompt>
 
-      <AnswerArea
+      {/*
+        * A real editor, not a textarea.
+        *
+        * Line numbers matter here more than anywhere else in the product: every
+        * compiler diagnostic names a line, and counting them by hand was the
+        * first thing a learner had to do with an error message. `diagnostics`
+        * carries the line clang named, so the editor draws it.
+        */}
+      <CodeArea
         value={source}
         onChange={(v) => onAnswer({ kind: "text", value: v })}
         verdict={editorLocked ? verdict : "unchecked"}
-        rows={Math.max(6, source.split("\n").length + 2)}
-        mono
+        locked={editorLocked}
+        ariaLabel={t(L.editorLabel, locale)}
+        keyboardHint={t(L.editorKeyboardHint, locale)}
+        diagnostics={diagnostics}
+        minLines={Math.max(8, source.split("\n").length + 1)}
       />
 
       {/* Directly under the editor, above the examples: Run is about the thing
@@ -1084,7 +1146,7 @@ function CodeTaskView({
         active={active === true}
         trustedProviderConfigured={trustedProviderConfigured}
         onRun={onRun}
-        onRunResult={onRunResult}
+        onRunResult={handleRunResult}
       />
 
       <CaseTable

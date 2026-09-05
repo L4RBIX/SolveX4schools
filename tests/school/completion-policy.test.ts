@@ -394,6 +394,22 @@ async function submitted(blockId: string, verdict: "accepted" | "wrong_answer" |
   await store.appendEvents(rows);
 }
 
+/**
+ * The blocks a lesson requires, read from the lesson.
+ *
+ * `policyBlocksFromAuthored` is the same function the route uses, so this is
+ * the rule rather than a second opinion about it.
+ */
+function mandatoryOf(lessonId: string): string[] {
+  const lesson = MONTHS.flatMap((m) => m.units)
+    .flatMap((u) => u.lessons)
+    .find((l) => l.id === lessonId)!;
+  return policyBlocksFromAuthored(lesson.blocks)
+    .filter((b) => b.isAttempt && !b.optional)
+    .map((b) => b.id)
+    .sort();
+}
+
 describe("POST /api/learning/complete refuses a claim the ledger does not support", () => {
   it("returns 409 for a lesson the learner never attempted", async () => {
     /* The defect this closes is not subtle: the route wrote a row for any real
@@ -411,11 +427,17 @@ describe("POST /api/learning/complete refuses a claim the ledger does not suppor
     };
     expect(body.error).toBe("policy_unsatisfied");
     expect(body.policyId).toBe("lesson.v1");
-    expect(body.outstanding.map((o) => o.blockId).sort()).toEqual([
-      "m1.l1.b2",
-      "m1.l1.b4",
-      "m1.l1.b5",
-    ]);
+    /*
+     * Derived from the lesson, not transcribed.
+     *
+     * This list used to be three literal ids. Adding one checked block to
+     * `m1.l1` — the `using namespace std;` question the beginner rewrite needed
+     * — failed this test for a change that was entirely correct, which is the
+     * shape of an assertion that pins a fixture instead of a rule. The RULE is
+     * "every mandatory block of the lesson is outstanding when nothing has been
+     * submitted", and that is now what it says.
+     */
+    expect(body.outstanding.map((o) => o.blockId).sort()).toEqual(mandatoryOf("m1.l1"));
 
     const stored = await store.completionsForSubject(subjectId);
     expect(stored.map((c) => c.lessonId)).not.toContain("m1.l1");
@@ -428,14 +450,17 @@ describe("POST /api/learning/complete refuses a claim the ledger does not suppor
 
     expect(res.status).toBe(409);
     const body = (await res.json()) as { outstanding: { blockId: string }[] };
-    expect(body.outstanding.map((o) => o.blockId).sort()).toEqual(["m1.l1.b4", "m1.l1.b5"]);
+    expect(body.outstanding.map((o) => o.blockId).sort()).toEqual(
+      mandatoryOf("m1.l1").filter((id) => id !== "m1.l1.b2"),
+    );
   });
 
   it("records the completion once every task has been attempted — wrong answers included", async () => {
     /* Two wrong and one ungraded. This is a real lesson a real learner has
        finished badly, and it must be recorded as finished. */
-    await submitted("m1.l1.b4", "wrong_answer");
-    await submitted("m1.l1.b5", null);
+    for (const id of mandatoryOf("m1.l1").filter((x) => x !== "m1.l1.b2")) {
+      await submitted(id, id === "m1.l1.b4" ? "wrong_answer" : null);
+    }
 
     const { POST } = await import("@/app/api/learning/complete/route");
     const res = await POST(request({ lessonId: "m1.l1", correct: 1, wrong: 1, unmeasured: 1 }));

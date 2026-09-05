@@ -643,8 +643,32 @@ export const L = {
    * marking elsewhere recovers from that first misreading.
    */
   runWhatItDoes: {
-    kk: "«Іске қосу» бағдарламаңның не істейтінін көрсетеді. «Тексеру» оның дұрыс-бұрысын шешеді.",
-    ru: "«Запустить» показывает, что делает твоя программа. «Проверить» решает, верна она или нет.",
+    kk: "«Іске қосу» — бағдарламаңның таңдаған кіріс деректерінде не істейтінін көру. «Тексеру» — шешімді есептің барлық тесттерінде тексеру.",
+    ru: "«Запустить» — посмотреть, что делает программа на выбранных входных данных. «Проверить» — проверить решение на всех тестах задачи.",
+  },
+  /**
+   * The same distinction, on the Check button's own side of the screen.
+   *
+   * Two buttons a thumb apart do different things, and a learner who thinks Run
+   * marked them correct has learned something false about what this product's
+   * judgements are worth. Said next to each button rather than once at the top,
+   * because the top of a lesson card is not where the hand is.
+   */
+  checkWhatItDoes: {
+    kk: "Есептің барлық тесттерінде тексеріледі, оның ішінде сен көрмейтін жасырын тесттер де бар.",
+    ru: "Проверка идёт по всем тестам задачи, включая скрытые, которых ты не видишь.",
+  },
+  /**
+   * A wrong verdict when every VISIBLE case passed.
+   *
+   * The learner sees green rows and a red result, and without this sentence the
+   * only available conclusion is that the checker is broken. It says what
+   * happened and what to do, and it names no hidden input, no hidden output and
+   * no count that would let one be reconstructed.
+   */
+  hiddenCaseFailed: {
+    kk: "Көрсетілген мысалдарда бәрі дұрыс, бірақ жасырын тексеруде қате шықты. Шеткі жағдайларды ойлан: ең кіші және ең үлкен мән, нөл, тең сандар.",
+    ru: "На показанных примерах всё верно, но на скрытой проверке ответ разошёлся. Подумай про крайние случаи: самое маленькое и самое большое значение, ноль, равные числа.",
   },
   runInputLabel: { kk: "Кіріс деректері", ru: "Входные данные" },
   runInputHint: {
@@ -691,6 +715,82 @@ export const L = {
     kk: `C++ компиляторы жүктелуде: ${loaded} / ${total} МБ`,
     ru: `Загружается компилятор C++: ${loaded} / ${total} МБ`,
   }),
+  /* ---------------------------------------------------------------------- */
+  /* Compiler diagnostics, in the learner's language                          */
+  /* ---------------------------------------------------------------------- */
+  /**
+   * A beginner's reading of what the compiler said.
+   *
+   * These sit ABOVE the compiler's own words and never replace them. The
+   * English stays because reading a real diagnostic is a skill this course owes
+   * a learner by May — but on week one, `expected ';' after expression` is a
+   * puzzle wrapped in a second puzzle, and the child is fourteen and has never
+   * programmed. Every entry corresponds to a shape produced by compiling a real
+   * program through the shipped toolchain; see `friendlyDiagnostic`.
+   */
+  diagSemicolon: {
+    kk: "Нұсқаудың соңында `;` жоқ сияқты. Компилятор көрсеткен жолды ЖӘНЕ оның үстіндегі жолды қара — үтірлі нүкте әдетте алдыңғы жолда ұмытылады.",
+    ru: "Похоже, в конце инструкции пропущена `;`. Смотри на строку из сообщения И на строку над ней — точку с запятой обычно забывают на предыдущей.",
+  },
+  diagUndeclared: (name: string): Localized => ({
+    kk: `«${name}» әлі жарияланбаған. Оны қолданар алдында түрін жаз: мысалы, int ${name};`,
+    ru: `Переменная «${name}» ещё не объявлена. Перед использованием укажи её тип: например, int ${name};`,
+  }),
+  diagMissingInclude: {
+    kk: "cout пен cin жоқ. Бағдарламаның басында #include <iostream> тұрғанын тексер.",
+    ru: "cout и cin недоступны. Проверь, что в начале программы есть #include <iostream>.",
+  },
+  diagUnclosedBrace: {
+    kk: "Жабылмаған `{` бар. Әр ашылған жақшаның өз `}` жұбы болуы керек.",
+    ru: "Есть незакрытая `{`. У каждой открывающей скобки должна быть своя `}`.",
+  },
+  diagExtraBrace: {
+    kk: "Артық `}` бар — оны алып таста.",
+    ru: "Лишняя `}` — её нужно убрать.",
+  },
+  diagUnterminatedString: {
+    kk: "Тырнақша жабылмаған. Мәтін «\"» белгісімен ашылып, сол белгімен жабылуы керек.",
+    ru: "Кавычка не закрыта. Текст открывается «\"» и закрывается такой же «\"».",
+  },
+  diagBadOperands: {
+    kk: "Бұл операция осы мәндерге жарамайды. cin >> кейін айнымалы тұруы керек, мәтін емес.",
+    ru: "Эта операция не подходит к таким значениям. После cin >> должна стоять переменная, а не текст.",
+  },
+  diagNoMain: {
+    kk: "Бағдарламада main табылмады. Бастау нүктесі — int main() { ... }.",
+    ru: "В программе не найден main. Точка старта — int main() { ... }.",
+  },
+  diagTypeMismatch: {
+    kk: "Айнымалының түрі мен берілген мән сәйкес емес. int — бүтін сан, мәтін емес.",
+    ru: "Тип переменной и присвоенное значение не совпадают. int — это целое число, а не текст.",
+  },
+  /** The heading above the friendly line, and the toggle for the raw text. */
+  diagHeading: { kk: "Компилятор құрастыра алмады", ru: "Компилятор не смог собрать программу" },
+  diagLineLabel: (line: number): Localized => ({
+    kk: `${line}-жол`,
+    ru: `Строка ${line}`,
+  }),
+  diagShowRaw: { kk: "Компилятордың өз сөзі", ru: "Слова самого компилятора" },
+
+  /* ---------------------------------------------------------------------- */
+  /* The editor                                                              */
+  /* ---------------------------------------------------------------------- */
+  /**
+   * Said under the editor, and announced when focus enters it.
+   *
+   * Tab indents inside a code editor — that is what every editor a programmer
+   * will ever use does. A Tab that never leaves would be a keyboard trap, so
+   * Escape releases it, and the sentence that says so is rendered rather than
+   * documented.
+   */
+  editorKeyboardHint: {
+    kk: "Tab — шегініс қосады, Shift+Tab — азайтады. Редактордан шығу үшін Escape басып, содан кейін Tab.",
+    ru: "Tab — добавить отступ, Shift+Tab — убрать. Чтобы выйти из редактора, нажми Escape, а затем Tab.",
+  },
+  editorLabel: { kk: "Бағдарлама коды", ru: "Код программы" },
+  /** Sits in the empty editor of a task whose frame is given. */
+  editorWriteHere: { kk: "Кодыңды осында жаз", ru: "Пиши свой код здесь" },
+
   runFaultUnreachable: {
     kk: "Бағдарлама орындалу кезінде тоқтап қалды. Жиі себебі — жоқ элементке қатынау: мысалы, бос vector-дың v.at(5) элементі. Индекс 0-ден size()-1-ге дейін болатынын тексер.",
     ru: "Программа аварийно остановилась во время выполнения. Частая причина — обращение к несуществующему элементу: например, v.at(5) у пустого vector. Проверь, что индекс от 0 до size()-1.",

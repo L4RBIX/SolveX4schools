@@ -520,3 +520,131 @@ export function runDownloadNote(status: {
   const mb = (n: number) => (n / 1_048_576).toFixed(0);
   return L.runDownloading(mb(status.loadedBytes), mb(status.totalBytes));
 }
+/* -------------------------------------------------------------------------- */
+/* Compiler diagnostics                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** One parsed clang diagnostic: where it points, and what it said. */
+export interface ParsedDiagnostic {
+  /** 1-based line in the learner's own source, or null when clang gave none. */
+  line: number | null;
+  column: number | null;
+  severity: "error" | "warning" | "note";
+  /** The compiler's own sentence, in English, unchanged. */
+  raw: string;
+}
+
+/**
+ * The compiler's output, split into diagnostics.
+ *
+ * ## Why parse at all
+ *
+ * The panel showed clang's text verbatim and nothing else. For a fourteen-year-
+ * old whose English is a school subject, `expected ';' after expression` is a
+ * puzzle wrapped in a second puzzle — and the line number, the one part they
+ * could have used immediately, was buried in `main.cc:5:23:` among characters
+ * that mean nothing to them.
+ *
+ * So the line is extracted and handed to the editor, which draws it, and the
+ * message is matched against a small table of shapes a beginner actually hits.
+ * The raw text stays, underneath, unchanged: a learner who never sees a real
+ * diagnostic never learns to read one, and that is a skill this course owes
+ * them by May.
+ *
+ * The file name is always `main.cc` — that is what `worker.ts` compiles — and
+ * any other path is deliberately ignored rather than shown: a sysroot header's
+ * internal line number points a learner at a file they cannot open.
+ */
+export function parseDiagnostics(stderr: string): ParsedDiagnostic[] {
+  const out: ParsedDiagnostic[] = [];
+  for (const rawLine of stderr.split("\n")) {
+    const m = /^main\.cc:(\d+):(\d+):\s*(error|warning|note):\s*(.+)$/.exec(rawLine.trim());
+    if (m) {
+      out.push({
+        line: Number(m[1]),
+        column: Number(m[2]),
+        severity: m[3] as ParsedDiagnostic["severity"],
+        raw: m[4]!.trim(),
+      });
+      continue;
+    }
+    /* A diagnostic with no position — clang emits these for driver-level
+       problems. Kept, without a line, so the panel can still show it and the
+       editor draws nothing. */
+    const bare = /^(error|warning):\s*(.+)$/.exec(rawLine.trim());
+    if (bare) {
+      out.push({
+        line: null,
+        column: null,
+        severity: bare[1] as ParsedDiagnostic["severity"],
+        raw: bare[2]!.trim(),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * The first thing worth telling a learner about a failed build.
+ *
+ * Errors before warnings, and the FIRST error rather than the last: clang
+ * reports cascading failures, and the second one is usually a consequence of
+ * the first. A learner who fixes the top one usually clears the rest.
+ */
+export function firstError(diagnostics: readonly ParsedDiagnostic[]): ParsedDiagnostic | null {
+  return diagnostics.find((d) => d.severity === "error") ?? diagnostics[0] ?? null;
+}
+
+/**
+ * A beginner's translation of one diagnostic, or null.
+ *
+ * ## The rule this table obeys
+ *
+ * **Only shapes that were produced by compiling a real program**, and only
+ * where the translation is true for every program that produces it. A guess
+ * here is worse than silence: a learner who is told the wrong cause looks at
+ * the wrong line, and the next thing they lose faith in is the tool.
+ *
+ * Null means "no reliable translation" — the panel then shows the compiler's
+ * own words, which is what it did for everything before this existed.
+ */
+export function friendlyDiagnostic(diagnostic: ParsedDiagnostic | null): Localized | null {
+  if (!diagnostic) return null;
+  const text = diagnostic.raw.toLowerCase();
+
+  /* The single most common first-week error, and the one the semicolon lesson
+     is about. clang points at the END of the previous statement. */
+  if (text.includes("expected ';'")) return L.diagSemicolon;
+
+  /* `cout` without `#include <iostream>`, or a typo in a name. clang says
+     "use of undeclared identifier 'x'" — the name is quoted, so it can be
+     lifted and shown. */
+  const undeclared = /use of undeclared identifier '([^']+)'/.exec(diagnostic.raw);
+  if (undeclared) return L.diagUndeclared(undeclared[1]!);
+
+  /* `cout` when only `<iostream>` is missing has its own clang wording. */
+  if (text.includes("no member named") && text.includes("'std'")) return L.diagMissingInclude;
+
+  /* An unmatched brace. clang reports it at the end of the file, which is the
+     one place a beginner will not look. */
+  if (text.includes("expected '}'") || text.includes("expected declaration")) {
+    return L.diagUnclosedBrace;
+  }
+  if (text.includes("extraneous closing brace")) return L.diagExtraBrace;
+
+  /* A string that never closed. */
+  if (text.includes("missing terminating '\"' character")) return L.diagUnterminatedString;
+
+  /* `cin >> "x"` and friends: reading into something that is not a variable. */
+  if (text.includes("invalid operands to binary expression")) return L.diagBadOperands;
+
+  /* `int main` misspelled or missing entirely. */
+  if (text.includes("undefined symbol: main") || text.includes("undefined reference to `main'")) {
+    return L.diagNoMain;
+  }
+
+  /* Assigning text to a number, usually `int n = "5";`. */
+  if (text.includes("cannot initialize a variable of type")) return L.diagTypeMismatch;
+
+  return null;
+}

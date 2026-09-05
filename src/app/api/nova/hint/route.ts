@@ -640,7 +640,25 @@ export async function POST(request: Request) {
       monthTitle: target.month.title[locale],
       lessonTitle: target.lesson.title[locale],
       blockPrompt: "prompt" in block ? block.prompt[locale] : target.lesson.title[locale],
-      blockCode: "code" in block && typeof block.code === "string" ? block.code : undefined,
+      /*
+       * The code ON SCREEN — which for a coding task is the STARTER, not `code`.
+       *
+       * This read `block.code` only. A `write_code` block has no `code` field:
+       * what the learner is looking at is `starter`, and most of September now
+       * ships one — the frame, with a comment where their work goes. So on
+       * every scaffolded task the tutor was told nothing about what was already
+       * in the editor, and the most natural hint in the world — "start by
+       * adding `#include <iostream>`" — asks a beginner to type a line that is
+       * on their screen. `starterProvided` below turns that from a hope into a
+       * rule the prompt states.
+       */
+      blockCode:
+        ("starter" in block && typeof block.starter === "string" && block.starter.length > 0
+          ? block.starter
+          : undefined) ??
+        ("code" in block && typeof block.code === "string" ? block.code : undefined),
+      starterProvided:
+        "starter" in block && typeof block.starter === "string" && block.starter.includes("int main"),
       skills: block.skillRefs,
       /* Which constructs this learner has actually been shown, computed by
          walking the curriculum in teaching order up to this block. Null only if

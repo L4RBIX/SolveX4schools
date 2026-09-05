@@ -19,6 +19,149 @@ const P = 7; // PDF page for all of September
 /* Unit 1 — Кіріс және шығыс                                                   */
 /* -------------------------------------------------------------------------- */
 
+const l0Blocks: LessonBlock[] = [
+  /*
+   * The lesson that did not exist.
+   *
+   * September opened on `#include <iostream>` with the instruction «прими как
+   * данность» — take it on faith. For a fourteen-year-old who has never
+   * programmed, that is the first thing they meet in computer science and it
+   * says: this is a ritual you copy and do not understand.
+   *
+   * Nothing here asks the learner to write code. What it establishes is the
+   * model everything after it depends on: a computer does exactly what it is
+   * told, in order; the text we write is not what runs; a compiler turns one
+   * into the other; and there are three different ways a program can fail to
+   * be right. Without that last distinction, "не собралось" and "неверный
+   * ответ" are the same red screen, and the learner cannot tell which of the
+   * two things they are meant to fix.
+   */
+  {
+    id: "m1.l0.b1",
+    type: "concept",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: {
+      kk: "Бағдарлама деген не",
+      ru: "Что такое программа",
+    },
+    body: {
+      kk: "Компьютер өз бетінше ештеңе ойлап таппайды. Ол берілген нұсқауларды бірінен соң бірін, жоғарыдан төменге қарай дәл орындайды. Осы нұсқаулардың жазылған тізбегі — бағдарлама. Біз оларды C++ тілінде жазамыз: адам оқи алатын мәтін, бірақ ережелері қатаң. Төмендегі бағдарламада үш нұсқау бар, компьютер оларды осы ретпен орындайды.",
+      ru: "Компьютер ничего не додумывает сам. Он выполняет данные ему инструкции одну за другой, сверху вниз, ровно так, как написано. Записанная последовательность таких инструкций и есть программа. Мы записываем их на языке C++: это текст, который читает человек, но правила у него строгие. В программе ниже три инструкции, и компьютер выполнит их именно в этом порядке.",
+    },
+    code:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Бірінші";\n    cout << "Екінші";\n    cout << "Үшінші";\n    return 0;\n}',
+  },
+  {
+    id: "m1.l0.b2",
+    type: "concept",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: {
+      kk: "Компилятор не істейді",
+      ru: "Что делает компилятор",
+    },
+    body: {
+      kk: "Процессор C++ мәтінін тікелей түсінбейді. Сондықтан аралықта компилятор тұрады — ол біз жазған мәтінді машина орындай алатын бағдарламаға айналдырады:\n\nбіз жазған код → компилятор → дайын бағдарлама → нәтиже\n\n«Іске қосу» батырмасын басқанда осы тізбек толығымен өтеді. Егер компилятор мәтінді түсінбесе, ол ешқандай бағдарлама жасамайды — сондықтан орындалатын да ештеңе болмайды.",
+      ru: "Процессор не понимает текст на C++ напрямую. Между нами и им стоит компилятор — он переводит написанный нами текст в программу, которую машина умеет выполнять:\n\nнаш код → компилятор → готовая программа → результат\n\nКогда ты нажимаешь «Запустить», эта цепочка проходит целиком. Если компилятор не понял текст, он не создаёт программу вовсе — и выполнять тогда просто нечего.",
+    },
+  },
+  {
+    id: "m1.l0.b3",
+    type: "concept",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: {
+      kk: "Үш түрлі «болмады»",
+      ru: "Три разных «не получилось»",
+    },
+    body: {
+      kk: "Бағдарлама үш түрлі жолмен дұрыс болмауы мүмкін, және оларды шатастырмаған жөн.\n\n1. **Компиляция қатесі.** Компилятор мәтінді түсінбеді — бағдарлама тіпті жасалмады. Мысалы, нүктелі үтір ұмытылды.\n2. **Орындалу кезіндегі қате.** Бағдарлама жасалды, іске қосылды, бірақ жұмыс үстінде тоқтап қалды.\n3. **Қате жауап.** Бағдарлама жасалды, аяғына дейін жұмыс істеді, бірақ экранға дұрыс емес нәрсе шығарды.\n\nБіріншісінде код мәтінін түзетесің, үшіншісінде — ойлау логикасын. Бұл екеуі — мүлдем басқа жұмыс.",
+      ru: "Программа может оказаться неправильной тремя разными способами, и путать их не стоит.\n\n1. **Ошибка компиляции.** Компилятор не понял текст — программа даже не была создана. Например, забыта точка с запятой.\n2. **Ошибка во время выполнения.** Программа создана и запущена, но остановилась в процессе работы.\n3. **Неверный ответ.** Программа создана, доработала до конца, но вывела на экран не то.\n\nВ первом случае ты правишь текст кода, в третьем — свою логику. Это совершенно разная работа.",
+    },
+  },
+  {
+    id: "m1.l0.b4",
+    type: "multiple_choice",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    prompt: {
+      kk: "Оқушы бағдарламаны іске қосты. Экранға ешқандай жауап шықпады, оның орнына компилятордың хабары көрінді. Не болды?",
+      ru: "Ученик запустил программу. На экране не появилось никакого ответа — вместо него сообщение компилятора. Что произошло?",
+    },
+    options: [
+      {
+        id: "o1",
+        label: {
+          kk: "Компилятор кодты түсінбеді, сондықтан бағдарлама жасалмады және орындалмады",
+          ru: "Компилятор не понял код, поэтому программа не была создана и не выполнялась",
+        },
+      },
+      {
+        id: "o2",
+        label: {
+          kk: "Бағдарлама жұмыс істеді, бірақ қате жауап берді",
+          ru: "Программа работала, но дала неверный ответ",
+        },
+      },
+      {
+        id: "o3",
+        label: {
+          kk: "Бағдарлама жұмыс істеді, бірақ ортасында тоқтап қалды",
+          ru: "Программа работала, но остановилась посередине",
+        },
+      },
+    ],
+    correctOptionId: "o1",
+    diagnosticMapping: {
+      o2: {
+        failureClass: "compile_vs_wrong_answer_confused",
+        justification:
+          "Қате жауап беру үшін бағдарлама алдымен жасалып, жұмыс істеуі керек. Мұнда компилятор тоқтады, сондықтан орындалатын бағдарлама болған жоқ.",
+      },
+      o3: {
+        failureClass: "compile_vs_runtime_confused",
+        justification:
+          "Жұмыс үстінде тоқтау үшін бағдарлама іске қосылуы керек еді. Компилятор оны жасамаған, сондықтан ол ешқашан іске қосылмады.",
+      },
+    },
+  },
+  {
+    id: "m1.l0.b5",
+    type: "multiple_choice",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    prompt: {
+      kk: "Компилятор нені шығарады?",
+      ru: "Что производит компилятор?",
+    },
+    options: [
+      {
+        id: "o1",
+        label: {
+          kk: "Машина орындай алатын дайын бағдарламаны",
+          ru: "Готовую программу, которую машина умеет выполнять",
+        },
+      },
+      { id: "o2", label: { kk: "Есептің жауабын", ru: "Ответ на задачу" } },
+      { id: "o3", label: { kk: "Экрандағы мәтінді", ru: "Текст на экране" } },
+    ],
+    correctOptionId: "o1",
+    diagnosticMapping: {
+      o2: {
+        failureClass: "compiler_confused_with_execution",
+        justification:
+          "Жауапты бағдарламаның өзі, іске қосылғанда шығарады. Компилятор тек аударады.",
+      },
+    },
+  },
+];
+
 const l1Blocks: LessonBlock[] = [
   /*
    * Re-authored for C++17. This lesson used to teach `print` AND `input()` AND
@@ -43,10 +186,74 @@ const l1Blocks: LessonBlock[] = [
       ru: "Программа — это последовательность инструкций",
     },
     body: {
-      kk: "Компьютер жолдарды жоғарыдан төменге қарай орындайды. `cout <<` — экранға шығару командасы. Әр нұсқаудың соңында нүктелі үтір `;` тұрады: ол компьютерге «бұл нұсқау бітті» дейді. Айналасындағы жолдарды әзірше дайын деп ал — оларды келесі қадамда талдаймыз.",
-      ru: "Компьютер выполняет строки сверху вниз. `cout <<` — команда вывода на экран. В конце каждой инструкции стоит точка с запятой `;`: она говорит компьютеру «инструкция закончилась». Строки вокруг пока прими как данность — разберём их на следующем шаге.",
+      kk: "Компьютер жолдарды жоғарыдан төменге қарай орындайды. `cout <<` — экранға шығару командасы. Әр нұсқаудың соңында нүктелі үтір `;` тұрады: ол компьютерге «бұл нұсқау бітті» дейді. Айналасындағы жолдар да керек — оларды қазір, жол-жолымен талдаймыз.",
+      ru: "Компьютер выполняет строки сверху вниз. `cout <<` — команда вывода на экран. В конце каждой инструкции стоит точка с запятой `;`: она говорит компьютеру «инструкция закончилась». Строки вокруг тоже нужны — разберём их прямо сейчас, строчка за строчкой.",
     },
     code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!";\n    cout << 2 + 2;\n    return 0;\n}',
+  },
+  {
+    /*
+     * The block this month was missing.
+     *
+     * `#include <iostream>` and `using namespace std;` were previously
+     * introduced as four lines to copy — b3 said, in both languages, "just
+     * write these four lines the same way every time". A learner who has never
+     * programmed then spends September typing a spell.
+     *
+     * Each part gets one sentence, at the depth a first week can carry. No
+     * headers-and-linkers, no ODR, no return-code conventions: those are true
+     * and they are not what makes the first program make sense. What makes it
+     * make sense is knowing which line is the door, which lines are the room,
+     * and where their own work goes.
+     */
+    id: "m1.l1.b1a",
+    type: "concept",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: {
+      kk: "Бағдарламаны жол-жолымен талдаймыз",
+      ru: "Разбираем программу по строчкам",
+    },
+    body: {
+      kk: "**`#include <iostream>`** — экранмен жұмыс істейтін стандартты құралдарды қосады. Дәл осы жол `cout` пен `cin`-ді қолжетімді етеді; онсыз компилятор `cout` дегеннің не екенін білмейді.\n\n**`using namespace std;`** — `cout` пен `cin` стандартты C++ кітапханасына тиесілі. Бұл жол оларды `std::cout` емес, жай ғана `cout` деп жазуға мүмкіндік береді. Үйрену кезеңінде осылай ықшам.\n\n**`int main()`** — әр бағдарламаның басталатын нүктесі болуы керек. C++ орындауды дәл осы жерден бастайды.\n\n**`{` және `}`** — main-нің қай жерден басталып, қай жерде аяқталатынын белгілейді. Сенің кодың осы екеуінің арасында тұрады.\n\n**`;`** — көпшілік C++ нұсқауы нүктелі үтірмен аяқталады. Ол «нұсқау бітті» дегенді білдіреді.\n\n**`return 0;`** — бағдарлама қалыпты аяқталды деп жүйеге хабарлайды.",
+      ru: "**`#include <iostream>`** — подключает стандартные средства для работы с экраном. Именно эта строка делает доступными `cout` и `cin`; без неё компилятор не знает, что такое `cout`.\n\n**`using namespace std;`** — `cout` и `cin` принадлежат стандартной библиотеке C++. Эта строка позволяет писать просто `cout` вместо `std::cout`. Пока мы учимся, так короче.\n\n**`int main()`** — у каждой программы должна быть точка старта. C++ начинает выполнение именно отсюда.\n\n**`{` и `}`** — отмечают, где main начинается и где заканчивается. Твой код пишется между ними.\n\n**`;`** — большинство инструкций C++ заканчивается точкой с запятой. Она означает «инструкция закончилась».\n\n**`return 0;`** — сообщает системе, что программа завершилась нормально.",
+    },
+    code:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Сәлем!";\n    return 0;\n}',
+  },
+  {
+    /* Asked about `using namespace std;` specifically, because it is the one
+       line of the frame a beginner cannot guess the purpose of, and the one the
+       previous authoring never explained at all. */
+    id: "m1.l1.b1b",
+    type: "multiple_choice",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    prompt: {
+      kk: "`using namespace std;` жолы не үшін керек?",
+      ru: "Для чего нужна строка `using namespace std;`?",
+    },
+    options: [
+      {
+        id: "o1",
+        label: {
+          kk: "`std::cout` емес, қысқаша `cout` деп жазуға мүмкіндік береді",
+          ru: "Позволяет писать коротко `cout` вместо `std::cout`",
+        },
+      },
+      { id: "o2", label: { kk: "Бағдарламаны іске қосады", ru: "Запускает программу" } },
+      { id: "o3", label: { kk: "Экранды тазалайды", ru: "Очищает экран" } },
+    ],
+    correctOptionId: "o1",
+    diagnosticMapping: {
+      o2: {
+        failureClass: "frame_line_purpose_confused",
+        justification:
+          "Бағдарламаны іске қосу — `main`-нің ісі. Бұл жол тек атауларды қысқартады.",
+      },
+    },
   },
   {
     id: "m1.l1.b2",
@@ -83,10 +290,10 @@ const l1Blocks: LessonBlock[] = [
     /* Earning back the ceremony. b1 said "take these lines as given"; this is
        where that debt is paid, and it is paid before the learner is asked to
        find a bug in them. */
-    title: { kk: "Айналасындағы жолдар не үшін керек", ru: "Зачем нужны строки вокруг" },
+    title: { kk: "Өз кодыңды қайда жазасың", ru: "Куда писать свой код" },
     body: {
-      kk: "`#include <iostream>` — экранмен жұмыс істейтін құралдарды қосады; онсыз `cout` жоқ. `int main() { ... }` — бағдарлама осы жерден басталады, ал `{` мен `}` оның басы мен соңын белгілейді. `return 0;` — «бәрі сәтті бітті» дегені. Бұл төрт жолды әзірге әрдайым осылай жаз; неге дәл солай екенін жыл бойы бөлшектеп ашамыз.",
-      ru: "`#include <iostream>` подключает средства для работы с экраном; без него нет `cout`. `int main() { ... }` — отсюда начинается программа, а `{` и `}` отмечают её начало и конец. `return 0;` означает «всё завершилось успешно». Пока просто пиши эти четыре строки всегда одинаково; почему именно так, будем разбирать по частям в течение года.",
+      kk: "Жақтауды енді танисың. Ең бастысы — өз кодыңды қайда жазатыныңды білу: ол әрқашан `int main() {` мен `return 0;` арасында тұрады. Осы бағдарламада компьютер бір нұсқауды орындап, `2026 - 14` өрнегінің нәтижесін шығарады. Тырнақша жоқ, сондықтан бұл мәтін емес — есептелетін өрнек.",
+      ru: "Рамку ты уже узнаёшь. Главное — понимать, куда писать свой код: он всегда стоит между `int main() {` и `return 0;`. В этой программе компьютер выполняет одну инструкцию и выводит результат выражения `2026 - 14`. Кавычек нет, значит это не текст, а выражение, которое вычисляется.",
     },
     code: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << 2026 - 14;\n    return 0;\n}',
   },
@@ -247,6 +454,99 @@ const l1Blocks: LessonBlock[] = [
   },
 ];
 
+
+const l13Blocks: LessonBlock[] = [
+  /*
+   * Variables, on their own, before anything reads into one.
+   *
+   * `cin >> n` used to be the first time a learner met BOTH ideas at once —
+   * "this is a named box with a declared type" and "the keyboard fills it" —
+   * inside the same line. Two new ideas in one statement is how a beginner
+   * learns to type a line they cannot explain.
+   *
+   * So this lesson does one of them. A variable is declared, given a value in
+   * the source, and printed. Nothing is read; `cin` is the next lesson's work,
+   * and by then the box already exists in their head.
+   */
+  {
+    id: "m1.l13.b1",
+    type: "concept",
+    skillRefs: ["types.int_float", "io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: { kk: "Айнымалы — аты бар қорап", ru: "Переменная — коробка с именем" },
+    body: {
+      kk: "Айнымалы — ішінде мән сақталатын, аты бар орын. C++-та оны алдымен жариялау керек, әрі қандай мән сақталатынын бірден айту керек:\n\n`int age = 14;`\n\n**`int`** — түрі: бүтін сан. **`age`** — аты, оны өзің ойлап табасың. **`14`** — қазіргі мәні. Бұдан кейін `age` дегенді жазсаң, компьютер оның орнына сақталған мәнді қояды. Мәнді кейін өзгертуге де болады: `age = 15;`.",
+      ru: "Переменная — это место с именем, где хранится значение. В C++ её сначала объявляют и сразу говорят, что именно в ней будет храниться:\n\n`int age = 14;`\n\n**`int`** — тип: целое число. **`age`** — имя, его придумываешь ты. **`14`** — текущее значение. Дальше, когда ты пишешь `age`, компьютер подставляет вместо него сохранённое значение. Значение можно позже изменить: `age = 15;`.",
+    },
+    code:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    int age = 14;\n    cout << age;\n    return 0;\n}',
+  },
+  {
+    id: "m1.l13.b2",
+    type: "prediction",
+    skillRefs: ["types.int_float", "arith.basic"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    prompt: {
+      kk: "Бұл бағдарлама экранға нені шығарады?",
+      ru: "Что выведет эта программа на экран?",
+    },
+    code:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a = 5;\n    cout << a + 1;\n    return 0;\n}',
+    answer: "6",
+    options: ["5", "6", "a + 1", "51"],
+  },
+  {
+    id: "m1.l13.b3",
+    type: "multiple_choice",
+    skillRefs: ["types.int_float"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    prompt: {
+      kk: "Қай жол бүтін сан сақтайтын айнымалыны дұрыс жариялайды?",
+      ru: "Какая строка правильно объявляет переменную для целого числа?",
+    },
+    options: [
+      { id: "o1", label: { kk: "`int n = 7;`", ru: "`int n = 7;`" } },
+      { id: "o2", label: { kk: "`n = 7;`", ru: "`n = 7;`" } },
+      { id: "o3", label: { kk: "`int 7 = n;`", ru: "`int 7 = n;`" } },
+      { id: "o4", label: { kk: "`cout << n = 7;`", ru: "`cout << n = 7;`" } },
+    ],
+    correctOptionId: "o1",
+    diagnosticMapping: {
+      o2: {
+        failureClass: "declaration_missing_type",
+        justification:
+          "Түрі жоқ. C++-та айнымалыны бірінші рет қолданғанда оның түрін жазу міндетті: `int n = 7;`.",
+      },
+      o3: {
+        failureClass: "declaration_operand_order",
+        justification: "Сол жақта ат тұруы керек, сан емес: `int n = 7;`.",
+      },
+    },
+  },
+  {
+    id: "m1.l13.b4",
+    type: "write_code",
+    skillRefs: ["types.int_float", "io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    /* Stage 2: the frame is given, they write two lines inside it. The task is
+       deliberately fixed-output — `cin` has not been taught, so there is
+       nothing to vary — and it is the LAST such task in the month for that
+       reason: from l11 on, every write_code reads something. */
+    prompt: {
+      kk: "`year` деген бүтін айнымалы жаса, оған 2026 мәнін бер және экранға шығар.",
+      ru: "Создай целую переменную `year`, положи в неё 2026 и выведи её на экран.",
+    },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
+    referenceSolution:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    int year = 2026;\n    cout << year;\n    return 0;\n}',
+    cases: [{ input: "", expectedOutput: "2026" }],
+  },
+];
 
 const l2Blocks: LessonBlock[] = [
   /*
@@ -788,6 +1088,8 @@ const l5Blocks: LessonBlock[] = [
       kk: "Баға беріледі (0–100). 85 және одан жоғары — «5», 70–84 — «4», 50–69 — «3», қалғаны — «2».",
       ru: "Дан балл (0–100). 85 и выше — «5», 70–84 — «4», 50–69 — «3», остальное — «2».",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int b;\n    cin >> b;\n    if (b >= 85) {\n        cout << 5;\n    } else if (b >= 70) {\n        cout << 4;\n    } else if (b >= 50) {\n        cout << 3;\n    } else {\n        cout << 2;\n    }\n    return 0;\n}',
     /* Every band is now exercised, and every threshold is probed at n-1 / n.
@@ -853,6 +1155,8 @@ const l5Blocks: LessonBlock[] = [
       kk: "Сан беріледі (-1000000 ≤ n ≤ 1000000). Ол оң болса 1, теріс болса -1, нөл болса 0 шығар.",
       ru: "Дано число (-1000000 ≤ n ≤ 1000000). Если оно положительное — выведи 1, отрицательное — -1, ноль — 0.",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    if (n > 0) {\n        cout << 1;\n    } else if (n < 0) {\n        cout << -1;\n    } else {\n        cout << 0;\n    }\n    return 0;\n}',
     cases: [
@@ -991,6 +1295,8 @@ const l6Blocks: LessonBlock[] = [
       kk: "Кинотеатрда 12 жасқа толмағандарға және 65 жастан асқандарға жеңілдік бар. Жас беріледі. Жеңілдігі ЖОҚ адам үшін «full», бары үшін «discount» шығар.",
       ru: "В кинотеатре скидка тем, кому меньше 12, и тем, кому больше 65. Дан возраст. Для того, у кого скидки НЕТ, выведи «full», иначе «discount».",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int age;\n    cin >> age;\n    if (!(age < 12 || age > 65)) {\n        cout << "full";\n    } else {\n        cout << "discount";\n    }\n    return 0;\n}',
     cases: [
@@ -1039,6 +1345,8 @@ const l6Blocks: LessonBlock[] = [
       kk: "Жыл беріледі. Ол кібісе жыл ба? «yes» немесе «no» шығар. Ереже: 4-ке бөлінеді, бірақ 100-ге бөлінсе, тек 400-ге бөлінгенде ғана кібісе.",
       ru: "Дан год. Високосный ли он? Выведи «yes» или «no». Правило: делится на 4, но если делится на 100 — только если делится на 400.",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int y;\n    cin >> y;\n    if (y % 400 == 0 || (y % 4 == 0 && y % 100 != 0)) {\n        cout << "yes";\n    } else {\n        cout << "no";\n    }\n    return 0;\n}',
     cases: [
@@ -1077,6 +1385,37 @@ const l6Blocks: LessonBlock[] = [
 /* -------------------------------------------------------------------------- */
 
 const l7Blocks: LessonBlock[] = [
+  {
+    /*
+     * The graduation, said out loud.
+     *
+     * Up to here every code task has handed the learner the frame and asked for
+     * the body. From this lesson on they type the whole program, and that
+     * transition used to happen silently — `m1.l10.b5` simply arrived with an
+     * empty editor at teaching position 6, between two lessons that still gave
+     * the frame. A learner who has been shown a frame for five lessons and is
+     * then given a blank box has not been taught to write a program; they have
+     * been left to guess whether they forgot something.
+     *
+     * The frame is repeated here in full for the same reason: it is the last
+     * moment it is free.
+     */
+    id: "m1.l7.b0",
+    type: "concept",
+    skillRefs: ["io.print"],
+    sourceType: "product-authored",
+    pdfPage: P,
+    title: {
+      kk: "Осы сабақтан бастап бағдарламаны толық жазасың",
+      ru: "С этого урока ты пишешь программу целиком",
+    },
+    body: {
+      kk: "Осы уақытқа дейін редакторда дайын жақтау тұрды, ал сен оның ішіне жазатынсың. Бұдан былай жақтауды да өзің жазасың — оның төрт бөлігін бірінші сабақтан бері көріп келесің:\n\n1. `#include <iostream>` — cout пен cin осыдан келеді;\n2. `using namespace std;` — қысқа жазу үшін;\n3. `int main() {` — бағдарлама осы жерден басталады;\n4. `return 0;` және `}` — аяқталуы.\n\nЖаттап алудың қажеті жоқ: әр жолдың не істейтінін білсең, оны қайта құру қиын емес.",
+      ru: "До этого урока в редакторе уже стояла готовая рамка, а ты писал внутри неё. Дальше рамку ты пишешь сам — все четыре её части ты видишь с первого урока:\n\n1. `#include <iostream>` — отсюда берутся cout и cin;\n2. `using namespace std;` — чтобы писать коротко;\n3. `int main() {` — отсюда начинается программа;\n4. `return 0;` и `}` — её завершение.\n\nЗаучивать не нужно: если понимаешь, что делает каждая строка, собрать её заново несложно.",
+    },
+    code:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    cout << n;\n    return 0;\n}',
+  },
   {
     id: "m1.l7.b1",
     type: "concept",
@@ -1513,6 +1852,8 @@ const l10Blocks: LessonBlock[] = [
       kk: "Үш баға беріледі (0 ≤ әрқайсысы ≤ 100). Олардың орташа мәнін шығар. Жауап бөлшек болуы мүмкін, сондықтан бөлудің бір жағын `3.0` деп жаз.",
       ru: "Даны три оценки (каждая от 0 до 100). Выведи их среднее. Ответ может быть дробным, поэтому пиши деление на `3.0`.",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b, c;\n    cin >> a >> b >> c;\n    cout << (a + b + c) / 3.0;\n    return 0;\n}',
     /*
@@ -1664,6 +2005,8 @@ const l12Blocks: LessonBlock[] = [
       kk: "Тауар бағасы a теңге (0 ≤ a ≤ 1000000) және жеңілдік p пайыз (0 ≤ p ≤ 100) беріледі. Сатып алушы қанша төлейді? Жауап бүтін теңге.",
       ru: "Даны цена товара a тенге (0 ≤ a ≤ 1000000) и скидка p процентов (0 ≤ p ≤ 100). Сколько заплатит покупатель? Ответ — целое число тенге.",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, p;\n    cin >> a >> p;\n    cout << a - a * p / 100;\n    return 0;\n}',
     cases: [
@@ -1684,6 +2027,8 @@ const l12Blocks: LessonBlock[] = [
       kk: "Дүкенде жеңілдік сома бойынша беріледі: 10000 теңге және одан жоғары — 10 пайыз, 5000-нан 9999-ға дейін — 5 пайыз, одан төмен — жеңілдік жоқ. Сатып алу сомасы беріледі (0 ≤ s ≤ 1000000). Төленетін соманы шығар.",
       ru: "В магазине скидка зависит от суммы: 10000 тенге и выше — 10 процентов, от 5000 до 9999 — 5 процентов, ниже — без скидки. Дана сумма покупки (0 ≤ s ≤ 1000000). Выведи сумму к оплате.",
     },
+    starter:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Мұнда жаз / Напиши здесь\n    \n    return 0;\n}',
     referenceSolution:
       '#include <iostream>\nusing namespace std;\n\nint main() {\n    int s;\n    cin >> s;\n    if (s >= 10000) {\n        cout << s - s * 10 / 100;\n    } else if (s >= 5000) {\n        cout << s - s * 5 / 100;\n    } else {\n        cout << s;\n    }\n    return 0;\n}',
     cases: [
@@ -1977,6 +2322,34 @@ export const MONTH_01_SEPTEMBER: Month = {
            is l3's work, so "преобразование ввода в число" moved there with it.
            What replaced it is the frame and the semicolon — ceremony Python
            does not have and a C++ beginner cannot avoid. */
+        /*
+         * The month now opens on the model, not on the syntax.
+         *
+         * September used to begin with `#include <iostream>` and the sentence
+         * "take these four lines on faith". For a fourteen-year-old with no
+         * programming behind them, the first thing computer science said was:
+         * copy this, do not ask. l0 is the answer to that — what a program is,
+         * what a compiler does, and the three different ways a program can be
+         * wrong — and it asks for no code at all.
+         */
+        lesson(
+          "m1.l0",
+          "Бағдарлама деген не",
+          "Что такое программа",
+          8,
+          [
+            {
+              kk: "Бағдарлама — нұсқаулар тізбегі екенін түсіну",
+              ru: "Понимать, что программа — это последовательность инструкций",
+            },
+            {
+              kk: "Компилятордың не істейтінін және қатенің үш түрін ажырату",
+              ru: "Понимать, что делает компилятор, и различать три вида ошибок",
+            },
+          ],
+          ["io.print"],
+          l0Blocks,
+        ),
         lesson(
           "m1.l1",
           "Бірінші бағдарлама",
@@ -1995,6 +2368,33 @@ export const MONTH_01_SEPTEMBER: Month = {
            also the first lesson where anything is DECLARED: `cin` cannot read
            until a type has been chosen, and `string` is the type that needs no
            arithmetic to explain. */
+        /*
+         * Placed between the first program and the first `cin`, deliberately.
+         *
+         * `cin >> n` carries two new ideas at once — a declared, typed box, and
+         * the keyboard filling it — and l11 used to be where a learner met both
+         * in the same statement. The box gets its own lesson first, with a value
+         * written in the source, so that when reading arrives there is exactly
+         * one new thing in the line.
+         */
+        lesson(
+          "m1.l13",
+          "Айнымалылар",
+          "Переменные",
+          8,
+          [
+            {
+              kk: "Айнымалыны жариялау, мән беру және экранға шығару",
+              ru: "Объявлять переменную, задавать значение и выводить его",
+            },
+            {
+              kk: "int түрі бүтін сан үшін екенін білу",
+              ru: "Знать, что тип int — для целых чисел",
+            },
+          ],
+          ["types.int_float", "io.print"],
+          l13Blocks,
+        ),
         lesson(
           "m1.l11",
           "Мәтінмен жұмыс",

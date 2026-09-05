@@ -5,7 +5,7 @@ import { MONTHS } from "@schools/curriculum/months";
    them unable to contradict each other. */
 import {
   extractConstructs,
-  frameBecomesTheirsAt,
+  frameHandoverLesson,
   shownCode,
   teachingOrder,
   type ConstructId,
@@ -266,10 +266,21 @@ export function septemberArrivals(): readonly SeptemberArrival[] {
    * `tests/nova/construct-context.test.ts`, so the day the content is fixed
    * this comment stops being true out loud instead of quietly.
    */
-  const FRAME_HANDOVER_POSITION = 7;
-  const frameOrdinal = frameBecomesTheirsAt();
-  void frameOrdinal;
-  const frameRequiredAt = FRAME_HANDOVER_POSITION;
+  /*
+   * Read from the content, not transcribed from the document.
+   *
+   * This was `FRAME_HANDOVER_POSITION = 7`, a number copied out of the pedagogy
+   * document, sitting beside a derivation that said 4 — and the note below
+   * explained that the disagreement was a CONTENT defect: `m1.l10.b5` opened a
+   * blank editor three lessons before the hand-over the document described.
+   *
+   * The content has since been made coherent. Every core code task before the
+   * graduation lesson carries the frame in its `starter`, `m1.l7` announces the
+   * hand-over in its own words, and `tests/school/beginner-onboarding.test.ts`
+   * holds both halves. So the position is derived, the transcription is gone,
+   * and the two can no longer contradict each other.
+   */
+  const frameRequiredAt = frameHandoverLesson();
 
   arrivalsCache = SEPTEMBER_SEQUENCE.map((construct) => {
     const positions = construct.constructs.map((id) => firstAt.get(id));
@@ -292,8 +303,19 @@ export function resetSeptemberArrivalsForTests(): void {
   arrivalsCache = null;
 }
 
-/** The last lesson of September. Practice and the monthly check sit after it. */
-const SEPTEMBER_LAST_LESSON = 12;
+/**
+ * The last lesson of September. Practice and the monthly check sit after it.
+ *
+ * Read from the month rather than written down: this was `= 12`, and September
+ * gained two beginner lessons at the front, so the constant would have told
+ * Nova a practice task sat at lesson 12 of a fourteen-lesson month — two
+ * lessons of material the tutor would then refuse to mention on the tasks that
+ * need it most.
+ */
+function septemberLastLesson(): number {
+  const september = MONTHS.find((m) => m.index === 1);
+  return september ? september.units.flatMap((u) => u.lessons).length : 0;
+}
 
 /**
  * The month a later construct becomes available, read from the taxonomy.
@@ -556,7 +578,7 @@ export function cpp17PositionOf(blockId: string | undefined | null): Cpp17Positi
   }
   return {
     month,
-    lesson: month === 1 ? SEPTEMBER_LAST_LESSON : null,
+    lesson: month === 1 ? septemberLastLesson() : null,
     kind: m[2] === "as" ? "assessment" : "practice",
   };
 }
@@ -787,8 +809,8 @@ export function cpp17PromptLines(
     const { write, given, notYet } = septemberTaughtBy(position.lesson);
     lines.push(
       declared
-        ? `- September, lesson ${position.lesson} of 12. TAUGHT: ${write.map((c) => c.label).join("; ")}`
-        : `- September, lesson ${position.lesson} of 12.`,
+        ? `- September, lesson ${position.lesson} of ${septemberLastLesson()}. TAUGHT: ${write.map((c) => c.label).join("; ")}`
+        : `- September, lesson ${position.lesson} of ${septemberLastLesson()}.`,
     );
     if (given.length) {
       /* Stated here in BOTH modes, and the capability block defers to it — see

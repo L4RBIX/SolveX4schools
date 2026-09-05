@@ -68,16 +68,20 @@ function gradedBlocks(): Graded[] {
 }
 
 /**
- * The one block where a constant IS the task.
+ * The two blocks where a constant IS the task.
  *
  * `m1.l1.b5` is the first program of the year: the learner types
- * `cout << 7 * 8;` and there is nothing to read and nothing to branch on. A
- * gate that failed it would be a gate somebody switches off in week one.
+ * `cout << 7 * 8;` and there is nothing to read and nothing to branch on.
+ * `m1.l13.b4` is the variables lesson — declare `int year = 2026;` and print it
+ * — and it is fixed for the same structural reason: `cin` has not been taught
+ * yet, so the program HAS no input to vary against. Both come before the first
+ * `cin`, and there is no third: from `m1.l11` on, every write_code reads.
  *
+ * A gate that failed either would be a gate somebody switches off in week one.
  * Named individually rather than covered by a rule about "month one" or "one
  * case", because an exemption that generalises is an exemption that grows.
  */
-const CONSTANT_IS_THE_TASK = new Set(["m1.l1.b5"]);
+const CONSTANT_IS_THE_TASK = new Set(["m1.l1.b5", "m1.l13.b4"]);
 
 describe("a program that ignores its input", () => {
   const blocks = gradedBlocks();
@@ -102,16 +106,37 @@ describe("a program that ignores its input", () => {
     ).toEqual([]);
   });
 
-  it("keeps the one exemption honest", () => {
-    /* If `m1.l1.b5` ever grows a second distinct output, the exemption is dead
-       weight and should go — an allow-list nobody re-reads is how the next hole
-       gets dug. */
-    const b = blocks.find((x) => x.id === "m1.l1.b5");
-    expect(b, "the exempted block must exist").toBeDefined();
-    expect(
-      new Set(b!.cases.map((c) => c.expectedOutput.trim())).size,
-      "m1.l1.b5 now has more than one expected output — drop the exemption",
-    ).toBe(1);
+  it("keeps the exemptions honest", () => {
+    /* If either block ever grows a second distinct output, its exemption is
+       dead weight and should go — an allow-list nobody re-reads is how the next
+       hole gets dug. */
+    for (const id of CONSTANT_IS_THE_TASK) {
+      const b = blocks.find((x) => x.id === id);
+      expect(b, `the exempted block ${id} must exist`).toBeDefined();
+      expect(
+        new Set(b!.cases.map((c) => c.expectedOutput.trim())).size,
+        `${id} now has more than one expected output — drop the exemption`,
+      ).toBe(1);
+    }
+  });
+
+  it("exempts nothing that is taught after the first cin", () => {
+    /*
+     * The rule behind the list, asserted rather than trusted: a fixed-output
+     * task is only defensible while the learner has no way to read input. Both
+     * exemptions are before `m1.l11`, which is where `cin` arrives.
+     */
+    const order = new Map<string, number>();
+    let n = 0;
+    for (const month of MONTHS) {
+      if (month.index !== 1) continue;
+      for (const unit of month.units) for (const lesson of unit.lessons) order.set(lesson.id, ++n);
+    }
+    const firstCin = order.get("m1.l11")!;
+    for (const id of CONSTANT_IS_THE_TASK) {
+      const lessonId = blocks.find((b) => b.id === id)!.where;
+      expect(order.get(lessonId)!, `${id} is exempt but is taught after cin`).toBeLessThan(firstCin);
+    }
   });
 });
 

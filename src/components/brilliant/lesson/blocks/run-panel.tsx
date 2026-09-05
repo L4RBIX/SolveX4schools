@@ -23,6 +23,9 @@ import {
   stderrIsCompilerOutput,
   seedStdin,
   shouldRecordRun,
+  parseDiagnostics,
+  firstError,
+  friendlyDiagnostic,
 } from "./run-state";
 
 /**
@@ -188,6 +191,14 @@ export function RunPanel({
   /* The runtime fault's meaning, when the raw text has none. See
      `runtimeFaultNote`: `unreachable` is a wasm trap, not a diagnostic. */
   const faultNote = result ? runtimeFaultNote(result.status, result.stderr) : null;
+  /* The first ERROR clang reported, and its translation if there is a reliable
+     one. First rather than last: clang cascades, and the later messages are
+     usually consequences of the first. */
+  const buildFailure =
+    result && stderrIsCompilerOutput(result.status)
+      ? firstError(parseDiagnostics(result.stderr))
+      : null;
+  const friendly = friendlyDiagnostic(buildFailure);
 
   async function press() {
     if (button.action === "retry") {
@@ -236,6 +247,10 @@ export function RunPanel({
       aria-label={t(L.run, locale)}
     >
       <p className="text-[14px] leading-5 text-b-fg/60">{t(L.runWhatItDoes, locale)}</p>
+      {/* And what the OTHER button does, beside this one. The two are a thumb
+          apart and a learner who thinks Run marked them correct has learned
+          something false about what a verdict here is worth. */}
+      <p className="text-[14px] leading-5 text-b-fg/45">{t(L.checkWhatItDoes, locale)}</p>
 
       <label className="flex w-full flex-col gap-1.5">
         <span className="text-[14px] leading-5 text-b-fg/60">{t(L.runInputLabel, locale)}</span>
@@ -344,6 +359,33 @@ export function RunPanel({
                 {faultNote ? (
                   <p className="text-[15px] leading-6 text-b-fg/80">{t(faultNote, locale)}</p>
                 ) : null}
+
+                {/*
+                  * A build failure, read for the learner.
+                  *
+                  * The heading says what happened in one sentence, the line
+                  * number is lifted out of `main.cc:5:23:` — where it was
+                  * unreadable — and the friendly line appears only when the
+                  * shape is one this product has actually seen. No match means
+                  * no sentence: a guess would point a beginner at the wrong
+                  * line, and the next thing they stop trusting is the tool.
+                  */}
+                {buildFailure ? (
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[15px] leading-6 font-medium text-b-fg/90">
+                      {t(L.diagHeading, locale)}
+                    </p>
+                    {buildFailure.line !== null ? (
+                      <p className="text-[14px] leading-5 tabular-nums text-b-warn-edge">
+                        {t(L.diagLineLabel(buildFailure.line), locale)}
+                      </p>
+                    ) : null}
+                    {friendly ? (
+                      <p className="text-[15px] leading-6 text-b-fg/80">{t(friendly, locale)}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <OutputPane label={t(L.runStderr, locale)} text={result.stderr} tone="err" />
                 {/* And the caption tells the truth about whose words these are.
                     It used to say "the compiler's own words" for everything,

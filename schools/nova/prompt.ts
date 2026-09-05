@@ -81,6 +81,17 @@ export interface PromptContext {
   lessonTitle: string;
   blockPrompt: string;
   blockCode?: string;
+  /**
+   * Whether the code on screen already contains the program frame.
+   *
+   * September hands the learner `#include <iostream>`, `using namespace std;`,
+   * `int main()` and `return 0;` and asks only for the body, up to the lesson
+   * that announces the hand-over. A tutor that does not know this tells a
+   * beginner to "start by writing int main()" — which is both useless and
+   * quietly corrosive, because the learner then believes the thing on their
+   * screen is not real.
+   */
+  starterProvided?: boolean;
   skills: string[];
   /**
    * Where in the nine months this task sits, as its own id.
@@ -362,6 +373,21 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
     "TRUSTED PRODUCT CONTEXT",
     `- Month: ${ctx.monthTitle}`,
     `- Lesson: ${ctx.lessonTitle}`,
+    /*
+     * The two buttons, named for the tutor.
+     *
+     * A learner asks "почему не проверяется" and means one of two completely
+     * different things depending on which button they pressed. Nova was never
+     * told the difference existed, so it answered about "the tests" when the
+     * learner had only Run, and about "your output" when the judge had already
+     * marked them. Both are the product's own vocabulary and the tutor has to
+     * speak it.
+     */
+    "- The learner has TWO buttons. RUN compiles and runs their program in their own",
+    "  browser, on input they choose, and marks nothing. CHECK sends the solution to the",
+    "  judge, which runs every test of the task including hidden ones, and that verdict is",
+    "  the one that counts. Never call a Run result a verdict, and never suggest Run will",
+    "  mark their work.",
     "",
     "CURRICULUM CONTEXT",
     `- Task: ${ctx.blockPrompt}`,
@@ -369,6 +395,15 @@ export function buildSystemPrompt(ctx: PromptContext, nonce: string = newNonce()
 
   if (ctx.blockCode) {
     lines.push("- The starter code on screen:", "```", ctx.blockCode, "```");
+  }
+  if (ctx.starterProvided) {
+    /* Said as an instruction, not as a fact, because the failure it prevents is
+       an action: a hint that asks for a line the editor already contains. */
+    lines.push(
+      "- The frame (#include, using namespace std, int main, return 0) is ALREADY in their",
+      "  editor. Never ask them to write it, add it, or check that it is there. Their work",
+      "  goes inside main, where the comment is.",
+    );
   }
   if (ctx.skills.length) {
     lines.push(`- Skills this task is about: ${ctx.skills.join(", ")}`);
