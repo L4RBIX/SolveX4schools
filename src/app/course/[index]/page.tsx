@@ -8,6 +8,7 @@ import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
 import { currentLearnerMayEnter, unlockStateForSubject } from "@schools/learning/access";
 import { knownSubjectId } from "@schools/learning/identity";
+import { getStore } from "@schools/store";
 import { blockingRequirement } from "@schools/presentation/adapters";
 import { MonthBoard } from "@/components/brilliant/gameboard/month-board";
 import { MonthNotOpen } from "@/components/brilliant/gameboard/month-not-open";
@@ -85,10 +86,35 @@ export default async function CoursePage({
     );
   }
 
+  /*
+   * The completions the SERVER has, handed to the board.
+   *
+   * The map's ticks and lock marks came from a `localStorage` snapshot and
+   * nothing else, so they were a browser's opinion: a second device showed an
+   * empty year to a learner who had finished September, and clearing site data
+   * erased a school's record from the learner's own view of it.
+   * `lesson_completions` — the row `/api/learning/complete` refuses to write
+   * unless the policy is satisfied against the ledger — was never consulted.
+   *
+   * `useProgress` unions this with the local copy rather than replacing it: the
+   * local one is what makes the board change in the same frame as a completion,
+   * and a lesson that finishes and lights nothing up reads as broken even when
+   * every part works. Both are written by the same route, so neither can be
+   * wrong in the direction that matters.
+   *
+   * Ids only. Which lessons are finished is the learner's own progress; the
+   * counts and timestamps beside them are not what a board renders.
+   */
+  const boardSubject = await knownSubjectId();
+  const completed = boardSubject
+    ? (await (await getStore()).completionsForSubject(boardSubject)).map((c) => c.lessonId)
+    : [];
+
   return (
     <MonthBoard
       month={monthOutline(month, track)}
       track={track}
+      completed={completed}
       leagues={leagueNavVisible(user)}
     />
   );

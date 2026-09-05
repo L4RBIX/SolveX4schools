@@ -2,6 +2,7 @@ import { MONTHS } from "@schools/curriculum/months";
 import { monthOutlines } from "@schools/curriculum/public";
 import { requirePageSession } from "@schools/auth/page-guard";
 import { knownSubjectId } from "@schools/learning/identity";
+import { getStore } from "@schools/store";
 import { unlockStateForSubject } from "@schools/learning/access";
 import { FIRST_MONTH_INDEX } from "@schools/policies/unlock";
 import { leagueNavVisible } from "@schools/leagues/scope";
@@ -49,6 +50,11 @@ export default async function StudentHome() {
     ? (await unlockStateForSubject(subjectId)).unlockedThrough
     : FIRST_MONTH_INDEX;
 
+  /* The completions the server holds. See the `completed` prop below. */
+  const completed = subjectId
+    ? (await (await getStore()).completionsForSubject(subjectId)).map((c) => c.lessonId)
+    : [];
+
   /* The predicate is a pure `config` read with no database access, so asking it
      twice costs nothing and the page reads the same as the other five learner
      pages — `leagues={leagueNavVisible(user)}` at the call site, which is the
@@ -63,6 +69,12 @@ export default async function StudentHome() {
       months={monthOutlines(MONTHS)}
       learnerName={user?.displayName ?? null}
       unlockedThrough={unlockedThrough}
+      /* What the SERVER records as finished. The deck used to read
+         `localStorage` alone, so a learner on a second device was invited to
+         start a lesson they had already completed. Ids only — which lessons
+         are done is the learner's progress; the counts beside them are not
+         what a deck renders. */
+      completed={completed}
       leagues={leagueNavVisible(user)}
       league={league}
     />

@@ -135,3 +135,42 @@ export function monthCompletables(month: MonthCompletableShape): Completable[] {
   }
   return out;
 }
+
+/**
+ * The lesson that comes after this one, in TEACHING order.
+ *
+ * ## Why this is not derivable from the id
+ *
+ * Teaching order is the order the month file lists its lessons in, and it is
+ * not the numeric order of the ids: September runs
+ * `l1 l11 l2 l10 l3 l4 l5 l12 l6 l7 l8 l9`, so a "next" computed by adding one
+ * to the number would be wrong for eleven of its twelve lessons. The array is
+ * the source of truth, and the only place that holds it is the month object.
+ *
+ * ## Why it lives beside `monthCompletables`
+ *
+ * Both answer a question about the same walk, and both have to skip the same
+ * things — a draft, and a lesson with no blocks. Two copies of that rule would
+ * eventually disagree, and the way it would show is a "Continue" that lands on
+ * an empty page; `tests/school/finishing-a-lesson-goes-somewhere.test.ts` pins
+ * the two together.
+ *
+ * Generic in the lesson so the caller gets its own lesson object back and can
+ * read a title off it, without this module ever having to know what else a
+ * lesson carries — which is the whole point of `shape.ts`.
+ *
+ * @returns the next lesson, or `null` at the end of a month (where the month
+ *   board, not another lesson, is the right destination) and for an id this
+ *   month does not teach.
+ */
+export function lessonAfter<L extends { id: string; status: PublicationStatus; blocks: readonly unknown[] }>(
+  month: { units: readonly { lessons: readonly L[] }[] },
+  lessonId: string,
+): L | null {
+  const taught = month.units
+    .flatMap((unit) => unit.lessons)
+    .filter((lesson) => lesson.status !== "draft" && lesson.blocks.length > 0);
+  const at = taught.findIndex((lesson) => lesson.id === lessonId);
+  if (at < 0) return null;
+  return taught[at + 1] ?? null;
+}

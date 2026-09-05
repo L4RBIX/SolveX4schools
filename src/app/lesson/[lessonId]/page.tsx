@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { MONTHS } from "@schools/curriculum/months";
 import type { Lesson, Month } from "@schools/curriculum/types";
 import { publicLesson } from "@schools/curriculum/public";
+import { lessonAfter } from "@schools/curriculum/shape";
 import { resolveTrack } from "@schools/learning/track";
 import { gateFor } from "@schools/curriculum/gate";
 import { currentLearnerMayEnter } from "@schools/learning/access";
@@ -140,11 +141,17 @@ export default async function LessonPage({
     found.lesson.estimatedMinutes,
   );
 
+  /* Where "Continue" goes at the end of the lesson. Teaching order is the
+     month file's array order, which only the server holds. */
+  const after = lessonAfter(found.month, lesson.id);
+  const nextLesson = after ? { id: after.id, title: after.title } : null;
+
   return (
     <LessonRoute
       lesson={lesson}
       monthIndex={found.month.index}
       monthTitle={found.month.title.kk}
+      nextLesson={nextLesson}
       /*
        * Whether this deployment has a judge whose word becomes evidence.
        *

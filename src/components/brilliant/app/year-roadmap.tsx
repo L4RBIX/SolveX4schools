@@ -23,13 +23,24 @@ import { LocaleSwitch, SCHOOL_NAV, SolveXWordmark } from "./school-chrome";
  */
 export function YearRoadmap({
   months,
+  completed,
   leagues = false,
 }: {
   months: MonthOutline[];
+  /**
+   * Lesson ids the SERVER records as finished, for this learner.
+   *
+   * The per-month bars are the year's only summary of a learner's own work, and
+   * they were drawn from `localStorage` alone — so a second device, or a school
+   * machine that clears site data, showed a year with nothing in it. Read on
+   * the server from `lesson_completions` and merged with the local snapshot,
+   * which is what keeps the bar moving in the same frame as a completion.
+   */
+  completed?: readonly string[];
   leagues?: boolean;
 }) {
   const { locale, setLocale } = useLocale();
-  const progress = useProgress();
+  const progress = useProgress(completed);
 
   const loc = locale as Locale;
   const path = programmeToLearningPath(months, progress, loc, {

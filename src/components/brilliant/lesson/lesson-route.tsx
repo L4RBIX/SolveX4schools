@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import type { PublicLesson } from "@schools/curriculum/public";
+import type { Localized } from "@schools/curriculum/types";
 import type { LessonHydration } from "@schools/learning/hydration";
 import type { SchoolInteraction } from "@schools/learning";
 import type { BlockAnswer } from "@schools/learning/checking";
@@ -26,10 +27,19 @@ export function LessonRoute({
   trustedProviderConfigured,
   hydration,
   contestSeconds,
+  nextLesson,
 }: {
   lesson: PublicLesson;
   monthIndex: number;
   monthTitle: string;
+  /**
+   * The lesson after this one in TEACHING order, resolved on the server.
+   *
+   * Teaching order is the month file's array order, and the client holds only
+   * this one lesson — so "the next one" cannot be derived here. `null` at the
+   * end of a month, where the map is the right destination.
+   */
+  nextLesson?: { id: string; title: Localized } | null;
   /**
    * Seconds left on a timed practice contest, computed on the SERVER.
    *
@@ -252,6 +262,7 @@ export function LessonRoute({
       monthTitle={monthTitle}
       locale={locale}
       backHref={`/course/${monthIndex}`}
+      nextLesson={nextLesson}
       onInteraction={onInteraction}
       onSubmit={onSubmit}
       onComplete={onComplete}

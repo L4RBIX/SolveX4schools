@@ -294,11 +294,17 @@ describe("the two status vocabularies correspond, and say the same thing about t
     }
   });
 
-  it("says once, and only once, why the browser half is not executed", () => {
+  it("says once, and only once, why the browser half is not executed HERE", () => {
     /* A skipped half that does not say so is a suite claiming more than it
        does. The reason is a constant rather than twenty copies of a comment,
-       and this is what stops it being deleted as noise. */
-    expect(LOCAL_HALF_NOT_EXECUTED).toContain("wasi_unstable");
+       and this is what stops it being deleted as noise.
+
+       It used to say the browser engine could not be run by any test process.
+       That was true of this harness and false as a general claim, and the
+       difference has since been closed by a suite that runs it — so the
+       constant now names what is actually missing, which is the join. */
+    expect(LOCAL_HALF_NOT_EXECUTED).toContain("curriculum-in-the-learners-compiler");
+    expect(LOCAL_HALF_NOT_EXECUTED).not.toContain("No test process can run it");
     expect(LOCAL_HALF_NOT_EXECUTED.length).toBeGreaterThan(120);
   });
 
@@ -523,15 +529,16 @@ describe("what this suite cannot prove", () => {
     /* Written as a test so it appears in the run and cannot rot in a comment
        nobody opens. Every item is a statement about THIS suite, not a to-do. */
     const unproven = [
-      "the browser engine is not executed at all: 57.5 MB of WebAssembly clang " +
-        "over `wasi_unstable`, which node's WASI cannot drive. Every `local` " +
-        "column is declared, not measured",
+      "the browser engine is not executed BY THIS SUITE: every `local` column " +
+        "is declared, not measured. It is executed against the curriculum in " +
+        "tests/cpp17/curriculum-in-the-learners-compiler.test.ts, which is a " +
+        "different question from the one these fixtures ask",
       "the compiler here is this machine's, not the judge's GCC 14 and not the " +
         "browser's Clang 8 — so a libstdc++/libc++ divergence would not show up",
       "LocalExecutionProvider is not Piston and is not Judge0: a judge-specific " +
         "divergence would not show up either",
-      "the per-feature parity suite docs/cpp17/CPP17_JUDGE_PARITY.md calls for " +
-        "does not exist; the evidence that the engines agree is a manual pass",
+      "the JOIN the per-feature suite in docs/cpp17/CPP17_JUDGE_PARITY.md calls " +
+        "for — one program, both engines, one comparison — still does not exist",
     ];
     expect(unproven.length).toBe(4);
     expect(unproven.every((u) => u.length > 60)).toBe(true);

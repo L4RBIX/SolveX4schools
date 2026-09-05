@@ -84,6 +84,7 @@ export function SchoolHome({
   unlockedThrough,
   leagues = false,
   league = null,
+  completed,
 }: {
   months: MonthOutline[];
   /** `null` until enrolment exists. See HomeRailProps.name. */
@@ -98,13 +99,22 @@ export function SchoolHome({
    * `demonstrated` becomes true everywhere and the whole year opens.
    */
   unlockedThrough: number;
+  /**
+   * Lessons the SERVER records as finished.
+   *
+   * The deck's "Start"/"Continue" copy and its month progress came from
+   * `localStorage` alone, so a learner on a second device was told to start a
+   * lesson they had finished. `useProgress` unions this with the local copy —
+   * see there for why it is a union and not a replacement.
+   */
+  completed?: readonly string[];
   /** Does this learner's school have a league? `leagueNavVisible`, server-side. */
   leagues?: boolean;
   /** The league card's data, or null when this school has no league. */
   league?: HomeLeagueData | null;
 }) {
   const { locale, setLocale } = useLocale();
-  const progress = useProgress();
+  const progress = useProgress(completed);
   const loc = locale as Locale;
   const week = useWeeklyActivity();
 

@@ -34,14 +34,24 @@ import { TrackSwitch } from "./track-switch";
 export function MonthBoard({
   month,
   track,
+  completed,
   leagues = false,
 }: {
   month: MonthOutline;
   track: TrackLevel;
+  /**
+   * Lessons the SERVER records as finished.
+   *
+   * The board's ticks used to come from `localStorage` alone, so a second
+   * device showed an empty year to a learner who had finished September.
+   * `useProgress` unions this with the local copy — see there for why it is a
+   * union and not a replacement.
+   */
+  completed?: readonly string[];
   leagues?: boolean;
 }) {
   const { locale, setLocale } = useLocale();
-  const progress = useProgress();
+  const progress = useProgress(completed);
 
   const loc = locale as Locale;
   const theme = monthTheme(month.index);

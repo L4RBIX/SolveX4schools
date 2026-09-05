@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import type { ProgressSnapshot } from "@schools/presentation/adapters";
 
@@ -151,6 +151,40 @@ export function resetProgress(): void {
  * client the stored one on the very first client render, so a learner never
  * sees their completed lessons blink from empty to filled.
  */
-export function useProgress(): ProgressSnapshot {
-  return useSyncExternalStore(subscribeProgress, loadProgress, serverProgress);
+/**
+ * The learner's progress, seeded from the server.
+ *
+ * ## The defect
+ *
+ * This read `localStorage` and nothing else, and the course map read this. So
+ * the map's completion ticks and lock marks were a browser's opinion: finishing
+ * a lesson lit nothing up if the write had not landed yet, a second device
+ * showed an empty year to a learner who had finished September, and clearing
+ * site data erased a school's record from the learner's own view of it.
+ * `lesson_completions` — the row the completion route refuses to write unless
+ * the policy is satisfied against the ledger — was never consulted.
+ *
+ * ## Why a union rather than a replacement
+ *
+ * The local copy is what makes the board change in the SAME FRAME as the
+ * completion. A lesson that finishes and lights nothing up reads as broken even
+ * when every part works, and that responsiveness is worth keeping.
+ *
+ * The server copy is what makes it true. A union is the honest merge of the
+ * two: the server knows everything that was recorded, the browser knows the one
+ * thing that was recorded a moment ago and has not been re-fetched, and neither
+ * can be wrong in the direction that matters — a completion in either is a
+ * completion that happened, because both are written by the same route.
+ *
+ * `seed` comes from a server component, so it is a fact about the learner
+ * rather than a fetch this hook has to manage.
+ */
+export function useProgress(seed?: readonly string[]): ProgressSnapshot {
+  const local = useSyncExternalStore(subscribeProgress, loadProgress, serverProgress);
+  return useMemo(() => {
+    if (!seed || seed.length === 0) return local;
+    const completedLessons = new Set(local.completedLessons);
+    for (const id of seed) completedLessons.add(id);
+    return { ...local, completedLessons };
+  }, [local, seed]);
 }

@@ -267,6 +267,37 @@ export function OptionList({
   const locked = verdict !== "unchecked";
   const revealing = locked && verdict !== "unmeasured" && correctId !== undefined;
 
+  /*
+   * The ARIA radiogroup pattern, which this claimed and did not implement.
+   *
+   * `role="radiogroup"` with `role="radio"` children is a contract: the GROUP
+   * is one tab stop, and the arrow keys move between the options inside it.
+   * Every option was a separate tab stop with no arrow handling, so a keyboard
+   * learner tabbed through four buttons that announced themselves as radios and
+   * behaved as buttons — and a screen reader user was told the group had four
+   * stops when the pattern says one.
+   *
+   * `roving` is the option that holds the tab stop: the selected one, or the
+   * first when nothing is selected yet. That is the pattern's own rule, and it
+   * is what makes Tab land on the current answer rather than at the top.
+   */
+  const roving = selected ?? options[0]?.id ?? null;
+
+  const move = (from: string, delta: number) => {
+    if (locked) return;
+    const i = options.findIndex((o) => o.id === from);
+    if (i < 0) return;
+    /* Wrapping, per the pattern. A radiogroup is a ring. */
+    const next = options[(i + delta + options.length) % options.length];
+    if (!next) return;
+    /* Arrow keys MOVE THE SELECTION in a radiogroup, not just the focus — that
+       is what distinguishes it from a toolbar or a tablist. */
+    onSelect(next.id);
+    /* And focus follows, or the learner's next arrow press starts over from
+       wherever the browser left them. */
+    document.getElementById(`option-${next.id}`)?.focus();
+  };
+
   return (
     <div className={cn("flex w-full flex-col gap-2", className)} role="radiogroup">
       {options.map((option) => {
@@ -277,15 +308,36 @@ export function OptionList({
         return (
           <button
             key={option.id}
+            id={`option-${option.id}`}
             type="button"
             role="radio"
             aria-checked={isSelected}
+            /* One tab stop for the group. `disabled` already removes a locked
+               group from the tab order entirely, which is right: a settled
+               question has no answer left to give. */
+            tabIndex={option.id === roving ? 0 : -1}
             disabled={locked}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                e.preventDefault();
+                move(option.id, 1);
+              } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                move(option.id, -1);
+              }
+              /* Space and Enter are left to the button, which already fires
+                 `onClick` for both. Handling them here would double-fire. */
+            }}
             onClick={() => onSelect(option.id)}
             className={cn(
               "flex min-h-14 w-full items-center gap-3 rounded-[12px] border-2 px-4 py-3",
               "text-left text-[16px] leading-6 select-none",
               "transition-colors duration-100 [-webkit-tap-highlight-color:transparent]",
+              /* A visible focus ring. Without it the roving tabindex above is
+                 invisible: the learner's keyboard moves a selection they cannot
+                 see, which is worse than not being able to move it at all.
+                 `focus-visible` so a pointer user never sees it. */
+              "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-b-fg",
               !locked && "cursor-pointer",
               locked && "cursor-default",
               /* Resting is quiet; blue arrives on selection.

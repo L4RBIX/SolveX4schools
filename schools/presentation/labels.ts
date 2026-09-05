@@ -325,6 +325,18 @@ export const L = {
   /* --- lesson chrome ---------------------------------------------------- */
   check: { kk: "Тексеру", ru: "Проверить" },
   continue: { kk: "Жалғастыру", ru: "Продолжить" },
+  /**
+   * "Continue" with somewhere to continue TO.
+   *
+   * The button used to go back to the course map — which the learner had just
+   * come from, and which lit nothing up when they arrived. Naming the next
+   * lesson is what turns the end of one into the start of the next.
+   */
+  continueTo: (title: string): Localized => ({
+    kk: `Келесі: ${title}`,
+    ru: `Дальше: ${title}`,
+  }),
+  backToMonth: { kk: "Айдың картасына оралу", ru: "Вернуться к карте месяца" },
   tryAgain: { kk: "Қайта көр", ru: "Ещё раз" },
   getHelp: { kk: "Көмек", ru: "Помощь" },
   /* Shown beside Check on a task the curriculum has marked optional. The word

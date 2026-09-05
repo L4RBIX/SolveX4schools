@@ -14,26 +14,26 @@ import { cppCompiler, cppCompilerVersion } from "../support/cpp-run";
  * replaced — so the parity suite really did put one program through two
  * interpreters and compare.
  *
- * That is not available for C++, and the reason is not effort. The browser
- * engine is `clang.wasm` + `lld.wasm` + `memfs.wasm` + a WASI sysroot: **57.5 MB**
- * fetched over HTTP from `/cpp17/`, compiled with `WebAssembly.compileStreaming`
- * (which refuses anything not served as `application/wasm`), and driven through
- * `wasi_unstable` — an ABI that predates the `preview1` rename and that node's
- * built-in WASI cannot drive at all. `src/lib/cpp17/worker.ts` reaches those
- * assets with a bare `fetch(baseUrl + f)`, and node's `fetch` has no `file:`
- * support, so there is not even a URL to point it at without standing up a
- * static server inside the test runner.
+ * For C++ the browser engine is `clang.wasm` + `lld.wasm` + `memfs.wasm` + a
+ * WASI sysroot: 57.5 MB fetched over HTTP from `/cpp17/` and compiled with
+ * `WebAssembly.compileStreaming`, which refuses anything not served as
+ * `application/wasm`. This module does not drive it, and **this file's fixtures
+ * still declare rather than execute the browser half.**
  *
- * So the honest position is written down rather than worked around: **this
- * harness drives the SERVER engine only.** What the parity suite still checks
- * is real — September's own programs, compiled and run, producing the outputs
- * the curriculum declares, with the status vocabulary the judge will use — and
- * what it no longer checks is the browser half, which is stated in the fixtures
- * and again in the suite's closing section.
+ * What has changed is that the browser engine is no longer unreachable from a
+ * test. `tests/support/cpp-browser.ts` stands up eighteen lines of `node:http`
+ * over `public/cpp17`, hands the shipped worker a scope, and compiles and runs
+ * real programs in the learner's own toolchain;
+ * `tests/cpp17/curriculum-in-the-learners-compiler.test.ts` puts all 263
+ * reference solutions through it in 145 seconds, and caught a program the host
+ * compiler accepts and the browser aborts on (`printf("%.2Lf")` — long double
+ * formatting is compiled out of that libc).
  *
- * `docs/cpp17/CPP17_JUDGE_PARITY.md` already records the two-engine suite as
- * still-to-do, and the manual pass it describes is currently the only evidence
- * the engines agree. Nothing here should be read as more than it is.
+ * So the honest position, restated: **this harness drives the SERVER engine
+ * only**, and the browser engine is now covered by its own suite rather than by
+ * a manual pass. Bringing the two together — one fixture, two engines, one
+ * comparison — is still to do, and `docs/cpp17/CPP17_JUDGE_PARITY.md` carries
+ * it.
  *
  * ## Four things a green run still does not prove
  *
@@ -44,9 +44,11 @@ import { cppCompiler, cppCompilerVersion } from "../support/cpp-run";
  * 2. **`LocalExecutionProvider` is not Piston and is not Judge0.** It is the dev
  *    provider. Its status mapping is a usable stand-in for STATUS category
  *    parity — the thing this file compares — and for nothing else.
- * 3. **The browser is not executed at all.** See above. Every `local` column in
- *    the fixture table is a DECLARED correspondence, checked against
- *    `CATEGORY_PAIRS` for consistency and never against a running compiler.
+ * 3. **The browser is not executed HERE.** Every `local` column in the fixture
+ *    table is a DECLARED correspondence, checked against `CATEGORY_PAIRS` for
+ *    consistency and never against a running compiler by this file. The browser
+ *    toolchain is executed in `tests/cpp17/`, against the curriculum rather
+ *    than against this table.
  * 4. **It is one machine's toolchain.** A libstdc++/libc++ divergence in a
  *    library feature would show up as a fixture failing here, which is useful,
  *    but its ABSENCE proves nothing about the other engine.

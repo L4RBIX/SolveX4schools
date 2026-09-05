@@ -162,9 +162,33 @@ The budgets themselves are unchanged and still deliberate: 3 s in the browser,
 5 s on the judge. A frozen-feeling tab is worse than a quick "did not finish",
 a local run is not evidence, and only the judge's answer counts.
 
+## The browser engine is now executed by CI
+
+`tests/support/cpp-browser.ts` stands up a static `node:http` server over
+`public/cpp17` and drives the **shipped worker** — `src/lib/cpp17/worker.ts`,
+the same `init`/`run` protocol the lesson player speaks — so the browser
+toolchain runs in the test runner. The blocker recorded in
+`tests/execution/engines.ts` was about SERVING the assets
+(`compileStreaming` refuses anything not `application/wasm`, and node's `fetch`
+cannot open a `file:` URL), not about the toolchain; the `wasi_unstable` shim is
+plain JavaScript in the vendored runtime and node runs it unchanged.
+
+`tests/cpp17/curriculum-in-the-learners-compiler.test.ts` puts **all 263
+reference solutions** through it — one real case each, compared with the block's
+own checker — in **145 s**, and CI runs it on every push (see the toolchain
+cache step in `.github/workflows/ci.yml`).
+
+It immediately earned its place. `printf("%.2Lf", x)` on a `long double`
+compiles and prints on GCC and on Apple clang, and **aborts at runtime in the
+browser**: `Support for formatting long double values is currently disabled` —
+that libc is built without it. A reference solution written that way would have
+been green in CI and broken on every learner's first Run.
+
 ## Still to do
 
-A per-feature parity suite running the same programme through both engines
-automatically, covering BFS, DP-shaped `vector<vector<int>>`, binary-search
-loops, and `double` formatting. The evidence above is a manual pass over the
-core surface, not that suite.
+The JOIN: one fixture table, both engines, one comparison — BFS, DP-shaped
+`vector<vector<int>>`, binary-search loops and `double` formatting run through
+the browser AND the judge and compared to each other, rather than each compared
+to the curriculum separately. `tests/exec/parity-september.test.ts` declares its
+`local` column and does not measure it; that is the remaining gap, and it is now
+a narrower one than the manual pass this section used to describe.

@@ -123,10 +123,14 @@ export interface ParityFixture {
  * and the parity suite asserts that it is stated.
  */
 export const LOCAL_HALF_NOT_EXECUTED =
-  "The browser engine is 57.5 MB of WebAssembly clang, fetched over HTTP and " +
-  "driven through `wasi_unstable`, which node's WASI cannot speak. No test " +
-  "process can run it, so every `local` column below is a declared " +
-  "correspondence rather than a measurement. See tests/execution/engines.ts.";
+  "This table's `local` column is DECLARED, not measured: these fixtures run " +
+  "one program through the server engine and compare it against a status " +
+  "vocabulary, and nothing here starts the browser toolchain. That toolchain " +
+  "is no longer unreachable — tests/support/cpp-browser.ts serves the 57.5 MB " +
+  "over `node:http` and drives the shipped worker, and " +
+  "tests/cpp17/curriculum-in-the-learners-compiler.test.ts compiles all 263 " +
+  "reference solutions in it. What is still missing is the JOIN: one fixture, " +
+  "both engines, one comparison. See tests/execution/engines.ts.";
 
 /* -------------------------------------------------------------------------- */
 /* Looking the September programs up                                          */

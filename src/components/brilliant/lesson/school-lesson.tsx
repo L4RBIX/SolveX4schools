@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import type { Locale } from "@schools/curriculum/types";
+import type { Locale, Localized } from "@schools/curriculum/types";
 import type { PublicBlock, PublicLesson } from "@schools/curriculum/public";
 /* `shape`, not `inventory`. `inventory.ts` reads `PROGRAM`, so this one-symbol
    import used to pull the entire authored year — 1,735 hidden cases and 255
@@ -94,6 +94,14 @@ export interface SchoolLessonProps {
   monthTitle?: string;
   locale: Locale;
   backHref: string;
+  /**
+   * The next lesson in this month, in teaching order.
+   *
+   * Resolved on the SERVER — teaching order is the month file's array order and
+   * the client has only this one lesson's outline. Absent at the end of a
+   * month, where the map is the right destination.
+   */
+  nextLesson?: { id: string; title: Localized } | null;
   /** Every genuine attempt. Wired to the learning-event ingest route. */
   onInteraction?: (interaction: SchoolInteraction) => void;
   /**
@@ -519,6 +527,7 @@ export function SchoolLesson({
   monthIndex,
   locale,
   backHref,
+  nextLesson,
   onInteraction,
   onSubmit,
   onComplete,
@@ -1024,6 +1033,7 @@ export function SchoolLesson({
         correctCount={requiredCorrectCount}
         attemptCount={attemptCount}
         locale={locale}
+        next={nextLesson ?? null}
         backHref={backHref}
       />
     );
@@ -1157,7 +1167,7 @@ export function SchoolLesson({
                 style={{ transform: `translateX(-${page * 100}%)` }}
               >
                 {blocks.map((b, i) => (
-                  <LessonPage key={b.id}>
+                  <LessonPage key={b.id} active={i === page}>
                     <BlockView
                       block={b}
                       locale={locale}
@@ -1465,9 +1475,30 @@ export function SchoolLesson({
  * scales with the viewport, and on a long task it is simply breathing room
  * above the action bar.
  */
-function LessonPage({ children }: { children: React.ReactNode }) {
+/**
+ * One card of the carousel.
+ *
+ * ## `inert`, and the bug it fixes
+ *
+ * Every page is mounted at once and the strip is moved with `translateX`, so
+ * the eleven cards a learner is not looking at are still in the DOM, still
+ * focusable and still hit-testable. Tab therefore walked every off-screen
+ * block, and a keyboard learner pressing Space selected an option on a card
+ * nobody could see — which is why the visible `aria-checked` never changed and
+ * the audit recorded the radios as unactivatable by keyboard. They were
+ * activatable; the focus was somewhere else.
+ *
+ * `inert` removes the subtree from the tab order, from hit testing and from the
+ * accessibility tree in one attribute, which is exactly the set of three that
+ * were wrong. It is the platform's own answer and needs no focus bookkeeping of
+ * our own — the alternative, walking the tree setting `tabindex="-1"`, misses
+ * whatever it does not know about.
+ */
+function LessonPage({ children, active }: { children: React.ReactNode; active: boolean }) {
   return (
-    <div className="flex h-full w-full shrink-0 flex-col items-center overflow-y-auto px-4 py-8">
+    <div
+      inert={!active}
+      className="flex h-full w-full shrink-0 flex-col items-center overflow-y-auto px-4 py-8">
       <div
         data-lesson-page-components="true"
         className="my-auto flex w-full max-w-[540px] shrink-0 flex-col items-center gap-4 pb-[6vh]"
@@ -1487,6 +1518,7 @@ function LessonComplete({
   attemptCount,
   locale,
   backHref,
+  next,
 }: {
   lesson: PublicLesson;
   states: Record<string, BlockState>;
@@ -1494,6 +1526,8 @@ function LessonComplete({
   attemptCount: number;
   locale: Locale;
   backHref: string;
+  /** The next lesson in this month, in teaching order, or null at the end. */
+  next?: { id: string; title: Localized } | null;
 }) {
   const correct = correctCount;
   /* Unmeasured is a property of the whole lesson rather than of the required
@@ -1539,9 +1573,45 @@ function LessonComplete({
           ) : null}
         </dl>
 
-        <Link href={backHref} className="mt-8 w-full max-w-[367px]">
-          <Button3D variant="ok">{t(L.continue, locale)}</Button3D>
-        </Link>
+        {/*
+          * Where "Continue" goes, and why it used to go nowhere useful.
+          *
+          * It went to the course map, which the learner had just come from and
+          * which — until this pass — lit nothing up when they arrived: the map
+          * read a `localStorage` snapshot, the next node stayed grey, and the
+          * home CTA still pointed at the lesson they had finished. So the end
+          * of a lesson was a dead end with a button on it.
+          *
+          * When there IS a next lesson in this month, the button goes to it and
+          * says which one. That is the whole shape of a course that continues:
+          * finish, see what is next, tap it.
+          *
+          * The map stays as a second, quieter way out — a learner who has just
+          * finished the last lesson of a month has nowhere else to be, and one
+          * who wants to choose still can.
+          */}
+        {next ? (
+          <>
+            <Link href={`/lesson/${next.id}`} className="mt-8 w-full max-w-[367px]">
+              <Button3D variant="ok">
+                {t(L.continueTo(t(next.title, locale)), locale)}
+              </Button3D>
+            </Link>
+            <Link
+              href={backHref}
+              className={cn(
+                "mt-3 text-[15px] leading-6 text-b-fg/50 underline underline-offset-4",
+                "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-b-fg",
+              )}
+            >
+              {t(L.backToMonth, locale)}
+            </Link>
+          </>
+        ) : (
+          <Link href={backHref} className="mt-8 w-full max-w-[367px]">
+            <Button3D variant="ok">{t(L.continue, locale)}</Button3D>
+          </Link>
+        )}
       </div>
     </div>
   );
