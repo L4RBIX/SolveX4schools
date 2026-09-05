@@ -68,26 +68,33 @@ describe("the next lesson, in teaching order", () => {
      * parsed the number would send a learner to the wrong lesson almost every
      * time — and would look right on the one case an author would spot-check.
      */
-    const walk: string[] = ["m1.l1"];
+    /*
+     * The order is read from the month, and only the PROPERTY is asserted.
+     *
+     * This used to be twelve literal ids. September gained two beginner lessons
+     * at the front and the list failed for a change that was entirely correct —
+     * a fixture wearing a rule's clothes. What the feature actually promises is
+     * that the chain follows the array and not the numbers in the ids, and that
+     * is what this now checks.
+     */
+    const authored = MONTHS[0]!.units.flatMap((u) => u.lessons)
+      .filter((l) => l.status !== "draft" && l.blocks.length > 0)
+      .map((l) => l.id);
+
+    const walk: string[] = [authored[0]!];
     for (;;) {
       const next = lessonAfter(MONTHS[0]!, walk[walk.length - 1]!);
       if (!next) break;
       walk.push(next.id);
     }
-    expect(walk).toEqual([
-      "m1.l1",
-      "m1.l11",
-      "m1.l2",
-      "m1.l10",
-      "m1.l3",
-      "m1.l4",
-      "m1.l5",
-      "m1.l12",
-      "m1.l6",
-      "m1.l7",
-      "m1.l8",
-      "m1.l9",
-    ]);
+    expect(walk).toEqual(authored);
+
+    /* And the thing that makes it worth having: the ids are NOT in order, so a
+       "next" computed from the number would be wrong for most of the month. */
+    const numeric = [...authored].sort((a, b) =>
+      Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")),
+    );
+    expect(walk, "September's ids are not its teaching order").not.toEqual(numeric);
   });
 
   it("ends the month rather than crossing into the next one", () => {

@@ -612,14 +612,21 @@ describe("structural claims the validator cannot make", () => {
     }
 
     /* The exemption is a door, so its width is asserted rather than trusted.
-       One graded block in the whole programme reads nothing; if that count
-       climbs, someone is routing around the hidden-case rule by dropping the
-       input rather than by writing a task, and this fails before that becomes
-       a habit. Raise the bound deliberately, with a reason, or not at all. */
+       If the count climbs, someone is routing around the hidden-case rule by
+       dropping the input rather than by writing a task, and this fails before
+       that becomes a habit. Raise the bound deliberately, with a reason, or not
+       at all.
+
+       TWO, since the beginner rewrite. `m1.l13.b4` — «объяви int year = 2026 и
+       выведи её» — is the variables lesson's task, and it comes BEFORE `cin` is
+       taught: the program it asks for has no input to read, structurally. Both
+       exemptions are before the first `cin`, and
+       `tests/school/wrong-ideas-are-rejected.test.ts` asserts that rule rather
+       than just this count. */
     expect(
       exempt,
       `\nblocks exempted for reading no input:\n  ${exempt.join("\n  ")}\n`,
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   });
 
   it("a repair task shows the program it asks about", () => {

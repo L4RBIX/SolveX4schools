@@ -105,7 +105,7 @@ binary search. See the comment on `TrackLevel`.
 | 8 | Сәуір | Greedy and dynamic programming | 28 | **43** | `months/month-08-april.ts` |
 | 9 | Мамыр | Contests and final tournament | 25 † | **42** | `months/month-09-may.ts` |
 
-**Year total: 446 comparable practice tasks against 279 promised.** The Built column is the validator's own output in the PDF's unit — one route, lessons only, bank excluded. See `TASK_COUNT_RECONCILIATION.md` for why that unit and not another.
+**Year total: 452 comparable practice tasks against 279 promised.** The Built column is the validator's own output in the PDF's unit — one route, lessons only, bank excluded. See `TASK_COUNT_RECONCILIATION.md` for why that unit and not another.
 
 † **Derived, not quoted.** The PDF gives no task total for May; it specifies
 four contests plus a final tournament. 4 × 5 + 5 = 25. This is the only figure
@@ -163,3 +163,5 @@ September declares 5 mappings across 36 tasks. That ratio is intentional.
 Traceability stops at the curriculum. It says nothing about auth, the lesson
 runtime, Nova, Arena, the teacher console, or reporting — those are tracked in
 the final implementation report, with their own honest status.
+
+*Counts refreshed 2026-09-05:2026-09-05: 452 / 144 / 506 / 625 after September's beginner lessons — `m1.l0`, `m1.l13` — and the seven code tasks that gained a starter frame; a guided task is not an independent one. See TASK_COUNT_RECONCILIATION.md.*

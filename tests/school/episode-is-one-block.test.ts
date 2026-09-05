@@ -235,6 +235,29 @@ describe("a browser cannot write its own evidence", () => {
     const complete = await import("../../src/app/api/learning/complete/route");
     const sessionId = randomUUID();
 
+    /*
+     * A clean ledger, because this case is about EVIDENCE and the cases above
+     * it produced some.
+     *
+     * The fixture picks the first lesson in the programme with two
+     * multiple-choice blocks, and September's opening lesson now is one — three
+     * concepts and two questions. The earlier tests in this file answer both of
+     * those questions through the real submit route, which legitimately
+     * completes that lesson; this case then measured a lesson that was already
+     * finished and read the 200 as a hole. Deleting this subject's rows first
+     * is what makes the assertion mean what it says: nothing but the posted
+     * events is in the record.
+     */
+    {
+      const { resolveIdentity } = await import("@schools/learning/identity");
+      const { subjectId } = await resolveIdentity();
+      const { getStoreHandle } = await import("@schools/store");
+      const { sql } = await getStoreHandle();
+      await sql.query("delete from learning_events where subject_id = $1", [subjectId]);
+      await sql.query("delete from lesson_completions where subject_id = $1", [subjectId]);
+      await sql.query("delete from learning_submissions where subject_id = $1", [subjectId]);
+    }
+
     for (const blockId of lessonBlockIds) {
       await events.POST(
         new Request("http://localhost/api/learning/events", {

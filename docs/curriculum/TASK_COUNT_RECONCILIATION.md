@@ -55,9 +55,17 @@ the comparable figure rather than counted against the promise.
 
 ## The corrected comparison
 
+> **Regenerated 2026-09-05.** September gained two lessons — `m1.l0` (what a
+> program is, what a compiler does) and `m1.l13` (variables) — and seven of its
+> code tasks gained a starter frame. A task whose frame is given is guided
+> coding rather than an independent solution, so September's «independent» count
+> falls from 17 to 10 and its guided count rises: the work did not shrink, its
+> scaffolding was made honest. Regenerate with
+> `npx tsx --conditions=react-server scripts/reconcile-counts.ts --markdown`.
+
 | Month | PDF «тапсырма» | Practice (comparable) | · independent | · guided coding | · other interaction | Explanation | Assessment | Contest | Bank | Attempt | All blocks |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 Қыркүйек | 36 | **43** (+7) | 17 | 9 | 17 | 18 | 4 | 0 | 0 | 47 | 65 |
+| 1 Қыркүйек | 36 | **49** (+13) | 10 | 17 | 22 | 24 | 4 | 0 | 0 | 53 | 77 |
 | 2 Қазан | 38 | **60** (+22) | 22 | 3 | 35 | 15 | 3 | 0 | 8 | 71 | 86 |
 | 3 Қараша | 34 | **55** (+21) | 18 | 4 | 33 | 14 | 3 | 0 | 4 | 62 | 76 |
 | 4 Желтоқсан | 32 | **50** (+18) | 21 | 2 | 27 | 12 | 4 | 0 | 1 | 55 | 67 |
@@ -66,11 +74,11 @@ the comparable figure rather than counted against the promise.
 | 7 Наурыз | 26 | **45** (+19) | 15 | 2 | 28 | 10 | 4 | 0 | 3 | 52 | 62 |
 | 8 Сәуір | 28 | **43** (+15) | 17 | 1 | 25 | 13 | 4 | 0 | 0 | 47 | 60 |
 | 9 Мамыр | 25 | **42** (+17) | 4 | 2 | 16 | 9 | 7 | 20 | 0 | 49 | 58 |
-| **Year** | **279** | **446** | **151** | 31 | 244 | 113 | 36 | 20 | 18 | **500** | 613 |
+| **Year** | **279** | **452** | **144** | 39 | 249 | 119 | 36 | 20 | 18 | **506** | 625 |
 
 ## What it says
 
-**446 comparable practice tasks against a promised 279, and 151 independent
+**452 comparable practice tasks against a promised 279, and 144 independent
 solutions against a promised ~100.** Both are about 60% above the figure the
 programme states.
 

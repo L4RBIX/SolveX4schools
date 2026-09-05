@@ -47,9 +47,9 @@ Core route. These nine figures are kept apart on purpose; see `TASK_COUNT_RECONC
 
 | | |
 |---|---|
-| Blocks, all nine months | 613 |
-| PDF-comparable practice tasks | **446** against a promised 279 |
-| Written from nothing | **151** against a promised ~100 |
+| Blocks, all nine months | 625 |
+| PDF-comparable practice tasks | **452** against a promised 279 |
+| Written from nothing | **144** against a promised ~100 |
 | Monthly-check tasks | 36 |
 | May contest problems | 20 |
 | Optional bank | 18 |
@@ -108,3 +108,5 @@ The rejected one, `m8.p5`, leans on `m8.l5.b6`, which is a `find_bug` — the le
 - **Whether the Kazakh is good Kazakh.** See #1.
 - **Whether the amount of evidence for each year-end outcome is enough.** `FULL_YEAR_REQUIREMENT_MATRIX.md` counts it and deliberately prints no verdict.
 - **Anything about Nova, execution providers, auth or the teacher backend.** Out of scope by instruction, and untouched apart from the two test fixes above.
+
+*Counts refreshed 2026-09-05:2026-09-05: 452 / 144 / 506 / 625 after September's beginner lessons — `m1.l0`, `m1.l13` — and the seven code tasks that gained a starter frame; a guided task is not an independent one. See TASK_COUNT_RECONCILIATION.md.*

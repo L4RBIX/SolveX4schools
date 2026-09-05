@@ -25,7 +25,7 @@ Regenerate with `npx tsx scripts/reconcile-counts.ts`.
 
 **This table records the freeze commit and is deliberately not updated.** The
 core-vs-bank re-audit that followed moved fourteen tasks onto the optional path,
-so the current figures are 446 comparable practice tasks and 151 independent,
+so the current figures are 452 comparable practice tasks and 144 independent,
 with 18 in the bank. Reclassification is one of the amendments allowed below;
 `TASK_COUNT_RECONCILIATION.md` carries the live numbers.
 
@@ -58,3 +58,5 @@ The programme's own figures are a floor — «Бұл минимум жиын» (
 | Branched from | `59bf26b` |
 | Baseline snapshot | `fc88245` |
 | Freeze | the SHA at the top of this file |
+
+*Counts refreshed 2026-09-05:2026-09-05: 452 / 144 / 506 / 625 after September's beginner lessons — `m1.l0`, `m1.l13` — and the seven code tasks that gained a starter frame; a guided task is not an independent one. See TASK_COUNT_RECONCILIATION.md.*

@@ -14,13 +14,13 @@ Core route. These figures are kept apart on purpose; `TASK_COUNT_RECONCILIATION.
 |---|---|
 | 1. Total blocks | **614** (700 across all three routes) |
 | 2. Attempt tasks | **501** |
-| 3. PDF-comparable practice tasks | **446** against a promised 279 |
+| 3. PDF-comparable practice tasks | **452** against a promised 279 |
 | 4. Core-required tasks | **483** — every attempt task that is not in the bank |
 | 5. Bank tasks | **18** (23 across all routes) |
 | 6. Assessments | **9 checks, 36 graded tasks** |
 | 7. Contests | **4 practice contests + the final tournament, 20 problems** |
 
-Of the 446, **151 are whole programs written from nothing** against a promised ~100.
+Of the 452, **144 are whole programs written from nothing** against a promised ~100.
 
 ## 8. All 29 optional-task routes — PASS
 
@@ -140,3 +140,5 @@ Branch `curriculum-months-2-9`, not merged.
 **Not READY FOR HUMAN SIGN-OFF.** That phrasing implies the remaining work is a signature. It is not. Nobody who speaks Kazakh has read a word of this; nobody has timed a learner; and a learner who gets a required code task wrong cannot finish the lesson in 219 of 222 lesson/route pairs while the policy says they have done enough.
 
 Three of the blockers are things this workstream could never have closed. Two are decisions someone must make about what the product is for. One — gate 5 — is a defect anybody could fix in an afternoon and nobody should fix without deciding what it means for a fourteen-year-old to be stuck.
+
+*Counts refreshed 2026-09-05:2026-09-05: 452 / 144 / 506 / 625 after September's beginner lessons — `m1.l0`, `m1.l13` — and the seven code tasks that gained a starter frame; a guided task is not an independent one. See TASK_COUNT_RECONCILIATION.md.*
