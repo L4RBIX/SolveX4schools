@@ -163,9 +163,9 @@ the admin health view.
 |---|---|
 | Engine | PostgreSQL. Verified on **17.10** and pristine **16.14** |
 | Migrations | applied on boot, in filename order |
-| Count on an empty database | **23 applied**, 0 skipped |
+| Count on an empty database | **24 applied**, 0 skipped |
 | Idempotent re-run | verified — applies 0 |
-| Tables | **35** application tables + 5 views + `schema_migrations` |
+| Tables | **35** application tables + 5 views + `schema_migrations` (0025 adds functions, no tables) |
 | RLS | enabled on every table, **zero policies**, plus `revoke all … from anon, authenticated` |
 
 **Verify before trusting:**

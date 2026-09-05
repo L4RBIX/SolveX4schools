@@ -48,6 +48,7 @@
     "db:verify-migrations": "tsx --conditions=react-server scripts/verify-migrations.ts",
     "judge0:validate": "tsx --conditions=react-server scripts/live/judge0-validate.ts",
     "school:provision": "tsx --conditions=react-server scripts/provision-class.ts",
+    "school:erase": "tsx --conditions=react-server scripts/erase-learner.ts",
     "pyodide:sync": "node scripts/sync-pyodide-assets.mjs --force",
     "pyodide:worker": "node scripts/build-python-worker.mjs",
     "test:python": "python3 -m pytest tests/python -q",

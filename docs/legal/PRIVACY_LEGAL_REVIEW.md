@@ -43,14 +43,24 @@ written. They should stay true, and a test asserts the ones that are mechanical.
    agreed with the school and then actually implemented; until it is, do not
    change the wording to imply otherwise.
 
+   The MANUAL path the page promises now exists and is proven:
+   `scripts/erase-learner.ts`, `docs/operations/ERASURE.md`, and
+   `tests/school/erasure.test.ts`. It removes the account, its sessions,
+   enrolment, preferences and the whole learning ledger in one transaction, and
+   refuses to commit if the schema still names the learner. Before 2026-09 the
+   sentence was true about the absence of a job and false about the presence of
+   a path.
+
 4. **Cross-border transfer.** Nova's provider is DeepSeek when configured, which
    means prompt content leaves the country. The page discloses what is sent and
    what is not. Whether that transfer is permitted, and on what basis, is
    unresolved. **This is the single item most likely to matter to a director.**
 
-5. **Data subject requests.** The page routes requests through the school. There
-   is no self-service export or deletion in the product. If the law requires a
-   direct channel, one has to be built, not just described.
+5. **Data subject requests.** The page routes requests through the school, and
+   an operator can now act on one — see item 3. There is still no SELF-SERVICE
+   export or deletion in the product: a learner cannot erase themselves, and the
+   export function (`learning_export_user`) returns events only, not the account.
+   If the law requires a direct channel, one has to be built, not just described.
 
 6. **Named legal entity and address.** Both documents refer to
    "SolveX4Schools" with no registered entity, address or contact. A real
