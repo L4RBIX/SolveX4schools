@@ -45,6 +45,15 @@ import { BrowserToolchain, browserToolchainMissing, browserToolchainPresent } fr
  * of every block is already executed by `content-execution`, and the two
  * together are the claim: the content is right, and the browser agrees.
  *
+ * ## It is not part of `npm test`, and that is not a demotion
+ *
+ * `vitest.config.mts` excludes this file and `npm run test:browser-cpp` runs
+ * it; CI invokes that as its own step. The reason is measured: 145 seconds of
+ * one core at 100% inside a run that already spawns a real `g++` per reference
+ * across every other core made a two-line snippet exceed a TWO MINUTE compile
+ * timeout in `content-execution`. A suite that goes red because the laptop ran
+ * out of cores is a suite people stop believing.
+ *
  * ## Scope
  *
  * The whole programme by default: 263 references in **145 seconds**, measured,

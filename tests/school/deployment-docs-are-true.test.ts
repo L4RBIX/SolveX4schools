@@ -190,3 +190,46 @@ describe("the development document", () => {
     expect(dev).toContain("check-branch.mjs");
   });
 });
+
+describe("a gate that is not in `npm test` is still a gate", () => {
+  /**
+   * `tests/cpp17/curriculum-in-the-learners-compiler.test.ts` is EXCLUDED from
+   * `vitest run` — 145 seconds of one core at 100% beside a run that already
+   * spawns a real `g++` per reference made a two-line snippet blow a two-minute
+   * compile timeout. Excluding it is right and it is also exactly how a gate
+   * disappears: nothing in a normal run mentions it again.
+   *
+   * So the wiring is asserted. Excluded from the default run, present as a
+   * script, and invoked by CI — three facts, and a fourth would be prose.
+   */
+  const config = read("vitest.config.mts");
+  const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+  const ci = read(".github/workflows/ci.yml");
+  const GATE = "tests/cpp17/curriculum-in-the-learners-compiler.test.ts";
+
+  it("is excluded from the default run deliberately", () => {
+    expect(config).toContain(GATE);
+    /* The switch, both ways round: the gate file is the only thing included
+       when `CPP_BROWSER_GATE` is set, and the only thing excluded when it is
+       not. A one-directional check would pass on a config that ran it never. */
+    expect(config).toContain("gateOnly ? [BROWSER_CPP_GATE] : [\"tests/**/*.test.ts\"]");
+    expect(config).toContain('CPP_BROWSER_GATE === "1"');
+    expect(config.slice(config.indexOf("exclude:"))).toContain("BROWSER_CPP_GATE");
+  });
+
+  it("has a command of its own", () => {
+    expect(pkg.scripts["test:browser-cpp"], "npm run test:browser-cpp").toContain(
+      "CPP_BROWSER_GATE=1",
+    );
+  });
+
+  it("is run by CI, after the suite it was taken out of", () => {
+    expect(ci).toContain("npm run test:browser-cpp");
+    expect(
+      ci.indexOf("npm run test:browser-cpp") > ci.indexOf("run: npm test"),
+      "the browser gate must not run while `npm test` is saturating the machine",
+    ).toBe(true);
+    /* And the toolchain it needs must be fetched before either. */
+    expect(ci.indexOf("npm run cpp17:sync") < ci.indexOf("npm run test:browser-cpp")).toBe(true);
+  });
+});

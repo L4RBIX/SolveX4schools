@@ -4,6 +4,18 @@ import { fileURLToPath } from "node:url";
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 /**
+ * The one suite that runs alone.
+ *
+ * `npm run test:browser-cpp` sets `CPP_BROWSER_GATE=1` and this config then
+ * runs that file and nothing else; every other invocation runs everything else
+ * and not that file. One switch in one place, rather than a second config file
+ * that would have to keep the aliases below in sync — two copies of an alias
+ * table is how a suite starts resolving a different `@schools` than the app.
+ */
+const BROWSER_CPP_GATE = "tests/cpp17/curriculum-in-the-learners-compiler.test.ts";
+const gateOnly = process.env.CPP_BROWSER_GATE === "1";
+
+/**
  * Array form rather than object form: one entry needs a regex, and Vite does
  * not allow the two to be mixed. Order matters — Vite matches in sequence, so
  * the deep-import pattern must precede the bare package specifier or the bare
@@ -49,7 +61,28 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"],
+
+    /*
+     * The browser toolchain runs in its OWN command, not in this one.
+     *
+     * `tests/cpp17/curriculum-in-the-learners-compiler.test.ts` compiles all 263
+     * reference solutions with the shipped `clang.wasm` — 145 seconds of one
+     * core at 100%, inside a run that already spawns a real `g++` per reference
+     * across every other core. Measured together: a single `g++ -std=c++17` on
+     * a two-line snippet exceeded a TWO MINUTE timeout, and
+     * `wrong-solutions-fail` exceeded thirty seconds. Neither is a defect in
+     * the thing being tested; both are a laptop with nothing left to give, and
+     * a suite that fails for that reason is a suite people stop believing.
+     *
+     * So it is excluded here and run by `npm run test:browser-cpp`, which CI
+     * invokes as its own step after `npm test`. Sequential, uncontended, and
+     * still a release gate: the file fails rather than skips when the assets
+     * are missing under CI.
+     */
+    include: gateOnly ? [BROWSER_CPP_GATE] : ["tests/**/*.test.ts"],
+    exclude: gateOnly
+      ? ["**/node_modules/**", "**/dist/**"]
+      : ["**/node_modules/**", "**/dist/**", BROWSER_CPP_GATE],
 
     /* 30 seconds, against defaults of 5 and 10.
      *

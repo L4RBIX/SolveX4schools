@@ -202,6 +202,16 @@ jobs:
       # from `npm test` on purpose: DATABASE_URL set for the whole run would
       # point `getStore()` at Postgres for every suite, and the rest of them are
       # written against the in-memory PGlite the fixtures open themselves.
+      # The learner's own compiler, in its own step.
+      #
+      # Excluded from `npm test` because it is 145 seconds of one core at 100%
+      # inside a run that already spawns a real `g++` per reference across every
+      # other core — measured together, a two-line snippet blew a two-minute
+      # compile timeout. Uncontended here, and it is still a release gate: it
+      # FAILS rather than skips when the toolchain is missing under CI.
+      - name: Test (the C++ toolchain the browser ships)
+        run: npm run test:browser-cpp
+
       - name: Test (Postgres driver)
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/solvex_ci

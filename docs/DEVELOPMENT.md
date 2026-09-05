@@ -180,15 +180,21 @@ npm run check
 ```
 
 is lint → typecheck → curriculum:validate → curriculum:test-content → test →
-build → check:bundle.
+test:browser-cpp → build → check:bundle → check:answers.
 
-Two things worth knowing before you trust a green run:
+Three things worth knowing before you trust a green run:
 
 - **`npm run typecheck` is not a superset of what `next build` checks.** A build
   has failed on type errors that `tsc --noEmit` passed. Run both.
-- The suite runs test files in parallel and the curriculum suites execute real
-  Python, so the machine saturates. Do not run a dev server, a build and the
-  tests at once and then believe a timeout.
+- The suite runs test files in parallel and the curriculum suites compile and
+  execute real C++, so the machine saturates. Do not run a dev server, a build
+  and the tests at once and then believe a timeout.
+- **`npm run test:browser-cpp` is separate on purpose.** It compiles all 263
+  reference solutions with the `clang.wasm` a learner's browser actually runs —
+  145 s of one core at 100%, which inside `npm test` made a two-line snippet
+  exceed a two-minute compile timeout. It needs `public/cpp17` (fetched by
+  `npm run cpp17:sync`, which `predev` and `prebuild` already run), and under
+  CI it FAILS rather than skips when those assets are absent.
 
 Postgres-backed tests skip when `DATABASE_URL` is unset, which is the normal
 case — vitest does not read `.env.local`. To include them, set it explicitly,

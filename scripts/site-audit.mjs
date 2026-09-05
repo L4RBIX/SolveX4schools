@@ -20,7 +20,12 @@ const PRODUCT = [
   "/privacy", "/terms", "/program",
 ];
 
-const WIDTHS = [1440, 375];
+/* The four the acceptance gate names. It was [1440, 375] — the two extremes —
+   and the two in the middle are where a fixed-width panel actually overflows:
+   768 is a school tablet in portrait and 1024 is the lid-open laptop half the
+   class uses. An audit that only checks the ends misses the middle by
+   construction. */
+const WIDTHS = [1440, 1024, 768, 375];
 
 const browser = await chromium.launch();
 const findings = [];
