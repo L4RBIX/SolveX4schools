@@ -248,3 +248,35 @@ describe("the honesty affordances survive the redesign", () => {
     expect(code).not.toContain("меңгеру");
   });
 });
+
+describe("the console fits a phone", () => {
+  /**
+   * Measured in Chromium at 375px, on the deployed console: `documentElement`
+   * scrolled to **703px**. The cause was the month selector this pass added —
+   * a native `<select>` sizes itself to its WIDEST option, and its options are
+   * full month titles («Ай 3 · Функциялар және қайталанатын әрекеттер»), so the
+   * chip measured 683px and pushed the whole document. Header, tables and tabs
+   * drifted sideways on every teacher page.
+   *
+   * The tab bar beside it had already been fixed for exactly this — see the
+   * `min-w-0` note on the nav — and the selector reintroduced it two elements
+   * later, which is the argument for pinning it rather than trusting the
+   * lesson to have been learnt.
+   *
+   * The browser assertion lives in `scripts/pilot-e2e.mjs`, which measures all
+   * four teacher surfaces at 1440/1280/1024/768/375. This is the source lint
+   * that fails in a second instead of in a browser run.
+   */
+  const shell = readFileSync(join(ROOT, "src/components/teacher/shell.tsx"), "utf8");
+  const chip = shell.slice(shell.indexOf("function MonthChip("));
+
+  it("bounds the month selector so it cannot set the page's width", () => {
+    expect(chip).toMatch(/max-w-\[9rem\]/);
+    expect(chip, "and it must be allowed to shrink inside the flex row").toContain("min-w-0");
+    expect(chip, "a bounded select with no truncation clips mid-glyph").toContain("truncate");
+  });
+
+  it("lets the chip wrap rather than widen", () => {
+    expect(chip).toContain('className="max-w-full flex-wrap"');
+  });
+});

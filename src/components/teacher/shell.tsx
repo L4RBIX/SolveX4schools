@@ -491,12 +491,32 @@ function Segmented<T extends string>({
  * on our part, and this surface has no design language for a custom listbox
  * that would be worth the accessibility debt.
  */
+/**
+ * The month this console is describing, and the control that changes it.
+ *
+ * ## `max-w` on the select, and why it is not cosmetic
+ *
+ * A native `<select>` sizes itself to its WIDEST option, and these options are
+ * «Ай 3 · Функциялар және қайталанатын әрекеттер» — full month titles. Measured
+ * in Chromium at 375px: the chip was 683px wide and pushed `documentElement`
+ * to 703, so every teacher page scrolled sideways on a phone with the header
+ * and the tables drifting off. The tab bar beside it had already been fixed for
+ * exactly this (see `min-w-0` on the nav above); this control reintroduced it
+ * two elements later.
+ *
+ * So the select is bounded and truncates, and the month it names is rendered
+ * beside it as text that wraps. The dropdown still shows every title in full —
+ * that is the platform's own popup and it is not laid out by this page.
+ */
 function MonthChip({ context, loc }: { context: ClassContext; loc: Locale }) {
   const { month, setMonth } = useTeacherView();
   const options = context.availableMonths;
 
   return (
-    <Chip tone="neutral">
+    /* `max-w-full` and `flex-wrap` on the chip: it is one of several chips in a
+       flex row, and on a phone it has to be allowed to take two lines rather
+       than to set the page's width. */
+    <Chip tone="neutral" className="max-w-full flex-wrap">
       <label className="sr-only" htmlFor="teacher-month">
         {translate(TL.monthPickerLabel, loc)}
       </label>
@@ -506,6 +526,10 @@ function MonthChip({ context, loc }: { context: ClassContext; loc: Locale }) {
         onChange={(e) => setMonth(e.target.value === "" ? null : Number(e.target.value))}
         className={cn(
           "cursor-pointer bg-transparent tabular-nums outline-none",
+          /* Bounded, or the widest option becomes the page's width. `max-w-full`
+             alone is not enough inside a flex row: the chip is the flex item,
+             and its `min-width: auto` refuses to shrink below this control. */
+          "max-w-[9rem] min-w-0 truncate sm:max-w-[18rem]",
           MOTION.base,
           "focus-visible:ring-2 focus-visible:ring-b-fg/40",
         )}

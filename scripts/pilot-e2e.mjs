@@ -30,6 +30,10 @@ const STUDENT_PW = process.env.E2E_STUDENT_PW;
 const TEACHER_PW = process.env.E2E_TEACHER_PW;
 const NEW_PW = "PilotE2E-2026-changed";
 const LESSON = process.env.E2E_LESSON ?? "m1.l6";
+/* The class name to look for on the teacher's page. `provision-class.ts` takes
+   it as `--class-name`, so a run against a class called anything else used to
+   fail a check about the PRODUCT because of an assumption about the fixture. */
+const CLASS_NAME = process.env.E2E_CLASS_NAME ?? "9А";
 const BLOCKS = JSON.parse(process.env.E2E_BLOCKS ?? "[]");
 
 let failures = 0;
@@ -199,7 +203,7 @@ async function main() {
   await tpage.goto(`${BASE}/teacher`, { waitUntil: "networkidle" });
   check("the teacher overview renders", new URL(tpage.url()).pathname === "/teacher", tpage.url());
   const body = await tpage.content();
-  check("the roster is the provisioned class", body.includes("9А") || body.includes("9A"));
+  check("the roster is the provisioned class", body.includes(CLASS_NAME), CLASS_NAME);
 
   /* The learner's work reached the console. Asserted on the rendered page
      rather than on a query, because the question is what a teacher SEES. */

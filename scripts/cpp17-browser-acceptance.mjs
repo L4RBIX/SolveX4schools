@@ -43,6 +43,26 @@ const SUBMIT = process.env.E2E_SUBMIT === "1";
 
 let failures = 0;
 let checks = 0;
+/*
+ * A third outcome, and the reason it exists.
+ *
+ * Months 2-9 are 404 for a learner who has not earned them — that is
+ * `currentLearnerMayEnter`, the authorisation boundary, working exactly as
+ * `tests/school/locked-months-do-not-404.test.ts` describes. Reporting it as a
+ * FAILED check blamed the browser runtime for the unlock policy; reporting it
+ * as a pass would claim a month was swept when nothing was rendered.
+ *
+ * So it is neither. Not-measured lines are printed, counted, and listed in the
+ * summary. To sweep the whole year in a browser, sign in as a learner who has
+ * unlocked it.
+ */
+let notMeasured = 0;
+const unmeasured = [];
+const skipLocked = (name, why) => {
+  notMeasured += 1;
+  unmeasured.push({ name, why });
+  console.log(`  – ${name} — NOT MEASURED: ${why}`);
+};
 const results = [];
 const check = (name, ok, detail = "") => {
   checks += 1;
@@ -156,6 +176,10 @@ async function fullYearSweep(page) {
       continue;
     }
     const status = res?.status() ?? 0;
+    if (status === 404) {
+      skipLocked(`${m.label} — lesson`, "404: this learner has not unlocked the month");
+      continue;
+    }
     if (status !== 200) {
       check(`${m.label} — lesson renders`, false, `status ${status}`);
       continue;
@@ -433,6 +457,10 @@ async function responsive(page, paths) {
       try {
         const res = await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
         const status = res?.status() ?? 0;
+        if (status === 404) {
+          skipLocked(`${label} @ ${width}px`, "404: this learner has not unlocked the month");
+          continue;
+        }
         if (status !== 200) {
           /* A 404 page has no horizontal overflow either, so an unguarded
              check passes on a page that never rendered. This suite did exactly
@@ -573,8 +601,16 @@ async function main() {
   await browser.close();
 
   console.log(`\n${"=".repeat(64)}`);
-  console.log(`  mode=${MODE}   ${checks - failures}/${checks} checks passed, ${failures} failed`);
+  console.log(
+    `  mode=${MODE}   ${checks - failures}/${checks} checks passed, ${failures} failed` +
+      (notMeasured > 0 ? `, ${notMeasured} NOT MEASURED` : ""),
+  );
   console.log(`${"=".repeat(64)}\n`);
+  if (notMeasured > 0) {
+    console.log("NOT MEASURED (nothing rendered, so nothing was checked):");
+    for (const r of unmeasured) console.log(`  – ${r.name} — ${r.why}`);
+    console.log("");
+  }
   if (failures > 0) {
     console.log("FAILED CHECKS:");
     for (const r of results.filter((r) => !r.ok)) console.log(`  ✗ ${r.name}${r.detail ? ` — ${r.detail}` : ""}`);
