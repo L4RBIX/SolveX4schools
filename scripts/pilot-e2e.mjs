@@ -181,6 +181,113 @@ async function main() {
   }
 
   /* ------------------------------------------------------------------ */
+  section("The code editor");
+
+  /*
+   * The editor was a `<textarea>` until this release: no line numbers, no
+   * highlighting, and Tab moved focus to the next button — the single most
+   * common keystroke in a C++ lesson took the learner out of the box they were
+   * typing in. These assertions are the reason CodeMirror is here, and they run
+   * in a real browser because none of them is observable from Node.
+   *
+   * Two lessons, because a learner's first card is a concept: `m1.l8` opens on
+   * a code task, so the keyboard can be exercised there; `m1.l2` is where a
+   * SCAFFOLDED task lives, and its frame is asserted across the lesson's
+   * mounted cards.
+   */
+  const editorText = () =>
+    page.evaluate(() => {
+      const el =
+        [...document.querySelectorAll(".cm-content")].find((x) => !x.closest("[inert]")) ??
+        document.querySelector(".cm-content");
+      return el?.textContent ?? "";
+    });
+  const focusEditor = () =>
+    page.evaluate(() => {
+      const el = [...document.querySelectorAll(".cm-content")].find((x) => !x.closest("[inert]"));
+      if (!el) return false;
+      el.focus();
+      const lines = el.querySelectorAll(".cm-line");
+      const target = lines[Math.min(4, lines.length - 1)];
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    });
+
+  await page.goto(`${BASE}/lesson/m1.l2`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(2500);
+  check(
+    "the editor replaces the textarea",
+    (await page.$$(".cm-content")).length > 0,
+    "no CodeMirror instance on a lesson with code tasks",
+  );
+  check("line numbers are rendered", Boolean(await page.$(".cm-gutters")));
+  const frames = await page.evaluate(() =>
+    [...document.querySelectorAll(".cm-content")].map((el) => el.textContent ?? ""),
+  );
+  check(
+    "a scaffolded task starts with the frame, and the learner's place inside main",
+    frames.some((f) => f.includes("#include <iostream>") && f.includes("int main")),
+  );
+
+  await page.goto(`${BASE}/lesson/m1.l8`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(2500);
+  if (await focusEditor()) {
+    await page.keyboard.type('#include <iostream>\nint main() { cout << "hi"; }');
+    await page.waitForTimeout(300);
+    check(
+      "C++ is syntax highlighted",
+      await page.evaluate(() => {
+        const el = [...document.querySelectorAll(".cm-content")].find((x) => !x.closest("[inert]"));
+        const base = el ? getComputedStyle(el).color : "";
+        return [...(el?.querySelectorAll("span") ?? [])].some(
+          (s) => getComputedStyle(s).color !== base,
+        );
+      }),
+    );
+
+    const before = await editorText();
+    await page.keyboard.press("Tab");
+    const afterTab = await editorText();
+    check("Tab indents instead of leaving the editor", afterTab.length > before.length);
+    check(
+      "focus is still in the editor after Tab",
+      await page.evaluate(() => Boolean(document.activeElement?.closest(".cm-editor"))),
+    );
+    await page.keyboard.press("Shift+Tab");
+    check("Shift+Tab unindents", (await editorText()).length === before.length);
+
+    await page.keyboard.type("if (1) {");
+    await page.keyboard.press("Enter");
+    const indented = await page.evaluate(() => {
+      const el = [...document.querySelectorAll(".cm-content")].find((x) => !x.closest("[inert]"));
+      const lines = [...(el?.querySelectorAll(".cm-line") ?? [])].map((l) => l.textContent ?? "");
+      const i = lines.findIndex((l) => l.includes("if (1) {"));
+      return lines[i + 1] ?? "";
+    });
+    check("Enter keeps the indentation", /^\s{4,}/.test(indented), JSON.stringify(indented));
+
+    await page.keyboard.press("Escape");
+    check(
+      "Escape releases the editor, so Tab can leave",
+      !(await page.evaluate(() => Boolean(document.activeElement?.closest(".cm-editor")))),
+    );
+
+    await focusEditor();
+    await page.keyboard.type("  // draft-marker");
+    await page.waitForTimeout(900);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(2500);
+    check("the draft survives a reload", (await editorText()).includes("draft-marker"));
+  } else {
+    check("a code task is reachable to type into", false, "no active editor on m1.l8");
+  }
+
+  /* ------------------------------------------------------------------ */
   section("Responsive — learner surfaces");
   await noOverflow(page, "/program", "programme");
   await noOverflow(page, `/lesson/${LESSON}`, "lesson");

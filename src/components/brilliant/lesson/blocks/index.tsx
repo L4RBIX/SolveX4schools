@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@schools/curriculum/types";
 import type { PublicBlock } from "@schools/curriculum/public";
@@ -23,6 +23,7 @@ import {
 } from "./primitives";
 import { RunPanel } from "./run-panel";
 import { parseDiagnostics } from "./run-state";
+import { clearDraft, readDraft, writeDraft } from "@/lib/draft";
 import { StepExecution, buildStepProgram } from "./step-execution";
 
 /**
@@ -1076,15 +1077,20 @@ function CodeTaskView({
     [compilerText],
   );
 
-  if (
-    block.type !== "write_code" &&
-    block.type !== "modify_code" &&
-    block.type !== "challenge"
-  ) {
-    return null;
-  }
-
-  const starter = block.starter ?? block.code ?? "";
+  /*
+   * Everything a hook reads is computed BEFORE the type guard.
+   *
+   * React requires the same hooks in the same order on every render, and this
+   * component returns null for a block it does not draw — so a hook below the
+   * guard runs on some renders and not others. The values are cheap and safe to
+   * compute for any block; the guard then decides whether to draw one.
+   */
+  const isCodeTask =
+    block.type === "write_code" || block.type === "modify_code" || block.type === "challenge";
+  const starter =
+    ("starter" in block && typeof block.starter === "string" ? block.starter : undefined) ??
+    ("code" in block && typeof block.code === "string" ? block.code : undefined) ??
+    "";
   const source = answer.kind === "text" ? answer.value : starter;
 
   /*
@@ -1106,6 +1112,42 @@ function CodeTaskView({
    * answer — is what models that instead.
    */
   const editorLocked = locked(verdict) && verdict !== "wrong" && verdict !== "partial";
+
+  /*
+   * What they typed last time, restored on this device.
+   *
+   * Hydration cannot bring an answer back — `learning_events.payload` is
+   * allowlisted and `learning_submissions.response` holds no learner text, both
+   * deliberately — so before this, a reload put the starter frame back and
+   * twenty minutes of a first program were gone with nothing anywhere saying
+   * they would be. The draft never leaves the browser; see `src/lib/draft.ts`.
+   *
+   * Only while the block is unsettled and unanswered in this session. A settled
+   * block shows what the ledger says, and a draft that overwrote that would put
+   * a green border around text nobody graded.
+   */
+  useEffect(() => {
+    if (!isCodeTask || editorLocked || answer.kind === "text") return;
+    const saved = readDraft(block.id);
+    if (saved && saved !== starter) onAnswer({ kind: "text", value: saved });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block.id]);
+
+  useEffect(() => {
+    if (!isCodeTask || editorLocked) return;
+    if (answer.kind !== "text") return;
+    const id = window.setTimeout(() => writeDraft(block.id, answer.value, starter), 400);
+    return () => window.clearTimeout(id);
+  }, [block.id, answer, starter, editorLocked]);
+
+  useEffect(() => {
+    /* Settled: the answer is in the ledger and the draft is no longer the
+       truth about this block. */
+    if (isCodeTask && verdict === "correct") clearDraft(block.id);
+  }, [block.id, verdict, isCodeTask]);
+
+  if (!isCodeTask) return null;
+
 
   return (
     <>
