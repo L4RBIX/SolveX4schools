@@ -88,6 +88,8 @@ Node process, not a serverless function pool.
 | `LEARNING_ADMIN_TOKEN` | No | **Yes** | 43+ URL-safe characters, from `openssl rand -base64 32` | `schools/ops/admin-gate.ts`, compared in constant time | Absent: the machine door to the admin health view is simply closed, and that view is then reachable only by a signed-in `admin`. Not asserted at boot — a pilot with no uptime monitor is not misconfigured. Presented as `Authorization: Bearer <token>`; there is no query-parameter form. |
 | `LEARNING_CRON_SECRET` | No | **Yes** | 64 hex characters | **Nothing** | **Has no consumer.** It is read into `config.cronSecret` and never used, because the cron entry point it was meant to guard does not exist: there is no `/api/learning/reduce` route. `.env.example` tells operators to point a cron at that route. Setting this variable protects nothing; more importantly, `LEARNING_SWEEP_IN_PROCESS=false` currently leaves the reducer with **no trigger at all**. |
 
+| `FULL_CURRICULUM_QA_USERS` | No | No | Comma-separated `school_accounts.user_id` values | Nothing; an unknown id simply never matches | **Grants the named accounts ACCESS to every month, and nothing else.** Applied in exactly one place — `isQaFullAccessSubject`, consulted by `monthUnlockedFor`, which every gate funnels through. It writes no completion, no XP, no submission and no verdict, and it overrides only the `unlocked` field of the unlock state, so a teacher's analytics for a QA account stay empty and true. Empty by default: a deployment that does not set it has no override at all. Create the accounts with `scripts/create-qa-learners.ts`, which puts them in their own class with no teacher assigned so they appear in no roster. Rotate their passwords after testing. |
+
 ### Reducer
 
 | Variable | Required | Secret | Example format | Validated by | If wrong or missing |
@@ -396,5 +398,6 @@ Each has a working default; none needs setting for a normal deployment.
 | Variable | Default | What it bounds |
 |---|---|---|
 | `LEARNING_CRON_SECRET` | unset | Authenticates `GET /api/cron`. Unset, that route answers 404 and nothing is scheduled. Required on Vercel. |
+| `FULL_CURRICULUM_QA_USERS` | unset | Account ids that may open every month, for QA. Access only — it fabricates no progress. See the row above. |
 | `LEARNING_SWEEP_IN_PROCESS` | on, except where `VERCEL` is set | The reducer's in-process interval, which fires zero times on a serverless host. |
 | `LEARNING_SWEEP_INTERVAL_MS` | `20000` | How often it fires when it does. |
