@@ -39,6 +39,7 @@
     "test:browser-cpp": "CPP_BROWSER_GATE=1 vitest run",
     "test:li": "vitest run tests/",
     "test:golden": "vitest run tests/golden.test.ts",
+    "curriculum:kk-review": "tsx --conditions=react-server scripts/kk-review.ts",
     "curriculum:validate": "tsx --conditions=react-server schools/curriculum/cli.ts",
     "test:pipeline": "vitest run tests/pipeline tests/school tests/nova tests/exec tests/store",
     "check:bundle": "node scripts/check-client-bundle.mjs",
