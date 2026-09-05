@@ -114,16 +114,20 @@ describe("the editor after a wrong verdict", () => {
      * the editor and disabled Run. `editorLocked` excludes `wrong` and
      * `partial`, which are precisely the two verdicts that mean "try again".
      */
+    /* The whole function, not its first 3,000 characters. The window was an
+       accident of how long the component happened to be: hoisting the draft
+       hooks above the type guard pushed `editorLocked` past it and failed this
+       test for a change that did not touch the rule. */
     const view = blocks.slice(blocks.indexOf("function CodeTaskView("));
     expect(view).toContain("const editorLocked =");
-    expect(view.slice(0, 3000)).toMatch(/verdict !== "wrong" && verdict !== "partial"/);
+    expect(view).toMatch(/verdict !== "wrong" && verdict !== "partial"/);
   });
 
   it("still locks on a correct one", () => {
     /* Settled work is settled. Editing it afterwards would produce a screen
        that disagrees with the ledger. */
     const view = blocks.slice(blocks.indexOf("function CodeTaskView("));
-    expect(view.slice(0, 3000)).toContain("locked(verdict) &&");
+    expect(view).toContain("locked(verdict) &&");
   });
 
   it("does not unlock a quiz", () => {
