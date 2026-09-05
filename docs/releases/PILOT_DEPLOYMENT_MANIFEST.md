@@ -254,21 +254,26 @@ Edit the curriculum afterwards and the approval lapses automatically.
 
 ### This release changes September, so September must be re-approved
 
-Two of its tasks could be passed by a program that ignores its input — `m1.p7`
-expected the same output for all three of its cases, and `m1.l8.b2` accepted a
-comparison of areas on a task about turning a wardrobe. Both gained cases.
+September was rebuilt for a learner who has never programmed: two new lessons
+(`m1.l0` — what a program and a compiler are; `m1.l13` — variables), the frame
+explained line by line in `m1.l1`, seven tasks that gained the starter frame
+they were missing, and `m1.l7` announcing the hand-over. The month object
+changed, so its sha256 changed, so the approval recorded against the old one no
+longer matches — the gate above, working as designed.
 
-That edits the month object, so its sha256 moves and any existing approval for
-month 1 lapses — the mechanism described just above, working as intended. On
-deploy, September is PUBLISHED-but-lapsed until a teacher re-approves it, and a
-learner cannot open it in the meantime.
+    live in production:  c257be158b6ab5f59df637c195f2cea9a945e93ce48f06b6da1b4a577ef9b18c
+    this release:        1a74e50bae78f388cbb7fcc14b1dcc22b7813f6f35df0bd37ca2298d4a2acfc0
 
-    curriculum_hash (month 1, this release):
-    d6432af61e2e07710e088fc10e1c7f898bcbcf7035afc4b1d85e6b96ef683514
+**No other month changed.** Months 2–9 are byte-identical and their approvals
+still match, so they stay open.
 
-Re-approve it with the publish command above. **This is a human decision and
-nothing in this release may make it automatically** — the point of the gate is
-that an adult read the material. No other month changed.
+Until a teacher re-approves month 1, a learner reaches `/home` and September's
+lessons answer 404. No learner work is affected and re-approval restores the
+month with everything intact. What a reviewer is being asked to judge, and the
+one command that does it: [`SEPTEMBER_REAPPROVAL.md`](SEPTEMBER_REAPPROVAL.md).
+
+**This is a human decision and nothing in this release may make it
+automatically** — the point of the gate is that an adult read the material.
 
 ### Un-publishing a month
 
@@ -407,7 +412,7 @@ hashes.
 | Teacher dashboard | ON — month derived per class, with a selector |
 | Human review | ON — exactly 4 mandatory blocks in the year |
 | Leagues | **ON**, scoped by `LEAGUES_SCHOOLS` |
-| Scheduled work | `GET /api/cron`, daily, `vercel.json` |
+| Scheduled work | `GET /api/cron`, daily, `vercel.json` · `LEARNING_CRON_SECRET` set in Vercel for production and preview (2026-09-05) |
 | `/dev/*`, `/brilliant` | 404 in production |
 
 ---
