@@ -252,6 +252,24 @@ likely cause of a rejection, and the command now says so.
 Each row records the reviewer, the moment, and the sha256 of the month object.
 Edit the curriculum afterwards and the approval lapses automatically.
 
+### This release changes September, so September must be re-approved
+
+Two of its tasks could be passed by a program that ignores its input — `m1.p7`
+expected the same output for all three of its cases, and `m1.l8.b2` accepted a
+comparison of areas on a task about turning a wardrobe. Both gained cases.
+
+That edits the month object, so its sha256 moves and any existing approval for
+month 1 lapses — the mechanism described just above, working as intended. On
+deploy, September is PUBLISHED-but-lapsed until a teacher re-approves it, and a
+learner cannot open it in the meantime.
+
+    curriculum_hash (month 1, this release):
+    d6432af61e2e07710e088fc10e1c7f898bcbcf7035afc4b1d85e6b96ef683514
+
+Re-approve it with the publish command above. **This is a human decision and
+nothing in this release may make it automatically** — the point of the gate is
+that an adult read the material. No other month changed.
+
 ### Un-publishing a month
 
 ```bash
@@ -435,6 +453,24 @@ Rolling back past this pass restores, in order of harm:
 If you roll back the code, un-publish months 2–9 first: the unlock policy and
 the month gate move together, and an older build with all nine months published
 opens the year to every learner.
+
+---
+
+## 11a. Erasing one learner
+
+A school will ask. The path exists, it is one command, and it prints what it
+removed:
+
+```bash
+DATABASE_URL=… npm run school:erase -- \
+  --school <school-id> --username <username>          # dry run, the default
+DATABASE_URL=… npm run school:erase -- \
+  --school <school-id> --username <username> \
+  --confirm <username> --reason "<who asked, and when>"
+```
+
+Runbook, including what erasure does NOT cover (logs, the model provider,
+backups): [`../operations/ERASURE.md`](../operations/ERASURE.md).
 
 ---
 
