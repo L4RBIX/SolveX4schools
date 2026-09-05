@@ -46,7 +46,9 @@ GEMINI.md
 
 # Docs / research (large, not needed at runtime)
 docs
-scripts
+# NOT scripts/ — package.json's prebuild hook runs from there. It is
+# sync-cpp17-assets.mjs and build-cpp-worker.mjs now (the Python pair this line
+# was written for is gone), and the build stops one line in without them.
 
 # Docker files themselves (no need to copy into image)
 Dockerfile
