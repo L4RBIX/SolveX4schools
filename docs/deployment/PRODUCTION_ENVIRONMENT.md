@@ -65,12 +65,19 @@ copied.
 | Variable | Required | Secret | Example format | Validated by | If wrong or missing |
 |---|---|---|---|---|---|
 | `LEARNING_DATA_DIR` | **Yes in production** | No | `/var/lib/solvex/learning` | `assertProductionConfig()` rejects a relative path when `DATABASE_URL` is unset | Relative (the default `.data/learning`) on an ephemeral filesystem means every learner's progress is deleted on redeploy. Boot fails rather than allowing it. Must be an absolute path on a **persistent volume**. |
-| `DATABASE_URL` | **No — see below** | **Yes** | `postgres://USER:PASSWORD@HOST:5432/DBNAME` | `assertProductionConfig()` accepts it as an alternative to an absolute data dir; `schools/store/index.ts` then **throws** | **Setting this today breaks the application.** The Postgres driver is not implemented: `open()` throws `"DATABASE_URL is set but the Postgres driver is not wired yet"` on the first store access. Boot succeeds, then every route that touches the store 500s. Leave it unset and use an absolute `LEARNING_DATA_DIR` with PGlite until `schools/store/postgres-driver.ts` exists. |
+| `DATABASE_URL` | **Yes** | **Yes** | `postgres://USER:PASSWORD@HOST:5432/DBNAME` | Selects the Postgres driver; the migration chain runs on first connection | `schools/store/postgres-driver.ts` **exists and is what production runs.** This row previously said "setting this today breaks the application" and told an operator to leave it unset — advice that was true before the driver landed and became, once it had, an instruction to deploy a school on a single-writer embedded database. Verified: CI applies the whole chain to a pristine PostgreSQL 16 on every push. |
 
 PGlite holds an **exclusive lock** on its data directory. One process, one
 directory. A second process opening the same path reads a stale snapshot rather
 than failing, which looks exactly like writes being lost. This is also why
-`next.config.ts` sets `output: "standalone"` — the app must be a long-running
+> **Corrected 2026-09-05.** The paragraph below describes the SELF-HOSTED path.
+> On Vercel, `next.config.ts` turns `standalone` OFF — Vercel's post-build step
+> reads a trace manifest a standalone build does not emit, and the deployment
+> died with `ENOENT` on it. Production is Vercel; there is no long-running
+> process there, the in-process intervals fire zero times, and `vercel.json`
+> schedules `GET /api/cron` instead. See §2 of the pilot deployment manifest.
+
+`next.config.ts` sets `output: "standalone"` off Vercel — the app must be a long-running
 Node process, not a serverless function pool.
 
 ### Secrets
@@ -95,7 +102,7 @@ Node process, not a serverless function pool.
 | `NOVA_PROVIDER` | No | No | `echo` (default) / `deepseek` | `assertProductionConfig()` only in combination with the API key | `echo` needs no credentials and runs offline; the pedagogy — the hint ladder, the caps, the refusal to name a misconception without evidence — is upstream of the model and is fully exercisable against it. An unrecognised value falls back to `echo`. |
 | `DEEPSEEK_API_KEY` | Only when `NOVA_PROVIDER=deepseek` | **Yes** | provider-issued key string | `assertProductionConfig()` | `deepseek` without a key is a boot failure. |
 | `DEEPSEEK_BASE_URL` | No | No | `https://api.deepseek.com` | Nothing | A wrong host makes every hint fail; the learner-facing path degrades rather than erroring. Redacted to host and port in the admin health payload. |
-| `DEEPSEEK_MODEL` | No | No | `deepseek-chat` | Nothing | An unknown model name fails at the provider, per request. |
+| `DEEPSEEK_MODEL` | No | No | `deepseek-v4-flash` | Nothing | The default in `schools/config.ts`. **Not `deepseek-chat`** — DeepSeek retired that on 2026-07-24 and it now returns an error rather than resolving, so a perfectly good key would produce a Nova in which every request failed. An unknown model name fails at the provider, per request. |
 
 ### Code execution — the judge
 
@@ -107,7 +114,7 @@ Node process, not a serverless function pool.
 | `JUDGE0_RAPIDAPI_HOST` | No | No | `judge0-ce.p.rapidapi.com` | Nothing | Set only for a different host or a proxy speaking the same API. It also derives the default base URL, so changing it changes both. |
 | `JUDGE0_RAPIDAPI_BASE_URL` | No | No | derived from the host | Nothing | `JUDGE0_BASE_URL` is accepted as an older spelling and the longer name wins. A wrong value fails loudly on the first submission. |
 | `JUDGE0_MAX_CONCURRENT_REQUESTS` | No | No | `2` | `intEnv()` — a non-positive-integer takes the default rather than the operator's typo | How many submissions may be in flight process-wide. Low on purpose: eighteen students times however many hidden cases arrives as one burst. Waiting is a slower Check; exceeding is a class told nothing could be measured. |
-| `JUDGE0_LANGUAGE_ID` | No | No | unset (discovered) | `optionalIntEnv()` | Unset is the normal case: the provider asks `GET /languages` which Python 3 the judge has and caches it. Measured 2026-08-30 on the live service: id **113**, `Python (3.14.0)`, confirmed from `sys.version` rather than the catalogue label. Pin it only to freeze a runtime deliberately — an id with no name behind it means nothing can say which interpreter produced a learner's evidence. |
+| `JUDGE0_LANGUAGE_ID` | No | No | unset (discovered) | `optionalIntEnv()` | Unset is the normal case: the provider asks `GET /languages` which C++ the judge has and caches it. Measured on the live service: id **105**, `C++ (GCC 14.1.0)`. Unset is the normal case and the discovery refuses anything older than GCC 11. Pin it only to freeze a compiler deliberately — an id with no name behind it means nothing can say which toolchain produced a learner's evidence, and this plan refuses `compiler_options`, so a pinned id is also a pinned default standard. |
 | `EXEC_PYTHON_BIN` | No | No | `python3` | Nothing | Development only — the local subprocess provider. Irrelevant in production, where that provider refuses to run. |
 
 ### Pilot scope
@@ -294,9 +301,24 @@ never per IP, because a school is one NAT gateway and an IP bucket would let one
 busy student throttle the whole class. Eighteen different learners never
 throttle each other; one learner pressing Run 31 times in a minute gets a 429.
 
-`/api/learning/submit` has **no rate limit at all**. One learner in a loop can
-generate unbounded judge load. For a supervised pilot of 18 this is acceptable;
-it is not acceptable at school scale.
+`/api/learning/submit` is bounded twice, and both live in the database rather
+than in a process — a per-instance counter bounds nothing on a platform that
+runs as many instances as it likes.
+
+| Bucket | Default | What it stops |
+|---|---|---|
+| `submit:<subject>` | 12 burst, 8/min | One learner spending the class's judge |
+| `submit:provider` | 150 burst, 120/min | One class spending the school's month. Charged only for a metered provider |
+
+Both are charged AFTER the idempotency claim resolves, so a duplicate costs
+nothing: a double-click, a reconnecting phone and a browser retrying a POST all
+replay the stored verdict without touching the bucket. A refusal releases the
+claim, so the retry grades the same answer cleanly.
+
+This section previously read "no rate limit at all … acceptable for a
+supervised pilot of 18". It was not: a devtools loop billed the metered
+RapidAPI plan indefinitely while classmates waited, and nothing in the product
+would have said so.
 
 ---
 
@@ -313,3 +335,66 @@ conformance suite explicitly does not cover.
 - [ ] 36 concurrent executions complete without any exceeding our 10 s ceiling.
 - [ ] The host is in Kazakhstan, and the app can reach it. The data-residency commitment rests on this one and on nothing in this repository.
 - [ ] `PISTON_URL` is not publicly reachable, or is authenticated. Piston executes arbitrary code by design.
+
+---
+
+## Every variable `schools/config.ts` reads
+
+The table above documents the ones an operator SETS. This is the complete list,
+because a knob that exists and is undocumented is a knob somebody finds in the
+source and sets without knowing what it bounds — and twenty-three of these were
+in that state.
+
+Each has a working default; none needs setting for a normal deployment.
+
+### Judge (SUBMIT)
+
+| Variable | Default | What it bounds |
+|---|---|---|
+| `JUDGE0_BATCH` | `true` | `POST /submissions/batch`. Off restores one request per case: measured 9.7 s and 30 billable requests against 2.7 s and 4. |
+| `JUDGE0_MAX_BATCH_SIZE` | `20` | The plan's `max_submission_batch_size`. A block with more cases is split. |
+| `JUDGE0_MAX_CONCURRENT_REQUESTS` | `6` | In-flight batches per instance. |
+| `JUDGE0_MAX_CONCURRENT_PER_LEARNER` | `1` | How many of those one learner may hold. This is what stops a loop taking the class's turn. |
+| `JUDGE0_QUEUE_WAIT_MS` | `38000` | How long a Check waits for a slot. Sized against the route's `maxDuration = 60`. |
+| `JUDGE0_POLL_INTERVAL_MS` | `250` | First poll delay; it backs off. Every poll is billable. |
+| `JUDGE0_OVERHEAD_BUDGET_MS` | `15000` | How much longer than the learner's own limit we wait. Must exceed the judge's, or a slow program is recorded as a dead judge. |
+| `EXEC_CPP_BIN` | `g++` | The LOCAL dev provider's compiler. Never used in production — that provider refuses to run there. |
+
+### Submit budgets
+
+| Variable | Default | What it bounds |
+|---|---|---|
+| `SUBMIT_BURST_PER_LEARNER` | `12` | One learner's burst. |
+| `SUBMIT_PER_MINUTE_PER_LEARNER` | `8` | And their sustained rate. |
+| `SUBMIT_BURST_GLOBAL` | `150` | The whole deployment's burst, on a metered judge. |
+| `SUBMIT_PER_MINUTE_GLOBAL` | `120` | And its sustained rate. |
+
+### Nova
+
+| Variable | Default | What it bounds |
+|---|---|---|
+| `NOVA_ENABLED` | `true` | A kill switch independent of the credential. |
+| `NOVA_REQUEST_TIMEOUT_MS` | `30000` | Per attempt. |
+| `NOVA_MAX_OUTPUT_TOKENS` | `500` | Per reply. |
+| `NOVA_DAILY_REQUEST_LIMIT` | `60` | Per learner per day. |
+| `NOVA_MONTHLY_INPUT_TOKEN_LIMIT` | `20000000` | Whole deployment. |
+| `NOVA_MONTHLY_OUTPUT_TOKEN_LIMIT` | `4000000` | Whole deployment. |
+| `NOVA_MONTHLY_COST_LIMIT_USD` | `25` | Whole deployment. |
+| `DEEPSEEK_THINKING` | `false` | V4 enables it by default at high effort and bills reasoning as output. |
+| `DEEPSEEK_INPUT_USD_PER_MTOK` | `0.44` | Peak rate, deliberately: peak IS the school day in Almaty. |
+| `DEEPSEEK_OUTPUT_USD_PER_MTOK` | `1.32` | Same. |
+
+### Leagues
+
+| Variable | Default | What it bounds |
+|---|---|---|
+| `LEAGUES_ENABLED` | `false` | **`true` in `.env.example` and in the deployed configuration.** |
+| `LEAGUES_SCHOOLS` | empty | The allowlist. **Empty means EVERY school.** Set it. |
+
+### Scheduling
+
+| Variable | Default | What it bounds |
+|---|---|---|
+| `LEARNING_CRON_SECRET` | unset | Authenticates `GET /api/cron`. Unset, that route answers 404 and nothing is scheduled. Required on Vercel. |
+| `LEARNING_SWEEP_IN_PROCESS` | on, except where `VERCEL` is set | The reducer's in-process interval, which fires zero times on a serverless host. |
+| `LEARNING_SWEEP_INTERVAL_MS` | `20000` | How often it fires when it does. |

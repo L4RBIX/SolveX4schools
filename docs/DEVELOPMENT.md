@@ -1,41 +1,74 @@
 # Where to run SolveX
 
 ```
-cd /Users/kydyrbekbekarys/SolveX4schools
+git switch cpp17-migration        # the deployed product; see below
+npm ci
 npm run dev
 ```
 
 http://localhost:3000
 
-That is the whole answer. Nothing else is required — no worktree, no alternate
-port, no exported database URL, no second checkout.
+## The one thing this file exists to say
 
-## Why this file exists
+**`cpp17-migration` is the product.** It is `origin/master`, it is what Vercel
+deploys, and it is the only branch a change should be made on.
 
-For most of this project's life the answer was not that. Work happened in
-parallel git worktrees under `.claude/worktrees/`, and the repository root sat
-on an older branch with several hundred uncommitted files. `npm run dev` from
-the root started a server, returned 200, and served a product several weeks
-behind the one being released — which is the worst kind of wrong, because
-nothing about it looks broken.
+`pilot-release-candidate` is not. It is the Python-era product, **49 commits
+behind**, and `npm run dev` on it starts a server, returns 200, and serves a
+retired product. Nothing about that looks broken, which is what makes it the
+worst available failure: a previous audit spent its first hour reading it.
 
-The root is now the canonical checkout. If you are reading this because you
-found a `.claude/worktrees/...` path in a command somewhere, that command is
-either historical or a deliberate exception; see "Worktrees" below.
+It is not simply an old copy, though, and the difference matters before anybody
+deletes it. It carries **3 commits that exist nowhere else**:
+
+| Commit | What it is |
+|---|---|
+| `fedf979` | Three fixes to the Dockerfile and `.dockerignore` — the self-hosted build path, which cannot run without them |
+| `7d88cc9` | Cache mounts in the Dockerfile, made portable |
+| `cda6673` | `DEMO_AUTOLOGIN_USERNAME` — a deployment with no sign-in at all |
+
+They are preserved at `backup/pre-p0-pilot-release-candidate-head`. None has
+been ported to `cpp17-migration` by this pass, and the third should not be
+without a decision: set, `DEMO_AUTOLOGIN_USERNAME` makes every anonymous
+visitor a real enrolled account with that account's class and work. It is
+unset by default and is absent from the deployed branch, so it is not in
+production — and it must not arrive there by a merge nobody read.
+
+Verify rather than trust this paragraph:
+
+```
+git rev-parse --abbrev-ref HEAD                     # expect cpp17-migration
+git rev-list --left-right --count origin/master...HEAD
+#   0<TAB>N   → you are N ahead, nothing behind. Good.
+#   M<TAB>0   → you are M BEHIND and have no unique work. Wrong branch.
+```
+
+`npm run dev` prints the same answer at startup — see `scripts/check-branch.mjs`,
+which `predev` runs. It does not refuse to start: a feature branch is a normal
+thing to be on. It says loudly which branch you are on and how far behind
+`origin/master` it is, because the failure this replaces was silent.
 
 ## The canonical checkout
 
 | | |
 |---|---|
 | Path | `/Users/kydyrbekbekarys/SolveX4schools` |
-| Branch | `pilot-release-candidate` |
+| Branch | **`cpp17-migration`** (= `origin/master` = deployed) |
 | Default port | 3000 |
 | Database | `postgres://localhost/solvex_dev` |
 | Config | `.env.local` (gitignored, never committed) |
 
-`npm run dev` runs `predev` first, which copies the Pyodide runtime out of
-`node_modules` and compiles the Python worker. Both are generated and both are
-gitignored; you do not need to run them by hand.
+`npm run dev` runs `predev`, which fetches and checksums the 57 MB pinned C++17
+toolchain into `public/cpp17/` and builds the worker. Both are generated and
+gitignored; you do not need to run them by hand. The first run downloads;
+later ones do not.
+
+### Worktrees
+
+`.claude/worktrees/*` are working copies of the same repository on other
+branches. They are for parallel work, not for a second source of truth: a path
+under `.claude/worktrees/` in a command is either historical or a deliberate
+exception, and a document that names one as canonical is wrong.
 
 ## Database
 

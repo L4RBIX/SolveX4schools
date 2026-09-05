@@ -27,7 +27,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "predev": "node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
+    "predev": "node scripts/check-branch.mjs && node scripts/sync-pyodide-assets.mjs && node scripts/build-python-worker.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "dev": "next dev",
     "prebuild": "node scripts/strip-python-assets.mjs && node scripts/sync-cpp17-assets.mjs && node scripts/build-cpp-worker.mjs",
     "build": "next build",

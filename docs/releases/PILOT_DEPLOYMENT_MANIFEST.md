@@ -4,9 +4,16 @@ Everything an operator needs to deploy this release, and nothing that would be
 unsafe to commit. **No secret VALUES appear here or anywhere in this
 repository** — only variable names and how to generate them.
 
-Every number below was measured during the production-closure pass against a
-real PostgreSQL, a real Judge0 subscription, a real DeepSeek key and a real
-browser. Nothing here is an estimate.
+Every number below was measured. Nothing here is an estimate.
+
+> **Corrected 2026-09-05.** This document described the PYTHON-era deployment —
+> Pyodide in the browser, Judge0 language 113, a `standalone` Node process, 22
+> migrations, leagues dark — for as long as production had been serving the
+> C++17 product on Vercel. Every one of those was wrong about the running
+> system, and an operator following it would have deployed the wrong thing the
+> right way. The facts below were re-measured against the deployed SHA;
+> `tests/school/deployment-docs-are-true.test.ts` now checks the load-bearing
+> ones against the code on every run, so this cannot drift silently again.
 
 ---
 
@@ -14,11 +21,22 @@ browser. Nothing here is an estimate.
 
 | | |
 |---|---|
-| Branch | `pilot-release-candidate` |
-| Release SHA | `git rev-parse HEAD` on this branch |
-| Previous acceptance | `ef1e449` |
-| Rollback SHA | `ef1e449` — see §12 before using it |
-| Backup ref | `refs/backup/pre-final-production-closure-20260831` |
+| Branch | **`cpp17-migration`** — this is `origin/master`, and it is what Vercel deploys |
+| Release SHA | `git rev-parse origin/master` |
+| Previously deployed | `cf63b58` (verified against the Vercel deployment API, not assumed) |
+| Rollback SHA | `cf63b58` — see §11 |
+| Backup refs | `backup/pre-p0-*` tags, one per branch that existed before this pass |
+
+**There is one branch and one checkout.** `pilot-release-candidate` is the
+Python-era product, 49 commits behind, and `npm run dev` on it starts a server
+that returns 200 and serves a retired product.
+
+It also carries 3 commits that exist nowhere else — two Dockerfile fixes and a
+`DEMO_AUTOLOGIN_USERNAME` switch that makes a deployment sign-in-free. They are
+preserved at `backup/pre-p0-pilot-release-candidate-head` and none of them is in
+production. **Do not merge that branch to get the Docker fixes**: the same merge
+brings the autologin switch, which turns every anonymous visitor into a real
+enrolled account. See `docs/DEVELOPMENT.md`.
 
 ---
 
@@ -26,21 +44,45 @@ browser. Nothing here is an estimate.
 
 | | |
 |---|---|
+| Platform | **Vercel**, serverless functions. Region `sin1`; plan **Hobby** |
 | Node | **24** (`.nvmrc`; `engines.node >= 24`). Verified on v24.14.1 |
 | Package manager | `npm ci` — never `npm install` on a deploy |
-| Build | `npm run build` |
-| Output mode | `standalone` — a long-running Node process |
-| Start | `node .next/standalone/server.js` |
+| Build | `npm run build` (Vercel runs it) |
+| Output mode | Vercel's own. `output: "standalone"` is OFF there — see below |
+| Start | Nothing to start. Vercel serves the build |
 | Health | `GET /api/health` |
+| Scheduled work | `GET /api/cron`, daily, from `vercel.json` |
 
-`output: "standalone"` is load-bearing rather than an optimisation: the reducer
-runs on an in-process interval. **Do not deploy to a request-scoped serverless
-runtime** without wiring an external cron to `POST /api/learning/reduce`.
+### `standalone` is off on Vercel, deliberately
 
-### The copy step, which is easy to miss
+`next.config.ts` sets `output: "standalone"` **except** when `VERCEL` is set.
+The two modes disagree about one artefact: Vercel's post-build step reads
+`.next/next-server.js.nft.json`, which a standalone build does not emit, and the
+deployment compiled every page and then died with `ENOENT` on that file.
 
-Next does not copy static assets into the standalone bundle. Without these two
-lines the app boots and serves unstyled HTML with no Pyodide:
+So there is **no `cp -r .next/static …` step on Vercel** and no long-running
+Node process. The manifest previously documented both, because it was written
+for the self-hosted path.
+
+### What that costs, and what replaces it
+
+A serverless function is created for a request and frozen after it, so an
+in-process `setInterval` fires zero times. Two of them existed:
+
+- the reducer sweep — also request-driven through `after()`, so without an
+  interval the projections lag rather than being wrong;
+- league settlement — which now happens inside the award that would otherwise
+  read a stale tier, so it does not depend on a schedule at all.
+
+`config.sweep.inProcess` therefore defaults to OFF where `VERCEL` is set, and
+`vercel.json` schedules `GET /api/cron` daily as the backstop. The route is
+Bearer-authenticated with `LEARNING_CRON_SECRET` and answers 404 without it.
+
+### The self-hosted path
+
+Still supported and still `standalone`. It needs the copy step the previous
+version of this section described, and it needs `LEARNING_SWEEP_IN_PROCESS`
+left alone so the interval runs:
 
 ```bash
 npm ci
@@ -50,8 +92,10 @@ cp -r public       .next/standalone/public
 NODE_ENV=production node .next/standalone/server.js
 ```
 
-`public/` carries the ~9.6 MB Pyodide wasm and the Python stdlib, regenerated by
-`npm run build`'s prebuild hook.
+`public/` carries the **57 MB pinned C++17 toolchain** — `clang.wasm`,
+`lld.wasm`, `memfs.wasm`, `sysroot.tar` — fetched and checksummed by
+`npm run build`'s prebuild hook. It is served `immutable` with the pinned
+upstream commit in the URL; see `src/lib/cpp17/assets.ts`.
 
 ---
 
@@ -79,15 +123,34 @@ production."*
 
 `NOVA_PROVIDER=deepseek` · `EXEC_PROVIDER=judge0_rapidapi` ·
 `JUDGE0_RAPIDAPI_HOST=judge0-ce.p.rapidapi.com` (default) ·
-`JUDGE0_MAX_CONCURRENT_REQUESTS=2` (default) · `SCHOOL_ID` · `CLASS_ID`
+`JUDGE0_MAX_CONCURRENT_REQUESTS=6` (default) ·
+`JUDGE0_MAX_CONCURRENT_PER_LEARNER=1` (default) · `SCHOOL_ID` · `CLASS_ID`
+
+`LEARNING_CRON_SECRET` — `openssl rand -hex 32`. **Required on Vercel.** It is
+what `GET /api/cron` authenticates with, and without it that route answers 404
+and nothing is scheduled. It had no consumer anywhere in the product until this
+pass, which is why previous versions of this file said to leave it unset.
+
+### Leagues, and what "on" means
+
+| Variable | State |
+|---|---|
+| `LEAGUES_ENABLED` | **`true`** in `.env.example` and in the deployed configuration |
+| `LEAGUES_SCHOOLS` | The allowlist. **Set it.** `LEAGUES_ENABLED` alone turns leagues on for every school in the deployment |
+
+This section previously said leagues ship dark, and both environment files had
+them on. Student-visible peer ranking is a safeguarding decision; the
+documentation now says what the deployment does rather than what somebody
+intended, and `LEAGUES_SCHOOLS` is the control that makes "on" mean one named
+school.
 
 ### Deliberately NOT set
 
 | Variable | Why |
 |---|---|
-| `LEAGUES_ENABLED` | Leagues ship dark. Student-visible peer ranking needs explicit safeguarding authorisation. Unset means `/league` unreachable, no nav, no XP written, no settlement interval. |
-| `JUDGE0_LANGUAGE_ID` | Unset means the interpreter is discovered, not pinned. Measured: id **113**, `Python (3.14.0)`. |
+| `JUDGE0_LANGUAGE_ID` | Unset means the compiler is discovered, not pinned, and anything older than GCC 11 is refused. Measured: id **105**, `C++ (GCC 14.1.0)`. |
 | `EXEC_PYTHON_BIN`, `PISTON_URL` | Not used by this provider. |
+| `LEARNING_SWEEP_IN_PROCESS` | Defaults to OFF where `VERCEL` is set and ON everywhere else. Set it only to override that. |
 
 Optional but recommended: `LEARNING_ADMIN_TOKEN` (`openssl rand -hex 32`) for
 the admin health view.
@@ -100,9 +163,9 @@ the admin health view.
 |---|---|
 | Engine | PostgreSQL. Verified on **17.10** and pristine **16.14** |
 | Migrations | applied on boot, in filename order |
-| Count on an empty database | **22 applied**, 0 skipped |
+| Count on an empty database | **23 applied**, 0 skipped |
 | Idempotent re-run | verified — applies 0 |
-| Tables | 34 application tables + `schema_migrations` |
+| Tables | **35** application tables + 5 views + `schema_migrations` |
 | RLS | enabled on every table, **zero policies**, plus `revoke all … from anon, authenticated` |
 
 **Verify before trusting:**
@@ -130,12 +193,12 @@ Measured live. Full numbers: `docs/infrastructure/JUDGE0_LIVE_VALIDATION.md`.
 
 | | |
 |---|---|
-| Python | **3.14.0**, from `sys.version`, not the catalogue label |
-| Language id | **113**, discovered at runtime |
-| Conformance | **11 / 11** |
-| September parity | **25 / 25** |
-| Sandbox | network, filesystem, `os.environ` **closed**; tempfile and subprocess **open** |
-| One Check | ~6.2 s; 6 hidden cases = 6 billable submissions |
+| Compiler | **GCC 14.1.0**, `-std=gnu++17` by default; this plan refuses `compiler_options` |
+| Language id | **105**, discovered at runtime |
+| Batching | `enable_batched_submissions: true`, `max_submission_batch_size: 20` |
+| Queue | `max_queue_size: 10000` |
+| 429s observed | **zero**, across 41 requests and 8 billable submissions |
+| One Check | 8-case block, batched: **2.7 s** and 4 billable requests (9.7 s and 30 unbatched) |
 
 The plan sends quota under `x-ratelimit-submissions-*`, with `limit: 0` and a
 NEGATIVE `remaining` — that is **overage already incurred, not headroom**. The
@@ -146,9 +209,15 @@ read `quotaRemaining` without it.
 against the commitment in `docs/CODE_EXECUTION_DECISION.md`. A programme
 decision, taken knowingly.
 
-**RUN is not this.** The learner's Run button is Pyodide in their browser and
-costs nothing. Verified in a real browser: zero submit calls, zero
-`/api/exec/run` calls, zero external judge calls, repeatedly.
+**RUN is not this.** The learner's Run button is **Clang 8 compiled to
+WebAssembly, in their own browser**, and costs nothing. Verified: zero submit
+calls, zero `/api/exec/run` calls, zero external judge calls.
+
+The two disagree in ways worth knowing, and they are recorded in
+`docs/cpp17/CPP17_JUDGE_PARITY.md`: the browser links with exceptions disabled,
+runs 32-bit `long`/`size_t`, and treats `sleep_for` as returning immediately.
+Memory now agrees — the browser is capped at the judge's 256 MB — and the stack
+is 8 MiB against the judge's 64 MB, which is the stricter direction.
 
 ---
 
@@ -216,10 +285,10 @@ DATABASE_URL=… npx tsx scripts/provision-class.ts \
 #    Credentials print ONCE to stdout and are written nowhere. Capture them into
 #    a password manager or a sealed handover. Never into a file in this repo.
 
-# 5. build and start
-npm run build
-cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
-NODE_ENV=production node .next/standalone/server.js
+# 5. deploy
+#    On Vercel: push to `cpp17-migration`, or `vercel --prod`. There is no
+#    standalone bundle and no copy step there — see §2.
+#    Self-hosted: npm run build, then the copy step in §2.
 
 # 6. publish all nine months  (one human decision per month)
 for m in 1 2 3 4 5 6 7 8 9; do
@@ -237,7 +306,7 @@ psql "$DATABASE_URL" -c \
 # 8. verify learner unlock  (see §8 step 5-7)
 # 9. verify Judge0          (see §8 step 8)
 # 10. verify Nova           (see §8 step 9)
-# 11. confirm leagues dark  (see §8 step 4)
+# 11. confirm the league scope  (see §8 step 4)
 # 12. production smoke      (§8 in full)
 ```
 
@@ -253,7 +322,10 @@ Run in order. Any failure stops the launch.
    `database.durable: true`, `attestationConfigured: true`,
    `execution.provider: "judge0_rapidapi"`, `keyPresent: true`.
 3. `GET /dev` → **404**. `GET /brilliant` → **404**.
-4. `GET /league` → unreachable. `GET /api/league/me` → **401**.
+4. Leagues: `LEAGUES_SCHOOLS` names exactly the school you provisioned. A
+   learner in that school reaches `/league`; a learner in any other school gets
+   **404** from `/api/league/me`. If the allowlist is EMPTY, leagues are on for
+   every school in the deployment — that is the state to check for, not absence.
 5. Sign in as a provisioned learner with the one-time password → forced change →
    set a new one → the session is revoked → sign in again.
 6. **September opens. October does not.** `/lesson/m1.l1` → 200;
@@ -266,11 +338,21 @@ Run in order. Any failure stops the launch.
    spends nothing.
 9. Open Nova, ask in RU then KK → a contextual reply naming what the learner
    actually did, never asking them to describe their screen.
-10. Press Run → stdout from the browser interpreter, and no request leaves for a
-    judge.
-11. Sign in as the teacher → the roster is the provisioned class → the learner
-    from step 8 appears with truthful independent/assisted counts.
-12. No page scrolls horizontally at 375 px.
+10. Press Run → the compiler downloads with a visible byte counter
+    ("12 / 58 МБ"), then stdout appears, and **no request leaves for a judge**.
+    Reload: the toolchain comes from cache and Run is immediate.
+11. `curl -sI https://<host>/cpp17/clang.wasm?v=<pin>` → `cache-control: public,
+    max-age=31536000, immutable` and `content-type: application/wasm`.
+12. `curl -sI https://<host>/` → `content-security-policy` with
+    `frame-ancestors 'none'`, plus `x-content-type-options`, `referrer-policy`
+    and `permissions-policy`.
+13. `curl -s https://<host>/api/cron` → **404**; with
+    `Authorization: Bearer $LEARNING_CRON_SECRET` → **200** and a JSON report.
+14. Sign in as the teacher → the roster is the provisioned class → the learner
+    from step 8 appears with truthful independent/assisted counts, and the month
+    chip names **September**, not May. The month selector offers only months the
+    deployment serves.
+15. No page scrolls horizontally at 375 px.
 
 ---
 
@@ -300,13 +382,14 @@ hashes.
 | | |
 |---|---|
 | Nova (DeepSeek) | ON |
-| Judge0 SUBMIT | ON |
-| Pyodide RUN | ON (needs no configuration) |
+| Judge0 SUBMIT | ON — GCC 14.1.0, language id 105 |
+| Browser C++17 RUN | ON (needs no configuration; 57 MB, cached `immutable`) |
 | All nine months | **PUBLISHED** |
 | Learner access | September only, until earned |
-| Teacher dashboard | ON |
+| Teacher dashboard | ON — month derived per class, with a selector |
 | Human review | ON — exactly 4 mandatory blocks in the year |
-| Leagues | **OFF** |
+| Leagues | **ON**, scoped by `LEAGUES_SCHOOLS` |
+| Scheduled work | `GET /api/cron`, daily, `vercel.json` |
 | `/dev/*`, `/brilliant` | 404 in production |
 
 ---
@@ -316,13 +399,42 @@ hashes.
 **Content:** un-publish the month (§6). Immediate, audited, reversible, and
 learner work is kept.
 
-**Code:** `ef1e449`. **But never point it at an empty database** — it carries
-the migration defect fixed in `fe48ab7`. Roll back onto a database the fixed
-build has already migrated.
+**Code, on Vercel:** promote a previous deployment.
 
-Rolling back past this release also removes the unlock policy while leaving all
-nine months published, which would open the whole year to every learner. If you
-roll back the code, un-publish months 2–9 first.
+```bash
+vercel ls                       # find the last known-good production URL
+vercel promote <deployment-url> # instant; no rebuild
+```
+
+Or `vercel rollback`. Both are alias moves and take effect in seconds.
+
+**The SHA to go back to is `cf63b58`** — the deployment this hardening pass
+started from, verified against the Vercel deployment API rather than assumed.
+
+### What a rollback does NOT undo
+
+Migrations. Nothing in this pass adds one — the schema at `cf63b58` and the
+schema here are identical, so a code rollback is safe against the live
+database. That is a fact to re-check before every future release, because the
+general answer is different: **never roll a build back onto a database a later
+migration has already touched.**
+
+### And what it re-opens
+
+Rolling back past this pass restores, in order of harm:
+
+1. the answer key in the client bundle — every hidden case and reference
+   solution, on six learner routes;
+2. Submit with no rate limit, and a judge queue that leaves 20 of 30 learners
+   unmeasured;
+3. the forced password change enforced on pages only, so a one-time credential
+   reaches every API;
+4. the class-wide login lockout, reachable by anyone who can guess `<class>-NN`;
+5. a first Run that cannot finish on a slow connection.
+
+If you roll back the code, un-publish months 2–9 first: the unlock policy and
+the month gate move together, and an older build with all nine months published
+opens the year to every learner.
 
 ---
 

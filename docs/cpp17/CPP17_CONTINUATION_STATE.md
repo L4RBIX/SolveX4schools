@@ -11,8 +11,22 @@ The branch is `cpp17-migration`. The safety ref
 `refs/backup/cpp17-full-year-before-continuation-20260901-000635` is the state
 before this work began; nothing has been destroyed.
 
-Production — `solvex4schools.vercel.app` — is **untouched and still serving
-Python**, deliberately. The brief said not to move it, and it has not moved.
+> **Corrected 2026-09-05.** The paragraph below was true when it was written
+> and stopped being true when the cutover happened. It said production was
+> "still serving Python" while `solvex4schools.vercel.app` had been serving this
+> branch for some time — verified against the Vercel deployment API:
+> `gitCommitRef: cpp17-migration`, `gitCommitSha: cf63b58`. A snapshot document
+> that describes a moment has to say which moment, or it becomes a claim about
+> now.
+
+Production — `solvex4schools.vercel.app` — **serves this branch**. It is
+`origin/master`, and the deployed SHA at the time of writing was `cf63b58`.
+Check it rather than trusting this line:
+
+```
+vercel ls                                   # the production alias
+vercel inspect <deployment-url>             # and what it was built from
+```
 
 ## The one command that answers "is the content real"
 
@@ -38,7 +52,9 @@ lesson).
 - **The three failure paths behave.** Infinite loop killed at 3 s and the Run
   button returns by itself; 2,000,000 lines truncated at 64 KiB; a missing
   semicolon shows clang's own diagnostic with the caret, framed as «Это
-  собственные слова компилятора».
+  собственные слова компилятора». (That caption is now shown only for a BUILD
+  failure — a runtime trap is not the compiler talking and used to carry the
+  same words. See `runtimeFaultNote`.)
 - **The sandbox holds**, and structurally rather than luckily — see
   `CPP17_SANDBOX_AUDIT.md`.
 - **The trust boundary did not move.** `tests/cpp17/run-trust.test.ts` pins it,
