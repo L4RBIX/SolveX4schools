@@ -1,231 +1,220 @@
-> **Running SolveX4Schools?**
->
-> ```
-> cd /Users/kydyrbekbekarys/SolveX4schools
-> npm run dev     # http://localhost:3000
-> ```
->
-> This repository root is the canonical checkout, on branch
-> `pilot-release-candidate`. No worktree, no alternate port, no second
-> checkout. See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** for the
-> database, provisioning, publication and verification steps.
->
-> Everything below is the upstream website-cloner template this project was
-> scaffolded from, kept for reference.
+# SolveX4Schools
 
----
+Билингвальная платформа для обучения девятиклассников спортивному программированию. Девятимесячная программа объединяет короткие объяснения, практику на Python, проверяемые задания, персональные подсказки Nova и инструменты учителя.
 
-<div align="center">
+> Текущая ветка: `pilot-release-candidate`. Проект готовится к пилоту на один класс из 18 учеников.
 
-# AI Website Cloner Template
+![Урок программирования в SolveX4Schools](public/videos/solvex/lesson-coding.png)
 
-### Clone any website with one command
+## Что умеет платформа
 
-Give your AI coding agent a URL and watch it recreate the website as a clean Next.js app.
+- **Курс на девять месяцев.** Учебная программа разбита на месяцы, уроки, практику и итоговые проверки. Публикация контента и доступ ученика к следующему месяцу управляются отдельно.
+- **Интерактивные уроки.** Теория, прогноз результата, трассировка, поиск ошибки, восстановление порядка, написание кода и развёрнутые ответы показываются по одному блоку за раз.
+- **Запуск и проверка Python.** Кнопка «Запустить» выполняет код в браузере через Pyodide. «Проверить» отправляет решение доверенному серверному judge и не считает сбой инфраструктуры ошибкой ученика.
+- **Nova.** ИИ-помощник выдаёт подсказки по ступеням, учитывает предыдущие попытки и не подменяет решение готовым ответом.
+- **Learning Intelligence.** Событийный журнал хранит подтверждённые попытки, строит состояние навыков и отделяет самостоятельное решение от решения с помощью.
+- **Кабинет учителя.** Список учеников, прогресс, навыки, проверки, письменные ответы и сигналы, требующие внимания человека.
+- **Школьная модель доступа.** Школы, классы, учителя, ученики, одноразовые начальные пароли и обязательная смена пароля при первом входе.
+- **Казахский и русский интерфейс.** Язык можно переключать без выхода из урока. Также поддерживаются светлая/тёмная тема и уменьшение анимации.
 
-**Best results with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) + Opus 5. Works with Codex, Cursor, Gemini, and more.**
+## Стек
 
-[![Use this template](https://img.shields.io/badge/Use_this_template-Create_your_copy-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/JCodesMore/ai-website-cloner-template/generate) [![Discord](https://img.shields.io/badge/Join_the_community-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/hrTSX5yTpB)
+- Next.js 16, React 19, TypeScript strict
+- Tailwind CSS 4
+- PostgreSQL в production, PGlite для локальной разработки
+- Pyodide для локального запуска Python в браузере
+- Judge0 или Piston для доверенной серверной проверки
+- DeepSeek для Nova; локальный `echo`-провайдер для разработки
+- Vitest и Playwright
 
-[Quick Start](#quick-start) · [Watch Demo](#demo) · [Supported Platforms](#supported-platforms)
+## Быстрый запуск
 
-<a href="https://github.com/JCodesMore/ai-website-cloner-template/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a> <a href="https://github.com/JCodesMore/ai-website-cloner-template"><img src="https://img.shields.io/github/stars/JCodesMore/ai-website-cloner-template?style=flat" alt="Stars" /></a> <img src="https://img.shields.io/endpoint?url=https://gittokens.rsamf.com/badge/JCodesMore/ai-website-cloner-template" alt="tokens" />
+### Требования
 
-  <a href="https://trendshift.io/repositories/24302?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-24302" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/24302" alt="JCodesMore%2Fai-website-cloner-template | Trendshift" width="250" height="55" /></a> <a href="https://www.star-history.com/jcodesmore/ai-website-cloner-template/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=JCodesMore/ai-website-cloner-template&amp;theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=JCodesMore/ai-website-cloner-template" /><img alt="Star History Global Rank" src="https://api.star-history.com/badge?repo=JCodesMore/ai-website-cloner-template" width="216" height="55" /></picture></a>
+- Node.js 24+
+- npm
+- Python 3 для локальной серверной проверки решений
 
-<br />
-<sub><strong>SPONSORED BY</strong></sub>
-<br /><br />
-<a href="https://www.rapidproxy.io/?ref=JCM"><img src="docs/assets/sponsors/rapidproxy-banner.png" alt="RapidProxy residential proxy service" width="680" /></a>
-<br />
-<sub>Power your scraping and automation with 90M+ residential IPs, 500MB free traffic, and non-expiring bandwidth. <a href="https://www.rapidproxy.io/?ref=JCM">Explore RapidProxy →</a></sub>
-<br /><br />
-<a href="https://www.atlascloud.ai/?utm_source=github&amp;utm_medium=sponsor&amp;utm_campaign=ai-website-cloner-template">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/sponsors/atlas-cloud-logo-white.svg" />
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/sponsors/atlas-cloud-logo.svg" />
-    <img src="docs/assets/sponsors/atlas-cloud-logo.svg" alt="Atlas Cloud" width="240" />
-  </picture>
-</a>
-<br />
-<sub>Generate AI images, video, audio, and 3D assets through one API. <a href="https://www.atlascloud.ai/?utm_source=github&amp;utm_medium=sponsor&amp;utm_campaign=ai-website-cloner-template">Explore Atlas Cloud →</a></sub>
-
-</div>
-
----
-
-## Demo
-
-[![Watch the demo](docs/design-references/comparison.png)](https://youtu.be/O669pVZ_qr0)
-
-> Click the image above to watch the full demo on YouTube.
-
-## Quick Start
-
-> **Important:** Start by making your own copy with GitHub's **Use this template** button. Do not clone this template repository directly for your website project, and do not open pull requests here with your generated website.
-
-1. **Create your own repository from this template**
-
-   On the GitHub page for this project, click **Use this template**, then click **Create a new repository**.
-
-   Give your new repository a name, choose whether it should be public or private, then click **Create repository**. If GitHub shows an **Include all branches** option, you can leave it off.
-
-   This gives you your own separate project to work in, so your website changes stay in your account instead of coming back to the main template.
-
-2. **Open your new repository on your computer**
-
-   After GitHub creates your copy, open that new repository. Click **Code** and open or clone your new repository with your preferred coding tool.
-
-   If you use the terminal, the command will look like this:
-
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/YOUR-NEW-REPOSITORY.git
-   cd YOUR-NEW-REPOSITORY
-   ```
-
-3. **Install dependencies**
-   ```bash
-   npm install
-   ```
-4. **Start your AI agent** — Claude Code recommended:
-   ```bash
-   claude --chrome
-   ```
-5. **Run the skill**:
-   ```
-   /clone-website <target-url1> [<target-url2> ...]
-   ```
-6. **Customize** (optional) — after the base clone is built, modify as needed
-
-> Most supported clients expose `/clone-website` directly. If your client activates skills from natural-language requests, enter `Clone <target-url> using the clone-website workflow`. Project instructions are in `AGENTS.md`.
-
-## Supported Platforms
-
-| Agent                                                         | Status                     |
-| ------------------------------------------------------------- | -------------------------- |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | **Recommended** — Opus 5   |
-| [Codex CLI](https://github.com/openai/codex)                  | Supported                  |
-| [OpenCode](https://opencode.ai/)                              | Supported                  |
-| [GitHub Copilot](https://github.com/features/copilot)         | Supported                  |
-| [Kiro](https://kiro.dev/)                                    | Supported                  |
-| [Cursor](https://cursor.com/)                                 | Supported                  |
-| [Windsurf](https://codeium.com/windsurf)                      | Supported                  |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli)     | Supported                  |
-| [Cline](https://github.com/cline/cline)                       | Supported                  |
-| [Roo Code](https://github.com/RooCodeInc/Roo-Code)            | Supported                  |
-| [Continue](https://continue.dev/)                             | Supported                  |
-| [Amazon Q](https://aws.amazon.com/q/developer/)               | Supported                  |
-| [Augment Code](https://www.augmentcode.com/)                  | Supported                  |
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) 24+
-- An AI coding agent (see [Supported Platforms](#supported-platforms))
-
-## Tech Stack
-
-- **Next.js 16** — App Router, React 19, TypeScript strict
-- **shadcn/ui** — Radix primitives + Tailwind CSS v4
-- **Tailwind CSS v4** — oklch design tokens
-- **Lucide React** — default icons (replaced by extracted SVGs during cloning)
-
-## How It Works
-
-The `/clone-website` skill runs a multi-phase pipeline:
-
-```mermaid
-flowchart LR
-    P1["1. Reconnaissance"] --> P2["2. Foundation"]
-    P2 --> P3["3. Component Specs"]
-    P3 --> P4["4. Parallel Build"]
-    P4 --> P5["5. Assembly and QA"]
-```
-
-1. **Reconnaissance** — screenshots, design token extraction, interaction sweep (scroll, click, hover, responsive)
-2. **Foundation** — updates fonts, colors, globals, downloads all assets
-3. **Component Specs** — writes detailed spec files (`docs/research/components/`) with exact computed CSS values, states, behaviors, and content
-4. **Parallel Build** — dispatches builder agents in git worktrees, one per section/component
-5. **Assembly & QA** — merges worktrees, wires up the page, runs visual diff against the original
-
-Each builder agent receives the full component specification inline — exact `getComputedStyle()` values, interaction models, multi-state content, responsive breakpoints, and asset paths. No guessing.
-
-## Use Cases
-
-- **Platform migration** — rebuild a site you own from WordPress/Webflow/Squarespace into a modern Next.js codebase
-- **Lost source code** — your site is live but the repo is gone, the developer left, or the stack is legacy. Get the code back in a modern format
-- **Learning** — deconstruct how production sites achieve specific layouts, animations, and responsive behavior by working with real code
-
-## Not Intended For
-
-- **Phishing or impersonation** — this project must not be used for deceptive purposes, impersonation, or any activity that breaks the law.
-- **Passing off someone's design as your own** — logos, brand assets, and original copy belong to their owners.
-- **Violating terms of service** — some sites explicitly prohibit scraping or reproduction. Check first.
-
-## Project Structure
-
-```
-src/
-  app/              # Next.js routes
-  components/       # React components
-    ui/             # shadcn/ui primitives
-    icons.tsx       # Extracted SVG icons
-  lib/utils.ts      # cn() utility
-  types/            # TypeScript interfaces
-  hooks/            # Custom React hooks
-public/
-  images/           # Downloaded images from target
-  videos/           # Downloaded videos from target
-  seo/              # Favicons, OG images
-docs/
-  research/         # Extraction output & component specs
-  design-references/ # Screenshots
-scripts/
-  sync-agent-rules.sh  # Regenerate agent instruction files
-  sync-skills.mjs      # Regenerate /clone-website for all platforms
-.kiro/skills/          # Generated Kiro workspace skill
-.cline/skills/         # Generated Cline workspace skill
-.roo/skills/           # Generated Roo Code workspace skill
-.roo/commands/         # Generated Roo Code slash command
-AGENTS.md           # Agent instructions (single source of truth)
-CLAUDE.md           # Claude Code config (imports AGENTS.md)
-GEMINI.md           # Gemini CLI config (imports AGENTS.md)
-```
-
-## Commands
+### 1. Установите зависимости
 
 ```bash
-npm run dev    # Start dev server
-npm run build  # Production build
-npm run lint   # ESLint check
-npm run typecheck # TypeScript check
-npm run check  # Run lint + typecheck + build
+git clone https://github.com/L4RBIX/SolveX4schools.git
+cd SolveX4schools
+git switch pilot-release-candidate
+npm ci
 ```
 
-### If using docker
+Репозиторий приватный: для клонирования нужен доступ к аккаунту владельца.
+
+### 2. Создайте локальную конфигурацию
 
 ```bash
-docker compose up app --build # build and run the app
-docker compose up dev --build # run the app in dev mode on port 3001
+cp .env.example .env.local
 ```
 
-## Updating for Other Platforms
+Значения по умолчанию подходят для локальной разработки:
 
-Two source-of-truth files power all platform support. Edit the source, then run the sync script:
+```dotenv
+LEARNING_DATA_DIR=.data/learning
+NOVA_PROVIDER=echo
+EXEC_PROVIDER=local
+EXEC_PYTHON_BIN=python3
+```
 
-| What                   | Source of truth                         | Sync command                       |
-| ---------------------- | --------------------------------------- | ---------------------------------- |
-| Project instructions   | `AGENTS.md`                             | `bash scripts/sync-agent-rules.sh` |
-| `/clone-website` skill | `.claude/skills/clone-website/SKILL.md` | `node scripts/sync-skills.mjs`     |
+Локально используется PGlite, поэтому отдельный PostgreSQL не обязателен. Секреты и `.env.local` не коммитятся.
 
-Each script regenerates the platform-specific copies automatically. Agents that read the source files natively need no regeneration.
+### 3. Создайте тестовый класс
 
+```bash
+npm run school:provision -- \
+  --school innovation-tech \
+  --class grade-9a \
+  --class-name "9А" \
+  --teacher-name "Мұғалім" \
+  --students 18
+```
 
-## Star History
+Команда сама применит недостающие миграции и один раз выведет логины с начальными паролями. Эти пароли нигде не сохраняются — не перенаправляйте вывод в файл внутри репозитория.
 
-![Star History Chart](docs/assets/star-history.png)
+Добавьте идентификаторы класса в `.env.local`:
 
-## License
+```dotenv
+SCHOOL_ID=innovation-tech
+CLASS_ID=grade-9a
+```
 
-MIT
+### 4. Запустите приложение
 
-<sub>Translations: <a href="README.ja.md">日本語</a> · <a href="README.zh-CN.md">Simplified Chinese</a></sub>
+```bash
+npm run dev
+```
+
+Откройте [http://localhost:3000](http://localhost:3000). Подробности локальной разработки описаны в [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+## Основные команды
+
+| Команда | Назначение |
+| --- | --- |
+| `npm run dev` | Запустить dev-сервер на порту 3000 |
+| `npm run build` | Собрать production-версию |
+| `npm run start` | Запустить собранное приложение |
+| `npm run lint` | Проверить ESLint |
+| `npm run typecheck` | Проверить TypeScript |
+| `npm run test` | Запустить тесты Vitest |
+| `npm run test:python` | Запустить Python-тесты |
+| `npm run curriculum:validate` | Проверить структуру и связи учебной программы |
+| `npm run check` | Выполнить полный release gate |
+| `npm run school:provision -- …` | Создать школу, класс и аккаунты |
+| `npm run curriculum:publish -- …` | Опубликовать проверенный месяц |
+| `npm run curriculum:unpublish -- …` | Снять месяц с публикации |
+| `npm run db:verify-migrations` | Проверить миграции на чистой БД |
+
+Полный `npm run check` выполняет lint, typecheck, проверки учебного контента, тесты, production build и проверку клиентского бандла на утечки секретов.
+
+## Структура проекта
+
+```text
+src/app/                              страницы и API routes Next.js
+src/components/                       интерфейс ученика, учителя и публичные страницы
+schools/auth/                         аутентификация и сессии
+schools/curriculum/                   программа, уроки, навыки и публикация
+schools/exec/                         провайдеры выполнения и проверки кода
+schools/learning/                     адаптер Learning Intelligence
+schools/nova/                         политика подсказок и провайдер Nova
+schools/store/                        хранилище, драйверы и миграции
+schools/teacher/                      учительские проекции и review workflow
+packages/learning-contracts/          контракты событий обучения
+packages/learning-intelligence-core/  движок состояния и решений
+packages/nova-core/                   общая логика Nova
+tests/                                unit, integration и content-тесты
+docs/                                 архитектура, эксплуатация, аудиты и runbooks
+```
+
+## Как устроена проверка кода
+
+В проекте намеренно разделены два действия:
+
+1. **Run** выполняет черновой код ученика в Pyodide прямо в браузере. Это быстро, не требует внешнего сервиса и не создаёт учебного доказательства.
+2. **Submit** отправляет код на сервер, где Judge0 или Piston запускает его против скрытых тестов. Только этот результат может стать подтверждённым вердиктом.
+
+Если judge недоступен, ответ остаётся *неизмеренным*: система не записывает инфраструктурный сбой как неправильное решение ученика. Подробнее: [docs/infrastructure/HYBRID_EXECUTION.md](docs/infrastructure/HYBRID_EXECUTION.md).
+
+## База данных и прогресс
+
+Локально приложение может работать с PGlite в `.data/learning`. Для совместной разработки и production используется PostgreSQL через `DATABASE_URL`.
+
+Источник истины — append-only журнал учебных событий. Эпизоды, состояние навыков и учительские показатели являются восстанавливаемыми проекциями. Миграции применяются автоматически при открытии хранилища; отдельный ручной шаг перед обычным запуском не нужен.
+
+Для локального PostgreSQL:
+
+```bash
+createdb solvex_dev
+DATABASE_URL=postgres://localhost/solvex_dev npm run db:verify-migrations
+```
+
+Не направляйте разработку в базы `solvex_e2e` и `solvex_league_e2e`: тестовые сценарии очищают их. Подробности: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#database).
+
+## Production
+
+Production-конфигурация fail-closed: приложение откажется запускаться, если отсутствуют обязательный секрет аттестации, постоянная база, ключ Nova или рабочий серверный judge.
+
+Минимальный набор для пилотной конфигурации:
+
+```dotenv
+NODE_ENV=production
+DATABASE_URL=postgres://…
+LEARNING_ATTESTATION_SECRET=…
+NOVA_PROVIDER=deepseek
+DEEPSEEK_API_KEY=…
+EXEC_PROVIDER=judge0_rapidapi
+JUDGE0_RAPIDAPI_KEY=…
+```
+
+Ни один секрет не должен иметь префикс `NEXT_PUBLIC_`: такие значения Next.js встраивает в клиентский JavaScript. Полная таблица переменных и проверок находится в [docs/deployment/PRODUCTION_ENVIRONMENT.md](docs/deployment/PRODUCTION_ENVIRONMENT.md).
+
+Проверка состояния deployment:
+
+```bash
+curl -s https://<host>/api/health | jq
+```
+
+Для ежедневной работы пилота используйте [docs/pilot/PILOT_RUNBOOK.md](docs/pilot/PILOT_RUNBOOK.md).
+
+## Docker
+
+Production-сборка:
+
+```bash
+docker compose up app --build
+```
+
+Dev-контейнер на порту `3001`:
+
+```bash
+docker compose up dev --build
+```
+
+## Документация
+
+- [Локальная разработка](docs/DEVELOPMENT.md)
+- [Production environment](docs/deployment/PRODUCTION_ENVIRONMENT.md)
+- [Pilot runbook](docs/pilot/PILOT_RUNBOOK.md)
+- [Архитектура Learning Intelligence](docs/integration/LI_ARCHITECTURE.md)
+- [Гибридное выполнение Python](docs/infrastructure/HYBRID_EXECUTION.md)
+- [Политика самостоятельного открытия месяцев](docs/releases/SELF_PACED_UNLOCK_POLICY.md)
+- [Процедура публикации месяца](docs/releases/MONTHLY_PUBLICATION_PROCEDURE.md)
+- [Метрики учителя](docs/teacher/TEACHER_METRICS.md)
+- [Приватность Nova](docs/nova/PRIVACY.md)
+
+## Безопасность
+
+- Ключи провайдеров и строка подключения к БД доступны только серверу.
+- Ответы и скрытые тесты не отправляются в клиентский бандл.
+- Вердикты вычисляются на сервере и подписываются HMAC-аттестацией.
+- Ученический исходный код не записывается в payload событий обучения.
+- Письменные объяснения не оцениваются моделью автоматически и остаются на проверку учителю.
+- `npm run check:bundle` проверяет production-бандл на утечки секретов.
+
+## Лицензия
+
+Код распространяется по лицензии [MIT](LICENSE). Права на отдельные сторонние ассеты и их происхождение перечислены в [docs/THIRD_PARTY_ASSETS.md](docs/THIRD_PARTY_ASSETS.md).
